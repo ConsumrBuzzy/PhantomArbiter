@@ -167,9 +167,17 @@ class SpreadDetector:
         # Get live SOL price for gas calculation
         sol_price_usd = self._get_sol_price()
         
-        # Trading fees: 0.25% per swap x2 = 0.5% round trip (DEX fee)
-        trading_fee_pct = getattr(Settings, 'TRADING_FEE_PCT', 0.005)
-        trading_fees = trade_size * trading_fee_pct
+        # Per-DEX trading fees (actual fees vary by DEX)
+        DEX_FEES = {
+            "JUPITER": 0.0035,    # ~0.35% (includes route optimization)
+            "RAYDIUM": 0.0025,    # 0.25%
+            "ORCA": 0.0025,       # 0.25%
+            "PUMPFUN": 0.01,      # 1% (bonding curve)
+            "METEORA": 0.003,     # 0.3%
+        }
+        buy_fee_pct = DEX_FEES.get(buy_dex.upper(), 0.003)
+        sell_fee_pct = DEX_FEES.get(sell_dex.upper(), 0.003)
+        trading_fees = trade_size * (buy_fee_pct + sell_fee_pct)
         
         # Gas: ~5000 lamports per tx, ~2 txs = 0.00001 SOL base + priority
         # Priority varies 0.0001-0.001 SOL depending on congestion
