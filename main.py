@@ -151,6 +151,16 @@ def create_parser() -> argparse.ArgumentParser:
         help="Scan interval in seconds (default: 600)"
     )
     
+    # ═══════════════════════════════════════════════════════════════
+    # CLEAN SUBCOMMAND (Panic Button)
+    # ═══════════════════════════════════════════════════════════════
+    clean_parser = subparsers.add_parser(
+        "clean",
+        help="Liquidity Panic Button: Sell tokens for USDC/SOL"
+    )
+    clean_parser.add_argument("--token", type=str, help="Token Symbol (BONK) or Mint Address")
+    clean_parser.add_argument("--all", action="store_true", help="SELL EVERYTHING (Except USDC)")
+    
     return parser
 
 
@@ -329,6 +339,105 @@ async def cmd_monitor(args: argparse.Namespace) -> None:
         print("   Run: python run_profitability_monitor.py directly")
 
 
+async def cmd_clean(args: argparse.Namespace) -> None:
+    """
+    Emergency cleanup tool.
+    Dumps tokens to USDC/SOL.
+    """
+    from src.shared.execution.wallet import WalletManager
+    from src.shared.execution.swapper import JupiterSwapper
+    from config.settings import Settings
+    from src.shared.system.logging import Logger
+    
+    print("\\n" + "="*60)
+    print("   PHANTOM ARBITER - Wallet Cleaner 🧹")
+    print("="*60)
+    
+    # 1. Setup
+    Settings.ENABLE_TRADING = True
+    wallet = WalletManager()
+    if not wallet.keypair:
+        print("❌ No Private Key found. Cannot clean.")
+        return
+        
+    swapper = JupiterSwapper(wallet)
+    
+    # 2. Identify Targets
+    targets = [] # List of mints
+    
+    if args.all:
+        print("⚠️  WARNING: CLEANING ALL ASSETS (Except USDC)...")
+        confirm = input("   Type 'CONFIRM' to dump all bags: ")
+        if confirm.strip() != "CONFIRM":
+            print("   Cancelled.")
+            return
+            
+        print("   Scanning wallet...")
+        tokens = wallet.get_all_token_accounts()
+        for mint, bal in tokens.items():
+            if mint != Settings.USDC_MINT and bal > 0:
+                targets.append(mint)
+    
+    elif args.token:
+        # Resolve Symbol -> Mint
+        token_input = args.token.upper()
+        target_mint = None
+        
+        # Check Settings.ASSETS
+        if token_input in Settings.ASSETS:
+            target_mint = Settings.ASSETS[token_input]
+        elif len(token_input) > 30: # Assume Mint Address
+            target_mint = token_input
+        else:
+            print(f"❌ Unknown token symbol: {token_input}")
+            return
+            
+        targets.append(target_mint)
+        
+    else:
+        print("❌ Must specify --token <SYMBOL> or --all")
+        return
+        
+    if not targets:
+        print("✨ Wallet is clean! No targets found.")
+        return
+        
+    # 3. Execute Dumps
+    print(f"🔥 Dumping {len(targets)} assets...")
+    
+    for mint in targets:
+        info = wallet.get_token_info(mint)
+        if not info: continue
+            
+        symbol = "UNKNOWN"
+        # Reverse lookup logic or just use mint
+        for k, v in Settings.ASSETS.items():
+            if v == mint:
+                symbol = k
+                break
+                
+        bal = float(info["uiAmount"])
+        print(f"📉 Selling {bal:,.4f} {symbol or mint[:6]}...")
+        
+        # Use execute_swap with 0 amount -> Sells ALL
+        tx = swapper.execute_swap(
+            direction="SELL", 
+            amount_usd=0, 
+            reason="Clean Command", 
+            target_mint=mint,
+            priority_fee=100000 
+        )
+        
+        if tx:
+            print(f"✅ Sold: {tx}")
+        else:
+            print(f"❌ Failed to sell {symbol}")
+            
+        await asyncio.sleep(1.0) # Rate limit protection
+
+    print("🧹 Cleanup Complete.")
+
+
 async def main() -> None:
     """Main entry point."""
     parser = create_parser()
@@ -344,7 +453,9 @@ async def main() -> None:
         "discover": cmd_discover,
         "watch": cmd_watch,
         "scout": cmd_scout,
+        "scout": cmd_scout,
         "monitor": cmd_monitor,
+        "clean": cmd_clean,
     }
     
     handler = command_handlers.get(args.command)
