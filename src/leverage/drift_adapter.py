@@ -1,24 +1,25 @@
 """
-V48.0: Drift Protocol Adapter (STUB)
-====================================
-Interface for Drift perpetual futures protocol.
+V49.0: Drift Protocol Adapter (Unified)
+========================================
+Unified adapter for Drift perpetual futures protocol.
 
-Note: DriftPy SDK requires Python 3.10/3.11 with working build tools.
-      Currently stubbed - implement when SDK installation resolved.
+This module re-exports the full DriftAdapter from infrastructure
+for backwards compatibility with existing code that imports from here.
 
-Features (planned):
-- Funding rate fetching
-- Short position management
-- Collateral tracking
+The real implementation is in src/infrastructure/drift_adapter.py
 """
 
-from typing import Dict, Optional, List
+# Re-export from the full implementation
+from src.infrastructure.drift_adapter import DriftAdapter, DriftPosition
+
+# Data classes for compatibility
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
 class FundingRate:
-    """Funding rate data from Drift."""
+    """Funding rate data from Drift (for backwards compatibility)."""
     market: str
     rate: float           # Annualized rate
     rate_hourly: float    # Hourly rate
@@ -28,94 +29,13 @@ class FundingRate:
 
 @dataclass
 class Position:
-    """Open position on Drift."""
+    """Open position on Drift (alias for DriftPosition)."""
     market: str
     size: float           # Negative = short
     entry_price: float
     mark_price: float
     unrealized_pnl: float
     collateral: float
-
-
-class DriftAdapter:
-    """
-    V48.0: Drift Protocol adapter for perpetual futures.
-    
-    STUB IMPLEMENTATION - DriftPy SDK not installed.
-    
-    Planned Features:
-    - get_funding_rate(market) - Fetch current funding
-    - open_short(market, size) - Open short position
-    - close_position(market) - Close position
-    - get_positions() - List open positions
-    """
-    
-    SDK_AVAILABLE = False  # Set to True when DriftPy installed
-    
-    def __init__(self):
-        """Initialize Drift adapter."""
-        self._connected = False
-        print("   ⚠️ [DRIFT] Stub initialized - SDK not available")
-    
-    def is_available(self) -> bool:
-        """Check if Drift SDK is available."""
-        return self.SDK_AVAILABLE
-    
-    def get_funding_rate(self, market: str = "SOL-PERP") -> Optional[FundingRate]:
-        """
-        Fetch current funding rate for a market.
-        
-        Args:
-            market: Market symbol (e.g., "SOL-PERP")
-            
-        Returns:
-            FundingRate or None if unavailable
-        """
-        if not self.SDK_AVAILABLE:
-            print(f"   ⚠️ [DRIFT] get_funding_rate({market}) - STUB")
-            return None
-        
-        # TODO: Implement with DriftPy
-        # from driftpy.drift_client import DriftClient
-        # client = DriftClient(...)
-        # perp_market = client.get_perp_market_account(market_index)
-        # return FundingRate(...)
-        return None
-    
-    def get_positions(self) -> List[Position]:
-        """Get all open positions."""
-        if not self.SDK_AVAILABLE:
-            return []
-        
-        # TODO: Implement with DriftPy
-        return []
-    
-    def open_short(self, market: str, size_usd: float) -> Optional[str]:
-        """
-        Open a short position.
-        
-        Args:
-            market: Market symbol
-            size_usd: Position size in USD
-            
-        Returns:
-            Transaction ID or None
-        """
-        if not self.SDK_AVAILABLE:
-            print(f"   ⚠️ [DRIFT] open_short({market}, ${size_usd}) - STUB")
-            return None
-        
-        # TODO: Implement with DriftPy
-        return None
-    
-    def close_position(self, market: str) -> Optional[str]:
-        """Close all positions in a market."""
-        if not self.SDK_AVAILABLE:
-            print(f"   ⚠️ [DRIFT] close_position({market}) - STUB")
-            return None
-        
-        # TODO: Implement with DriftPy
-        return None
 
 
 # Singleton
@@ -125,5 +45,9 @@ def get_drift_adapter() -> DriftAdapter:
     """Get or create DriftAdapter singleton."""
     global _adapter
     if _adapter is None:
-        _adapter = DriftAdapter()
+        _adapter = DriftAdapter("mainnet")
     return _adapter
+
+
+# For imports that use old class name
+__all__ = ["DriftAdapter", "DriftPosition", "FundingRate", "Position", "get_drift_adapter"]
