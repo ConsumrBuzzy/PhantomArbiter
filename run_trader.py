@@ -91,9 +91,10 @@ class UnifiedTrader:
             print(f"\n❌ LIVE MODE FAILED: {e}")
             self.live_mode = False
     
-    async def scan_opportunities(self) -> List[Dict]:
+    async def scan_opportunities(self, verbose: bool = True) -> List[Dict]:
         """Scan for spatial arbitrage opportunities."""
         opportunities = []
+        all_spreads = []
         
         try:
             from src.arbitrage.core.spread_detector import SpreadDetector
@@ -117,27 +118,54 @@ class UnifiedTrader:
             
             spreads = detector.scan_all_pairs(pairs)
             
+            # Show all spreads
+            if verbose:
+                now = datetime.now().strftime("%H:%M:%S")
+                print(f"\n   [{now}] MARKET SCAN:")
+                print(f"   {'Pair':<12} {'Buy DEX':<10} {'Sell DEX':<10} {'Spread':<10} {'Status':<15}")
+                print("   " + "-"*55)
+            
             for opp in spreads:
-                if opp.spread_pct >= self.min_spread:
-                    # Check profitability
-                    gross = opp.spread_pct
-                    fees = 0.20  # 0.2% total
-                    net = gross - fees
-                    
-                    if net > 0:
-                        opportunities.append({
-                            "pair": opp.pair,
-                            "buy_dex": opp.buy_dex,
-                            "buy_price": opp.buy_price,
-                            "sell_dex": opp.sell_dex,
-                            "sell_price": opp.sell_price,
-                            "spread_pct": opp.spread_pct,
-                            "net_pct": net,
-                            "buy_mint": pairs[[p[0] for p in pairs].index(opp.pair)][1] if opp.pair in [p[0] for p in pairs] else None
-                        })
+                gross = opp.spread_pct
+                fees = 0.20
+                net = gross - fees
+                
+                # Determine status
+                if net > 0:
+                    status = "✅ PROFITABLE"
+                elif gross >= self.min_spread:
+                    status = "⚠️ Break-even"
+                else:
+                    status = "❌ Below min"
+                
+                if verbose:
+                    print(f"   {opp.pair:<12} {opp.buy_dex:<10} {opp.sell_dex:<10} +{opp.spread_pct:.2f}%     {status}")
+                
+                all_spreads.append({
+                    "pair": opp.pair,
+                    "spread_pct": opp.spread_pct,
+                    "status": status
+                })
+                
+                if net > 0:
+                    opportunities.append({
+                        "pair": opp.pair,
+                        "buy_dex": opp.buy_dex,
+                        "buy_price": opp.buy_price,
+                        "sell_dex": opp.sell_dex,
+                        "sell_price": opp.sell_price,
+                        "spread_pct": opp.spread_pct,
+                        "net_pct": net,
+                        "buy_mint": pairs[[p[0] for p in pairs].index(opp.pair)][1] if opp.pair in [p[0] for p in pairs] else None
+                    })
+            
+            if verbose and opportunities:
+                print(f"\n   🎯 {len(opportunities)} profitable opportunity found!")
                         
         except Exception as e:
             Logger.debug(f"Scan error: {e}")
+            if verbose:
+                print(f"   ⚠️ Scan error: {e}")
             
         return opportunities
     
@@ -260,8 +288,8 @@ class UnifiedTrader:
                             print()
                             break
                 else:
-                    # Status update on every scan
-                    print(f"   [{now}] Scanning... No profitable spread found (min: {self.min_spread}%)")
+                    # Scan already printed all spreads, no action needed
+                    pass
                 
                 await asyncio.sleep(scan_interval)
                 
