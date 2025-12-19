@@ -67,6 +67,10 @@ class JupiterSwapper:
                  amount_atomic = avail_atomic
                  Logger.info(f"📉 SELLING Entire Bag: {float(token_info['uiAmount']):.4f} tokens")
         
+        SLIPPAGE_TIERS = Settings.ADAPTIVE_SLIPPAGE_TIERS
+        mint = target_mint or Settings.TARGET_MINT
+        Logger.info(f"🚀 EXECUTION: {direction} ${amount_usd} ({reason})")
+        
         for tier_idx, slippage_bps in enumerate(SLIPPAGE_TIERS):
             try:
                 Logger.info(f"   📊 Tier {tier_idx+1}: Trying {slippage_bps/100:.1f}% slippage...")
