@@ -108,6 +108,13 @@ class WalletManager:
         except Exception as e:
             Logger.error(f"❌ Survival Error: {e}")
 
+    def get_token_decimals(self, mint_str):
+        """Helper to get decimals (default 6)."""
+        info = self.get_token_info(mint_str)
+        if info and "decimals" in info:
+            return int(info["decimals"])
+        return 6
+
     def get_token_info(self, mint_str):
         """
         Fetch full token account info (amount, decimals, uiAmount).
