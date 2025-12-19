@@ -62,8 +62,9 @@ class ArbitrageOrchestrator:
     def _init_telegram(self):
         """Initialize Telegram alerts."""
         try:
-            from src.arbiter.monitoring.telegram_alerts import ArbitrageTelegramAlerts
-            self._telegram = ArbitrageTelegramAlerts()
+            from src.shared.notification.telegram_manager import TelegramManager
+            self._telegram = TelegramManager()
+            self._telegram.start()
         except Exception as e:
             Logger.debug(f"Telegram init error: {e}")
         
