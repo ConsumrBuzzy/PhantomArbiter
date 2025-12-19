@@ -6,16 +6,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List
 
+# SOLANA / SOLDERS IMPORTS
 from solders.transaction import VersionedTransaction
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
+from solders.system_program import transfer, TransferParams
+
+# Load .env and Settings
+from dotenv import load_dotenv
+load_dotenv()
+from config.settings import Settings
+from src.system.logging import Logger
 
 class UnifiedTrader:
-    """
-    Unified trader that works in both paper and live mode.
-    Atomic Check: Bundles trades so they succeed or fail together.
-    """
-
     def __init__(
         self,
         budget: float = 50.0,
@@ -42,41 +45,46 @@ class UnifiedTrader:
         if live_mode:
             self._setup_live_mode()
 
-    # --- CORE ATOMIC METHODS ---
-
     async def prepare_atomic_bundle(self, opportunity: Dict, amount: float) -> VersionedTransaction:
-        """Bundles Buy and Sell into a single VersionedTransaction."""
+        """Bundles Buy + Sell + Jito Tip into one atomic package."""
         USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        JITO_TIP_ADDRESS = "96g9sRestpBwaMbuEhc28Dcx2w57C8asLx1uWBYEAm8B"
         target_mint = opportunity["buy_mint"]
 
-        # 1. Get BUY Instructions from Jupiter (Slippage 0.5% for safety)
+        # 1. Get BUY Instructions (Slippage 0.5%)
         buy_quote = await self.swapper.get_quote(USDC_MINT, target_mint, amount, slippage=50)
         buy_ix = await self.swapper.get_swap_instructions(buy_quote)
         
-        # 2. Get SELL Instructions (using the expected output of the buy)
+        # 2. Get SELL Instructions
         sell_quote = await self.swapper.get_quote(target_mint, USDC_MINT, buy_quote['outAmount'], slippage=50)
         sell_ix = await self.swapper.get_swap_instructions(sell_quote)
         
-        # 3. Combine Instructions (Setup + Swaps + Cleanup)
-        all_ix = buy_ix + sell_ix
+        # 3. Add Jito Tip (100,000 Lamports = ~0.0001 SOL / $0.02)
+        # This tip is only paid if the transaction actually lands.
+        tip_ix = transfer(TransferParams(
+            from_pubkey=self.wallet_manager.keypair.pubkey(),
+            to_pubkey=Pubkey.from_string(JITO_TIP_ADDRESS),
+            lamports=100_000 
+        ))
         
-        # 4. Compile Transaction
+        # 4. Combine everything
+        all_ix = buy_ix + sell_ix + [tip_ix]
+        
         recent_blockhash = await self.wallet_manager.client.get_latest_blockhash()
         msg = MessageV0.try_compile(
             self.wallet_manager.keypair.pubkey(), 
             all_ix, 
-            [], 
+            [], # Lookup tables can be added here
             recent_blockhash.value.blockhash
         )
         
         return VersionedTransaction(msg, [self.wallet_manager.keypair])
 
     async def execute_trade(self, opportunity: Dict) -> Dict:
-        """Execute a truly atomic trade using bundled instructions."""
+        """Atomic execution with pre-flight simulation shield."""
         USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         pair = opportunity["pair"]
 
-        # Determine Amount
         if self.live_mode and self.full_wallet:
             real_balance = self.wallet_manager.get_balance(USDC_MINT)
             amount = min(real_balance, self.max_trade if self.max_trade > 0 else float('inf'))
@@ -87,46 +95,37 @@ class UnifiedTrader:
         if not self.live_mode:
             return self._execute_paper_trade(opportunity, amount)
 
-        # 🔴 LIVE ATOMIC EXECUTION
         try:
-            Logger.info(f" 🛡️ Running Atomic Check for {pair} (${amount:.2f})...")
+            Logger.info(f" 🛡️ Running Atomic Check for {pair}...")
             
-            # 1. Build Bundle
             atomic_tx = await self.prepare_atomic_bundle(opportunity, amount)
             
-            # 2. Pre-flight Simulation (THE SHIELD)
-            # This verifies the outcome before sending to the network
+            # THE SHIELD: Simulate before sending
             simulation = await self.wallet_manager.client.simulate_transaction(atomic_tx)
             
             if simulation.value.err:
-                err_msg = str(simulation.value.err)
-                Logger.error(f" ❌ Atomic Check Failed: {err_msg}")
-                return {"success": False, "error": f"Simulation failed: {err_msg}"}
+                Logger.error(f" ❌ Atomic Check Failed: {simulation.value.err}")
+                return {"success": False, "error": "Simulation failed"}
 
-            # 3. Execute
-            Logger.info(f" 🚀 Simulation Passed. Sending Atomic Transaction...")
+            Logger.info(f" 🚀 Simulation Passed. Sending Jito Bundle...")
             sig_res = await self.wallet_manager.client.send_transaction(atomic_tx)
             sig = sig_res.value
             
             if sig:
                 Logger.success(f" ✅ Atomic Arb Landed! Sig: {str(sig)[:8]}...")
-                await asyncio.sleep(2) # RPC sync buffer
+                await asyncio.sleep(2)
                 new_bal = self.wallet_manager.get_balance(USDC_MINT)
                 profit = new_bal - real_balance
                 self.current_balance = new_bal
                 self.total_profit += profit
                 self.total_trades += 1
-                
-                trade = {"timestamp": time.time(), "pair": pair, "net_profit": profit, "mode": "LIVE"}
-                self.trades.append(trade)
-                return {"success": True, "trade": trade}
+                return {"success": True, "trade": {"net_profit": profit, "pair": pair}}
             
         except Exception as e:
             Logger.error(f" 💥 Execution Error: {str(e)}")
             return {"success": False, "error": str(e)}
 
     def _execute_paper_trade(self, opportunity, amount):
-        """Logic for paper simulation."""
         gross_profit = amount * (opportunity["spread_pct"] / 100)
         fees = amount * 0.002
         net_profit = gross_profit - fees
