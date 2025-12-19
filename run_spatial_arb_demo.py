@@ -92,10 +92,11 @@ async def execute_spatial_flip(opportunity, budget: float = 100.0):
     result = await executor.execute_spatial_arb(opportunity, trade_size=budget)
     
     if result.success:
+        fees = getattr(result, 'total_fees', 0) or getattr(result, 'fees_paid', 0) or 0
         print(f"\n   ✅ FLIP COMPLETE!")
         print(f"   Input:     ${result.total_input:.2f}")
         print(f"   Output:    ${result.total_output:.2f}")
-        print(f"   Fees:      ${result.total_fees:.4f}")
+        print(f"   Fees:      ${fees:.4f}")
         print(f"   Net P&L:   ${result.net_profit:+.4f}")
         print(f"   ROI:       {(result.net_profit/budget)*100:+.3f}%")
         print(f"   Time:      {result.execution_time_ms}ms")
@@ -224,8 +225,8 @@ async def run_spatial_demo(budget: float = 100.0, min_spread: float = 0.2):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Spatial Arbitrage Demo")
-    parser.add_argument("--budget", type=float, default=100.0, help="Budget in USD (default: 100)")
-    parser.add_argument("--min-spread", type=float, default=0.2, help="Minimum spread % (default: 0.2)")
+    parser.add_argument("--budget", type=float, default=100.0, help="Budget in USD, default 100")
+    parser.add_argument("--min-spread", type=float, default=0.2, help="Minimum spread percent, default 0.2")
     
     args = parser.parse_args()
     
