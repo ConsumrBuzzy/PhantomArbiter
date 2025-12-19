@@ -272,21 +272,22 @@ class PhantomArbiter:
         print("-" * 60)
         
         # Format for Telegram Dashboard (Code Block)
+        # Format for Telegram Dashboard (Code Block)
         tg_table = [
             f"[{now}] MARKET SCAN | P/L: ${self.tracker.daily_profit:+.2f}",
-            f"{'Pair':<10} {'Spread':<7} {'Net':<8} {'Status'}",
-            "-" * 35
+            f"{'Pair':<12} {'Spread':<8} {'Net':<8} {'St'}",
+            "-" * 40
         ]
         
-        # Add top 10 rows to TG table
-        for i, opp in enumerate(spreads[:10]):
+        # Add ALL rows to TG table (no slice limit)
+        for i, opp in enumerate(spreads):
             verified = verified_map.get(opp.pair)
             status = "❌"
-            net = f"${opp.net_profit_usd:.2f}"
-            spread = f"{opp.spread_pct:.1f}%"
+            net = f"${opp.net_profit_usd:+.2f}"
+            spread = f"{opp.spread_pct:+.2f}%"
             
             if verified:
-                net = f"${verified.net_profit_usd:.2f}"
+                net = f"${verified.net_profit_usd:+.2f}"
                 if "LIVE" in (verified.verification_status or ""):
                     status = "✅"
                 elif "SCALED" in (verified.verification_status or ""):
@@ -294,7 +295,7 @@ class PhantomArbiter:
                 elif "LIQ" in (verified.verification_status or ""):
                     status = "💧" # Liquid drop for liquidity fail
             
-            tg_table.append(f"{opp.pair[:9]:<10} {spread:<7} {net:<8} {status}")
+            tg_table.append(f"{opp.pair[:11]:<12} {spread:<8} {net:<8} {status}")
             
         if profitable_count:
             tg_table.append(f"\n🎯 {profitable_count} Opportunities!")
