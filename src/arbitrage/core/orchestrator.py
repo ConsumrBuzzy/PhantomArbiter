@@ -43,6 +43,11 @@ class ArbitrageOrchestrator:
         self.dashboard = LiveDashboard(budget=self.config.budget)
         self.dashboard.mode = self.config.mode
         
+        # Initialize Telegram alerts (if enabled)
+        self._telegram = None
+        if self.config.telegram_enabled:
+            self._init_telegram()
+        
         # Initialize components (lazy loaded)
         self._feeds = []
         self._spread_detector = None
@@ -51,6 +56,16 @@ class ArbitrageOrchestrator:
         # State
         self.running = False
         self.last_tick = 0.0
+        self.last_telegram_status = 0.0
+        self.telegram_status_interval = 300.0  # 5 minutes
+    
+    def _init_telegram(self):
+        """Initialize Telegram alerts."""
+        try:
+            from src.arbitrage.monitoring.telegram_alerts import ArbitrageTelegramAlerts
+            self._telegram = ArbitrageTelegramAlerts()
+        except Exception as e:
+            Logger.debug(f"Telegram init error: {e}")
         
     def _init_feeds(self):
         """Initialize price feeds for all supported DEXs."""

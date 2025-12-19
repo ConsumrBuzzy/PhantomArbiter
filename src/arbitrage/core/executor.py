@@ -118,101 +118,84 @@ class ArbitrageExecutor:
         """
         Execute spatial arbitrage (cross-DEX spread).
         
-        Strategy:
-        1. Get quote for buy leg (via Jupiter to best DEX)
-        2. Get quote for sell leg (via Jupiter to best DEX)
-        3. Execute as atomic bundle if possible
-        
-        In practice, since Jupiter already aggregates, we just do:
-        1. Swap USDC → Token (at best price)
-        2. Swap Token → USDC (at best price)
-        
-        The spread exists because different routes may have momentary
-        inefficiencies.
+        In PAPER mode: Fully simulated based on opportunity data
+        In LIVE mode: Uses real Jupiter quotes and execution
         """
         trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
         start_time = time.time()
         
-        # Token mints
-        USDC = Settings.USDC_MINT
-        token_mint = opportunity.base_mint
-        
         try:
-            # Step 1: Get buy quote (USDC → Token)
-            Logger.info(f"[EXEC] Getting buy quote for ${trade_size:.2f} → {opportunity.pair}")
-            
-            router = self._get_smart_router()
-            
-            # Convert USDC to atomic units (6 decimals)
-            usdc_amount = int(trade_size * 1_000_000)
-            
-            buy_quote = router.get_jupiter_quote(
-                USDC,
-                token_mint,
-                usdc_amount,
-                slippage_bps=50
-            )
-            
-            if not buy_quote:
-                return self._error_result("Failed to get buy quote", start_time)
-            
-            token_amount = int(buy_quote.get('outAmount', 0))
-            buy_price = usdc_amount / token_amount if token_amount > 0 else 0
-            
-            Logger.info(f"[EXEC] Buy: ${trade_size:.2f} → {token_amount / 1e9:.6f} tokens")
-            
-            # Step 2: Execute based on mode
             legs = []
             
             if self.mode == ExecutionMode.PAPER:
-                # Simulate buy
+                # ═══ PAPER MODE: Full simulation ═══
+                Logger.info(f"[EXEC] Paper trade: ${trade_size:.2f} {opportunity.pair}")
+                
+                # Calculate token amount based on buy price
+                token_amount = trade_size / opportunity.buy_price
+                
+                # Simulate buy leg
                 buy_result = TradeResult(
                     success=True,
                     trade_type="BUY",
                     input_token="USDC",
                     output_token=opportunity.pair.split("/")[0],
                     input_amount=trade_size,
-                    output_amount=token_amount / 1e9,
-                    price=buy_price * 1e3,  # Scale for display
-                    fee_usd=trade_size * 0.001,  # 0.1% fee estimate
-                    signature=None,
+                    output_amount=token_amount,
+                    price=opportunity.buy_price,
+                    fee_usd=trade_size * 0.001,  # 0.1% fee
+                    signature="PAPER_" + str(int(time.time())),
                     error=None,
                     timestamp=time.time(),
-                    execution_time_ms=200
+                    execution_time_ms=150
                 )
                 legs.append(buy_result)
                 
-                # Simulate sell (immediate, same price with spread)
-                sell_output = trade_size * (1 + opportunity.spread_pct / 100)
-                sell_output -= sell_output * 0.003  # ~0.3% round trip cost
+                # Simulate sell leg at sell price
+                sell_output = token_amount * opportunity.sell_price
+                sell_output *= 0.999  # 0.1% slippage simulation
                 
                 sell_result = TradeResult(
                     success=True,
                     trade_type="SELL",
                     input_token=opportunity.pair.split("/")[0],
                     output_token="USDC",
-                    input_amount=token_amount / 1e9,
+                    input_amount=token_amount,
                     output_amount=sell_output,
-                    price=sell_output / (token_amount / 1e9),
+                    price=opportunity.sell_price,
                     fee_usd=sell_output * 0.001,
-                    signature=None,
+                    signature="PAPER_" + str(int(time.time()) + 1),
                     error=None,
                     timestamp=time.time(),
-                    execution_time_ms=200
+                    execution_time_ms=150
                 )
                 legs.append(sell_result)
                 
             elif self.mode == ExecutionMode.LIVE:
-                # Real execution
+                # ═══ LIVE MODE: Real execution ═══
+                USDC = Settings.USDC_MINT
+                token_mint = opportunity.base_mint
+                
+                Logger.info(f"[EXEC] LIVE: Getting quote for ${trade_size:.2f} → {opportunity.pair}")
+                
+                router = self._get_smart_router()
+                usdc_amount = int(trade_size * 1_000_000)
+                
+                buy_quote = router.get_jupiter_quote(
+                    USDC, token_mint, usdc_amount, slippage_bps=50
+                )
+                
+                if not buy_quote:
+                    return self._error_result("Failed to get buy quote", start_time)
+                
                 buy_result = await self._execute_swap(buy_quote)
                 if not buy_result.success:
                     return self._error_result(f"Buy failed: {buy_result.error}", start_time)
                 legs.append(buy_result)
                 
-                # Get sell quote with actual token amount received
+                # Get sell quote
                 sell_quote = router.get_jupiter_quote(
-                    token_mint,
-                    USDC,
+                    token_mint, USDC,
                     int(buy_result.output_amount * 1e9),
                     slippage_bps=50
                 )
@@ -225,7 +208,7 @@ class ArbitrageExecutor:
                 legs.append(sell_result)
                 
             else:
-                # DRY_RUN - just log
+                # DRY_RUN
                 Logger.info(f"[EXEC] DRY RUN - would execute {opportunity.pair} arb")
                 return self._error_result("Dry run - no execution", start_time)
             
