@@ -190,7 +190,7 @@ class SpreadDetector:
             sell_price=sell_price,
             spread_pct=spread_pct,
             gross_profit_usd=gross_profit,
-            estimated_fees_usd=total_fees,
+            estimated_fees_usd=fees.total_usd,
             net_profit_usd=net_profit,
             max_size_usd=trade_size,
             confidence=0.9,
