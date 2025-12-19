@@ -33,7 +33,8 @@ class SmartRouter:
         
         # V11.9: Load and filter endpoints (skip disabled, filter missing keys)
         self.endpoints = self._get_valid_endpoints()
-        self.jupiter_url = self.config.get("JUPITER_API_BASE", "https://quote-api.jup.ag/v6")
+        # V12.0: Use official api.jup.ag endpoint (resolvable)
+        self.jupiter_url = self.config.get("JUPITER_API_BASE", "https://api.jup.ag/swap/v1")
         
         # Load and clean API Key
         self.jupiter_api_key = os.getenv("JUPITER_API_KEY", "").strip("'\" ")
