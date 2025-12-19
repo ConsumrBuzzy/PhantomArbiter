@@ -49,15 +49,23 @@ def test():
         # Jupiter
         if jup:
             try:
-                # Debug V2 direct
-                v2_resp = jup.router.get_jupiter_price_v2(mint)
-                print(f"  Jup V2 Raw: {str(v2_resp)[:100]}...")
+                # Debug V2 direct via requests (Bypass Router)
+                import requests
+                url = "https://api.jup.ag/price/v2"
+                params = {"ids": mint, "vsToken": USDC}
+                print(f"  Testing URL: {url}?ids={mint}&vsToken={USDC}")
+                resp = requests.get(url, params=params, timeout=5)
+                print(f"  Direct Resp: {resp.status_code}")
+                if resp.status_code != 200:
+                    print(f"  Body: {resp.text[:100]}")
+                else:
+                    print(f"  Body: {str(resp.json())[:100]}")
                 
                 q = jup.get_quote(USDC, mint, 10.0)
                 if q: print(f"  Jupiter: ${q.price:.4f}")
                 else: print(f"  Jupiter: None")
             except Exception as e:
-                print(f"  Jupiter: Error {e}")
+                print(f"  Jupiter Error: {e}")
 
         # Raydium (Uses DexScreener)
         if ray:
