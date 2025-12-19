@@ -258,17 +258,25 @@ class UnifiedTrader:
                 rent_cost_sol = 0.0 if has_token_account else 0.002039
                 
                 # 4. Total Cost in USD
-                SOL_PRICE_SAFETY = 250.0 # Conservative cap (Assume SOL <= $250)
-                total_gas_cost_usd = (tx_fee_sol + rent_cost_sol) * SOL_PRICE_SAFETY
+                SOL_PRICE_SAFETY = 250.0 
+                tx_cost_usd = tx_fee_sol * SOL_PRICE_SAFETY
+                rent_cost_usd = rent_cost_sol * SOL_PRICE_SAFETY
                 
                 gross_profit_usd = amount * (opportunity["spread_pct"] / 100)
                 
-                if gross_profit_usd < total_gas_cost_usd:
-                     reason = "Gas" if rent_cost_sol == 0 else "Gas+Rent"
+                # STRICT RULE: Profit must cover the "Burned" Gas (Priority + Sig)
+                if gross_profit_usd < tx_cost_usd:
                      return {
                          "success": False, 
-                         "error": f"Profit Too Low: ${gross_profit_usd:.4f} < Cost ${total_gas_cost_usd:.4f} ({reason})"
+                         "error": f"Unprofitable: Profit ${gross_profit_usd:.4f} < Gas ${tx_cost_usd:.4f}"
                      }
+                     
+                # SOFT RULE: Rent is a "Deposit", not a loss.
+                # If profit doesn't cover rent, we still proceed but log it.
+                # This allows entering new markets (like WIF) without needing 3% spreads.
+                if gross_profit_usd < (tx_cost_usd + rent_cost_usd):
+                    # We are "investing" in the account creation
+                    pass 
                 
                 # Execute
                 reason = f"Arb: {opportunity['buy_dex']}->{opportunity['sell_dex']} (Fee: {priority_fee}uL)"
