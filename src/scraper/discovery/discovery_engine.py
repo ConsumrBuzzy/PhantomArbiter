@@ -19,13 +19,13 @@ import asyncio
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
-from src.infrastructure.rpc_balancer import get_rpc_balancer
-from src.system.logging import Logger
+from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
+from src.shared.system.logging import Logger
 
 # Persistence file
 WATCHLIST_FILE = os.path.join(os.path.dirname(__file__), "../../data/smart_money_watchlist.json")
 
-from src.agents.base_agent import BaseAgent, AgentSignal
+from src.scraper.agents.base_agent import BaseAgent, AgentSignal
 
 class DiscoveryEngine(BaseAgent):
     def __init__(self):

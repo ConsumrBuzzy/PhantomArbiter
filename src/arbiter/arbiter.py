@@ -368,19 +368,46 @@ class PhantomArbiter:
         end_time = start_time + (duration_minutes * 60) if duration_minutes > 0 else float('inf')
         
         last_trade_time: Dict[str, float] = {}
-        last_signal_check = 0.0
         cooldown = 5
         wake_event = asyncio.Event()
+
+        # ═══════════════════════════════════════════════════════════════════
+        # SIGNAL COORDINATOR (External Triggers)
+        # ═══════════════════════════════════════════════════════════════════
+        from src.arbiter.core.signal_coordinator import SignalCoordinator, CoordinatorConfig
+        
+        # Callback for WSS triggers:
+        # 1. Notify scanner to boost rate for this pair
+        # 2. Wake up main loop instantly
+        def on_activity(symbol):
+            if adaptive_mode and monitor:
+                # Map symbol to pair key if needed? 
+                # monitor.trigger_activity expects pair key (e.g. "SOL/USDC")
+                # We can construct it or pass symbol if monitor is smart.
+                # Simplest: "SYMBOL/USDC"
+                monitor.trigger_activity(f"{symbol}/USDC")
+                wake_event.set()
+
+        signal_config = CoordinatorConfig(
+            wss_enabled=adaptive_mode, # Only use WSS in adaptive mode
+            pairs=self.config.pairs,
+            scraper_poll_interval=60
+        )
+        
+        coordinator = SignalCoordinator(signal_config, on_activity)
+        await coordinator.start()
 
         try:
             while time.time() < end_time:
                 now = datetime.now().strftime("%H:%M:%S")
                 wake_event.clear()
                 
-                # Signal Bridge: Poll for new hot tokens every 60s
-                if time.time() - last_signal_check > 60:
-                     self._check_signals()
-                     last_signal_check = time.time()
+                # 1. Poll Scraper Signals
+                new_pairs = coordinator.poll_signals()
+                if new_pairs:
+                    self.config.pairs.extend(new_pairs)
+                    await coordinator.register_new_pairs(new_pairs)
+                    print(f"   [{now}] 🧠 Added {len(new_pairs)} hot tokens from Scraper")
                 
                 # Live mode maintenance
                 if self.config.live_mode and self._wallet:
