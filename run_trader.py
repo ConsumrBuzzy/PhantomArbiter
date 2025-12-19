@@ -175,39 +175,56 @@ class UnifiedTrader:
         amount = min(self.current_balance, self.max_trade)
         
         if self.live_mode and self._live_executor:
-            # LIVE EXECUTION
-            buy_mint = opportunity.get("buy_mint")
-            if not buy_mint:
-                return {"success": False, "error": "No mint address"}
-            
-            result = await self._live_executor.execute_spatial_arb(
-                buy_mint=buy_mint,
-                sell_mint="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
-                amount_usd=amount
-            )
-            
-            if result.get("success"):
-                # Update balance (would need to re-check wallet)
-                net_profit = amount * (opportunity["net_pct"] / 100)
-                self.current_balance += net_profit
-                self.total_profit += net_profit
-                self.total_trades += 1
+            # LIVE EXECUTION using existing JupiterSwapper
+            try:
+                from src.execution.wallet import WalletManager
+                from src.execution.swapper import JupiterSwapper
                 
-                trade = {
-                    "timestamp": time.time(),
-                    "mode": "LIVE",
-                    "pair": opportunity["pair"],
-                    "amount": amount,
-                    "spread_pct": opportunity["spread_pct"],
-                    "net_profit": net_profit,
-                    "signature": result.get("signature"),
-                    "balance_after": self.current_balance
+                # Get the swapper (it uses existing infrastructure)
+                wallet_manager = WalletManager()
+                swapper = JupiterSwapper(wallet_manager)
+                
+                # Get the mint for the target token
+                pair = opportunity["pair"]
+                mint_map = {
+                    "SOL/USDC": "So11111111111111111111111111111111111111112",
+                    "BONK/USDC": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+                    "WIF/USDC": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+                    "JUP/USDC": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
                 }
-                self.trades.append(trade)
+                target_mint = mint_map.get(pair)
                 
-                return {"success": True, "trade": trade}
-            else:
-                return {"success": False, "error": result.get("error")}
+                if not target_mint:
+                    return {"success": False, "error": f"Unknown pair: {pair}"}
+                
+                # Execute the buy via existing swapper
+                reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
+                signature = swapper.execute_swap("BUY", amount, reason, target_mint=target_mint)
+                
+                if signature:
+                    net_profit = amount * (opportunity["net_pct"] / 100)
+                    self.current_balance += net_profit
+                    self.total_profit += net_profit
+                    self.total_trades += 1
+                    
+                    trade = {
+                        "timestamp": time.time(),
+                        "mode": "LIVE",
+                        "pair": pair,
+                        "amount": amount,
+                        "spread_pct": opportunity["spread_pct"],
+                        "net_profit": net_profit,
+                        "signature": signature,
+                        "balance_after": self.current_balance
+                    }
+                    self.trades.append(trade)
+                    
+                    return {"success": True, "trade": trade}
+                else:
+                    return {"success": False, "error": "Swap returned no signature (trading may be disabled)"}
+                    
+            except Exception as e:
+                return {"success": False, "error": str(e)}
         
         else:
             # PAPER EXECUTION
