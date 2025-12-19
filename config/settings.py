@@ -148,6 +148,11 @@ class Settings:
     SLIPPAGE_BPS = 750  # 7.5% (Increased for low-liquidity memecoins)
     ENABLE_TRADING = True
     
+    # Gas Management
+    GAS_CRITICAL_SOL = 0.002   # ~30 cents (Emergency refill level)
+    GAS_FLOOR_SOL = 0.05       # ~$7.50 (Low gas warning)
+    GAS_REPLENISH_USD = 2.0    # Buy $2 worth of SOL when empty
+    
     # V7.0: Swing Trading Thresholds
     TAKE_PROFIT_PCT = 0.04          # +4.0% - Swing Trading Target
     STOP_LOSS_PCT = -0.03           # -3.0% - Net Stop-Loss

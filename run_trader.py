@@ -42,12 +42,14 @@ class UnifiedTrader:
         budget: float = 50.0,
         live_mode: bool = False,
         min_spread: float = 0.20,
-        max_trade: float = 10.0
+        max_trade: float = 10.0,
+        full_wallet: bool = False
     ):
         self.budget = budget
         self.live_mode = live_mode
         self.min_spread = min_spread
         self.max_trade = max_trade
+        self.full_wallet = full_wallet
         
         # Wallet tracking
         self.current_balance = budget
@@ -58,8 +60,10 @@ class UnifiedTrader:
         # Trade history
         self.trades: List[Dict] = []
         
-        # Live mode setup
-        self._live_executor = None
+        # Live mode components
+        self.wallet_manager = None
+        self.swapper = None
+        
         if live_mode:
             self._setup_live_mode()
     
@@ -69,23 +73,34 @@ class UnifiedTrader:
         
         if not private_key:
             print("\n❌ LIVE MODE FAILED: No private key found!")
-            print("   Add PHANTOM_PRIVATE_KEY to .env")
+            print("   Add SOLANA_PRIVATE_KEY to .env")
             self.live_mode = False
             return
         
         try:
-            from src.trading.live_executor import SolanaWallet, LiveTrader
+            # Force enable trading
+            Settings.ENABLE_TRADING = True
             
-            wallet = SolanaWallet(private_key)
-            self._live_executor = LiveTrader(
-                wallet=wallet,
-                max_trade_usd=self.max_trade,
-                require_confirmation=True
-            )
+            from src.execution.wallet import WalletManager
+            from src.execution.swapper import JupiterSwapper
+            
+            self.wallet_manager = WalletManager()
+            if not self.wallet_manager.keypair:
+                 raise ValueError("WalletManager failed to load keypair")
+                 
+            self.swapper = JupiterSwapper(self.wallet_manager)
+            
+            # Sync Initial Balance if Full Wallet Mode
+            if self.full_wallet:
+                usdc_bal = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+                self.starting_balance = usdc_bal
+                self.current_balance = usdc_bal
+                print(f"   💰 Full Wallet Mode: Using real balance ${usdc_bal:.2f}")
             
             print(f"\n✅ LIVE MODE ENABLED")
-            print(f"   Wallet: {wallet.public_key[:8]}...{wallet.public_key[-4:]}")
+            print(f"   Wallet: {self.wallet_manager.get_public_key()[:8]}...")
             print(f"   Max Trade: ${self.max_trade}")
+            print(f"   Gas Mgmt:  Enabled (Replenish < {Settings.GAS_CRITICAL_SOL} SOL)")
             
         except Exception as e:
             print(f"\n❌ LIVE MODE FAILED: {e}")
