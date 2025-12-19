@@ -315,8 +315,11 @@ async def run_alert_loop(
             scan_count += 1
             now = datetime.now().strftime("%H:%M:%S")
             
-            # Scan for opportunities
-            alerts = await scanner.scan_all(budget)
+            try:
+                # Scan for opportunities
+                alerts = await scanner.scan_all(budget)
+            except asyncio.CancelledError:
+                break
             
             # Show status
             print(f"\r   [{now}] Scan #{scan_count}: ", end="")
