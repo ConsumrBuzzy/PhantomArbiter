@@ -209,23 +209,57 @@ class PhantomArbiter:
         except Exception as e:
             Logger.debug(f"Spread logging error: {e}")
         
-        if verbose and spreads:
-            now = datetime.now().strftime("%H:%M:%S")
-            
-            # Clear line and print table header
-            print(f"\n   [{now}] MARKET SCAN | Bal: ${self.current_balance:.2f} | Gas: ${self.gas_balance:.2f} | Day P/L: ${self.tracker.daily_profit:+.2f}")
-            print(f"   {'Pair':<12} {'Buy':<8} {'Sell':<8} {'Spread':<8} {'Net':<10} {'Status'}")
-            print("   " + "-"*60)
-            
-            for opp in spreads:
-                status = "✅ READY" if opp.is_profitable else "❌"
-                print(f"   {opp.pair:<12} {opp.buy_dex:<8} {opp.sell_dex:<8} +{opp.spread_pct:.2f}%   ${opp.net_profit_usd:+.3f}    {status}")
-            
-            print("   " + "-"*60)
-            if profitable:
-                print(f"   🎯 {len(profitable)} profitable opportunities!")
-        
         return profitable, spreads
+    
+    def _print_dashboard(self, spreads: List[SpreadOpportunity], verified_opps: List[SpreadOpportunity] = None):
+        """Print the market dashboard with merged verification status."""
+        now = datetime.now().strftime("%H:%M:%S")
+        
+        # Verify map for O(1) lookup
+        verified_map = {op.pair: op for op in (verified_opps or [])}
+        
+        # Clear line and print table header
+        print(f"\n   [{now}] MARKET SCAN | Bal: ${self.current_balance:.2f} | Gas: ${self.gas_balance:.2f} | Day P/L: ${self.tracker.daily_profit:+.2f}")
+        print(f"   {'Pair':<12} {'Buy':<8} {'Sell':<8} {'Spread':<8} {'Net':<10} {'Status'}")
+        print("   " + "-"*60)
+        
+        profitable_count = 0
+        
+        # We only show top N spreads to avoid spam, or all? 
+        # Original showed all spreads passed to it (which was all scanned pairs).
+        # Let's show all spreads, but updated with verification info if available.
+        
+        for opp in spreads:
+            # Check if we have verified data for this opp
+            verified = verified_map.get(opp.pair)
+            
+            if verified:
+                # Use verified data (Real Net Profit & Status)
+                net_profit = verified.net_profit_usd
+                spread_pct = verified.spread_pct # Should match scan usually
+                
+                # Status: "✅ LIVE" or "❌ LIQ ($...)"
+                status = verified.verification_status or "✅ LIVE"
+                if "LIVE" in status:
+                     status = "✅ READY" # Keep UI consistent for good ones
+                elif "LIQ" in status:
+                     status = "❌ LIQ" # Shorten for table
+                
+            else:
+                # Use Scan data
+                net_profit = opp.net_profit_usd
+                spread_pct = opp.spread_pct
+                status = "✅ READY" if opp.is_profitable else "❌"
+            
+            if opp.is_profitable:
+                profitable_count += 1
+                
+            # Color/Format based on status
+            print(f"   {opp.pair:<12} {opp.buy_dex:<8} {opp.sell_dex:<8} +{spread_pct:.2f}%   ${net_profit:+.3f}    {status}")
+        
+        print("   " + "-"*60)
+        if profitable_count:
+            print(f"   🎯 {profitable_count} profitable opportunities!")
     
     async def execute_trade(self, opportunity: SpreadOpportunity) -> Dict[str, Any]:
         """Execute a trade using the ArbitrageExecutor."""
@@ -420,8 +454,8 @@ class PhantomArbiter:
                     if adaptive_mode and monitor:
                         self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
                     
-                    # Single scan returns both profitable and all spreads
-                    opportunities, all_spreads = await self.scan_opportunities()
+                    # Single scan returns both profitable and all spreads (VERBOSE=FALSE)
+                    opportunities, all_spreads = await self.scan_opportunities(verbose=False)
                     
                     # Update adaptive interval based on results (no redundant RPC call)
                     if adaptive_mode and monitor:
@@ -446,21 +480,23 @@ class PhantomArbiter:
                     # Pre-Flight Verification (Real Quotes)
                     is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, self.config.max_trade)
                     
-                    # Update opportunity with real data for display
-                    # We store status_msg in a temporary attribute for display
+                    # Store verification data
                     opp.verification_status = status_msg
                     opp.net_profit_usd = real_net
                     
-                    if is_valid:
-                        verified_opps.append(opp)
+                    # We add ALL verified ones to list for dashboard display, valid or not
+                    verified_opps.append(opp)
                     
-                # Display Dashboard with Verification Status
-                # We'll re-print the table using the verified info if possible, 
-                # but for now let's just print the execution decision based on verification.
+                # PRINT DASHBOARD (with verification status)
+                # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
+                self._print_dashboard(all_spreads if 'all_spreads' in locals() else raw_opps, verified_opps)
                 
-                if verified_opps:
-                    # Pick best verified
-                    best_opp = sorted(verified_opps, key=lambda x: x.net_profit_usd, reverse=True)[0]
+                # Execute Best Valid Opportunity
+                valid_opps = [op for op in verified_opps if "LIVE" in (op.verification_status or "")]
+                
+                if valid_opps:
+                    # Pick best by Real Net Profit
+                    best_opp = sorted(valid_opps, key=lambda x: x.net_profit_usd, reverse=True)[0]
                     
                     result = await self.execute_trade(best_opp)
                     
@@ -477,13 +513,10 @@ class PhantomArbiter:
                     else:
                         print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
                         break
-                elif raw_opps and not verified_opps:
-                     # Show why the top candidate failed
-                     top_fail = raw_opps[0]
-                     msg = getattr(top_fail, 'verification_status', 'Unknown')
-                     # Only print if it looks enticing (spread > min)
-                     if top_fail.spread_pct > self.config.min_spread:
-                         print(f"   [{now}] 🛑 Skipped {top_fail.pair}: {msg} (Spread: {top_fail.spread_pct:.2f}%)")
+                elif raw_opps and not valid_opps:
+                     # Dashboard showed failures, no extra print needed usually, 
+                     # but maybe a small summary if spread was high?
+                     pass
                 
                 # Smart Sleep: Wait for interval OR WSS trigger
                 try:
