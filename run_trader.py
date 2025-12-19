@@ -424,15 +424,11 @@ class UnifiedTrader:
                 "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK
                 "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF
                 "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", # JUP
-                "So11111111111111111111111111111111111111112",  # WSOL
+                "So11111111111111111111111111111111111111112",  # SOL
                 "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",  # JTO
                 "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", # RAY
                 "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3", # PYTH
                 "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", # POPCAT
-                "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7", # DRIFT
-                "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS", # KMNO
-                "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6", # TNSR
-                "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", # RENDER
             ]
             
             # Simple RPC call using requests
@@ -589,7 +585,8 @@ class UnifiedTrader:
         
         # Final summary
         runtime = (time.time() - start_time) / 60
-        roi = ((self.current_balance - self.starting_balance) / self.starting_balance) * 100
+        denom = self.starting_balance if self.starting_balance > 0 else 1
+        roi = ((self.current_balance - self.starting_balance) / denom) * 100
         
         print("\n\n" + "="*70)
         print(f"   SESSION SUMMARY ({mode_str})")
