@@ -222,7 +222,7 @@ class JupiterSwapper:
         except Exception as e:
             Logger.error(f"❌ Recovery Failed: {e}")
 
-async def get_quote(self, input_mint: str, output_mint: str, amount: int, slippage: int = 50):
+    async def get_quote(self, input_mint: str, output_mint: str, amount: int, slippage: int = 50):
         """
         Fetch a quote from Jupiter V6 API.
         'amount' must be in raw units (e.g., lamports or USDC 6-decimal units).

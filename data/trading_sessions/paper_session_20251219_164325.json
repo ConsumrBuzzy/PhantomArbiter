@@ -1,0 +1,17 @@
+{
+  "mode": "paper",
+  "starting_balance": 25.0,
+  "ending_balance": 25.07462848,
+  "total_profit": 0.07462848,
+  "total_trades": 1,
+  "roi_pct": 0.2985139200000049,
+  "trades": [
+    {
+      "pair": "MNGO/USDC",
+      "profit": 0.07462848,
+      "fees": 0.2710485,
+      "timestamp": 1766180299.030157,
+      "mode": "PAPER"
+    }
+  ]
+}

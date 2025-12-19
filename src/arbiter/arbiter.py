@@ -133,6 +133,7 @@ class PhantomArbiter:
         private_key = os.getenv("PHANTOM_PRIVATE_KEY") or os.getenv("SOLANA_PRIVATE_KEY")
         
         if not private_key:
+            print("   ❌ LIVE MODE FAILED: No private key found in .env!")
             Logger.error("❌ LIVE MODE FAILED: No private key found!")
             self.config.live_mode = False
             self._setup_paper_mode()
@@ -162,9 +163,11 @@ class PhantomArbiter:
                 self.starting_balance = usdc_bal
                 self.current_balance = usdc_bal
             
+            print(f"   ✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
             Logger.info(f"✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
             
         except Exception as e:
+            print(f"   ❌ LIVE MODE FAILED: {e}")
             Logger.error(f"❌ LIVE MODE FAILED: {e}")
             self.config.live_mode = False
             self._setup_paper_mode()
