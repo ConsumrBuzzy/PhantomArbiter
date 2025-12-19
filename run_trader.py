@@ -490,7 +490,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget", type=float, default=50.0, help="Starting budget in USD (ignored if --full-wallet)")
     parser.add_argument("--duration", type=int, default=10, help="Duration in minutes")
     parser.add_argument("--interval", type=int, default=5, help="Scan interval in seconds")
-    parser.add_argument("--min-spread", type=float, default=0.50, help="Minimum spread percent (Default: 0.50%)")
+    parser.add_argument("--min-spread", type=float, default=0.50, help="Minimum spread percent (Default: 0.50)")
     parser.add_argument("--max-trade", type=float, default=10.0, help="Maximum trade size")
     parser.add_argument("--full-wallet", action="store_true", help="Use ENTIRE wallet balance (up to max-trade)")
     
