@@ -188,16 +188,23 @@ class UnifiedTrader:
         """Execute a trade (paper or live)."""
         
         # Determine Trade Amount
+        amount = 0.0
+        
         if self.live_mode and self.full_wallet and self.wallet_manager:
             # Full Wallet Mode: internal balance IS the wallet balance
             real_balance = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-            # Safety: Leave $1 buffer or 99%
-            amount = float(real_balance)
-            if self.max_trade and amount > self.max_trade:
-                amount = self.max_trade
+            self.current_balance = real_balance
+            
+            # Use entire balance if max_trade is 0 (Unlimited), otherwise cap
+            limit = self.max_trade if self.max_trade > 0 else float('inf')
+            amount = min(real_balance, limit)
+            
+            # Leave dust buffer? (e.g. 0.1 USDC) for fees/rent if holding USDC? 
+            # Usually strict amount is fine if gas is SOL.
         else:
             # Paper or Fixed Budget Mode
-            amount = min(self.current_balance, self.max_trade)
+            limit = self.max_trade if self.max_trade > 0 else float('inf')
+            amount = min(self.current_balance, limit)
         
         if self.live_mode and self.swapper:
             # LIVE EXECUTION
@@ -357,7 +364,10 @@ class UnifiedTrader:
         print("="*70)
         print(f"   Starting Balance: ${self.starting_balance:.2f}")
         print(f"   Min Spread:       {self.min_spread}%")
-        print(f"   Max Trade:        ${self.max_trade:.2f}")
+        
+        max_trade_str = "UNLIMITED ♾️" if self.max_trade <= 0 else f"${self.max_trade:.2f}"
+        print(f"   Max Trade:        {max_trade_str}")
+        
         if self.full_wallet:
              print(f"   Full Wallet:      ENABLED (Dynamic Balance)")
         print(f"   Duration:         {duration_minutes} minutes")
