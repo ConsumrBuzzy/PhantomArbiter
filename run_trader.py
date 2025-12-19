@@ -187,27 +187,21 @@ class UnifiedTrader:
     async def execute_trade(self, opportunity: Dict) -> Dict:
         """Execute a trade (paper or live)."""
         
-        amount = min(self.current_balance, self.max_trade)
+        # Determine Trade Amount
+        if self.live_mode and self.full_wallet and self.wallet_manager:
+            # Full Wallet Mode: internal balance IS the wallet balance
+            real_balance = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+            # Safety: Leave $1 buffer or 99%
+            amount = float(real_balance)
+            if self.max_trade and amount > self.max_trade:
+                amount = self.max_trade
+        else:
+            # Paper or Fixed Budget Mode
+            amount = min(self.current_balance, self.max_trade)
         
-        if self.live_mode and self._live_executor:
-            # LIVE EXECUTION using existing JupiterSwapper
+        if self.live_mode and self.swapper:
+            # LIVE EXECUTION
             try:
-                # Force enable trading (bypass cached settings)
-                from config.settings import Settings
-                Settings.ENABLE_TRADING = True
-                
-                from src.execution.wallet import WalletManager
-                from src.execution.swapper import JupiterSwapper
-                
-                # Get the swapper (it uses existing infrastructure)
-                wallet_manager = WalletManager()
-                
-                # Check if wallet loaded
-                if not wallet_manager.keypair:
-                    return {"success": False, "error": "Wallet keypair not loaded - check SOLANA_PRIVATE_KEY in .env"}
-                
-                swapper = JupiterSwapper(wallet_manager)
-                
                 # Get the mint for the target token
                 pair = opportunity["pair"]
                 mint_map = {
@@ -223,11 +217,15 @@ class UnifiedTrader:
                 
                 # Execute the buy via existing swapper
                 reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
-                signature = swapper.execute_swap("BUY", amount, reason, target_mint=target_mint)
+                signature = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint)
                 
                 if signature:
+                    # In Full Wallet mode, we update balance via sync in run(), but estimate profit here
                     net_profit = amount * (opportunity["net_pct"] / 100)
-                    self.current_balance += net_profit
+                    
+                    if not self.full_wallet:
+                        self.current_balance += net_profit
+                        
                     self.total_profit += net_profit
                     self.total_trades += 1
                     
@@ -239,13 +237,12 @@ class UnifiedTrader:
                         "spread_pct": opportunity["spread_pct"],
                         "net_profit": net_profit,
                         "signature": signature,
-                        "balance_after": self.current_balance
+                        "balance_after": self.current_balance # Estimated, will sync next loop
                     }
                     self.trades.append(trade)
                     
                     return {"success": True, "trade": trade}
                 else:
-                    # Get more details about why it failed
                     return {"success": False, "error": f"Swap returned None (check logs)"}
                     
             except Exception as e:
@@ -288,6 +285,8 @@ class UnifiedTrader:
         print(f"   Starting Balance: ${self.starting_balance:.2f}")
         print(f"   Min Spread:       {self.min_spread}%")
         print(f"   Max Trade:        ${self.max_trade:.2f}")
+        if self.full_wallet:
+             print(f"   Full Wallet:      ENABLED (Dynamic Balance)")
         print(f"   Duration:         {duration_minutes} minutes")
         print("="*70)
         print("\n   Running... (Ctrl+C to stop)\n")
@@ -301,6 +300,16 @@ class UnifiedTrader:
         try:
             while time.time() < end_time:
                 now = datetime.now().strftime("%H:%M:%S")
+                
+                # Live Mode Maintenance
+                if self.live_mode and self.wallet_manager:
+                    # 1. Check Gas
+                    self.wallet_manager.check_and_replenish_gas(self.swapper)
+                    
+                    # 2. Sync Balance (if full wallet)
+                    if self.full_wallet:
+                         bal = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+                         self.current_balance = bal
                 
                 try:
                     opportunities = await self.scan_opportunities()
@@ -328,7 +337,7 @@ class UnifiedTrader:
                             emoji = "💰" if trade["net_profit"] > 0 else "📉"
                             print(f"   [{now}] {emoji} {trade['mode']} #{self.total_trades}: {trade['pair']}")
                             print(f"            Spread: +{trade['spread_pct']:.2f}% → Net: ${trade['net_profit']:+.4f}")
-                            print(f"            Balance: ${trade['balance_after']:.4f}")
+                            print(f"            Balance: ${self.current_balance:.4f}")
                             print()
                             break
                         else:
@@ -390,11 +399,12 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Phantom Arbiter Unified Trader")
     parser.add_argument("--live", action="store_true", help="Enable LIVE trading (REAL MONEY!)")
-    parser.add_argument("--budget", type=float, default=50.0, help="Starting budget in USD")
+    parser.add_argument("--budget", type=float, default=50.0, help="Starting budget in USD (ignored if --full-wallet)")
     parser.add_argument("--duration", type=int, default=10, help="Duration in minutes")
     parser.add_argument("--interval", type=int, default=5, help="Scan interval in seconds")
     parser.add_argument("--min-spread", type=float, default=0.20, help="Minimum spread percent")
     parser.add_argument("--max-trade", type=float, default=10.0, help="Maximum trade size")
+    parser.add_argument("--full-wallet", action="store_true", help="Use ENTIRE wallet balance (up to max-trade)")
     
     args = parser.parse_args()
     
@@ -412,7 +422,8 @@ if __name__ == "__main__":
         budget=args.budget,
         live_mode=args.live,
         min_spread=args.min_spread,
-        max_trade=args.max_trade
+        max_trade=args.max_trade,
+        full_wallet=args.full_wallet
     )
     
     asyncio.run(trader.run(
