@@ -146,7 +146,7 @@ class Settings:
 
     # Execution Settings
     SLIPPAGE_BPS = 750  # 7.5% (Increased for low-liquidity memecoins)
-    ENABLE_TRADING = False
+    ENABLE_TRADING = True
     
     # V7.0: Swing Trading Thresholds
     TAKE_PROFIT_PCT = 0.04          # +4.0% - Swing Trading Target
