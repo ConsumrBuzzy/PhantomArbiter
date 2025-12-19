@@ -1,9 +1,13 @@
 """
-V1.0: Jupiter Price Feed
+V1.1: Jupiter Price Feed
 ========================
 Primary DEX aggregator for Solana - routes through multiple AMMs.
+
+Uses Jupiter v3 Price API with API key authentication.
+Falls back to DexScreener if API unavailable.
 """
 
+import os
 import time
 import requests
 from typing import Optional
@@ -25,9 +29,11 @@ class JupiterFeed(PriceSource):
     - Phoenix
     - And many more
     
-    This gives us the "best execution" price but may not reflect
-    individual DEX prices for arbitrage detection.
+    Uses v3 Price API (requires API key from portal.jup.ag)
     """
+    
+    # API Configuration
+    PRICE_API_V3 = "https://api.jup.ag/price/v3"
     
     # Common mints for convenience
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -37,13 +43,19 @@ class JupiterFeed(PriceSource):
     DECIMALS = {
         USDC_MINT: 6,
         SOL_MINT: 9,
-        # Add more as needed
     }
     
     def __init__(self):
         self.router = SmartRouter()
         self._price_cache: dict = {}
         self._cache_ttl = 2.0  # 2 second cache
+        
+        # Load API key from environment
+        self.api_key = os.getenv("JUPITER_API_KEY", "").strip("'\"")
+        if self.api_key:
+            Logger.debug(f"Jupiter API key loaded: {self.api_key[:8]}...")
+        else:
+            Logger.debug("Jupiter API key not found, will use DexScreener fallback")
         
     def get_name(self) -> str:
         return "JUPITER"
@@ -119,10 +131,9 @@ class JupiterFeed(PriceSource):
     
     def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
-        Get spot price - uses DexScreener as primary (more reliable).
+        Get spot price using Jupiter v3 Price API.
         
-        Jupiter aggregates from multiple DEXs so we show the "best available"
-        price which is typically what Jupiter would route through.
+        Falls back to DexScreener if API unavailable.
         """
         cache_key = f"{base_mint}:{quote_mint}"
         
@@ -138,8 +149,14 @@ class JupiterFeed(PriceSource):
                     timestamp=cached['timestamp']
                 )
         
-        # Use DexScreener (most reliable) - get best price across DEXs
-        price = self._fetch_dexscreener_best_price(base_mint)
+        # Try Jupiter v3 API first (if we have API key)
+        price = None
+        if self.api_key:
+            price = self._fetch_jupiter_v3_price(base_mint)
+        
+        # Fallback to DexScreener
+        if not price:
+            price = self._fetch_dexscreener_best_price(base_mint)
         
         if price and price > 0:
             timestamp = time.time()
@@ -157,6 +174,38 @@ class JupiterFeed(PriceSource):
             )
         
         return None
+    
+    def _fetch_jupiter_v3_price(self, mint: str) -> Optional[float]:
+        """
+        Fetch price from Jupiter v3 Price API.
+        
+        Requires API key from portal.jup.ag
+        """
+        try:
+            url = f"{self.PRICE_API_V3}?ids={mint}"
+            headers = {"x-api-key": self.api_key}
+            
+            resp = requests.get(url, headers=headers, timeout=5)
+            
+            if resp.status_code == 401:
+                Logger.debug("Jupiter API key invalid or expired")
+                return None
+                
+            if resp.status_code != 200:
+                return None
+                
+            data = resp.json()
+            
+            # v3 response format: {mint: {price: "123.45", ...}}
+            token_data = data.get(mint, {})
+            price_str = token_data.get('price', '0')
+            price = float(price_str) if price_str else 0.0
+            
+            return price if price > 0 else None
+            
+        except Exception as e:
+            Logger.debug(f"Jupiter v3 API error: {e}")
+            return None
     
     def _fetch_dexscreener_best_price(self, mint: str) -> Optional[float]:
         """
