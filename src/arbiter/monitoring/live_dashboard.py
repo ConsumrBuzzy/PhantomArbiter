@@ -14,7 +14,7 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

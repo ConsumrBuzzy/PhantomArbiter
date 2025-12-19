@@ -36,7 +36,7 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

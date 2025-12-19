@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

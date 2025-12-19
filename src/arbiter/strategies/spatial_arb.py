@@ -15,7 +15,7 @@ This strategy uses:
 from typing import Optional, List
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.arbitrage.core.spread_detector import SpreadOpportunity
 
 

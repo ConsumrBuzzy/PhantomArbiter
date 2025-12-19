@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 class ExecutionMode(Enum):
@@ -106,7 +106,7 @@ class ArbitrageExecutor:
     def _get_smart_router(self):
         """Lazy-load smart router."""
         if self._smart_router is None:
-            from src.system.smart_router import SmartRouter
+            from src.shared.system.smart_router import SmartRouter
             self._smart_router = SmartRouter()
         return self._smart_router
     
@@ -260,7 +260,7 @@ class ArbitrageExecutor:
         
         try:
             if not self.swapper:
-                from src.system.smart_router import SmartRouter
+                from src.shared.system.smart_router import SmartRouter
                 self.swapper = SmartRouter()
             
             # Get swap transaction

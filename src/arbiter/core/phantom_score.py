@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from collections import deque
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

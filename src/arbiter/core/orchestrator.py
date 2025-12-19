@@ -10,7 +10,7 @@ from typing import Optional, List, Dict
 from dataclasses import dataclass
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.arbitrage.monitoring.live_dashboard import LiveDashboard, SpreadInfo
 
 
