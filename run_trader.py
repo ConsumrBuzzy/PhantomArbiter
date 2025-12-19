@@ -310,16 +310,17 @@ class UnifiedTrader:
                     post_token_info = None
                     post_balance = 0
                     
-                    for _ in range(12): # 12 * 5s = 60s max
-                        await asyncio.sleep(5)
+                    for _ in range(30): # 30 * 2s = 60s max
+                        await asyncio.sleep(2)
                         post_token_info = self.wallet_manager.get_token_info(target_mint)
                         post_balance = int(post_token_info["amount"]) if post_token_info else 0
                         
                         if post_balance > pre_balance:
-                            Logger.info(f"   ✅ Balance updated! (+{post_balance - pre_balance} units)")
+                            diff = post_balance - pre_balance
+                            Logger.info(f"   ✅ Balance updated! (+{diff} units)")
                             break
                         else:
-                            Logger.info(f"   ⏳ Waiting for RPC sync... (Current: {post_balance})")
+                            Logger.info(f"   ⏳ Waiting for RPC... (Current: {post_balance})")
                     
                     acquired_amount = post_balance - pre_balance
                     
