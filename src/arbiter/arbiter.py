@@ -437,6 +437,10 @@ class PhantomArbiter:
                     if adaptive_mode and monitor:
                         self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
                     
+                    # Calculate trade size for this iteration
+                    limit = self.config.max_trade if self.config.max_trade > 0 else float('inf')
+                    trade_size = min(self.current_balance, limit)
+
                     # Single scan returns both profitable and all spreads (VERBOSE=FALSE)
                     opportunities, all_spreads = await self.scan_opportunities(verbose=False)
                     
