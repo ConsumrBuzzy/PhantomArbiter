@@ -49,6 +49,7 @@ MID_RISK_PAIRS = [
     ("JITO/USDC", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn", USDC_MINT),
     ("HNT/USDC", "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux", USDC_MINT),
     ("RENDER/USDC", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", USDC_MINT),
+    ("TNSR/USDC", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6", USDC_MINT),
 ]
 
 # HIGH RISK: Memes and small caps, volatile, wide spreads (0.5-2%+)
