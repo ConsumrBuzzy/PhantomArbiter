@@ -105,8 +105,14 @@ class PhantomArbiter:
         # Components (lazy-loaded)
         self._detector: Optional[SpreadDetector] = None
         self._executor: Optional[ArbitrageExecutor] = None
-        self._wallet = None
-        self._swapper = None
+        
+        # Telegram Manager
+        from src.shared.notification.telegram_manager import TelegramManager
+        self.telegram = TelegramManager()
+        self.telegram.start()
+        
+        # Scraper/Signal Coordinator
+        self._coordinator = None
         self._connected = False
         
         # Initialize based on mode
@@ -263,7 +269,39 @@ class PhantomArbiter:
             # Color/Format based on status
             print(f"   {opp.pair:<12} {opp.buy_dex:<8} {opp.sell_dex:<8} +{spread_pct:.2f}%   ${net_profit:+.3f}    {status}")
         
-        print("   " + "-"*60)
+        print("-" * 60)
+        
+        # Format for Telegram Dashboard (Code Block)
+        tg_table = [
+            f"[{now}] MARKET SCAN | P/L: ${self.tracker.daily_profit:+.2f}",
+            f"{'Pair':<10} {'Spread':<7} {'Net':<8} {'Status'}",
+            "-" * 35
+        ]
+        
+        # Add top 10 rows to TG table
+        for i, opp in enumerate(spreads[:10]):
+            verified = verified_map.get(opp.pair)
+            status = "❌"
+            net = f"${opp.net_profit_usd:.2f}"
+            spread = f"{opp.spread_pct:.1f}%"
+            
+            if verified:
+                net = f"${verified.net_profit_usd:.2f}"
+                if "LIVE" in (verified.verification_status or ""):
+                    status = "✅"
+                elif "SCALED" in (verified.verification_status or ""):
+                    status = "⚠️"
+                elif "LIQ" in (verified.verification_status or ""):
+                    status = "💧" # Liquid drop for liquidity fail
+            
+            tg_table.append(f"{opp.pair[:9]:<10} {spread:<7} {net:<8} {status}")
+            
+        if profitable_count:
+            tg_table.append(f"\n🎯 {profitable_count} Opportunities!")
+            
+        # Beam to Telegram
+        self.telegram.update_dashboard("\n".join(tg_table))
+        
         if profitable_count:
             print(f"   🎯 {profitable_count} profitable opportunities!")
     
