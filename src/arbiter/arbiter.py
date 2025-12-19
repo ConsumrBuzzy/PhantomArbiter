@@ -16,7 +16,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
@@ -177,8 +177,11 @@ class PhantomArbiter:
             ])
         return self._detector
     
-    async def scan_opportunities(self, verbose: bool = True) -> List[SpreadOpportunity]:
-        """Scan for spatial arbitrage opportunities."""
+    async def scan_opportunities(self, verbose: bool = True) -> Tuple[List[SpreadOpportunity], List[SpreadOpportunity]]:
+        """
+        Scan for spatial arbitrage opportunities.
+        Returns: (profitable_opportunities, all_spreads)
+        """
         detector = self._get_detector()
         spreads = detector.scan_all_pairs(self.config.pairs)
         
@@ -222,7 +225,7 @@ class PhantomArbiter:
             if profitable:
                 print(f"   🎯 {len(profitable)} profitable opportunities!")
         
-        return profitable
+        return profitable, spreads
     
     async def execute_trade(self, opportunity: SpreadOpportunity) -> Dict[str, Any]:
         """Execute a trade using the ArbitrageExecutor."""
@@ -301,6 +304,7 @@ class PhantomArbiter:
                         async def make_callback(p_name=pair_name):
                             async def on_activity(result):
                                 monitor.trigger_activity(p_name)
+                                wake_event.set()
                             return on_activity
                             
                         callback = await make_callback()
@@ -326,10 +330,12 @@ class PhantomArbiter:
         
         last_trade_time: Dict[str, float] = {}
         cooldown = 5
-        
+        wake_event = asyncio.Event()
+
         try:
             while time.time() < end_time:
                 now = datetime.now().strftime("%H:%M:%S")
+                wake_event.clear()
                 
                 # Live mode maintenance
                 if self.config.live_mode and self._wallet:
@@ -341,12 +347,12 @@ class PhantomArbiter:
                 try:
                     if adaptive_mode and monitor:
                         self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
-                    opportunities = await self.scan_opportunities()
                     
-                    # Update adaptive interval based on results
+                    # Single scan returns both profitable and all spreads
+                    opportunities, all_spreads = await self.scan_opportunities()
+                    
+                    # Update adaptive interval based on results (no redundant RPC call)
                     if adaptive_mode and monitor:
-                        detector = self._get_detector()
-                        all_spreads = detector.scan_all_pairs(self.config.pairs)
                         current_interval = monitor.update(all_spreads)
                         
                 except Exception as e:
@@ -374,7 +380,13 @@ class PhantomArbiter:
                         print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
                         break
                 
-                await asyncio.sleep(current_interval)
+                # Smart Sleep: Wait for interval OR WSS trigger
+                try:
+                    await asyncio.wait_for(wake_event.wait(), timeout=current_interval)
+                except asyncio.TimeoutError:
+                    pass  # Timeout reached, loop normally
+                except asyncio.CancelledError:
+                    raise # Propagate cancellation
                 
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\n   Stopping...")
