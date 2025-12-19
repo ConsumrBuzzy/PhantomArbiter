@@ -34,11 +34,11 @@ def test():
         orca = None
     
     tokens = [
-        ("DRIFT", "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b"),
-        ("KMNO", "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp"),
-        ("TNSR", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio"),
-        ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K"),
-        ("RAY", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R") # Control
+        ("DRIFT", "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7"),
+        ("KMNO", "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS"),
+        ("TNSR", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6"),
+        ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof"),
+        ("RAY", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R")
     ]
     USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
