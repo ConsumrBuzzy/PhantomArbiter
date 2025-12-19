@@ -19,9 +19,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 
 from config.settings import Settings
-from src.system.logging import Logger
-from src.arbitrage.core.spread_detector import SpreadDetector, SpreadOpportunity
-from src.arbitrage.core.executor import ArbitrageExecutor, ExecutionMode
+from src.shared.system.logging import Logger
+from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
+from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -102,8 +102,8 @@ class PhantomArbiter:
         try:
             Settings.ENABLE_TRADING = True
             
-            from src.execution.wallet import WalletManager
-            from src.execution.swapper import JupiterSwapper
+            from src.shared.execution.wallet import WalletManager
+            from src.shared.execution.swapper import JupiterSwapper
             
             self._wallet = WalletManager()
             if not self._wallet.keypair:
@@ -133,9 +133,9 @@ class PhantomArbiter:
     def _get_detector(self) -> SpreadDetector:
         """Lazy-load spread detector with DEX feeds."""
         if self._detector is None:
-            from src.arbitrage.feeds.jupiter_feed import JupiterFeed
-            from src.arbitrage.feeds.raydium_feed import RaydiumFeed
-            from src.arbitrage.feeds.orca_feed import OrcaFeed
+            from src.shared.feeds.jupiter_feed import JupiterFeed
+            from src.shared.feeds.raydium_feed import RaydiumFeed
+            from src.shared.feeds.orca_feed import OrcaFeed
             
             self._detector = SpreadDetector(feeds=[
                 JupiterFeed(),
