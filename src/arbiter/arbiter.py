@@ -284,8 +284,8 @@ class PhantomArbiter:
                 
                 await asyncio.sleep(scan_interval)
                 
-        except KeyboardInterrupt:
-            pass
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            print("\n   Stopping...")
         
         self._print_summary(start_time, mode_str)
         self._save_session()

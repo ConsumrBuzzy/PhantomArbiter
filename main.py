@@ -337,5 +337,7 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n   Goodbye!")

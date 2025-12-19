@@ -128,11 +128,22 @@ class ArbitrageExecutor:
             legs = []
             
             if self.mode == ExecutionMode.PAPER:
-                # ═══ PAPER MODE: Full simulation ═══
-                Logger.info(f"[EXEC] Paper trade: ${trade_size:.2f} {opportunity.pair}")
+                # ═══ PAPER MODE: Simulate atomic bundled execution ═══
+                # Uses same fee calculations as live mode for accuracy
+                from src.arbiter.core.fee_estimator import get_fee_estimator
+                
+                Logger.info(f"[EXEC] Paper (atomic sim): ${trade_size:.2f} {opportunity.pair}")
                 
                 # Calculate token amount based on buy price
                 token_amount = trade_size / opportunity.buy_price
+                
+                # Get accurate fee estimate (same as live)
+                fee_est = get_fee_estimator()
+                fees = fee_est.estimate(
+                    trade_size_usd=trade_size,
+                    buy_dex=opportunity.buy_dex,
+                    sell_dex=opportunity.sell_dex
+                )
                 
                 # Simulate buy leg
                 buy_result = TradeResult(
@@ -143,17 +154,17 @@ class ArbitrageExecutor:
                     input_amount=trade_size,
                     output_amount=token_amount,
                     price=opportunity.buy_price,
-                    fee_usd=trade_size * 0.001,  # 0.1% fee
-                    signature="PAPER_" + str(int(time.time())),
+                    fee_usd=fees.trading_fee_usd / 2,  # Half of trading fees
+                    signature="PAPER_ATOMIC_" + str(int(time.time())),
                     error=None,
                     timestamp=time.time(),
-                    execution_time_ms=150
+                    execution_time_ms=50  # Faster since "bundled"
                 )
                 legs.append(buy_result)
                 
-                # Simulate sell leg at sell price
+                # Simulate sell leg with slippage
                 sell_output = token_amount * opportunity.sell_price
-                sell_output *= 0.999  # 0.1% slippage simulation
+                sell_output *= (1 - fees.slippage_cost_usd / trade_size)  # Apply actual slippage
                 
                 sell_result = TradeResult(
                     success=True,
@@ -163,11 +174,11 @@ class ArbitrageExecutor:
                     input_amount=token_amount,
                     output_amount=sell_output,
                     price=opportunity.sell_price,
-                    fee_usd=sell_output * 0.001,
-                    signature="PAPER_" + str(int(time.time()) + 1),
+                    fee_usd=fees.trading_fee_usd / 2 + fees.gas_fee_usd + fees.priority_fee_usd,
+                    signature="PAPER_ATOMIC_" + str(int(time.time()) + 1),
                     error=None,
                     timestamp=time.time(),
-                    execution_time_ms=150
+                    execution_time_ms=50
                 )
                 legs.append(sell_result)
                 
