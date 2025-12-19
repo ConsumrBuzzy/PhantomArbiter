@@ -226,38 +226,52 @@ class UnifiedTrader:
                 if not target_mint:
                     return {"success": False, "error": f"Unknown pair: {pair}"}
                 
-                # Dynamic Gas & Safety Check (V3.1)
-                # Calculate required priority fee based on trade size
-                # Base Fee: 5000 Lamports ($0.001)
-                # Priority: 
-                #   < $10:   1,000 uL (Micro)
-                #   < $100:  10,000 uL (Low)
-                #   < $500:  100,000 uL (Medium)
-                #   > $500:  1,000,000 uL (High)
-                
+                # Dynamic Gas & Safety Check (V4.0: Rigorous Precision)
+                # -----------------------------------------------------
+                # 1. Determine Priority Fee based on size
                 priority_fee = 1000 # Default Micro
-                est_gas_usd = 0.002 # Base cost estimate
+                if amount >= 500: priority_fee = 1000000
+                elif amount >= 100: priority_fee = 100000
+                elif amount >= 10: priority_fee = 10000
                 
-                if amount >= 500:
-                    priority_fee = 1000000
-                    est_gas_usd = 0.10
-                elif amount >= 100:
-                    priority_fee = 100000
-                    est_gas_usd = 0.02
-                elif amount >= 10:
-                    priority_fee = 10000
-                    est_gas_usd = 0.005
+                # 2. Calculate Exact Tx Fee
+                # Formula: 5000 Sig + (ComputeUnits * MicroLamports)
+                COMPUTE_UNITS = 300_000 # Conservative upper bound for Jupiter swap
+                priority_cost_lamports = COMPUTE_UNITS * priority_fee / 1_000_000
+                total_lamports = 5000 + priority_cost_lamports
+                tx_fee_sol = total_lamports / 1_000_000_000
+                
+                # 3. Calculate Rent (ATA Creation)
+                # If we don't hold the token, we pay 0.002 SOL to open account
+                has_token_account = False
+                buy_mint = opportunity.get("buy_mint")
+                if buy_mint:
+                    # Check if balance > 0 (implies account exists)
+                    # OR check explicit account existence? get_balance returns 0 if no account or empty.
+                    # We assume 0 means "might need to open". 
+                    # Actually wallet.get_token_info returns None if no account.
+                    # But get_balance returns 0.0.
+                    # Let's assume Worst Case: If balance == 0, we pay rent.
+                    if self.wallet_manager.get_balance(buy_mint) > 0:
+                        has_token_account = True
+                
+                rent_cost_sol = 0.0 if has_token_account else 0.002039
+                
+                # 4. Total Cost in USD
+                SOL_PRICE_SAFETY = 250.0 # Conservative cap (Assume SOL <= $250)
+                total_gas_cost_usd = (tx_fee_sol + rent_cost_sol) * SOL_PRICE_SAFETY
                 
                 gross_profit_usd = amount * (opportunity["spread_pct"] / 100)
                 
-                if gross_profit_usd < est_gas_usd:
+                if gross_profit_usd < total_gas_cost_usd:
+                     reason = "Gas" if rent_cost_sol == 0 else "Gas+Rent"
                      return {
                          "success": False, 
-                         "error": f"Unsafe Trade: Profit ${gross_profit_usd:.4f} < Gas ${est_gas_usd:.4f}"
+                         "error": f"Profit Too Low: ${gross_profit_usd:.4f} < Cost ${total_gas_cost_usd:.4f} ({reason})"
                      }
                 
-                # Execute the buy via existing swapper
-                reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
+                # Execute
+                reason = f"Arb: {opportunity['buy_dex']}->{opportunity['sell_dex']} (Fee: {priority_fee}uL)"
                 signature = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint, priority_fee=priority_fee)
                 
                 if signature:
