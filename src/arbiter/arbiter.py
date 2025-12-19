@@ -325,12 +325,18 @@ class PhantomArbiter:
         """Main trading loop."""
         mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
         
+        # Adaptive mode when interval = 0
+        adaptive_mode = scan_interval == 0
+        monitor = AdaptiveMonitor() if adaptive_mode else None
+        current_interval = monitor.base_interval if adaptive_mode else scan_interval
+        
         print("\n" + "="*70)
         print(f"   PHANTOM ARBITER - {mode_str} TRADER")
         print("="*70)
         print(f"   Budget:     ${self.starting_balance:.2f} USDC | ${self.gas_balance:.2f} Gas")
         print(f"   Min Spread: {self.config.min_spread}% | Max Trade: ${self.config.max_trade:.2f}")
-        print(f"   Pairs:      {len(self.config.pairs)} | Duration: {duration_minutes} min")
+        scan_mode = "ADAPTIVE" if adaptive_mode else f"{scan_interval}s"
+        print(f"   Pairs:      {len(self.config.pairs)} | Duration: {duration_minutes} min | Scan: {scan_mode}")
         print("="*70)
         print("\n   Running... (Ctrl+C to stop)\n")
         
@@ -350,9 +356,18 @@ class PhantomArbiter:
                     if self.config.full_wallet:
                         self.current_balance = self._wallet.get_balance(USDC_MINT)
                 
-                # Scan
+                # Scan (prioritize hot pairs in adaptive mode)
                 try:
+                    if adaptive_mode and monitor:
+                        self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
                     opportunities = await self.scan_opportunities()
+                    
+                    # Update adaptive interval based on results
+                    if adaptive_mode and monitor:
+                        detector = self._get_detector()
+                        all_spreads = detector.scan_all_pairs(self.config.pairs)
+                        current_interval = monitor.update(all_spreads)
+                        
                 except Exception as e:
                     Logger.debug(f"Scan error: {e}")
                     opportunities = []
@@ -378,7 +393,7 @@ class PhantomArbiter:
                         print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
                         break
                 
-                await asyncio.sleep(scan_interval)
+                await asyncio.sleep(current_interval)
                 
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\n   Stopping...")
