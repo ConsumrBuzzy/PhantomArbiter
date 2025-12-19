@@ -15,29 +15,29 @@ print(f"⛽ Gas: {sol_balance:.6f} SOL")
 usdc_bal = manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
 print(f"💵 USDC: {usdc_bal:.6f}")
 
-    # Full Watchlist (12 Tokens)
-    tokens = [
-        ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),
-        ("WIF",  "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),
-        ("JUP",  "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"),
-        ("RAY",  "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"),
-        ("JTO",  "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL"),
-        ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3"),
-        ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),
-        ("DRIFT", "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b"),
-        ("KMNO", "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp"),
-        ("TNSR", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio"),
-        ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K"),
-    ]
+# Full Watchlist (12 Tokens)
+tokens = [
+    ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),
+    ("WIF",  "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),
+    ("JUP",  "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"),
+    ("RAY",  "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"),
+    ("JTO",  "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL"),
+    ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3"),
+    ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),
+    ("DRIFT", "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b"),
+    ("KMNO", "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp"),
+    ("TNSR", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio"),
+    ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K"),
+]
 
-    for symbol, mint in tokens:
-        bal = manager.get_balance(mint)
-        icon = "🪙"
-        if symbol == "BONK": icon = "🐕"
-        elif symbol == "WIF": icon = "🎩"
-        elif symbol == "RAY": icon = "Ray"
-        
-        print(f"{icon} {symbol:<6}: {bal:f}")
+for symbol, mint in tokens:
+    bal = manager.get_balance(mint)
+    icon = "🪙"
+    if symbol == "BONK": icon = "🐕"
+    elif symbol == "WIF": icon = "🎩"
+    elif symbol == "RAY": icon = "Ray"
+    
+    print(f"{icon} {symbol:<6}: {bal:f}")
 
 # Generic Scan for others
 print("\n Scanning for OTHER tokens...")

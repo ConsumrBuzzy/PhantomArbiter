@@ -543,7 +543,15 @@ class UnifiedTrader:
                 
                 if opportunities:
                     # Find best opportunity not on cooldown
-                    for opp in sorted(opportunities, key=lambda x: x["spread_pct"], reverse=True):
+                    sorted_opportunities = sorted(opportunities, key=lambda x: x["spread_pct"], reverse=True)
+        
+                    # Display top 20 opportunities (if any)
+                    for res in sorted_opportunities[:20]:
+                        star = "✅" if res["spread_pct"] >= self.min_spread else "⚠️" if res["spread_pct"] > 0.2 else "❌"
+                        status = "PROFITABLE" if res["spread_pct"] >= self.min_spread else "< Min Spread" if res["spread_pct"] > 0.2 else "Below min"
+                        Logger.info(f"   [{now}] {star} {res['pair']} | Spread: {res['spread_pct']:.2f}% ({status})")
+
+                    for opp in sorted_opportunities:
                         pair = opp["pair"]
                         last_time = last_trade_time.get(pair, 0)
                         
