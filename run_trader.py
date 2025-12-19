@@ -312,31 +312,28 @@ class UnifiedTrader:
                 buy_sig = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint, priority_fee=priority_fee)
                 
                 if buy_sig:
-                    Logger.info(f"   ⏳ Buy Sent: {buy_sig[-8:]}... Waiting for confirmation...")
-                    
-                    # POLL for balance update (up to 60s)
-                    # RPCs can be slow. We need to see the balance to sell it.
-                    post_token_info = None
-                    post_balance = 0
-                    
-                    for _ in range(60): # 60 * 1s = 60s max
-                        await asyncio.sleep(1)
+                    Logger.info(f" ⏳ Buy Sent: {buy_sig[-8:]}... Waiting for confirmation...")
+    
+                    acquired_amount = 0
+                    # Increase retries and add a small delay
+                    for i in range(15): 
+                        await asyncio.sleep(2) # Give the RPC more time to breathe
                         post_token_info = self.wallet_manager.get_token_info(target_mint)
                         post_balance = int(post_token_info["amount"]) if post_token_info else 0
-                        
+        
                         if post_balance > pre_balance:
-                            diff = post_balance - pre_balance
-                            Logger.info(f"   ✅ Balance updated! (+{diff} units)")
+                            acquired_amount = post_balance - pre_balance
+                            Logger.info(f" ✅ Balance confirmed! (+{acquired_amount} units)")
                             break
-                        else:
-                            Logger.info(f"   ⏳ Waiting for RPC... (Current: {post_balance})")
-                    
-                    acquired_amount = post_balance - pre_balance
-                    
+                        Logger.info(f" ⏳ Syncing... Retry {i+1}/15")
+
                     if acquired_amount <= 0:
-                         Logger.error(f"   ❌ Buy Confirmed but Balance didn't increase! Stuck?")
-                         return {"success": False, "error": "Balance mismatch after buy"}
-                    
+                        # EMERGENCY: We have the tokens but the RPC won't show them.
+                        # Don't just return. Log a CRITICAL error.
+                        Logger.error(" !!! CRITICAL: SPLIT-LEG DETECTED !!!")
+                        Logger.error(f" Money is stuck in {target_mint}. Manual sell required.")
+                        return {"success": False, "error": "Split-Leg: RPC Sync Failure"}
+
                     # Execute SELL (Only acquired amount)
                     Logger.info(f"   🔄 Executing SELL Leg (Selling {acquired_amount} units)...")
                     sell_sig = self.swapper.execute_swap("SELL", 0, reason, target_mint=target_mint, priority_fee=priority_fee, override_atomic_amount=acquired_amount)
