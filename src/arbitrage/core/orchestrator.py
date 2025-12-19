@@ -6,7 +6,7 @@ Main coordinator that runs the arbitrage loop.
 
 import asyncio
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 from dataclasses import dataclass
 
 from config.settings import Settings
@@ -87,11 +87,27 @@ class ArbitrageOrchestrator:
             ("WIF/USDC", WIF, USDC),
         ]
     
+    async def _fetch_funding_rates(self) -> Dict[str, float]:
+        """Fetch funding rates from Drift (mock if not connected)."""
+        try:
+            from src.arbitrage.feeds.drift_funding import MockDriftFundingFeed
+            feed = MockDriftFundingFeed()  # Use mock for now
+            
+            rates = {}
+            for market in ["SOL-PERP", "BTC-PERP", "ETH-PERP"]:
+                info = await feed.get_funding_rate(market)
+                if info:
+                    rates[market] = info.rate_8h
+            return rates
+        except Exception as e:
+            Logger.debug(f"Funding rate fetch error: {e}")
+            return {}
+    
     async def _tick(self):
         """Single tick of the arbitrage loop."""
         pairs = self._get_monitored_pairs()
         
-        # 1. Scan for opportunities
+        # 1. Scan for spread opportunities
         opportunities = self._spread_detector.scan_all_pairs(pairs)
         
         # 2. Convert to dashboard format
@@ -114,10 +130,15 @@ class ArbitrageOrchestrator:
                 status=opp.status
             ))
         
-        # 3. Update dashboard
+        # 3. Update dashboard with spreads
         self.dashboard.update_spreads(spread_infos)
         
-        # 4. TODO: Execute profitable opportunities
+        # 4. Fetch and update funding rates (for FUNDING mode)
+        if self.config.mode in ['FUNDING', 'ALL']:
+            funding_rates = await self._fetch_funding_rates()
+            self.dashboard.update_funding_rates(funding_rates)
+        
+        # 5. TODO: Execute profitable opportunities
         # for opp in opportunities:
         #     if opp.is_profitable and self.config.enable_execution:
         #         await self._execute(opp)
