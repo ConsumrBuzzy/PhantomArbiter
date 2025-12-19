@@ -1,45 +1,168 @@
+"""
+PhantomArbiter - Unified CLI Entrypoint
+=======================================
+Single entrypoint with subcommands for all trading modes.
 
+Usage:
+    python main.py arbiter --duration 60
+    python main.py arbiter --live --full-wallet
+    python main.py monitor --budget 500
+"""
+
+import argparse
 import asyncio
-import signal
-import sys
-from src.system.startup_manager import StartupManager
-from src.utils.boot_utils import BootTimer
 
-# V87.0: SRP Refactored Main Orchestrator
-# Logic moved to src/system/startup_manager.py and src/services/
 
-async def main():
-    # 0. Start Timer (V86.1)
-    BootTimer.start()
+def create_parser() -> argparse.ArgumentParser:
+    """Create argument parser with subcommands."""
+    parser = argparse.ArgumentParser(
+        prog="PhantomArbiter",
+        description="Solana DEX Arbitrage System"
+    )
     
-    print("\n   🚀 STARTING PHANTOM TRADER (V87.0 Refactored)")
-    print("   ═══════════════════════════════════════════════")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
-    # 1. Initialize Manager
-    startup = StartupManager()
+    # ═══════════════════════════════════════════════════════════════
+    # ARBITER SUBCOMMAND
+    # ═══════════════════════════════════════════════════════════════
+    arbiter_parser = subparsers.add_parser(
+        "arbiter",
+        help="Run spatial arbitrage scanner and trader"
+    )
+    arbiter_parser.add_argument(
+        "--live", action="store_true",
+        help="Enable LIVE trading (REAL MONEY!)"
+    )
+    arbiter_parser.add_argument(
+        "--budget", type=float, default=50.0,
+        help="Starting budget in USD (default: 50)"
+    )
+    arbiter_parser.add_argument(
+        "--duration", type=int, default=10,
+        help="Duration in minutes (default: 10, 0 for infinite)"
+    )
+    arbiter_parser.add_argument(
+        "--interval", type=int, default=5,
+        help="Scan interval in seconds (default: 5)"
+    )
+    arbiter_parser.add_argument(
+        "--min-spread", type=float, default=0.50,
+        help="Minimum spread percent to trade (default: 0.50)"
+    )
+    arbiter_parser.add_argument(
+        "--max-trade", type=float, default=10.0,
+        help="Maximum trade size in USD (default: 10)"
+    )
+    arbiter_parser.add_argument(
+        "--full-wallet", action="store_true",
+        help="Use entire wallet balance (up to max-trade)"
+    )
     
-    # 2. Register Signals
-    # Windows doesn't support adding handlers for SIGINT to loop easily in some versions,
-    # but StartupManager handles signal.signal() for threads.
-    signal.signal(signal.SIGINT, startup.signal_handler)
-    signal.signal(signal.SIGTERM, startup.signal_handler)
+    # ═══════════════════════════════════════════════════════════════
+    # MONITOR SUBCOMMAND
+    # ═══════════════════════════════════════════════════════════════
+    monitor_parser = subparsers.add_parser(
+        "monitor",
+        help="Run profitability monitor dashboard"
+    )
+    monitor_parser.add_argument(
+        "--budget", type=float, default=500.0,
+        help="Budget for profit calculations (default: 500)"
+    )
+    monitor_parser.add_argument(
+        "--interval", type=int, default=600,
+        help="Scan interval in seconds (default: 600)"
+    )
     
-    # 3. Init Core
-    await startup.initialize_core()
+    # ═══════════════════════════════════════════════════════════════
+    # SCAN SUBCOMMAND (Quick one-shot scan)
+    # ═══════════════════════════════════════════════════════════════
+    scan_parser = subparsers.add_parser(
+        "scan",
+        help="Quick one-shot opportunity scan"
+    )
+    scan_parser.add_argument(
+        "--min-spread", type=float, default=0.20,
+        help="Minimum spread to show (default: 0.20)"
+    )
     
-    # 4. Launch Services
-    await startup.launch_services()
+    return parser
+
+
+async def cmd_arbiter(args: argparse.Namespace) -> None:
+    """Handle arbiter subcommand."""
+    from src.arbitrage.arbiter import PhantomArbiter, ArbiterConfig
     
-    # 5. Wait for Shutdown
-    await startup.wait_for_shutdown()
+    if args.live:
+        print("\n" + "⚠️ "*20)
+        print("   WARNING: LIVE MODE ENABLED!")
+        print("   This will execute REAL transactions with REAL money!")
+        print("⚠️ "*20)
+        confirm = input("\n   Type 'I UNDERSTAND' to proceed: ")
+        if confirm.strip() != "I UNDERSTAND":
+            print("   Cancelled.")
+            return
+    
+    config = ArbiterConfig(
+        budget=args.budget,
+        min_spread=args.min_spread,
+        max_trade=args.max_trade,
+        live_mode=args.live,
+        full_wallet=args.full_wallet
+    )
+    
+    arbiter = PhantomArbiter(config)
+    await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval)
+
+
+async def cmd_monitor(args: argparse.Namespace) -> None:
+    """Handle monitor subcommand."""
+    # Import from existing run_profitability_monitor.py
+    try:
+        from run_profitability_monitor import ProfitabilityMonitor
+        monitor = ProfitabilityMonitor(budget=args.budget)
+        await monitor.run_loop(interval_seconds=args.interval)
+    except ImportError:
+        print("❌ Monitor module not available")
+        print("   Run: python run_profitability_monitor.py directly")
+
+
+async def cmd_scan(args: argparse.Namespace) -> None:
+    """Handle scan subcommand - quick one-shot opportunity scan."""
+    from src.arbitrage.arbiter import PhantomArbiter, ArbiterConfig
+    
+    config = ArbiterConfig(min_spread=args.min_spread)
+    arbiter = PhantomArbiter(config)
+    
+    print("\n" + "="*60)
+    print("   PHANTOM ARBITER - Opportunity Scan")
+    print("="*60)
+    
+    opportunities = await arbiter.scan_opportunities(verbose=True)
+    
+    print("\n" + "="*60)
+    print(f"   Found {len(opportunities)} tradeable opportunities")
+    print("="*60)
+
+
+async def main() -> None:
+    """Main entry point."""
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    if args.command is None:
+        parser.print_help()
+        return
+    
+    if args.command == "arbiter":
+        await cmd_arbiter(args)
+    elif args.command == "monitor":
+        await cmd_monitor(args)
+    elif args.command == "scan":
+        await cmd_scan(args)
+    else:
+        parser.print_help()
+
 
 if __name__ == "__main__":
-    try:
-        # Use asyncio.run for cleaner entry/exit
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(f"❌ Critical Error: {e}")
-        import traceback
-        traceback.print_exc()
+    asyncio.run(main())
