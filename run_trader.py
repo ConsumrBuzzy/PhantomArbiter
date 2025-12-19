@@ -36,26 +36,33 @@ class UnifiedTrader:
     Live Mode:  Uses real prices, executes real swaps
     """
 
-    async def prepare_atomic_bundle(self, opportunity, amount):
-        # 1. Get BUY Instructions
-        buy_route = await self.swapper.get_quote(USDC, target_mint, amount)
-        buy_ix = await self.swapper.get_swap_instructions(buy_route)
+    sync def prepare_atomic_bundle(self, opportunity, amount):
+        """Bundles Buy and Sell into a single VersionedTransaction."""
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        target_mint = opportunity["buy_mint"]
+
+        # 1. Get BUY Instructions from Jupiter
+        # Tight slippage (0.5%) ensures the arb is still valid at execution
+        buy_quote = await self.swapper.get_quote(USDC_MINT, target_mint, amount, slippage=50)
+        buy_ix = await self.swapper.get_swap_instructions(buy_quote)
         
         # 2. Get SELL Instructions (using the expected output of the buy)
-        sell_route = await self.swapper.get_quote(target_mint, USDC, buy_route['outAmount'])
-        sell_ix = await self.swapper.get_swap_instructions(sell_route)
+        sell_quote = await self.swapper.get_quote(target_mint, USDC_MINT, buy_quote['outAmount'], slippage=50)
+        sell_ix = await self.swapper.get_swap_instructions(sell_quote)
         
-        # 3. Combine into one Transaction
+        # 3. Combine Instructions (Setup + Swaps + Cleanup)
         all_ix = buy_ix + sell_ix
-        recent_blockhash = await self.connection.get_latest_blockhash()
         
+        # 4. Compile to Versioned Transaction
+        recent_blockhash = await self.wallet_manager.client.get_latest_blockhash()
         msg = MessageV0.try_compile(
-            self.wallet_manager.pubkey, 
+            self.wallet_manager.keypair.pubkey(), 
             all_ix, 
-            [], # Address lookup tables if needed
+            [], 
             recent_blockhash.value.blockhash
         )
         
+        return VersionedTransaction(msg, [self.wallet_manager.keypair])
     
     def __init__(
         self,
@@ -224,47 +231,41 @@ class UnifiedTrader:
         """Execute a truly atomic trade using bundled instructions."""
         USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         pair = opportunity["pair"]
-        target_mint = opportunity.get("buy_mint")
 
-        # 1. Determine Amount
+        # 1. Determine Amount (Logic is already solid in your code)
         if self.live_mode and self.full_wallet:
             real_balance = self.wallet_manager.get_balance(USDC_MINT)
-            limit = self.max_trade if self.max_trade > 0 else float('inf')
-            amount = min(real_balance, limit)
+            amount = min(real_balance, self.max_trade if self.max_trade > 0 else float('inf'))
         else:
             amount = min(self.current_balance, self.max_trade if self.max_trade > 0 else float('inf'))
 
         if not self.live_mode:
-            # Paper mode stays the same for simplicity
             return self._execute_paper_trade(opportunity, amount)
 
         # 🔴 LIVE ATOMIC EXECUTION
         try:
-            Logger.info(f" 🛡️ Preparing Atomic Bundle for {pair} (${amount:.2f})...")
+            Logger.info(f" 🛡️ Running Atomic Check for {pair}...")
             
             # 2. Build the Atomic Transaction
             atomic_tx = await self.prepare_atomic_bundle(opportunity, amount)
             
-            # 3. Pre-flight Simulation (The "Atomic Check")
-            # We check if the transaction would actually succeed before sending
+            # 3. Pre-flight Simulation (The Safety Shield)
+            # This checks for InstructionErrors before sending
             simulation = await self.wallet_manager.client.simulate_transaction(atomic_tx)
             
             if simulation.value.err:
                 err_msg = str(simulation.value.err)
-                Logger.error(f" ❌ Atomic Check Failed: {err_msg}")
+                Logger.error(f" ❌ Atomic Check Failed: Simulation shows potential loss/error: {err_msg}")
                 return {"success": False, "error": f"Simulation failed: {err_msg}"}
 
-            # 4. Verify PnL in Simulation logs (Optional but Pro)
-            # You can parse simulation.value.logs to see the final USDC balance change
-            
-            # 5. Execute the Bundle
+            # 4. Execute the Bundle
             Logger.info(f" 🚀 Simulation Passed. Sending Atomic Transaction...")
-            sig = await self.wallet_manager.client.send_transaction(atomic_tx)
+            sig_result = await self.wallet_manager.client.send_transaction(atomic_tx)
+            sig = sig_result.value
             
-            # 6. Final confirmation
             if sig:
                 Logger.success(f" ✅ Atomic Arb Landed! Sig: {str(sig)[:8]}...")
-                # Sync balance after trade
+                # Sync balance once confirmed
                 await asyncio.sleep(2)
                 new_bal = self.wallet_manager.get_balance(USDC_MINT)
                 profit = new_bal - real_balance
@@ -276,36 +277,7 @@ class UnifiedTrader:
             
         except Exception as e:
             Logger.error(f" 💥 Execution Error: {str(e)}")
-            return {"success": False, "error": str(e)}
-
-    async def prepare_atomic_bundle(self, opportunity, amount):
-        """Bundles Buy and Sell into a single VersionedTransaction."""
-        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-        target_mint = opportunity["buy_mint"]
-
-        # 1. Get BUY Instructions from Jupiter
-        # Use a low slippage (50bps = 0.5%) for safety
-        buy_quote = await self.swapper.get_quote(USDC_MINT, target_mint, amount, slippage=50)
-        buy_ix = await self.swapper.get_swap_instructions(buy_quote)
-        
-        # 2. Get SELL Instructions (using the expected output of the buy)
-        # The amount to sell is the 'outAmount' from the buy quote
-        sell_quote = await self.swapper.get_quote(target_mint, USDC_MINT, buy_quote['outAmount'], slippage=50)
-        sell_ix = await self.swapper.get_swap_instructions(sell_quote)
-        
-        # 3. Combine Instructions
-        all_ix = buy_ix + sell_ix
-        
-        # 4. Compile to Versioned Transaction
-        recent_blockhash = await self.wallet_manager.client.get_latest_blockhash()
-        msg = MessageV0.try_compile(
-            self.wallet_manager.keypair.pubkey(), 
-            all_ix, 
-            [], 
-            recent_blockhash.value.blockhash
-        )
-        
-        return VersionedTransaction(msg, [self.wallet_manager.keypair])
+            return {"success": False, "error": str(e)}  
     
     async def _reclaim_rent(self):
         """Scan for empty token accounts and close them to reclaim rent."""
