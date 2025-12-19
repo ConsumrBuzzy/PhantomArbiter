@@ -45,14 +45,25 @@ class JupiterSwapper:
         """
         Execute a Swap with Adaptive Slippage.
         """
-        if not self.wallet.keypair: return None
+        print(f"   [SWAP] Starting swap: {direction} ${amount_usd} target={target_mint}")
+        
+        if not self.wallet.keypair:
+            print("   [SWAP] ❌ FAILED: No wallet keypair loaded!")
+            return None
+            
+        print(f"   [SWAP] Wallet OK: {str(self.wallet.keypair.pubkey())[:8]}...")
+        
         if not Settings.ENABLE_TRADING:
             if getattr(Settings, 'DRY_RUN_MODE', False):
+                print(f"   [SWAP] DRY-RUN: Would {direction} ${amount_usd:.2f}")
                 Logger.info(f"📝 DRY-RUN: Would {direction} ${amount_usd:.2f} of {target_mint or 'TARGET'}... ({reason})")
             else:
+                print(f"   [SWAP] ❌ TRADING DISABLED!")
                 Logger.info(f"🔒 TRADING DISABLED: Would {direction} ${amount_usd} ({reason})")
             return None
 
+        print(f"   [SWAP] Trading enabled, proceeding...")
+        
         SLIPPAGE_TIERS = Settings.ADAPTIVE_SLIPPAGE_TIERS
         mint = target_mint or Settings.TARGET_MINT
         Logger.info(f"🚀 EXECUTION: {direction} ${amount_usd} ({reason})")
