@@ -74,7 +74,10 @@ class SpreadDetector:
         # Configuration
         self.min_spread_pct = getattr(Settings, 'MIN_SPREAD_PCT', 0.1)
         self.default_trade_size = getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 100.0)
-        self.gas_fee_usd = 0.50  # Approximate gas in USD
+        
+        # SOL price cache for gas calculation
+        self._sol_price_cache = 95.0  # Default fallback
+        self._sol_price_ts = 0.0
         
         # Cache
         self._price_cache: Dict[str, Dict[str, float]] = {}
@@ -83,6 +86,29 @@ class SpreadDetector:
     def add_feed(self, feed) -> None:
         """Add a price feed source."""
         self.feeds[feed.get_name()] = feed
+        
+    def _get_sol_price(self) -> float:
+        """Get live SOL/USD price for gas cost estimation."""
+        import time
+        
+        # Cache for 30 seconds to avoid excessive API calls
+        if time.time() - self._sol_price_ts < 30:
+            return self._sol_price_cache
+        
+        SOL_MINT = "So11111111111111111111111111111111111111112"
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        
+        for feed in self.feeds.values():
+            try:
+                spot = feed.get_spot_price(SOL_MINT, USDC_MINT)
+                if spot and spot.price > 0:
+                    self._sol_price_cache = spot.price
+                    self._sol_price_ts = time.time()
+                    return spot.price
+            except:
+                pass
+        
+        return self._sol_price_cache  # Return cached/default
         
     def scan_pair(
         self, 
