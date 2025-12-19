@@ -185,28 +185,19 @@ class SmartRouter:
                 "slippageBps": slippage_bps
             }
             
-            print(f"   [JUPITER] URL: {url}")
-            print(f"   [JUPITER] Params: {params}")
-            
             resp = requests.get(url, params=params, timeout=10)
-            
-            print(f"   [JUPITER] Status: {resp.status_code}")
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(15)  # 15s cooldown
                 return None
             
             if resp.status_code != 200:
-                print(f"   [JUPITER] Error Response: {resp.text[:200]}")
                 Logger.error(f"Jupiter API Error: {resp.status_code} - {resp.text}")
                 return None
             
-            result = resp.json()
-            print(f"   [JUPITER] Got quote: outAmount={result.get('outAmount', 'N/A')}")
-            return result
+            return resp.json()
             
         except Exception as e:
-            print(f"   [JUPITER] Exception: {e}")
             Logger.error(f"Jupiter Quote Failed: {e}")
             return None
 

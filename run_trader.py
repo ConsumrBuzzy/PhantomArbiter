@@ -184,8 +184,6 @@ class UnifiedTrader:
                 from src.execution.wallet import WalletManager
                 from src.execution.swapper import JupiterSwapper
                 
-                print(f"   🔧 Trading enabled: {Settings.ENABLE_TRADING}")
-                
                 # Get the swapper (it uses existing infrastructure)
                 wallet_manager = WalletManager()
                 
@@ -207,8 +205,6 @@ class UnifiedTrader:
                 
                 if not target_mint:
                     return {"success": False, "error": f"Unknown pair: {pair}"}
-                
-                print(f"   🚀 Executing swap: BUY ${amount} of {pair}")
                 
                 # Execute the buy via existing swapper
                 reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
@@ -235,7 +231,7 @@ class UnifiedTrader:
                     return {"success": True, "trade": trade}
                 else:
                     # Get more details about why it failed
-                    return {"success": False, "error": f"Swap returned None - check console output above"}
+                    return {"success": False, "error": f"Swap returned None (check logs)"}
                     
             except Exception as e:
                 import traceback
