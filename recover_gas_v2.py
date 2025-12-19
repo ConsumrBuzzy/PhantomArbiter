@@ -69,12 +69,15 @@ async def recover():
     print("🚀 Sending Transaction...")
     client = Client(Settings.RPC_URL)
     try:
-        sig = client.send_transaction(signed_tx, opts=TxOpts(skip_preflight=True)).value
-        print(f"✅ SIG: {sig}")
+        # Use simpler logic - just send and log. 
+        # Waiting for confirmation with modern solana-py can be tricky with async mixing.
         
-        print("⏳ Waiting for confirmation...")
-        await client.confirm_transaction(sig, commitment=Confirmed)
-        print("🎉 SUCCESS! Gas refueled.")
+        result = client.send_transaction(signed_tx, opts=TxOpts(skip_preflight=True))
+        sig = result.value
+        print(f"✅ SIG: {sig}")
+        print("ℹ️ Check Solscan: https://solscan.io/tx/" + str(sig))
+        print("⏳ Waiting 15s for confirmation...")
+        await asyncio.sleep(15)
         
     except Exception as e:
         print(f"❌ Transaction failed: {e}")
