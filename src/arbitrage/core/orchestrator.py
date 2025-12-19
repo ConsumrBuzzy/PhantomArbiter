@@ -53,16 +53,18 @@ class ArbitrageOrchestrator:
         self.last_tick = 0.0
         
     def _init_feeds(self):
-        """Initialize price feeds."""
+        """Initialize price feeds for all supported DEXs."""
         from src.arbitrage.feeds.jupiter_feed import JupiterFeed
+        from src.arbitrage.feeds.raydium_feed import RaydiumFeed
+        from src.arbitrage.feeds.orca_feed import OrcaFeed
         
         self._feeds = [
             JupiterFeed(),
-            # RaydiumFeed(),  # TODO
-            # OrcaFeed(),     # TODO
+            RaydiumFeed(),
+            OrcaFeed(use_on_chain=False),  # Use DexScreener for speed
         ]
         
-        Logger.info(f"📡 Initialized {len(self._feeds)} price feeds")
+        Logger.info(f"📡 Initialized {len(self._feeds)} price feeds: Jupiter, Raydium, Orca")
         
     def _init_spread_detector(self):
         """Initialize spread detector with feeds."""

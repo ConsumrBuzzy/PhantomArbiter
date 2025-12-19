@@ -119,9 +119,10 @@ class JupiterFeed(PriceSource):
     
     def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
-        Get spot price using Jupiter Price API (lightweight).
+        Get spot price - uses DexScreener as primary (more reliable).
         
-        Uses caching to avoid rate limits.
+        Jupiter aggregates from multiple DEXs so we show the "best available"
+        price which is typically what Jupiter would route through.
         """
         cache_key = f"{base_mint}:{quote_mint}"
         
@@ -137,21 +138,10 @@ class JupiterFeed(PriceSource):
                     timestamp=cached['timestamp']
                 )
         
-        try:
-            # Use Jupiter Price API
-            url = f"https://price.jup.ag/v6/price?ids={base_mint}&vsToken={quote_mint}"
-            resp = requests.get(url, timeout=5)
-            
-            if resp.status_code != 200:
-                return None
-                
-            data = resp.json()
-            price = float(data.get('data', {}).get(base_mint, {}).get('price', 0.0))
-            
-            if price <= 0:
-                return None
-            
-            # Update cache
+        # Use DexScreener (most reliable) - get best price across DEXs
+        price = self._fetch_dexscreener_best_price(base_mint)
+        
+        if price and price > 0:
             timestamp = time.time()
             self._price_cache[cache_key] = {
                 'price': price,
@@ -165,9 +155,36 @@ class JupiterFeed(PriceSource):
                 price=price,
                 timestamp=timestamp
             )
+        
+        return None
+    
+    def _fetch_dexscreener_best_price(self, mint: str) -> Optional[float]:
+        """
+        Fetch best available price from DexScreener.
+        
+        DexScreener returns pools sorted by liquidity, so first price
+        is typically the most accurate/liquid - similar to what Jupiter
+        would route through.
+        """
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
+            resp = requests.get(url, timeout=5)
+            
+            if resp.status_code != 200:
+                return None
+                
+            data = resp.json()
+            pairs = data.get('pairs', [])
+            
+            if not pairs:
+                return None
+            
+            # Get price from first (most liquid) pair
+            price = float(pairs[0].get('priceUsd', 0) or 0)
+            return price if price > 0 else None
             
         except Exception as e:
-            Logger.debug(f"Jupiter price error: {e}")
+            Logger.debug(f"DexScreener error: {e}")
             return None
     
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
