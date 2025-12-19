@@ -149,9 +149,9 @@ class Settings:
     ENABLE_TRADING = True
     
     # Gas Management
-    GAS_CRITICAL_SOL = 0.002   # ~30 cents (Emergency refill level)
-    GAS_FLOOR_SOL = 0.05       # ~$7.50 (Low gas warning)
-    GAS_REPLENISH_USD = 2.0    # Buy $2 worth of SOL when empty
+    GAS_CRITICAL_SOL = 0.01    # ~1.50 USD (Increased buffer to prevent dust lock)
+    GAS_FLOOR_SOL = 0.05       # ~$7.50
+    GAS_REPLENISH_USD = 5.0    # Buy $5 SOL (more robust refill)
     
     # V7.0: Swing Trading Thresholds
     TAKE_PROFIT_PCT = 0.04          # +4.0% - Swing Trading Target

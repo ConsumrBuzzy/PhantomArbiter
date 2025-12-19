@@ -274,6 +274,68 @@ class UnifiedTrader:
             
             return {"success": True, "trade": trade}
     
+    async def _reclaim_rent(self):
+        """Scan for empty accounts and reclaim rent (Vacuum Strategy)."""
+        if not self.wallet_manager or not self.live_mode: return
+        
+        try:
+            # 1. Scan
+            from spl.token.constants import TOKEN_PROGRAM_ID
+            from spl.token.instructions import close_account, CloseAccountParams
+            from solders.pubkey import Pubkey
+            from solders.transaction import VersionedTransaction
+            from solders.message import MessageV0
+            from solana.rpc.types import TxOpts
+            from solana.rpc.api import Client
+            
+            pubkey = self.wallet_manager.keypair.pubkey()
+            
+            # Simple RPC call using requests to avoid heavy imports if possible, but we need parsing
+            # Use existing pool logic if available or direct requests
+            import requests
+            
+            payload = {
+                "jsonrpc": "2.0", "id": 1, "method": "getTokenAccountsByOwner",
+                "params": [
+                    str(pubkey),
+                    {"programId": str(TOKEN_PROGRAM_ID)},
+                    {"encoding": "jsonParsed"}
+                ]
+            }
+            res = requests.post("https://api.mainnet-beta.solana.com", json=payload).json()
+            
+            accounts_to_close = []
+            if "result" in res and "value" in res["result"]:
+                for acc in res["result"]["value"]:
+                    info = acc["account"]["data"]["parsed"]["info"]
+                    if float(info["tokenAmount"]["uiAmount"]) == 0:
+                        accounts_to_close.append(Pubkey.from_string(acc["pubkey"]))
+            
+            if not accounts_to_close:
+                return
+
+            print(f"   ♻️  Found {len(accounts_to_close)} empty accounts. Reclaiming gas...")
+            
+            # 2. Close Accounts (Batch of 5)
+            instructions = []
+            for acc in accounts_to_close[:5]:
+                ix = close_account(CloseAccountParams(
+                    account=acc, dest=pubkey, owner=pubkey, program_id=TOKEN_PROGRAM_ID, signers=[]
+                ))
+                instructions.append(ix)
+                
+            # 3. Send
+            client = Client("https://api.mainnet-beta.solana.com")
+            latest_blockhash = client.get_latest_blockhash().value.blockhash
+            msg = MessageV0.try_compile(pubkey, instructions, [], latest_blockhash)
+            tx = VersionedTransaction(msg, [self.wallet_manager.keypair])
+            
+            client.send_transaction(tx, opts=TxOpts(skip_preflight=True))
+            print(f"   ✅ Reclaimed ~{len(instructions)*0.002:.4f} SOL")
+            
+        except Exception as e:
+            print(f"   ⚠️ Reclaim failed: {e}")
+
     async def run(self, duration_minutes: int = 10, scan_interval: int = 5):
         """Run the trader."""
         
@@ -291,14 +353,20 @@ class UnifiedTrader:
         print("="*70)
         print("\n   Running... (Ctrl+C to stop)\n")
         
+        # Initial Vacuum
+        if self.live_mode:
+            await self._reclaim_rent()
+        
         start_time = time.time()
         end_time = start_time + (duration_minutes * 60) if duration_minutes > 0 else float('inf')
         
         last_trade_time = {}  # Cooldown tracking
         cooldown = 5  # seconds
+        loop_count = 0
         
         try:
             while time.time() < end_time:
+                loop_count += 1
                 now = datetime.now().strftime("%H:%M:%S")
                 
                 # Live Mode Maintenance
@@ -306,7 +374,11 @@ class UnifiedTrader:
                     # 1. Check Gas
                     self.wallet_manager.check_and_replenish_gas(self.swapper)
                     
-                    # 2. Sync Balance (if full wallet)
+                    # 2. Reclaim Rent (Every 10 loops)
+                    if loop_count % 10 == 0:
+                        await self._reclaim_rent()
+                    
+                    # 3. Sync Balance (if full wallet)
                     if self.full_wallet:
                          bal = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
                          self.current_balance = bal
@@ -339,6 +411,11 @@ class UnifiedTrader:
                             print(f"            Spread: +{trade['spread_pct']:.2f}% → Net: ${trade['net_profit']:+.4f}")
                             print(f"            Balance: ${self.current_balance:.4f}")
                             print()
+                            
+                            # Post-trade cleanup
+                            if self.live_mode:
+                                await self._reclaim_rent()
+                                
                             break
                         else:
                             # Print error
@@ -402,7 +479,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget", type=float, default=50.0, help="Starting budget in USD (ignored if --full-wallet)")
     parser.add_argument("--duration", type=int, default=10, help="Duration in minutes")
     parser.add_argument("--interval", type=int, default=5, help="Scan interval in seconds")
-    parser.add_argument("--min-spread", type=float, default=0.20, help="Minimum spread percent")
+    parser.add_argument("--min-spread", type=float, default=0.50, help="Minimum spread percent (Default: 0.50%)")
     parser.add_argument("--max-trade", type=float, default=10.0, help="Maximum trade size")
     parser.add_argument("--full-wallet", action="store_true", help="Use ENTIRE wallet balance (up to max-trade)")
     
