@@ -378,7 +378,56 @@ class Settings:
     # Social Signals (Bags.fm)
     SOCIAL_SIGNALS_ENABLED = False   # Requires API key
     BAGS_FM_API_KEY = ""  # Set in .env
-# Initial Load
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # V1.0: ARBITRAGE ENGINE CONFIGURATION
+    # ═══════════════════════════════════════════════════════════════════
+    
+    # Mode Selection: SPATIAL | TRIANGULAR | FUNDING | ALL
+    ARBITRAGE_MODE = os.getenv("ARBITRAGE_MODE", "FUNDING")
+    
+    # Budget Configuration
+    ARBITRAGE_BUDGET_USD = float(os.getenv("ARBITRAGE_BUDGET", "500.0"))
+    MAX_TRADE_SIZE_USD = 100.0          # Max per trade to limit slippage
+    DEFAULT_TRADE_SIZE_USD = 50.0       # Default test size
+    
+    # ─── Spatial Arbitrage (Cross-DEX) ───
+    SPATIAL_MIN_SPREAD_PCT = 0.3        # Minimum spread to trigger (0.3%)
+    SPATIAL_PAIRS = [                   # Monitored pairs
+        "SOL/USDC",
+        "BONK/USDC", 
+        "WIF/USDC",
+    ]
+    
+    # ─── Triangular Arbitrage (Intra-DEX Cycles) ───
+    TRI_MIN_PROFIT_PCT = 0.02           # Minimum net profit (0.02% after fees)
+    TRI_CYCLES = [                      # Cycle definitions
+        ["SOL", "USDC", "BONK"],        # SOL → USDC → BONK → SOL
+        ["SOL", "USDC", "WIF"],
+    ]
+    
+    # ─── Funding Rate Arbitrage (Cash & Carry via Drift) ───
+    FUNDING_MIN_RATE_PCT = 0.01         # Min 8h funding rate to enter (0.01%)
+    FUNDING_POSITION_SIZE = 250.0       # Half budget on spot, half on perp
+    DRIFT_LEVERAGE = 1.0                # 1x leverage (delta neutral)
+    
+    # ─── Risk Parameters ───
+    MAX_SLIPPAGE_PCT = 0.5              # Maximum acceptable slippage
+    MIN_PROFIT_AFTER_FEES = 0.10        # Minimum USD profit per cycle
+    GAS_BUFFER_SOL = 0.05               # Keep 0.05 SOL for gas
+    MIN_SPREAD_PCT = 0.1                # Global minimum spread to consider
+    
+    # ─── Monitoring ───
+    DASHBOARD_REFRESH_SEC = 2.0         # Dashboard update interval
+    TELEGRAM_ALERT_THRESHOLD = 0.3      # Alert on 0.3%+ spreads
+    TELEGRAM_ENABLED = True             # Send Telegram alerts
+    
+    # ─── DEX Configuration ───
+    JUPITER_API_URL = "https://quote-api.jup.ag/v6"
+    RAYDIUM_ENABLED = True
+    ORCA_ARB_ENABLED = True             # Enable Orca for arbitrage scanning
+    
+
 try:
     a, v, w, s, all_a, meta = Settings.load_assets()
     Settings.ACTIVE_ASSETS = a
