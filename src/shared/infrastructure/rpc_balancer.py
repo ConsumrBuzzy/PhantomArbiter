@@ -121,13 +121,13 @@ class RPCBalancer:
     
     def _load_providers(self):
         """Load RPC providers from environment variables."""
-        # Helius
+        # Helius (preferred)
         helius_key = os.getenv("HELIUS_API_KEY")
         if helius_key:
             self.providers.append(RPCProvider(
                 name="Helius",
                 url=f"https://mainnet.helius-rpc.com/?api-key={helius_key}",
-                weight=1.0
+                weight=1.5  # Higher weight - preferred
             ))
         
         # Alchemy
@@ -139,8 +139,22 @@ class RPCBalancer:
                 weight=1.0
             ))
         
-        # Add more providers here as needed
-        # QuickNode, Triton, etc.
+        # QuickNode
+        quicknode_url = os.getenv("QUICKNODE_ENDPOINT")
+        if quicknode_url:
+            self.providers.append(RPCProvider(
+                name="QuickNode",
+                url=quicknode_url,
+                weight=1.0
+            ))
+        
+        # Public fallback (always added, but low weight)
+        # Rate limited but useful as backup
+        self.providers.append(RPCProvider(
+            name="PublicRPC",
+            url="https://api.mainnet-beta.solana.com",
+            weight=0.3  # Low weight - only use when others fail
+        ))
     
     def _get_available_providers(self) -> List[RPCProvider]:
         """Get list of currently available providers."""
