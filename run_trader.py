@@ -147,33 +147,38 @@ class UnifiedTrader:
                 net = gross - fees
                 
                 # Determine status
-                if net > 0:
-                    status = "✅ PROFITABLE"
-                elif gross >= self.min_spread:
-                    status = "⚠️ Break-even"
-                else:
-                    status = "❌ Below min"
+                is_profitable = False
+                status = "❌ Below min"
+                
+                # Logic: Must meet user's min spread AND be theoretically positive after 0.2% fees
+                if gross >= self.min_spread:
+                    if net > 0:
+                        status = "✅ PROFITABLE"
+                        is_profitable = True
+                    else:
+                        status = "⚠️ High Fee Risk"
+                elif net > 0:
+                    status = "⚠️ < Min Spread"
                 
                 if verbose:
                     print(f"   {opp.pair:<12} {opp.buy_dex:<10} {opp.sell_dex:<10} +{opp.spread_pct:.2f}%     {status}")
                 
-                all_spreads.append({
+                dict_opp = {
                     "pair": opp.pair,
+                    "buy_dex": opp.buy_dex,
+                    "buy_price": opp.buy_price,
+                    "sell_dex": opp.sell_dex,
+                    "sell_price": opp.sell_price,
+                    "buy_mint": pairs[[p[0] for p in pairs].index(opp.pair)][1] if opp.pair in [p[0] for p in pairs] else None,
                     "spread_pct": opp.spread_pct,
-                    "status": status
-                })
+                    "net_pct": net,
+                    "status": status # Add status for all_spreads
+                }
                 
-                if net > 0:
-                    opportunities.append({
-                        "pair": opp.pair,
-                        "buy_dex": opp.buy_dex,
-                        "buy_price": opp.buy_price,
-                        "sell_dex": opp.sell_dex,
-                        "sell_price": opp.sell_price,
-                        "spread_pct": opp.spread_pct,
-                        "net_pct": net,
-                        "buy_mint": pairs[[p[0] for p in pairs].index(opp.pair)][1] if opp.pair in [p[0] for p in pairs] else None
-                    })
+                if is_profitable:
+                    opportunities.append(dict_opp)
+                
+                all_spreads.append(dict_opp)
             
             if verbose and opportunities:
                 print(f"\n   🎯 {len(opportunities)} profitable opportunity found!")
