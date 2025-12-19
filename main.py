@@ -58,8 +58,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Minimum spread percent to trade (default: 0.50)"
     )
     arbiter_parser.add_argument(
-        "--max-trade", type=float, default=10.0,
-        help="Maximum trade size in USD (default: 10)"
+        "--max-trade", type=float, default=0,
+        help="Maximum trade size in USD (default: 0 = use full budget)"
     )
     arbiter_parser.add_argument(
         "--gas-budget", type=float, default=5.0,

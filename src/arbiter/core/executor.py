@@ -172,40 +172,54 @@ class ArbitrageExecutor:
                 legs.append(sell_result)
                 
             elif self.mode == ExecutionMode.LIVE:
-                # ═══ LIVE MODE: Real execution ═══
+                # ═══ LIVE MODE: Atomic bundled execution ═══
+                # Both legs in one Jito bundle to prevent price flux
                 USDC = Settings.USDC_MINT
                 token_mint = opportunity.base_mint
                 
-                Logger.info(f"[EXEC] LIVE: Getting quote for ${trade_size:.2f} → {opportunity.pair}")
+                Logger.info(f"[EXEC] LIVE ATOMIC: ${trade_size:.2f} {opportunity.pair}")
                 
                 router = self._get_smart_router()
                 usdc_amount = int(trade_size * 1_000_000)
                 
+                # 1. Get buy quote
                 buy_quote = router.get_jupiter_quote(
                     USDC, token_mint, usdc_amount, slippage_bps=50
                 )
-                
                 if not buy_quote:
                     return self._error_result("Failed to get buy quote", start_time)
                 
-                buy_result = await self._execute_swap(buy_quote)
-                if not buy_result.success:
-                    return self._error_result(f"Buy failed: {buy_result.error}", start_time)
-                legs.append(buy_result)
+                expected_tokens = int(buy_quote.get('outAmount', 0))
                 
-                # Get sell quote
+                # 2. Get sell quote (using expected tokens from buy)
                 sell_quote = router.get_jupiter_quote(
-                    token_mint, USDC,
-                    int(buy_result.output_amount * 1e9),
-                    slippage_bps=50
+                    token_mint, USDC, expected_tokens, slippage_bps=50
                 )
-                
                 if not sell_quote:
-                    Logger.error("[EXEC] Failed to get sell quote - position open!")
-                    return self._error_result("Failed to get sell quote", start_time, legs)
+                    return self._error_result("Failed to get sell quote", start_time)
                 
-                sell_result = await self._execute_swap(sell_quote)
-                legs.append(sell_result)
+                # 3. Execute atomically via Jito bundle (or sequential fallback)
+                if self.jito and self.jito.is_available():
+                    Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
+                    result = await self._execute_bundled_swaps(buy_quote, sell_quote)
+                else:
+                    Logger.warning("[EXEC] ⚠️ Jito unavailable - using sequential (flux risk!)")
+                    # Fallback to sequential
+                    buy_result = await self._execute_swap(buy_quote)
+                    if not buy_result.success:
+                        return self._error_result(f"Buy failed: {buy_result.error}", start_time)
+                    legs.append(buy_result)
+                    
+                    sell_result = await self._execute_swap(sell_quote)
+                    legs.append(sell_result)
+                    
+                    result = None
+                
+                if result:
+                    # Bundled execution succeeded
+                    legs = result.get('legs', [])
+                    if not result.get('success'):
+                        return self._error_result(result.get('error', 'Bundle failed'), start_time, legs)
                 
             else:
                 # DRY_RUN
@@ -253,6 +267,99 @@ class ArbitrageExecutor:
         except Exception as e:
             Logger.error(f"[EXEC] Spatial arb error: {e}")
             return self._error_result(str(e), start_time)
+    
+    async def _execute_bundled_swaps(self, buy_quote: Dict, sell_quote: Dict) -> Dict:
+        """
+        Execute both swap legs as an atomic Jito bundle.
+        
+        Both transactions succeed or both fail - no partial execution.
+        Prevents price flux between buy and sell legs.
+        """
+        import base64
+        from solders.transaction import VersionedTransaction
+        
+        try:
+            Logger.info("[EXEC] Building atomic bundle...")
+            
+            # Get swap instructions for both legs
+            if not self.swapper:
+                from src.shared.execution.swapper import JupiterSwapper
+                from src.shared.execution.wallet import WalletManager
+                self.swapper = JupiterSwapper(WalletManager())
+            
+            # Get swap tx for buy leg
+            buy_tx_data = self._get_smart_router().get_swap_transaction({
+                "quoteResponse": buy_quote,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True,
+            })
+            
+            if not buy_tx_data or 'swapTransaction' not in buy_tx_data:
+                return {"success": False, "error": "Failed to get buy tx", "legs": []}
+            
+            # Get swap tx for sell leg
+            sell_tx_data = self._get_smart_router().get_swap_transaction({
+                "quoteResponse": sell_quote,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True,
+            })
+            
+            if not sell_tx_data or 'swapTransaction' not in sell_tx_data:
+                return {"success": False, "error": "Failed to get sell tx", "legs": []}
+            
+            # Sign both transactions
+            buy_raw = base64.b64decode(buy_tx_data["swapTransaction"])
+            sell_raw = base64.b64decode(sell_tx_data["swapTransaction"])
+            
+            buy_tx = VersionedTransaction.from_bytes(buy_raw)
+            sell_tx = VersionedTransaction.from_bytes(sell_raw)
+            
+            signed_buy = VersionedTransaction(buy_tx.message, [self.wallet.keypair])
+            signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
+            
+            # Encode for Jito bundle
+            import base58
+            buy_b58 = base58.b58encode(bytes(signed_buy)).decode()
+            sell_b58 = base58.b58encode(bytes(signed_sell)).decode()
+            
+            # Submit as atomic bundle
+            Logger.info("[EXEC] 🚀 Submitting Jito bundle (both legs)...")
+            bundle_id = self.jito.submit_bundle([buy_b58, sell_b58])
+            
+            if not bundle_id:
+                return {"success": False, "error": "Jito bundle submission failed", "legs": []}
+            
+            Logger.info(f"[EXEC] ✅ Bundle submitted: {bundle_id[:16]}...")
+            
+            # Create result legs
+            legs = [
+                TradeResult(
+                    success=True, trade_type="BUY",
+                    input_token=buy_quote.get('inputMint', ''),
+                    output_token=buy_quote.get('outputMint', ''),
+                    input_amount=int(buy_quote.get('inAmount', 0)) / 1e6,
+                    output_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
+                    price=0, fee_usd=0.01,
+                    signature=bundle_id, error=None,
+                    timestamp=time.time(), execution_time_ms=0
+                ),
+                TradeResult(
+                    success=True, trade_type="SELL",
+                    input_token=sell_quote.get('inputMint', ''),
+                    output_token=sell_quote.get('outputMint', ''),
+                    input_amount=int(sell_quote.get('inAmount', 0)) / 1e9,
+                    output_amount=int(sell_quote.get('outAmount', 0)) / 1e6,
+                    price=0, fee_usd=0.01,
+                    signature=bundle_id, error=None,
+                    timestamp=time.time(), execution_time_ms=0
+                )
+            ]
+            
+            return {"success": True, "bundle_id": bundle_id, "legs": legs}
+            
+        except Exception as e:
+            Logger.error(f"[EXEC] Bundle execution failed: {e}")
+            return {"success": False, "error": str(e), "legs": []}
     
     async def _execute_swap(self, quote: Dict) -> TradeResult:
         """Execute a Jupiter swap from a quote."""
