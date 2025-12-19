@@ -177,11 +177,22 @@ class UnifiedTrader:
         if self.live_mode and self._live_executor:
             # LIVE EXECUTION using existing JupiterSwapper
             try:
+                # Force enable trading (bypass cached settings)
+                from config.settings import Settings
+                Settings.ENABLE_TRADING = True
+                
                 from src.execution.wallet import WalletManager
                 from src.execution.swapper import JupiterSwapper
                 
+                print(f"   🔧 Trading enabled: {Settings.ENABLE_TRADING}")
+                
                 # Get the swapper (it uses existing infrastructure)
                 wallet_manager = WalletManager()
+                
+                # Check if wallet loaded
+                if not wallet_manager.keypair:
+                    return {"success": False, "error": "Wallet keypair not loaded - check SOLANA_PRIVATE_KEY in .env"}
+                
                 swapper = JupiterSwapper(wallet_manager)
                 
                 # Get the mint for the target token
@@ -196,6 +207,8 @@ class UnifiedTrader:
                 
                 if not target_mint:
                     return {"success": False, "error": f"Unknown pair: {pair}"}
+                
+                print(f"   🚀 Executing swap: BUY ${amount} of {pair}")
                 
                 # Execute the buy via existing swapper
                 reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
@@ -221,9 +234,12 @@ class UnifiedTrader:
                     
                     return {"success": True, "trade": trade}
                 else:
-                    return {"success": False, "error": "Swap returned no signature (trading may be disabled)"}
+                    # Get more details about why it failed
+                    return {"success": False, "error": f"Swap returned None - check console output above"}
                     
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 return {"success": False, "error": str(e)}
         
         else:
