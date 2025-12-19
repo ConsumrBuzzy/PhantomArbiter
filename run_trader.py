@@ -324,8 +324,6 @@ class UnifiedTrader:
                     
                     acquired_amount = post_balance - pre_balance
                     
-                    acquired_amount = post_balance - pre_balance
-                    
                     if acquired_amount <= 0:
                          Logger.error(f"   ❌ Buy Confirmed but Balance didn't increase! Stuck?")
                          return {"success": False, "error": "Balance mismatch after buy"}
@@ -334,16 +332,24 @@ class UnifiedTrader:
                     Logger.info(f"   🔄 Executing SELL Leg (Selling {acquired_amount} units)...")
                     sell_sig = self.swapper.execute_swap("SELL", 0, reason, target_mint=target_mint, priority_fee=priority_fee, override_atomic_amount=acquired_amount)
                     
+                    realized_profit = 0.0
                     if sell_sig:
                         Logger.success(f"   ✅ Cycle Complete (Buy+Sell): {sell_sig[-8:]}")
+                        Logger.info("   ⏳ Verifying PnL...")
+                        
+                        # Wait for Sell to settle to see true profit
+                        for _ in range(15): # 15s max
+                            await asyncio.sleep(1)
+                            current_usdc = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+                            if current_usdc != real_balance: # Balance changed
+                                realized_profit = current_usdc - real_balance
+                                self.current_balance = current_usdc # Update internal state
+                                break
                     else:
                         Logger.error("   ❌ SELL FAILED! You are now Long this token.")
 
-                    # In Full Wallet mode, we update balance via sync in run(), but estimate profit here
-                    net_profit = amount * (opportunity["net_pct"] / 100)
-                    
-                    if not self.full_wallet:
-                        self.current_balance += net_profit
+                    # Use REALIZED profit if available, otherwise 0 (or estimate failure)
+                    net_profit = realized_profit if sell_sig else -amount # If sell failed, we assume loss of principal (temporarily)
                         
                     self.total_profit += net_profit
                     self.total_trades += 1
