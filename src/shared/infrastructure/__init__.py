@@ -1,5 +1,5 @@
 # Infrastructure package for external exchange adapters
-from src.infrastructure.signer import (
+from src.shared.infrastructure.signer import (
     TransactionSigner,
     TransactionResult,
     ExecutionMode,

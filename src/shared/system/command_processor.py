@@ -142,7 +142,7 @@ class CommandProcessor:
     def _handle_test_drift(self):
         send_telegram("🧪 Drift Test Starting...", source="BROKER", priority="HIGH")
         try:
-            from src.infrastructure.drift_adapter import DriftAdapter
+            from src.shared.infrastructure.drift_adapter import DriftAdapter
             adapter = DriftAdapter("devnet")
             pk = os.getenv("PHANTOM_PRIVATE_KEY")
             if not pk:
@@ -161,7 +161,7 @@ class CommandProcessor:
     def _handle_check_drift(self):
         send_telegram("🔍 Checking Drift...", source="BROKER", priority="HIGH")
         try:
-            from src.infrastructure.drift_adapter import DriftAdapter
+            from src.shared.infrastructure.drift_adapter import DriftAdapter
             adapter = DriftAdapter("mainnet")
             pk = os.getenv("PHANTOM_PRIVATE_KEY")
             if not pk: 

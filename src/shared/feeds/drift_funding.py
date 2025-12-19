@@ -79,7 +79,7 @@ class DriftFundingFeed:
         """Lazy-load Drift adapter."""
         if self._drift is None:
             try:
-                from src.infrastructure.drift_adapter import DriftAdapter
+                from src.shared.infrastructure.drift_adapter import DriftAdapter
                 self._drift = DriftAdapter("mainnet")
             except Exception as e:
                 Logger.debug(f"Failed to load DriftAdapter: {e}")

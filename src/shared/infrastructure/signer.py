@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from src.shared.system.logging import Logger
-from src.infrastructure.rpc_balancer import get_rpc_balancer
+from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
 from config.settings import Settings
 
 
