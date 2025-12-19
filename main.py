@@ -171,18 +171,6 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
     await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval)
 
 
-async def cmd_monitor(args: argparse.Namespace) -> None:
-    """Handle monitor subcommand."""
-    # Import from existing run_profitability_monitor.py
-    try:
-        from run_profitability_monitor import ProfitabilityMonitor
-        monitor = ProfitabilityMonitor(budget=args.budget)
-        await monitor.run_loop(interval_seconds=args.interval)
-    except ImportError:
-        print("❌ Monitor module not available")
-        print("   Run: python run_profitability_monitor.py directly")
-
-
 async def cmd_scan(args: argparse.Namespace) -> None:
     """Handle scan subcommand - quick one-shot opportunity scan."""
     from src.arbitrage.arbiter import PhantomArbiter, ArbiterConfig
@@ -201,6 +189,127 @@ async def cmd_scan(args: argparse.Namespace) -> None:
     print("="*60)
 
 
+async def cmd_discover(args: argparse.Namespace) -> None:
+    """Handle discover subcommand - find trending meme coins."""
+    from src.scout.scraper import TokenScraper
+    
+    print("\n" + "="*60)
+    print("   PHANTOM ARBITER - Token Discovery")
+    print("="*60)
+    
+    scraper = TokenScraper()
+    candidates = scraper.get_candidates()
+    
+    if candidates:
+        print(f"\n   🎯 Found {len(candidates)} trending tokens:\n")
+        print(f"   {'Symbol':<12} {'Source':<20} {'Address'}")
+        print("   " + "-"*70)
+        for c in candidates[:args.limit]:
+            print(f"   {c.get('symbol', 'UNKNOWN'):<12} {c.get('source', ''):<20} {c['address'][:20]}...")
+    else:
+        print("\n   ⚠️ No candidates found")
+    
+    print("\n" + "="*60)
+
+
+async def cmd_watch(args: argparse.Namespace) -> None:
+    """Handle watch subcommand - monitor launchpads for new tokens."""
+    import time
+    from src.discovery.launchpad_monitor import LaunchpadMonitor, LaunchEvent, MigrationEvent
+    
+    print("\n" + "="*60)
+    print("   PHANTOM ARBITER - Launchpad Watcher")
+    print("="*60)
+    print(f"   Platforms:  {args.platforms}")
+    print(f"   Duration:   {args.duration} minutes")
+    print("="*60)
+    print("\n   Watching for new launches... (Ctrl+C to stop)\n")
+    
+    monitor = LaunchpadMonitor()
+    
+    # Event handlers
+    @monitor.on_launch
+    async def handle_launch(event: LaunchEvent):
+        print(f"   🚀 NEW LAUNCH: {event.symbol or event.mint[:16]}...")
+        print(f"      Platform: {event.platform.value}")
+        print(f"      Creator:  {event.creator[:16]}...")
+        print()
+    
+    @monitor.on_migration
+    async def handle_migration(event: MigrationEvent):
+        print(f"   🎓 MIGRATION: {event.mint[:16]}...")
+        print(f"      DEX:      {event.destination_dex}")
+        print(f"      Pool:     {event.destination_pool[:16]}...")
+        print()
+    
+    try:
+        end_time = time.time() + (args.duration * 60) if args.duration > 0 else float('inf')
+        await monitor.start()
+        
+        while time.time() < end_time:
+            await asyncio.sleep(1)
+            
+    except KeyboardInterrupt:
+        pass
+    finally:
+        monitor.stop()
+    
+    print("\n   Watcher stopped.")
+
+
+async def cmd_scout(args: argparse.Namespace) -> None:
+    """Handle scout subcommand - analyze smart money."""
+    from src.agents.scout_agent import ScoutAgent
+    
+    print("\n" + "="*60)
+    print("   PHANTOM ARBITER - Smart Money Scout")
+    print("="*60)
+    
+    scout = ScoutAgent()
+    
+    if args.token:
+        print(f"\n   Auditing token: {args.token[:20]}...")
+        result = await scout.flash_audit(args.token)
+        
+        if result:
+            print(f"\n   📊 Audit Results:")
+            print(f"      Smart Money Count: {result.get('smart_money_count', 0)}")
+            print(f"      Rug Risk:          {'⚠️ YES' if result.get('rug_risk') else '✅ NO'}")
+            print(f"      Source:            {result.get('source', 'unknown')}")
+            if result.get('wallets'):
+                print(f"      Top Wallets:       {len(result['wallets'])}")
+        else:
+            print("\n   ⚠️ Audit failed or no data available")
+            
+    elif args.wallet:
+        print(f"\n   Analyzing wallet: {args.wallet[:20]}...")
+        perf = await scout.calculate_wallet_performance(args.wallet)
+        
+        if perf:
+            print(f"\n   📊 Wallet Performance:")
+            print(f"      Win Rate:  {perf.get('win_rate', 0)*100:.1f}%")
+            print(f"      Total PnL: ${perf.get('total_pnl', 0):.2f}")
+        else:
+            print("\n   ⚠️ Analysis failed or no data available")
+    else:
+        print("\n   Usage:")
+        print("     python main.py scout --token <MINT>")
+        print("     python main.py scout --wallet <ADDRESS>")
+    
+    print("\n" + "="*60)
+
+
+async def cmd_monitor(args: argparse.Namespace) -> None:
+    """Handle monitor subcommand."""
+    try:
+        from run_profitability_monitor import ProfitabilityMonitor
+        monitor = ProfitabilityMonitor(budget=args.budget)
+        await monitor.run_loop(interval_seconds=args.interval)
+    except ImportError:
+        print("❌ Monitor module not available")
+        print("   Run: python run_profitability_monitor.py directly")
+
+
 async def main() -> None:
     """Main entry point."""
     parser = create_parser()
@@ -210,15 +319,22 @@ async def main() -> None:
         parser.print_help()
         return
     
-    if args.command == "arbiter":
-        await cmd_arbiter(args)
-    elif args.command == "monitor":
-        await cmd_monitor(args)
-    elif args.command == "scan":
-        await cmd_scan(args)
+    command_handlers = {
+        "arbiter": cmd_arbiter,
+        "scan": cmd_scan,
+        "discover": cmd_discover,
+        "watch": cmd_watch,
+        "scout": cmd_scout,
+        "monitor": cmd_monitor,
+    }
+    
+    handler = command_handlers.get(args.command)
+    if handler:
+        await handler(args)
     else:
         parser.print_help()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
