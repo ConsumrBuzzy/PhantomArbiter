@@ -64,7 +64,9 @@ class PhantomArbiter:
         self.starting_balance = config.budget
         self.current_balance = config.budget
         
-        # Statistics
+        # Statistics via TurnoverTracker
+        from src.arbiter.core.turnover_tracker import TurnoverTracker
+        self.tracker = TurnoverTracker(budget=config.budget)
         self.total_trades = 0
         self.total_profit = 0.0
         self.trades: List[Dict] = []
@@ -149,31 +151,19 @@ class PhantomArbiter:
         detector = self._get_detector()
         spreads = detector.scan_all_pairs(self.config.pairs)
         
-        profitable = []
+        # Filter profitable using SpreadOpportunity's own calculations
+        profitable = [opp for opp in spreads if opp.is_profitable]
         
         if verbose:
             now = datetime.now().strftime("%H:%M:%S")
-            print(f"\n   [{now}] MARKET SCAN:")
-            print(f"   {'Pair':<12} {'Buy DEX':<10} {'Sell DEX':<10} {'Spread':<10} {'Status':<15}")
-            print("   " + "-"*55)
-        
-        for opp in spreads:
-            net = opp.spread_pct - 0.20  # Estimated fees
-            is_profitable = opp.spread_pct >= self.config.min_spread and net > 0
+            best = max(spreads, key=lambda x: x.spread_pct) if spreads else None
             
-            if is_profitable:
-                status = "✅ PROFITABLE"
-                profitable.append(opp)
-            elif opp.spread_pct >= self.config.min_spread:
-                status = "⚠️ High Fee Risk"
+            if best:
+                status = "✅" if best.is_profitable else "❌"
+                # Use SpreadOpportunity's net_profit_usd (accurate fees)
+                print(f"   [{now}] {best.pair}: +{best.spread_pct:.2f}% | Net: ${best.net_profit_usd:+.3f} {status} | Bal: ${self.current_balance:.2f} | Day: ${self.tracker.daily_profit:+.2f}")
             else:
-                status = "❌ Below min"
-            
-            if verbose:
-                print(f"   {opp.pair:<12} {opp.buy_dex:<10} {opp.sell_dex:<10} +{opp.spread_pct:.2f}%     {status}")
-        
-        if verbose and profitable:
-            print(f"\n   🎯 {len(profitable)} profitable opportunities found!")
+                print(f"   [{now}] No spreads | Bal: ${self.current_balance:.2f}")
         
         return profitable
     
@@ -190,26 +180,42 @@ class PhantomArbiter:
         result = await self._executor.execute_spatial_arb(opportunity, trade_size)
         
         if result.success:
-            self.current_balance += result.net_profit
-            self.total_profit += result.net_profit
+            # Use opportunity's calculated net profit (includes accurate fees)
+            net_profit = opportunity.net_profit_usd * (trade_size / opportunity.max_size_usd)
+            
+            self.current_balance += net_profit
+            self.total_profit += net_profit
             self.total_trades += 1
+            
+            # Record in tracker for accurate stats
+            self.tracker.record_trade(
+                volume_usd=trade_size,
+                profit_usd=net_profit,
+                strategy="SPATIAL",
+                pair=opportunity.pair
+            )
+            
             self.trades.append({
                 "pair": opportunity.pair,
-                "profit": result.net_profit,
+                "profit": net_profit,
+                "fees": opportunity.estimated_fees_usd,
                 "timestamp": time.time(),
                 "mode": "LIVE" if self.config.live_mode else "PAPER"
             })
+            
+            return {
+                "success": True,
+                "trade": {
+                    "pair": opportunity.pair,
+                    "net_profit": net_profit,
+                    "spread_pct": opportunity.spread_pct,
+                    "fees": opportunity.estimated_fees_usd,
+                    "mode": "LIVE" if self.config.live_mode else "PAPER"
+                },
+                "error": None
+            }
         
-        return {
-            "success": result.success,
-            "trade": {
-                "pair": opportunity.pair,
-                "net_profit": result.net_profit,
-                "spread_pct": opportunity.spread_pct,
-                "mode": "LIVE" if self.config.live_mode else "PAPER"
-            } if result.success else None,
-            "error": result.error
-        }
+        return {"success": False, "trade": None, "error": result.error}
     
     async def run(self, duration_minutes: int = 10, scan_interval: int = 5) -> None:
         """Main trading loop."""
