@@ -91,7 +91,9 @@ class JupiterSwapper:
                 
                 # V9.6: Use SmartRouter for Quote
                 quote = self.router.get_jupiter_quote(input_mint, output_mint, amount_atomic, slippage_bps)
-                if not quote or "error" in quote: continue
+                if not quote or "error" in quote: 
+                    if quote and "error" in quote: Logger.warning(f"   ⚠️ Quote Error: {quote}")
+                    continue
                 
                 payload = {
                     "quoteResponse": quote,
@@ -103,7 +105,9 @@ class JupiterSwapper:
                 
                 # V9.6: Use SmartRouter for Swap Tx
                 swap_data = self.router.get_swap_transaction(payload)
-                if not swap_data or "swapTransaction" not in swap_data: continue
+                if not swap_data or "swapTransaction" not in swap_data: 
+                    Logger.warning(f"   ⚠️ Swap Tx Error: {swap_data}")
+                    continue
                 
                 # Sign & Send
                 raw_tx = base64.b64decode(swap_data["swapTransaction"])
