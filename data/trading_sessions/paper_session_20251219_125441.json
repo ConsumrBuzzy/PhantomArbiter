@@ -1,0 +1,45 @@
+{
+  "mode": "paper",
+  "starting_balance": 25.0,
+  "ending_balance": 25.934373683085067,
+  "total_profit": 0.934373683085064,
+  "total_trades": 5,
+  "roi_pct": 3.7374947323402665,
+  "trades": [
+    {
+      "pair": "TNSR/USDC",
+      "profit": 0.02603460996219681,
+      "fees": 0.526094,
+      "timestamp": 1766166783.6151366,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "TNSR/USDC",
+      "profit": 0.02605371366775696,
+      "fees": 0.52611,
+      "timestamp": 1766166804.1001792,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "TNSR/USDC",
+      "profit": 0.29067924489046887,
+      "fees": 0.47611000000000003,
+      "timestamp": 1766166827.056185,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "TNSR/USDC",
+      "profit": 0.29409659786267467,
+      "fees": 0.47602200000000006,
+      "timestamp": 1766166848.1842892,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "TNSR/USDC",
+      "profit": 0.2975095167019666,
+      "fees": 0.47602200000000006,
+      "timestamp": 1766166869.146052,
+      "mode": "PAPER"
+    }
+  ]
+}

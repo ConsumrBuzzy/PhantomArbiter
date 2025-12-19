@@ -128,64 +128,62 @@ class ArbitrageExecutor:
             legs = []
             
             if self.mode == ExecutionMode.PAPER:
-                # ═══ PAPER MODE: Simulate atomic bundled execution ═══
-                # Uses same fee calculations as live mode for accuracy
-                from src.arbiter.core.fee_estimator import get_fee_estimator
+                # ═══ PAPER MODE: Real-Quote Execution ═══
+                # Fetch REAL quotes to verify liquidity and impact, just like Live mode.
                 
-                Logger.info(f"[EXEC] Paper (atomic sim): ${trade_size:.2f} {opportunity.pair}")
+                Logger.info(f"[EXEC] PAPER: Fetching quotes for ${trade_size:.2f} {opportunity.pair}")
+                router = self._get_smart_router()
+                usdc_amount = int(trade_size * 1_000_000)
+                USDC = Settings.USDC_MINT
                 
-                # Calculate token amount based on buy price
-                token_amount = trade_size / opportunity.buy_price
-                
-                # Get accurate fee estimate (same as live)
-                fee_est = get_fee_estimator()
-                fees = fee_est.estimate(
-                    trade_size_usd=trade_size,
-                    buy_dex=opportunity.buy_dex,
-                    sell_dex=opportunity.sell_dex
+                # 1. Get buy quote
+                buy_quote = router.get_jupiter_quote(
+                    USDC, opportunity.base_mint, usdc_amount, slippage_bps=50
                 )
+                if not buy_quote:
+                    return self._error_result("Failed to get buy quote", start_time)
+                    
+                expected_tokens = int(buy_quote.get('outAmount', 0))
                 
-                # Simulate buy leg
-                buy_result = TradeResult(
-                    success=True,
-                    trade_type="BUY",
-                    input_token="USDC",
-                    output_token=opportunity.pair.split("/")[0],
+                # 2. Get sell quote (using exact output from buy)
+                sell_quote = router.get_jupiter_quote(
+                    opportunity.base_mint, USDC, expected_tokens, slippage_bps=50
+                )
+                if not sell_quote:
+                    return self._error_result("Failed to get sell quote", start_time)
+                    
+                expected_usdc_back = int(sell_quote.get('outAmount', 0))
+                
+                # 🚨 PHANTOM ARB CHECK (Liquidity Verification)
+                projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
+                if projected_profit_usd <= 0:
+                    Logger.warning(f"[EXEC] ✋ PAPER: Phantom Arb caught! Quote loss: ${projected_profit_usd:.4f}")
+                    return self._error_result(f"Liquidity Fail: Quote loss ${projected_profit_usd:.4f}", start_time)
+
+                # 3. Simulate Execution Result (using REAL quote data)
+                # We assume execution matches quote (minus fees)
+                
+                # Buy Leg
+                legs.append(TradeResult(
+                    success=True, trade_type="BUY",
+                    input_token="USDC", output_token=opportunity.pair.split("/")[0],
                     input_amount=trade_size,
-                    output_amount=token_amount,
+                    output_amount=expected_tokens / 1e9, # Assuming 9 decimals, strict would check mint
                     price=opportunity.buy_price,
-                    fee_usd=fees.trading_fee_usd / 2,  # Half of trading fees
-                    signature="PAPER_ATOMIC_" + str(int(time.time())),
-                    error=None,
-                    timestamp=time.time(),
-                    execution_time_ms=50  # Faster since "bundled"
-                )
-                legs.append(buy_result)
+                    fee_usd=0.01, signature="PAPER_REAL_" + str(int(time.time())),
+                    error=None, timestamp=time.time(), execution_time_ms=250
+                ))
                 
-                # Simulate sell leg with STOCHASTIC slippage variance
-                # Real slippage varies: sometimes better, sometimes worse
-                import random
-                slippage_variance = random.uniform(0.5, 2.0)  # 0.5x to 2x expected
-                actual_slippage = fees.slippage_cost_usd * slippage_variance
-                
-                sell_output = token_amount * opportunity.sell_price
-                sell_output *= (1 - actual_slippage / trade_size)  # Apply variable slippage
-                
-                sell_result = TradeResult(
-                    success=True,
-                    trade_type="SELL",
-                    input_token=opportunity.pair.split("/")[0],
-                    output_token="USDC",
-                    input_amount=token_amount,
-                    output_amount=sell_output,
+                # Sell Leg
+                legs.append(TradeResult(
+                    success=True, trade_type="SELL",
+                    input_token=opportunity.pair.split("/")[0], output_token="USDC",
+                    input_amount=expected_tokens / 1e9,
+                    output_amount=expected_usdc_back / 1_000_000,
                     price=opportunity.sell_price,
-                    fee_usd=fees.trading_fee_usd / 2 + fees.gas_fee_usd + fees.priority_fee_usd,
-                    signature="PAPER_ATOMIC_" + str(int(time.time()) + 1),
-                    error=None,
-                    timestamp=time.time(),
-                    execution_time_ms=50
-                )
-                legs.append(sell_result)
+                    fee_usd=0.01, signature="PAPER_REAL_" + str(int(time.time())+1),
+                    error=None, timestamp=time.time(), execution_time_ms=250
+                ))
                 
             elif self.mode == ExecutionMode.LIVE:
                 # ═══ LIVE MODE: Atomic bundled execution ═══
