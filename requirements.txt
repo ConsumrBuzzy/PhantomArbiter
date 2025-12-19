@@ -1,0 +1,48 @@
+# Solana Micro-Scalper Dependencies
+# Phase 1: Connection Test + Full Bot Requirements
+
+# Solana SDK
+solana>=0.32.0
+solders>=0.21.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Data Analysis & Technical Indicators
+pandas>=2.0.0
+# pandas_ta removed - using in-house technical analysis library
+
+# Environment Variables Security
+python-dotenv>=1.0.0
+
+
+# V14.0 Remote Control
+python-telegram-bot>=21.0
+
+# V36.0 Machine Learning
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# V41.0 XGBoost Upgrade
+xgboost>=2.0.0
+
+# V40.0 Async HTTP (MarketAggregator, Adapters)
+aiohttp>=3.9.0
+
+# V44.0 PostgreSQL Support
+psycopg2-binary>=2.9.0
+
+# Drift Protocol (Solana Derivatives)
+driftpy>=0.7.0
+anchorpy>=0.18.0
+
+# V45.0 Telegram
+python-telegram-bot>=21.0
+telegram>=0.0.1
+
+# Solders (Solana SDK)
+solders>=0.21.0
+
+# V51.0 Console Beautification
+loguru>=0.7.0
+rich>=13.0.0

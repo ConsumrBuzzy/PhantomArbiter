@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "type": "SELL",
+    "symbol": "POPCAT",
+    "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+    "price": 0.09923,
+    "tokens": 50.269887449,
+    "value_usd": 4.98828093156427,
+    "pnl_pct": 0.006797889610389696,
+    "entry_price": 0.0,
+    "reason": "\u26a1 FAST SCALP (RSI 100.0, +0.68%)",
+    "timestamp": "2025-12-13T18:30:58.572227",
+    "epoch": 1765668658.572234
+  },
+  {
+    "id": 2,
+    "type": "SELL",
+    "symbol": "POPCAT",
+    "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+    "price": 0.09851,
+    "tokens": 50.219617562,
+    "value_usd": 4.94713452603262,
+    "pnl_pct": 0.003974724826742815,
+    "entry_price": 0.0,
+    "reason": "\ud83d\udd25 NUCLEAR (RSI 100.0, +0.40%)",
+    "timestamp": "2025-12-13T20:14:45.528368",
+    "epoch": 1765674885.528376
+  }
+]

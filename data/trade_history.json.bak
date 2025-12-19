@@ -1,0 +1,211 @@
+[
+  {
+    "timestamp": "2025-12-13T23:12:47.389412",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09807,
+    "size_usd": 0.0,
+    "pnl_usd": 4.91519274370236,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\udd25 NUCLEAR (RSI 97.9, +0.41%)",
+    "is_win": true
+  },
+  {
+    "timestamp": "2025-12-14T03:17:33.158173",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09857,
+    "size_usd": 0.0,
+    "pnl_usd": 4.9353121056724,
+    "net_pnl_pct": 0.0,
+    "reason": "\u26a1 FAST SCALP (RSI 97.6, +0.74%)",
+    "is_win": true
+  },
+  {
+    "timestamp": "2025-12-14T03:18:14.521660",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09857,
+    "size_usd": 0.0,
+    "pnl_usd": 4.9353121056724,
+    "net_pnl_pct": 0.0,
+    "reason": "\u26a1 FAST SCALP (RSI 97.6, +0.74%)",
+    "is_win": true
+  },
+  {
+    "timestamp": "2025-12-14T10:08:45.426030",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.0971,
+    "size_usd": 0.0,
+    "pnl_usd": 4.851991955704101,
+    "net_pnl_pct": 0.0,
+    "reason": "\u26a1 FAST SCALP (RSI 89.0, +0.66%)",
+    "is_win": true
+  },
+  {
+    "timestamp": "2025-12-14T10:22:56.978457",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09644,
+    "size_usd": 5.0,
+    "pnl_usd": -0.18580661065400061,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.72%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T10:32:04.780405",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09693,
+    "size_usd": 5.0,
+    "pnl_usd": -0.16618492881085967,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.32%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T10:49:10.465522",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09697,
+    "size_usd": 5.0,
+    "pnl_usd": -0.16902597331394986,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.38%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T10:54:44.685004",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09697,
+    "size_usd": 5.0,
+    "pnl_usd": -0.17385694724706013,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.48%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T11:17:55.885481",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09671,
+    "size_usd": 5.0,
+    "pnl_usd": -0.1916102057988196,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.89%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:05:39.892354",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09752,
+    "size_usd": 5.0,
+    "pnl_usd": -0.15618593154584026,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.12%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:10:44.989240",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09752,
+    "size_usd": 5.0,
+    "pnl_usd": -0.16102974555744076,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.22%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:11:42.470340",
+    "symbol": "JUP",
+    "entry_price": 0.0,
+    "exit_price": 0.1982,
+    "size_usd": 5.0,
+    "pnl_usd": -0.15705276640000054,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-3.13%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:17:41.751185",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09655,
+    "size_usd": 5.0,
+    "pnl_usd": -0.21395226113335042,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-4.28%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:28:49.403831",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09655,
+    "size_usd": 5.0,
+    "pnl_usd": -0.21873830883910017,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-4.37%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:31:51.585767",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09572,
+    "size_usd": 5.0,
+    "pnl_usd": -0.26458097653951995,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-5.29%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:35:37.787904",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09556,
+    "size_usd": 5.0,
+    "pnl_usd": -0.2772239318288401,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-5.54%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:39:40.561758",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09572,
+    "size_usd": 5.0,
+    "pnl_usd": -0.2740470791105203,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-5.48%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:43:19.437803",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09575,
+    "size_usd": 5.0,
+    "pnl_usd": -0.2772933327275,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-5.55%)",
+    "is_win": false
+  },
+  {
+    "timestamp": "2025-12-14T12:57:01.685850",
+    "symbol": "POPCAT",
+    "entry_price": 0.0,
+    "exit_price": 0.09571,
+    "size_usd": 5.0,
+    "pnl_usd": -0.2887030116425997,
+    "net_pnl_pct": 0.0,
+    "reason": "\ud83d\uded1 STOP-LOSS (-5.77%)",
+    "is_win": false
+  }
+]

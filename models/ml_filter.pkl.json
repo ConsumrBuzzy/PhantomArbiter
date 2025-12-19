@@ -1,0 +1,14 @@
+{
+  "accuracy": 0.935720206156013,
+  "cv_folds": 5,
+  "train_samples": 2831,
+  "feature_importance": {
+    "slippage_pct": 0.12636905908584595,
+    "log_liquidity": 0.0718831941485405,
+    "is_volatile": 0.07644961029291153,
+    "global_rsi": 0.1792159378528595,
+    "global_volatility": 0.27958565950393677,
+    "dex_trust_score": 0.0,
+    "log_global_liquidity": 0.26649653911590576
+  }
+}

@@ -1,0 +1,38 @@
+{
+    "settings": {
+        "max_retries": 3,
+        "timeout_seconds": 10,
+        "cooldown_on_failure_seconds": 120
+    },
+    "endpoints": [
+        {
+            "name": "Helius",
+            "url": "https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}",
+            "priority": 1,
+            "enabled": true,
+            "note": "Requires HELIUS_API_KEY in .env - free tier available at helius.dev"
+        },
+        {
+            "name": "JITO Private",
+            "url": "https://mainnet.block-engine.jito.wtf/api/v1/transactions",
+            "priority": 0,
+            "enabled": true,
+            "execution_only": true,
+            "note": "V12.3: JITO public block engine for front-running protection. No API key required."
+        },
+        {
+            "name": "Ankr Public",
+            "url": "https://rpc.ankr.com/solana",
+            "priority": 99,
+            "enabled": false,
+            "note": "V11.9: Disabled - public endpoint is unreliable/rate-limited"
+        },
+        {
+            "name": "Solana Mainnet",
+            "url": "https://api.mainnet-beta.solana.com",
+            "priority": 99,
+            "enabled": false,
+            "note": "V11.9: Disabled - public endpoint is unreliable/rate-limited"
+        }
+    ]
+}

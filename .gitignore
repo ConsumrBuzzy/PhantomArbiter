@@ -1,0 +1,60 @@
+# Environment variables (CRITICAL - contains private keys!)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# V11.3: Machine-specific configs
+*-DuggerLaptop*.py
+*-DuggerLaptop*.json
+
+# V48.0: Deprecated/Legacy code archive
+_deprecated/
+archive/
+
+# V11.3: Runtime cache sprawl
+src/core/price_history_*.json
+
+# Data
+# data/*.db  <-- Tracked by LFS now
+# data/market_data.db <-- Tracked by LFS now
+start.bat
