@@ -213,7 +213,7 @@ class Settings:
     ENABLE_VALIDATION = True    # Check win rate before buyinggle for all safety checks
     
     # V14.0/V15.0 REMOTE CONTROL & SYNC
-    ENABLE_TRADING = False      # Default to Monitor Mode
+    ENABLE_TRADING = True       # ENABLED for Live Trading
     POSITION_SIZE_USD = 15.0    # V79.0: Base size for HIGH confidence trades
     MAX_TOTAL_EXPOSURE_USD = 50.0 # V79.0: $50 Budget ceiling
     
