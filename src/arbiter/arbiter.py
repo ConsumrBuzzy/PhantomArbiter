@@ -267,12 +267,13 @@ class PhantomArbiter:
         if profitable_count:
             print(f"   🎯 {profitable_count} profitable opportunities!")
     
-    async def execute_trade(self, opportunity: SpreadOpportunity) -> Dict[str, Any]:
+    async def execute_trade(self, opportunity: SpreadOpportunity, trade_size: float = None) -> Dict[str, Any]:
         """Execute a trade using the ArbitrageExecutor."""
-        trade_size = min(
-            self.current_balance,
-            self.config.max_trade if self.config.max_trade > 0 else float('inf')
-        )
+        if trade_size is None:
+            trade_size = min(
+                self.current_balance,
+                self.config.max_trade if self.config.max_trade > 0 else float('inf')
+            )
         
         if trade_size < 1.0:
             return {"success": False, "error": "Insufficient balance"}
@@ -460,7 +461,7 @@ class PhantomArbiter:
                         continue
                         
                     # Pre-Flight Verification (Real Quotes)
-                    is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, self.config.max_trade)
+                    is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, trade_size)
                     
                     # Store verification data
                     opp.verification_status = status_msg
@@ -474,13 +475,22 @@ class PhantomArbiter:
                 self._print_dashboard(all_spreads if 'all_spreads' in locals() else raw_opps, verified_opps)
                 
                 # Execute Best Valid Opportunity
-                valid_opps = [op for op in verified_opps if "LIVE" in (op.verification_status or "")]
+                # Look for "LIVE" or "SCALED"
+                valid_opps = [op for op in verified_opps if op.verification_status and ("LIVE" in op.verification_status or "SCALED" in op.verification_status)]
                 
                 if valid_opps:
                     # Pick best by Real Net Profit
                     best_opp = sorted(valid_opps, key=lambda x: x.net_profit_usd, reverse=True)[0]
                     
-                    result = await self.execute_trade(best_opp)
+                    # Check for scaled size
+                    exec_size = trade_size
+                    if "SCALED" in best_opp.verification_status:
+                        import re
+                        match = re.search(r'\$(\d+)', best_opp.verification_status)
+                        if match:
+                            exec_size = float(match.group(1))
+                    
+                    result = await self.execute_trade(best_opp, trade_size=exec_size)
                     
                     if result.get("success"):
                         trade = result["trade"]

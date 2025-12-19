@@ -154,6 +154,23 @@ class ArbitrageExecutor:
             if real_net > 0:
                 return True, real_net, "✅ LIVE"
             else:
+                # RETRY LOGIC (Smart Sizing)
+                # If we failed due to liquidity (negative real net) but spreads looked good,
+                # try reducing size to find the "Safe Trade".
+                min_safe_size = 10.0
+                if trade_size > min_safe_size * 2:
+                    # Recursive retry with half size
+                    new_size = trade_size / 2
+                    is_valid, new_net, status = await self.verify_liquidity(opportunity, new_size)
+                    
+                    if is_valid:
+                        # Found a safe size!
+                        # We return the NEW net profit, but we must signal the bot to use this size via status?
+                        # Or return the valid size? 
+                        # The call signature is (bool, float, str).
+                        # Let's encode the new size in the status message so Arbiter can parse it.
+                        return True, new_net, f"⚠️ SCALED (${new_size:.0f})"
+                
                 return False, real_net, f"❌ LIQ (${real_net:+.2f})"
                 
         except Exception as e:
