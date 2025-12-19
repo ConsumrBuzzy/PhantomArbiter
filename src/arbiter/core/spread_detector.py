@@ -134,24 +134,34 @@ class SpreadDetector:
         if spread_pct < 0.01:  # Negligible spread
             return None
             
-        # Estimate profitability
+        # Estimate profitability with ADAPTIVE fees
         gross_profit = trade_size * (spread_pct / 100)
         
-        # === REALISTIC FEE MODEL ===
-        # Trading fees: 0.25% per swap x2 = 0.5% round trip
-        trading_fees = trade_size * 0.005
+        # === ADAPTIVE FEE MODEL ===
+        # Get live SOL price for gas calculation
+        sol_price_usd = self._get_sol_price()
         
-        # Gas: base (~0.0001 SOL) + priority fee (~0.001 SOL) ≈ $0.15-0.20
-        gas_usd = 0.20
+        # Trading fees: 0.25% per swap x2 = 0.5% round trip (DEX fee)
+        trading_fee_pct = getattr(Settings, 'TRADING_FEE_PCT', 0.005)
+        trading_fees = trade_size * trading_fee_pct
         
-        # Slippage buffer: prices move during tx lifecycle (0.1-0.3%)
-        slippage_pct = 0.15
-        slippage_cost = trade_size * (slippage_pct / 100)
+        # Gas: ~5000 lamports per tx, ~2 txs = 0.00001 SOL base + priority
+        # Priority varies 0.0001-0.001 SOL depending on congestion
+        base_gas_sol = 0.0001
+        priority_fee_sol = getattr(Settings, 'PRIORITY_FEE_SOL', 0.0005)
+        gas_usd = (base_gas_sol + priority_fee_sol) * sol_price_usd * 2  # x2 for round trip
         
-        # Safety margin: catch-all for rent, rounding, quote staleness
-        safety_margin = 0.05  # $0.05 minimum buffer
+        # Dynamic slippage: scales with trade size vs liquidity
+        # Base 0.1% + impact proportional to size
+        slippage_base_pct = getattr(Settings, 'SLIPPAGE_BASE_PCT', 0.001)  # 0.1%
+        slippage_impact = 0.001 * (trade_size / max(trade_size * 10, 10000))  # ~0.01-0.1%
+        slippage_pct = slippage_base_pct + slippage_impact
+        slippage_cost = trade_size * slippage_pct
         
-        total_fees = trading_fees + gas_usd + slippage_cost + safety_margin
+        # Safety buffer: quote staleness, rent, rounding (scales with trade size)
+        safety_buffer = max(0.02, trade_size * 0.0005)  # min $0.02 or 0.05% of trade
+        
+        total_fees = trading_fees + gas_usd + slippage_cost + safety_buffer
         
         net_profit = gross_profit - total_fees
         
