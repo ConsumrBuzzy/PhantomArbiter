@@ -32,6 +32,10 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
+# Load .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from config.settings import Settings
 from src.system.logging import Logger
 

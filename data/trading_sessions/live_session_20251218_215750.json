@@ -1,0 +1,10 @@
+{
+  "mode": "live",
+  "starting_balance": 5.0,
+  "ending_balance": 5.0,
+  "total_profit": 0.0,
+  "total_trades": 0,
+  "roi_pct": 0.0,
+  "runtime_minutes": 0.41381108363469443,
+  "trades": []
+}
