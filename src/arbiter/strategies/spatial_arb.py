@@ -16,7 +16,7 @@ from typing import Optional, List
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.arbitrage.core.spread_detector import SpreadOpportunity
+from src.arbiter.core.spread_detector import SpreadOpportunity
 
 
 class SpatialArbitrage:

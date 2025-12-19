@@ -274,7 +274,7 @@ class ExitConditionMonitor:
 # ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    from src.arbitrage.core.atomic_executor import AtomicExecutor, AtomicPosition
+    from src.arbiter.core.atomic_executor import AtomicExecutor, AtomicPosition
     
     async def test():
         print("=" * 60)

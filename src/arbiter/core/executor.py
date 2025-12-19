@@ -352,7 +352,7 @@ class ArbitrageExecutor:
 # ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    from src.arbitrage.core.spread_detector import SpreadOpportunity
+    from src.arbiter.core.spread_detector import SpreadOpportunity
     
     async def test():
         print("=" * 60)

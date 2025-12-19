@@ -83,7 +83,7 @@ class ArbitrageOrchestrator:
         
     def _init_spread_detector(self):
         """Initialize spread detector with feeds."""
-        from src.arbitrage.core.spread_detector import SpreadDetector
+        from src.arbiter.core.spread_detector import SpreadDetector
         
         self._spread_detector = SpreadDetector(feeds=self._feeds)
         Logger.info("🔍 Spread detector ready")
