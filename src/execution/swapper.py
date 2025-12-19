@@ -221,3 +221,60 @@ class JupiterSwapper:
                 
         except Exception as e:
             Logger.error(f"❌ Recovery Failed: {e}")
+
+async def get_quote(self, input_mint: str, output_mint: str, amount: int, slippage: int = 50):
+        """
+        Fetch a quote from Jupiter V6 API.
+        'amount' must be in raw units (e.g., lamports or USDC 6-decimal units).
+        """
+        url = f"https://quote-api.jup.ag/v6/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&slippageBps={slippage}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+
+    async def get_swap_instructions(self, quote_response: dict):
+        """
+        Fetch raw instructions for a given quote and convert to Solders objects.
+        """
+        url = "https://quote-api.jup.ag/v6/swap-instructions"
+        payload = {
+            "quoteResponse": quote_response,
+            "userPublicKey": str(self.wallet.keypair.pubkey()),
+            "wrapAndUnwrapSol": True,
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Helper to convert Jupiter JSON instruction to Solders Instruction object
+            def deserialize_ix(ix_data):
+                if not ix_data: return None
+                return Instruction(
+                    program_id=Pubkey.from_string(ix_data['programId']),
+                    accounts=[
+                        AccountMeta(
+                            Pubkey.from_string(acc['pubkey']), 
+                            acc['isSigner'], 
+                            acc['isWritable']
+                        ) for acc in ix_data['accounts']
+                    ],
+                    data=base64.b64decode(ix_data['data'])
+                )
+
+            instructions = []
+            # 1. Setup Instructions (usually ATA creation)
+            if data.get('setupInstructions'):
+                instructions.extend([deserialize_ix(ix) for ix in data['setupInstructions']])
+            
+            # 2. The main Swap Instruction
+            instructions.append(deserialize_ix(data['swapInstruction']))
+            
+            # 3. Cleanup Instruction (optional, e.g., unwrapping WSOL)
+            if data.get('cleanupInstruction'):
+                instructions.append(deserialize_ix(data['cleanupInstruction']))
+                
+            return [i for i in instructions if i is not None]
