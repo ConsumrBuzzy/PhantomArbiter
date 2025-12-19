@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.arbitrage.monitoring.live_dashboard import LiveDashboard, SpreadInfo
+from src.arbiter.monitoring.live_dashboard import LiveDashboard, SpreadInfo
 
 
 @dataclass
@@ -62,7 +62,7 @@ class ArbitrageOrchestrator:
     def _init_telegram(self):
         """Initialize Telegram alerts."""
         try:
-            from src.arbitrage.monitoring.telegram_alerts import ArbitrageTelegramAlerts
+            from src.arbiter.monitoring.telegram_alerts import ArbitrageTelegramAlerts
             self._telegram = ArbitrageTelegramAlerts()
         except Exception as e:
             Logger.debug(f"Telegram init error: {e}")
