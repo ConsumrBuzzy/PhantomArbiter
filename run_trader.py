@@ -1,18 +1,3 @@
-"""
-Phantom Arbiter - Unified Trader (Paper + Live)
-=================================================
-Switch between paper and live mode with one flag.
-
-Usage:
-    # Paper mode (default, safe)
-    python run_trader.py --budget 50 --duration 10
-    
-    # Live mode (REAL MONEY!)
-    python run_trader.py --live --budget 5 --duration 10
-    
-⚠️ LIVE MODE WILL EXECUTE REAL TRADES ⚠️
-"""
-
 import asyncio
 import os
 import time
@@ -21,49 +6,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List
 
-# Load .env file
-from dotenv import load_dotenv
-load_dotenv()
-
-from config.settings import Settings
-from src.system.logging import Logger
+from solders.transaction import VersionedTransaction
+from solders.message import MessageV0
+from solders.pubkey import Pubkey
 
 class UnifiedTrader:
     """
     Unified trader that works in both paper and live mode.
-    
-    Paper Mode: Uses real prices, simulates execution
-    Live Mode:  Uses real prices, executes real swaps
+    Atomic Check: Bundles trades so they succeed or fail together.
     """
 
-    sync def prepare_atomic_bundle(self, opportunity, amount):
-        """Bundles Buy and Sell into a single VersionedTransaction."""
-        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-        target_mint = opportunity["buy_mint"]
-
-        # 1. Get BUY Instructions from Jupiter
-        # Tight slippage (0.5%) ensures the arb is still valid at execution
-        buy_quote = await self.swapper.get_quote(USDC_MINT, target_mint, amount, slippage=50)
-        buy_ix = await self.swapper.get_swap_instructions(buy_quote)
-        
-        # 2. Get SELL Instructions (using the expected output of the buy)
-        sell_quote = await self.swapper.get_quote(target_mint, USDC_MINT, buy_quote['outAmount'], slippage=50)
-        sell_ix = await self.swapper.get_swap_instructions(sell_quote)
-        
-        # 3. Combine Instructions (Setup + Swaps + Cleanup)
-        all_ix = buy_ix + sell_ix
-        
-        # 4. Compile to Versioned Transaction
-        recent_blockhash = await self.wallet_manager.client.get_latest_blockhash()
-        msg = MessageV0.try_compile(
-            self.wallet_manager.keypair.pubkey(), 
-            all_ix, 
-            [], 
-            recent_blockhash.value.blockhash
-        )
-        
-        return VersionedTransaction(msg, [self.wallet_manager.keypair])
-    
     def __init__(
         self,
         budget: float = 50.0,
@@ -78,22 +30,110 @@ class UnifiedTrader:
         self.max_trade = max_trade
         self.full_wallet = full_wallet
         
-        # Wallet tracking
         self.current_balance = budget
         self.starting_balance = budget
         self.total_trades = 0
         self.total_profit = 0.0
-        
-        # Trade history
         self.trades: List[Dict] = []
         
-        # Live mode components
         self.wallet_manager = None
         self.swapper = None
         
         if live_mode:
             self._setup_live_mode()
-    
+
+    # --- CORE ATOMIC METHODS ---
+
+    async def prepare_atomic_bundle(self, opportunity: Dict, amount: float) -> VersionedTransaction:
+        """Bundles Buy and Sell into a single VersionedTransaction."""
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        target_mint = opportunity["buy_mint"]
+
+        # 1. Get BUY Instructions from Jupiter (Slippage 0.5% for safety)
+        buy_quote = await self.swapper.get_quote(USDC_MINT, target_mint, amount, slippage=50)
+        buy_ix = await self.swapper.get_swap_instructions(buy_quote)
+        
+        # 2. Get SELL Instructions (using the expected output of the buy)
+        sell_quote = await self.swapper.get_quote(target_mint, USDC_MINT, buy_quote['outAmount'], slippage=50)
+        sell_ix = await self.swapper.get_swap_instructions(sell_quote)
+        
+        # 3. Combine Instructions (Setup + Swaps + Cleanup)
+        all_ix = buy_ix + sell_ix
+        
+        # 4. Compile Transaction
+        recent_blockhash = await self.wallet_manager.client.get_latest_blockhash()
+        msg = MessageV0.try_compile(
+            self.wallet_manager.keypair.pubkey(), 
+            all_ix, 
+            [], 
+            recent_blockhash.value.blockhash
+        )
+        
+        return VersionedTransaction(msg, [self.wallet_manager.keypair])
+
+    async def execute_trade(self, opportunity: Dict) -> Dict:
+        """Execute a truly atomic trade using bundled instructions."""
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        pair = opportunity["pair"]
+
+        # Determine Amount
+        if self.live_mode and self.full_wallet:
+            real_balance = self.wallet_manager.get_balance(USDC_MINT)
+            amount = min(real_balance, self.max_trade if self.max_trade > 0 else float('inf'))
+        else:
+            real_balance = self.current_balance
+            amount = min(self.current_balance, self.max_trade if self.max_trade > 0 else float('inf'))
+
+        if not self.live_mode:
+            return self._execute_paper_trade(opportunity, amount)
+
+        # 🔴 LIVE ATOMIC EXECUTION
+        try:
+            Logger.info(f" 🛡️ Running Atomic Check for {pair} (${amount:.2f})...")
+            
+            # 1. Build Bundle
+            atomic_tx = await self.prepare_atomic_bundle(opportunity, amount)
+            
+            # 2. Pre-flight Simulation (THE SHIELD)
+            # This verifies the outcome before sending to the network
+            simulation = await self.wallet_manager.client.simulate_transaction(atomic_tx)
+            
+            if simulation.value.err:
+                err_msg = str(simulation.value.err)
+                Logger.error(f" ❌ Atomic Check Failed: {err_msg}")
+                return {"success": False, "error": f"Simulation failed: {err_msg}"}
+
+            # 3. Execute
+            Logger.info(f" 🚀 Simulation Passed. Sending Atomic Transaction...")
+            sig_res = await self.wallet_manager.client.send_transaction(atomic_tx)
+            sig = sig_res.value
+            
+            if sig:
+                Logger.success(f" ✅ Atomic Arb Landed! Sig: {str(sig)[:8]}...")
+                await asyncio.sleep(2) # RPC sync buffer
+                new_bal = self.wallet_manager.get_balance(USDC_MINT)
+                profit = new_bal - real_balance
+                self.current_balance = new_bal
+                self.total_profit += profit
+                self.total_trades += 1
+                
+                trade = {"timestamp": time.time(), "pair": pair, "net_profit": profit, "mode": "LIVE"}
+                self.trades.append(trade)
+                return {"success": True, "trade": trade}
+            
+        except Exception as e:
+            Logger.error(f" 💥 Execution Error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    def _execute_paper_trade(self, opportunity, amount):
+        """Logic for paper simulation."""
+        gross_profit = amount * (opportunity["spread_pct"] / 100)
+        fees = amount * 0.002
+        net_profit = gross_profit - fees
+        self.current_balance += net_profit
+        self.total_profit += net_profit
+        self.total_trades += 1
+        return {"success": True, "trade": {"net_profit": net_profit, "pair": opportunity["pair"], "mode": "PAPER"}}
     def _setup_live_mode(self):
         """Setup live trading components."""
         private_key = os.getenv("PHANTOM_PRIVATE_KEY") or os.getenv("SOLANA_PRIVATE_KEY")
