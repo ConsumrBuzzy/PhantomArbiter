@@ -283,11 +283,11 @@ class PhantomArbiter:
         for i, opp in enumerate(spreads):
             verified = verified_map.get(opp.pair)
             status = "❌"
-            net = f"${opp.net_profit_usd:+.2f}"
+            net = f"${opp.net_profit_usd:+.3f}"
             spread = f"{opp.spread_pct:+.2f}%"
             
             if verified:
-                net = f"${verified.net_profit_usd:+.2f}"
+                net = f"${verified.net_profit_usd:+.3f}"
                 if "LIVE" in (verified.verification_status or ""):
                     status = "✅"
                 elif "SCALED" in (verified.verification_status or ""):
