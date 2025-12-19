@@ -340,7 +340,7 @@ class SentimentEngine:
         High volume = High interest = Score closer to 100
         """
         try:
-            from src.arbitrage.feeds.jupiter_feed import JupiterFeed
+            from src.shared.feeds.jupiter_feed import JupiterFeed
             
             USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
             MINTS = {

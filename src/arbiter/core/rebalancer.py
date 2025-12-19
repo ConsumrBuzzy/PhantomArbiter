@@ -215,8 +215,8 @@ class RebalancingEngine:
     async def _get_prices(self, coin: str) -> tuple:
         """Get current prices."""
         try:
-            from src.arbitrage.feeds.jupiter_feed import JupiterFeed
-            from src.arbitrage.feeds.drift_funding import MockDriftFundingFeed
+            from src.shared.feeds.jupiter_feed import JupiterFeed
+            from src.shared.feeds.drift_funding import MockDriftFundingFeed
             
             USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
             MINTS = {

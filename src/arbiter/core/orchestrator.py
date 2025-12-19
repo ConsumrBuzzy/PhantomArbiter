@@ -69,9 +69,9 @@ class ArbitrageOrchestrator:
         
     def _init_feeds(self):
         """Initialize price feeds for all supported DEXs."""
-        from src.arbitrage.feeds.jupiter_feed import JupiterFeed
-        from src.arbitrage.feeds.raydium_feed import RaydiumFeed
-        from src.arbitrage.feeds.orca_feed import OrcaFeed
+        from src.shared.feeds.jupiter_feed import JupiterFeed
+        from src.shared.feeds.raydium_feed import RaydiumFeed
+        from src.shared.feeds.orca_feed import OrcaFeed
         
         self._feeds = [
             JupiterFeed(),
@@ -105,7 +105,7 @@ class ArbitrageOrchestrator:
     async def _fetch_funding_rates(self) -> Dict[str, float]:
         """Fetch funding rates from Drift (mock if not connected)."""
         try:
-            from src.arbitrage.feeds.drift_funding import MockDriftFundingFeed
+            from src.shared.feeds.drift_funding import MockDriftFundingFeed
             feed = MockDriftFundingFeed()  # Use mock for now
             
             rates = {}

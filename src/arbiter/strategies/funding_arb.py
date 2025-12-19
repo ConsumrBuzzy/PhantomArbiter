@@ -133,7 +133,7 @@ class FundingRateArbitrage:
     def _get_funding_feed(self):
         """Lazy-load funding feed."""
         if self._funding_feed is None:
-            from src.arbitrage.feeds.drift_funding import get_funding_feed
+            from src.shared.feeds.drift_funding import get_funding_feed
             # Use mock if Drift not connected
             use_mock = self.drift is None or not self.drift.is_connected
             self._funding_feed = get_funding_feed(use_mock=use_mock)

@@ -168,7 +168,7 @@ class TriangularEngine:
     async def _get_usd_price(self, token: str) -> Optional[float]:
         """Get USD price for a token."""
         try:
-            from src.arbitrage.feeds.jupiter_feed import JupiterFeed
+            from src.shared.feeds.jupiter_feed import JupiterFeed
             
             mint = self.TOKENS.get(token)
             if not mint:

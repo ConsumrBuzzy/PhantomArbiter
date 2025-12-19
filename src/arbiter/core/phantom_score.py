@@ -193,7 +193,7 @@ class PhantomScoreCalculator:
         This fetches current data and records it before calculating.
         """
         try:
-            from src.arbitrage.feeds.jupiter_feed import JupiterFeed
+            from src.shared.feeds.jupiter_feed import JupiterFeed
             
             USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
             MINTS = {

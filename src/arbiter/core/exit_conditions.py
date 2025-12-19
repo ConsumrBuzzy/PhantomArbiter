@@ -80,7 +80,7 @@ class ExitConditionMonitor:
     def _get_funding_feed(self):
         """Lazy-load funding feed."""
         if self._funding_feed is None:
-            from src.arbitrage.feeds.drift_funding import MockDriftFundingFeed
+            from src.shared.feeds.drift_funding import MockDriftFundingFeed
             self._funding_feed = MockDriftFundingFeed()
         return self._funding_feed
     
