@@ -217,6 +217,18 @@ class ArbitrageExecutor:
                 
                 expected_usdc_back = int(sell_quote.get('outAmount', 0))
                 
+                # 🚨 PHANTOM ARB PROTECTION 🚨
+                # Check if the Quoted Output (which includes price impact) is actually profitable.
+                # Scan uses unit price (no impact), so it might show +34% on illiquid pairs.
+                # Quote tells the truth about liquidity.
+                
+                projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
+                if projected_profit_usd <= 0:
+                    Logger.warning(f"[EXEC] ✋ Phantom Arb Detected! Quote shows loss: ${projected_profit_usd:.4f}")
+                    return self._error_result(f"Phantom Arb: Quote loss ${projected_profit_usd:.4f}", start_time)
+                
+                Logger.info(f"[EXEC] ✅ Quote verified: ${projected_profit_usd:+.4f} projected profit")
+
                 # 3. Execute atomically via Jito bundle (or sequential fallback)
                 if self.jito and self.jito.is_available():
                     Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
