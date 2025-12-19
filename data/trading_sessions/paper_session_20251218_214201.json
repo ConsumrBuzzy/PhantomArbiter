@@ -1,0 +1,51 @@
+{
+  "mode": "paper",
+  "starting_balance": 50.0,
+  "ending_balance": 50.07629696423206,
+  "total_profit": 0.0762969642320437,
+  "total_trades": 4,
+  "roi_pct": 0.15259392846411401,
+  "runtime_minutes": 1.1548519055048625,
+  "trades": [
+    {
+      "timestamp": 1766112063.5917149,
+      "mode": "PAPER",
+      "pair": "WIF/USDC",
+      "amount": 10.0,
+      "spread_pct": 0.3907424105801092,
+      "net_profit": 0.019074241058010925,
+      "signature": "PAPER_1766112063",
+      "balance_after": 50.019074241058014
+    },
+    {
+      "timestamp": 1766112081.3272233,
+      "mode": "PAPER",
+      "pair": "WIF/USDC",
+      "amount": 10.0,
+      "spread_pct": 0.3907424105801092,
+      "net_profit": 0.019074241058010925,
+      "signature": "PAPER_1766112081",
+      "balance_after": 50.03814848211603
+    },
+    {
+      "timestamp": 1766112098.6563792,
+      "mode": "PAPER",
+      "pair": "WIF/USDC",
+      "amount": 10.0,
+      "spread_pct": 0.3907424105801092,
+      "net_profit": 0.019074241058010925,
+      "signature": "PAPER_1766112098",
+      "balance_after": 50.05722272317404
+    },
+    {
+      "timestamp": 1766112116.2608898,
+      "mode": "PAPER",
+      "pair": "WIF/USDC",
+      "amount": 10.0,
+      "spread_pct": 0.3907424105801092,
+      "net_profit": 0.019074241058010925,
+      "signature": "PAPER_1766112116",
+      "balance_after": 50.07629696423206
+    }
+  ]
+}
