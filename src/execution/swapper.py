@@ -42,8 +42,21 @@ class JupiterSwapper:
                 Logger.warning(f"⚠️ JITO unavailable, using standard execution: {e}")
         
     def execute_swap(self, direction, amount_usd, reason, target_mint=None, priority_fee=None, override_atomic_amount=None):
-        # ... (headers unchanged) ...
-        # ...
+        """
+        Execute a Swap with Adaptive Slippage.
+        """
+        if not self.wallet.keypair:
+            Logger.error("❌ FAILED: No wallet keypair loaded!")
+            return None
+            
+        if not Settings.ENABLE_TRADING:
+            Logger.info(f"🔒 TRADING DISABLED: Would {direction} ${amount_usd} ({reason})")
+            return None
+
+        # Defines
+        mint = target_mint or Settings.TARGET_MINT
+        input_mint = Settings.USDC_MINT if direction == "BUY" else mint
+        output_mint = mint if direction == "BUY" else Settings.USDC_MINT
         
         # Calculate amount
         amount_atomic = 0
@@ -52,7 +65,9 @@ class JupiterSwapper:
         else:
             # SELL Direction (With HODL Protection)
             token_info = self.wallet.get_token_info(mint)
-            if not token_info: return None
+            if not token_info: 
+                Logger.error("❌ Sell Failed: No Balance helper")
+                return None
             
             avail_atomic = int(token_info["amount"])
             
@@ -61,14 +76,13 @@ class JupiterSwapper:
                 amount_atomic = min(avail_atomic, int(override_atomic_amount))
                 Logger.info(f"📉 SELLING Acquired Amount: {amount_atomic} units (HODL Protected)")
             elif amount_usd > 0:
-                 # Estimate based on price? Too risky. Fallback to All for now if not atomic.
+                 # Start with ALL if no atomic override provided (Fallback)
                  amount_atomic = avail_atomic 
             else:
                  amount_atomic = avail_atomic
                  Logger.info(f"📉 SELLING Entire Bag: {float(token_info['uiAmount']):.4f} tokens")
-        
+                 
         SLIPPAGE_TIERS = Settings.ADAPTIVE_SLIPPAGE_TIERS
-        mint = target_mint or Settings.TARGET_MINT
         Logger.info(f"🚀 EXECUTION: {direction} ${amount_usd} ({reason})")
         
         for tier_idx, slippage_bps in enumerate(SLIPPAGE_TIERS):
