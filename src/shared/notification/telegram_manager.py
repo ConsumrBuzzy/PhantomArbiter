@@ -96,7 +96,7 @@ class TelegramManager:
         app.add_handler(CommandHandler("status", self._cmd_status))
         app.add_handler(CommandHandler("stop", self._cmd_stop))
         app.add_handler(CommandHandler("help", self._cmd_help))
-        # Add others as needed...
+        app.add_handler(CommandHandler("clean", self._cmd_clean))
 
     # ═══════════════════════════════════════════════════════════════════
     # PUBLIC METHODS (Thread-Safe Bridge)
@@ -183,6 +183,89 @@ class TelegramManager:
         await update.message.reply_text(
             "🤖 *PHANTOM COMMANDS*\n"
             "/status - System check\n"
-            "/stop - Shutdown\n",
+            "/stop - Shutdown\n"
+            "/clean <TOKEN|all> - Dump tokens to USDC\n",
             parse_mode='Markdown'
         )
+
+    async def _cmd_clean(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Clean wallet via Telegram.
+        Usage: /clean BONK or /clean all
+        """
+        args = context.args
+        
+        if not args:
+            await update.message.reply_text("❌ Usage: /clean <TOKEN> or /clean all")
+            return
+            
+        target = args[0].upper()
+        await update.message.reply_text(f"🧹 Starting cleanup: {target}...")
+        
+        try:
+            from src.shared.execution.wallet import WalletManager
+            from src.shared.execution.swapper import JupiterSwapper
+            from config.settings import Settings
+            
+            Settings.ENABLE_TRADING = True
+            wallet = WalletManager()
+            
+            if not wallet.keypair:
+                await update.message.reply_text("❌ No wallet key loaded!")
+                return
+                
+            swapper = JupiterSwapper(wallet)
+            targets = []
+            
+            if target == "ALL":
+                tokens = wallet.get_all_token_accounts()
+                for mint, bal in tokens.items():
+                    if mint != Settings.USDC_MINT and bal > 0:
+                        targets.append(mint)
+            else:
+                # Resolve symbol
+                if target in Settings.ASSETS:
+                    targets.append(Settings.ASSETS[target])
+                elif len(target) > 30:
+                    targets.append(target)
+                else:
+                    await update.message.reply_text(f"❌ Unknown token: {target}")
+                    return
+            
+            if not targets:
+                await update.message.reply_text("✨ Nothing to clean!")
+                return
+                
+            results = []
+            for mint in targets:
+                info = wallet.get_token_info(mint)
+                if not info:
+                    continue
+                    
+                symbol = "?"
+                for k, v in Settings.ASSETS.items():
+                    if v == mint:
+                        symbol = k
+                        break
+                        
+                tx = swapper.execute_swap(
+                    direction="SELL",
+                    amount_usd=0,
+                    reason="TG Clean",
+                    target_mint=mint,
+                    priority_fee=100000
+                )
+                
+                if tx:
+                    results.append(f"✅ {symbol}")
+                else:
+                    results.append(f"❌ {symbol}")
+                    
+                await asyncio.sleep(1.0)
+            
+            await update.message.reply_text(
+                f"🧹 Cleanup Complete!\n" + "\n".join(results)
+            )
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {str(e)[:100]}")

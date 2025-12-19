@@ -451,6 +451,7 @@ async def main() -> None:
         "arbiter": cmd_arbiter,
         "scan": cmd_scan,
         "discover": cmd_discover,
+        "watch": cmd_watch,
         "scout": cmd_scout,
         "monitor": cmd_monitor,
         "clean": cmd_clean,
