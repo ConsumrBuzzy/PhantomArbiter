@@ -21,6 +21,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List
 
+# Load .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from config.settings import Settings
 from src.system.logging import Logger
 
@@ -256,9 +260,8 @@ class UnifiedTrader:
                             print()
                             break
                 else:
-                    # Status update periodically
-                    if self.total_trades % 10 == 0:
-                        print(f"\r   [{now}] Scanning... Balance: ${self.current_balance:.4f} | Trades: {self.total_trades}", end="")
+                    # Status update on every scan
+                    print(f"   [{now}] Scanning... No profitable spread found (min: {self.min_spread}%)")
                 
                 await asyncio.sleep(scan_interval)
                 
