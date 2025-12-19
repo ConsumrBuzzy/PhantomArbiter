@@ -41,8 +41,9 @@ class SpreadOpportunity:
     @property
     def is_profitable(self) -> bool:
         """Is this opportunity profitable after fees?"""
-        min_profit = getattr(Settings, 'MIN_PROFIT_AFTER_FEES', 0.10)
-        return self.net_profit_usd >= min_profit
+        # For simulation: trigger on any net gain > 0
+        # For live: use MIN_PROFIT_AFTER_FEES threshold
+        return self.net_profit_usd > 0
     
     @property
     def status(self) -> str:

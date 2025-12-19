@@ -30,7 +30,7 @@ class AdaptiveScanner:
     SPREAD_THRESHOLD = 0.5  # % spread that triggers fast mode
     COOLDOWN_SECONDS = 30   # Return to slow after this
     
-    def __init__(self, base_interval=3.0, fast_interval=0.5, rps_limit=8):
+    def __init__(self, base_interval=5.0, fast_interval=0.5, rps_limit=8):
         self.base_interval = base_interval
         self.fast_interval = fast_interval
         self.rps_limit = rps_limit
