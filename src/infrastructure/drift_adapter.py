@@ -201,9 +201,66 @@ class DriftAdapter:
             Logger.warning(f"[DRIFT] Get price error: {e}")
             return None
     
+    async def get_funding_rate(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """
+        Get current funding rate for a perpetual market.
+        
+        Funding is paid every hour on Drift.
+        
+        Returns:
+            Dict with funding rate info:
+            - rate_hourly: Hourly funding rate as percentage
+            - rate_8h: 8-hour funding rate (for comparison with CEX)
+            - rate_annual: Annualized rate
+            - next_payment_ts: Unix timestamp of next funding
+            - is_positive: True = longs pay shorts
+        """
+        if not self.client:
+            return None
+        
+        market_index = self.MARKETS.get(symbol, 0)
+        try:
+            market = await get_perp_market_account(
+                self.client.program, market_index
+            )
+            
+            # Drift stores funding as cumulative, we estimate hourly rate
+            # last_funding_rate is in QUOTE_PRECISION (1e6)
+            # It's hourly rate × 24 for daily, scaled by 1e6
+            last_funding = market.amm.last_funding_rate / 1e9  # Scale down
+            
+            # Convert to percentage
+            rate_hourly = last_funding * 100
+            rate_8h = rate_hourly * 8
+            rate_annual = rate_hourly * 24 * 365
+            
+            return {
+                "market": symbol,
+                "rate_hourly": rate_hourly,
+                "rate_8h": rate_8h,  # Comparable to CEX 8h funding
+                "rate_annual": rate_annual,
+                "is_positive": rate_hourly > 0,  # Positive = longs pay shorts
+                "mark_price": market.amm.last_mark_price_twap / QUOTE_PRECISION,
+            }
+        except Exception as e:
+            Logger.warning(f"[DRIFT] Get funding rate error: {e}")
+            return None
+    
+    async def get_time_to_funding(self) -> int:
+        """
+        Get seconds until next funding payment.
+        
+        Drift pays funding every hour, on the hour.
+        """
+        import time
+        now = int(time.time())
+        next_hour = (now // 3600 + 1) * 3600
+        return next_hour - now
+    
     # ═══════════════════════════════════════════════════════════════════════
     # ACCOUNT DATA
     # ═══════════════════════════════════════════════════════════════════════
+
     
     async def get_account_info(self) -> Optional[Dict[str, Any]]:
         """Get user account information (collateral, margin, etc.)."""
