@@ -147,7 +147,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 async def cmd_arbiter(args: argparse.Namespace) -> None:
     """Handle arbiter subcommand."""
-    from src.arbitrage.arbiter import PhantomArbiter, ArbiterConfig
+    from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
     
     if args.live:
         print("\n" + "⚠️ "*20)
@@ -173,7 +173,7 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
 
 async def cmd_scan(args: argparse.Namespace) -> None:
     """Handle scan subcommand - quick one-shot opportunity scan."""
-    from src.arbitrage.arbiter import PhantomArbiter, ArbiterConfig
+    from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
     
     config = ArbiterConfig(min_spread=args.min_spread)
     arbiter = PhantomArbiter(config)
@@ -191,7 +191,7 @@ async def cmd_scan(args: argparse.Namespace) -> None:
 
 async def cmd_discover(args: argparse.Namespace) -> None:
     """Handle discover subcommand - find trending meme coins."""
-    from src.scout.scraper import TokenScraper
+    from src.scraper.scout.scraper import TokenScraper
     
     print("\n" + "="*60)
     print("   PHANTOM ARBITER - Token Discovery")
@@ -215,7 +215,7 @@ async def cmd_discover(args: argparse.Namespace) -> None:
 async def cmd_watch(args: argparse.Namespace) -> None:
     """Handle watch subcommand - monitor launchpads for new tokens."""
     import time
-    from src.discovery.launchpad_monitor import LaunchpadMonitor, LaunchEvent, MigrationEvent
+    from src.scraper.discovery.launchpad_monitor import LaunchpadMonitor, LaunchEvent, MigrationEvent
     
     print("\n" + "="*60)
     print("   PHANTOM ARBITER - Launchpad Watcher")
@@ -259,7 +259,7 @@ async def cmd_watch(args: argparse.Namespace) -> None:
 
 async def cmd_scout(args: argparse.Namespace) -> None:
     """Handle scout subcommand - analyze smart money."""
-    from src.agents.scout_agent import ScoutAgent
+    from src.scraper.agents.scout_agent import ScoutAgent
     
     print("\n" + "="*60)
     print("   PHANTOM ARBITER - Smart Money Scout")
