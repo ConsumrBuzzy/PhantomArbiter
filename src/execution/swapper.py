@@ -84,11 +84,21 @@ class JupiterSwapper:
         
         for tier_idx, slippage_bps in enumerate(SLIPPAGE_TIERS):
             try:
+                print(f"   [SWAP] Tier {tier_idx+1}: Trying {slippage_bps/100:.1f}% slippage...")
                 Logger.info(f"   📊 Tier {tier_idx+1}: Trying {slippage_bps/100:.1f}% slippage...")
                 
                 # V9.6: Use SmartRouter for Quote
+                print(f"   [SWAP] Getting quote: {input_mint[:8]}... → {output_mint[:8]}... amount={amount_atomic}")
                 quote = self.router.get_jupiter_quote(input_mint, output_mint, amount_atomic, slippage_bps)
-                if not quote or "error" in quote: continue
+                
+                if not quote:
+                    print(f"   [SWAP] Quote returned None!")
+                    continue
+                if "error" in quote:
+                    print(f"   [SWAP] Quote error: {quote.get('error')}")
+                    continue
+                    
+                print(f"   [SWAP] Quote OK! outAmount={quote.get('outAmount', 'N/A')}")
                 
                 payload = {
                     "quoteResponse": quote,
@@ -99,8 +109,17 @@ class JupiterSwapper:
                 }
                 
                 # V9.6: Use SmartRouter for Swap Tx
+                print(f"   [SWAP] Getting swap transaction...")
                 swap_data = self.router.get_swap_transaction(payload)
-                if not swap_data or "swapTransaction" not in swap_data: continue
+                
+                if not swap_data:
+                    print(f"   [SWAP] Swap transaction returned None!")
+                    continue
+                if "swapTransaction" not in swap_data:
+                    print(f"   [SWAP] No swapTransaction in response: {list(swap_data.keys())}")
+                    continue
+                    
+                print(f"   [SWAP] Got swap tx, signing...")
                 
                 # Sign & Send
                 raw_tx = base64.b64decode(swap_data["swapTransaction"])
