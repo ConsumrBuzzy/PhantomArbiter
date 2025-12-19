@@ -33,7 +33,7 @@ class SmartRouter:
         
         # V11.9: Load and filter endpoints (skip disabled, filter missing keys)
         self.endpoints = self._get_valid_endpoints()
-        self.jupiter_url = self.config.get("JUPITER_API_BASE", "https://public.jupiterapi.com/v1")
+        self.jupiter_url = self.config.get("JUPITER_API_BASE", "https://quote-api.jup.ag/v6")
         
         self.current_rpc_index = 0
         self.jupiter_cooldown_until = 0
