@@ -505,8 +505,8 @@ class PhantomArbiter:
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\n   Stopping...")
         finally:
-            if wss:
-                await wss.disconnect()
+            if 'coordinator' in locals() and coordinator:
+                await coordinator.stop()
         
         self._print_summary(start_time, mode_str)
         self._save_session()
