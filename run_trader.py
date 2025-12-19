@@ -300,17 +300,15 @@ class UnifiedTrader:
                         "spread_pct": opportunity["spread_pct"],
                         "net_profit": net_profit,
                         "signature": signature,
-                        "balance_after": self.current_balance # Estimated, will sync next loop
+                        "signature": f"B:{buy_sig[-4:]} S:{sell_sig[-4:] if sell_sig else 'FAIL'}",
+                        "balance_after": self.current_balance
                     }
                     self.trades.append(trade)
-                    
                     return {"success": True, "trade": trade}
                 else:
                     return {"success": False, "error": f"Swap returned None (check logs)"}
-                    
+            
             except Exception as e:
-                import traceback
-                traceback.print_exc()
                 return {"success": False, "error": str(e)}
         
         else:
@@ -338,7 +336,7 @@ class UnifiedTrader:
             return {"success": True, "trade": trade}
     
     async def _reclaim_rent(self):
-        """Scan for empty accounts and reclaim rent (Vacuum Strategy)."""
+        """Scan for empty token accounts and close them to reclaim rent."""
         if not self.wallet_manager or not self.live_mode: return
         
         try:
@@ -353,10 +351,17 @@ class UnifiedTrader:
             
             pubkey = self.wallet_manager.keypair.pubkey()
             
-            # Simple RPC call using requests to avoid heavy imports if possible, but we need parsing
-            # Use existing pool logic if available or direct requests
-            import requests
+            # Whitelist: DO NOT close these accounts even if empty
+            # This saves the 0.002 SOL re-opening fee for common arb tokens.
+            WHITELIST_MINTS = [
+                "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK
+                "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF
+                "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", # JUP
+                "So11111111111111111111111111111111111111112"   # WSOL
+            ]
             
+            # Simple RPC call using requests
+            import requests
             payload = {
                 "jsonrpc": "2.0", "id": 1, "method": "getTokenAccountsByOwner",
                 "params": [
@@ -371,8 +376,10 @@ class UnifiedTrader:
             if "result" in res and "value" in res["result"]:
                 for acc in res["result"]["value"]:
                     info = acc["account"]["data"]["parsed"]["info"]
+                    mint = info["mint"]
                     if float(info["tokenAmount"]["uiAmount"]) == 0:
-                        accounts_to_close.append(Pubkey.from_string(acc["pubkey"]))
+                        if mint not in WHITELIST_MINTS:
+                            accounts_to_close.append(Pubkey.from_string(acc["pubkey"]))
             
             if not accounts_to_close:
                 return
