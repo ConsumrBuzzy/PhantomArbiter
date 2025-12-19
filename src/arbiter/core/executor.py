@@ -206,6 +206,7 @@ class ArbitrageExecutor:
                     return self._error_result("Failed to get buy quote", start_time)
                 
                 expected_tokens = int(buy_quote.get('outAmount', 0))
+                expected_usdc_back = int(sell_quote.get('outAmount', 0)) if 'sell_quote' in dir() else 0
                 
                 # 2. Get sell quote (using expected tokens from buy)
                 sell_quote = router.get_jupiter_quote(
@@ -213,6 +214,8 @@ class ArbitrageExecutor:
                 )
                 if not sell_quote:
                     return self._error_result("Failed to get sell quote", start_time)
+                
+                expected_usdc_back = int(sell_quote.get('outAmount', 0))
                 
                 # 3. Execute atomically via Jito bundle (or sequential fallback)
                 if self.jito and self.jito.is_available():
@@ -236,6 +239,34 @@ class ArbitrageExecutor:
                     legs = result.get('legs', [])
                     if not result.get('success'):
                         return self._error_result(result.get('error', 'Bundle failed'), start_time, legs)
+                
+                # Track actual slippage and log to DB
+                if legs and len(legs) >= 2:
+                    actual_usdc_back = legs[-1].output_amount * 1_000_000  # Convert to atomic
+                    slippage_usd = (expected_usdc_back - actual_usdc_back) / 1_000_000
+                    slippage_pct = (expected_usdc_back - actual_usdc_back) / expected_usdc_back * 100 if expected_usdc_back > 0 else 0
+                    
+                    Logger.info(f"[EXEC] 📊 Slippage: ${slippage_usd:.4f} ({slippage_pct:.2f}%)")
+                    
+                    # Log to DB for calibration
+                    try:
+                        from src.shared.system.db_manager import db_manager
+                        db_manager.log_trade({
+                            'symbol': opportunity.pair,
+                            'entry_price': opportunity.buy_price,
+                            'exit_price': opportunity.sell_price,
+                            'size_usd': trade_size,
+                            'pnl_usd': legs[-1].output_amount - trade_size,
+                            'net_pnl_pct': ((legs[-1].output_amount - trade_size) / trade_size) * 100,
+                            'exit_reason': 'ARBITER_SPATIAL',
+                            'is_win': legs[-1].output_amount > trade_size,
+                            'engine_name': 'ARBITER',
+                            'slippage_pct': slippage_pct,
+                            'slippage_usd': slippage_usd,
+                            'fees_usd': opportunity.estimated_fees_usd,
+                        })
+                    except Exception as e:
+                        Logger.debug(f"Trade logging error: {e}")
                 
             else:
                 # DRY_RUN
