@@ -58,3 +58,21 @@ src/core/price_history_*.json
 # data/*.db  <-- Tracked by LFS now
 # data/market_data.db <-- Tracked by LFS now
 start.bat
+
+# ═══════════════════════════════════════════════════════════
+# PHANTOM ARBITER SPECIFIC
+# ═══════════════════════════════════════════════════════════
+
+# Trade state files (local position tracking)
+*.position.json
+positions/
+trade_states/
+
+# Profitability reports (generated)
+reports/
+*.report.txt
+
+# Keypair files (NEVER commit these!)
+*.keypair
+*.keypair.json
+solana-keypair.json
