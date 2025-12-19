@@ -310,8 +310,8 @@ class UnifiedTrader:
                     post_token_info = None
                     post_balance = 0
                     
-                    for _ in range(30): # 30 * 2s = 60s max
-                        await asyncio.sleep(2)
+                    for _ in range(60): # 60 * 1s = 60s max
+                        await asyncio.sleep(1)
                         post_token_info = self.wallet_manager.get_token_info(target_mint)
                         post_balance = int(post_token_info["amount"]) if post_token_info else 0
                         
