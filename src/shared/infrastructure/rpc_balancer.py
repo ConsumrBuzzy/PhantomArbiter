@@ -148,6 +148,15 @@ class RPCBalancer:
                 weight=1.0
             ))
         
+        # Chainstack (25 RPS - high capacity)
+        chainstack_url = os.getenv("CHAINSTACK_RPC_URL")
+        if chainstack_url:
+            self.providers.append(RPCProvider(
+                name="Chainstack",
+                url=chainstack_url,
+                weight=1.5  # Higher weight due to 25 RPS
+            ))
+        
         # Public fallback (always added, but low weight)
         # Rate limited but useful as backup
         self.providers.append(RPCProvider(
