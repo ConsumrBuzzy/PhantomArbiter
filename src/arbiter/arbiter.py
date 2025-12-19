@@ -29,13 +29,39 @@ from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 # ═══════════════════════════════════════════════════════════════════
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
-# Core profitable pairs (high liquidity, tight spreads)
-CORE_PAIRS = [
+# ═══════════════════════════════════════════════════════════════════
+# TRADING PAIRS BY RISK TIER
+# ═══════════════════════════════════════════════════════════════════
+
+# LOW RISK: Blue chips, high liquidity, tight spreads (0.05-0.3%)
+LOW_RISK_PAIRS = [
     ("SOL/USDC", "So11111111111111111111111111111111111111112", USDC_MINT),
-    ("BONK/USDC", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", USDC_MINT),
-    ("WIF/USDC", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", USDC_MINT),
     ("JUP/USDC", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", USDC_MINT),
+    ("RAY/USDC", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", USDC_MINT),
+    ("ORCA/USDC", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE", USDC_MINT),
 ]
+
+# MID RISK: Established tokens, moderate volatility, wider spreads possible (0.2-0.8%)
+MID_RISK_PAIRS = [
+    ("WIF/USDC", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", USDC_MINT),
+    ("BONK/USDC", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", USDC_MINT),
+    ("PYTH/USDC", "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3", USDC_MINT),
+    ("JITO/USDC", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn", USDC_MINT),
+    ("HNT/USDC", "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux", USDC_MINT),
+    ("RENDER/USDC", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", USDC_MINT),
+]
+
+# HIGH RISK: Memes and small caps, volatile, wide spreads (0.5-2%+)
+HIGH_RISK_PAIRS = [
+    ("SAMO/USDC", "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", USDC_MINT),
+    ("MNGO/USDC", "MangoCzJ36AjZyKwVj3VnYU4GTonjfVEnJmvvWaxLac", USDC_MINT),
+    ("FIDA/USDC", "EchesyfXePKdLtoiZSL8pBe8Myagyy8ZRqsACNCFGnvp", USDC_MINT),
+    ("STEP/USDC", "StepWBPggCzpZJz6XHjZpJZGZgRZSAmDkCdMX4sWsmc", USDC_MINT),
+    ("COPE/USDC", "8HGyAAB1yoM1ttS7pXjHMa3dukTFGQggnFFH3hJZgzQh", USDC_MINT),
+]
+
+# Combined default - all pairs for maximum opportunity scanning
+CORE_PAIRS = LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS
 
 
 @dataclass

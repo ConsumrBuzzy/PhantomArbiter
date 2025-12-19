@@ -69,6 +69,11 @@ def create_parser() -> argparse.ArgumentParser:
         "--full-wallet", action="store_true",
         help="Use entire wallet balance (up to max-trade)"
     )
+    arbiter_parser.add_argument(
+        "--risk-tier", type=str, default="all",
+        choices=["all", "low", "mid", "high"],
+        help="Pair risk tier: all (default), low, mid, or high"
+    )
     
     # ═══════════════════════════════════════════════════════════════
     # SCAN SUBCOMMAND (Quick one-shot opportunity scan)
@@ -159,14 +164,27 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
             print("   Cancelled.")
             return
     
+    # Select pairs based on risk tier
+    from src.arbiter.arbiter import LOW_RISK_PAIRS, MID_RISK_PAIRS, HIGH_RISK_PAIRS, CORE_PAIRS
+    tier_map = {
+        "all": CORE_PAIRS,
+        "low": LOW_RISK_PAIRS,
+        "mid": MID_RISK_PAIRS,
+        "high": HIGH_RISK_PAIRS,
+    }
+    selected_pairs = tier_map.get(args.risk_tier, CORE_PAIRS)
+    
     config = ArbiterConfig(
         budget=args.budget,
         gas_budget=args.gas_budget,
         min_spread=args.min_spread,
         max_trade=args.max_trade,
         live_mode=args.live,
-        full_wallet=args.full_wallet
+        full_wallet=args.full_wallet,
+        pairs=selected_pairs
     )
+    
+    print(f"   📊 Risk Tier: {args.risk_tier.upper()} ({len(selected_pairs)} pairs)")
     
     arbiter = PhantomArbiter(config)
     await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval)
