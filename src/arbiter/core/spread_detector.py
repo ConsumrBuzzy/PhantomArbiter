@@ -137,9 +137,21 @@ class SpreadDetector:
         # Estimate profitability
         gross_profit = trade_size * (spread_pct / 100)
         
-        # Fees: ~0.3% round trip trading + gas
-        trading_fees = trade_size * 0.003  
-        total_fees = trading_fees + self.gas_fee_usd
+        # === REALISTIC FEE MODEL ===
+        # Trading fees: 0.25% per swap x2 = 0.5% round trip
+        trading_fees = trade_size * 0.005
+        
+        # Gas: base (~0.0001 SOL) + priority fee (~0.001 SOL) ≈ $0.15-0.20
+        gas_usd = 0.20
+        
+        # Slippage buffer: prices move during tx lifecycle (0.1-0.3%)
+        slippage_pct = 0.15
+        slippage_cost = trade_size * (slippage_pct / 100)
+        
+        # Safety margin: catch-all for rent, rounding, quote staleness
+        safety_margin = 0.05  # $0.05 minimum buffer
+        
+        total_fees = trading_fees + gas_usd + slippage_cost + safety_margin
         
         net_profit = gross_profit - total_fees
         

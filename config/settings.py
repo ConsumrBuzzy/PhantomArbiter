@@ -418,9 +418,11 @@ class Settings:
     
     # ─── Risk Parameters ───
     MAX_SLIPPAGE_PCT = 0.5              # Maximum acceptable slippage
-    MIN_PROFIT_AFTER_FEES = 0.10        # Minimum USD profit per cycle
+    # Realistic fees on $100 trade: ~$0.90 (0.5% trading + $0.20 gas + 0.15% slip + $0.05 buffer)
+    # Require $0.25 profit AFTER fees to be safe
+    MIN_PROFIT_AFTER_FEES = 0.25        # Minimum USD profit per cycle
     GAS_BUFFER_SOL = 0.05               # Keep 0.05 SOL for gas
-    MIN_SPREAD_PCT = 0.1                # Global minimum spread to consider
+    MIN_SPREAD_PCT = 0.3                # Minimum spread (was 0.1, increased for safety)
     
     # ─── Monitoring ───
     DASHBOARD_REFRESH_SEC = 2.0         # Dashboard update interval
