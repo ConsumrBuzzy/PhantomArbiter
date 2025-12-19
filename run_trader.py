@@ -287,6 +287,11 @@ class UnifiedTrader:
                             print(f"            Balance: ${trade['balance_after']:.4f}")
                             print()
                             break
+                        else:
+                            # Print error
+                            error = result.get("error", "Unknown error")
+                            print(f"   [{now}] ❌ TRADE FAILED: {error}")
+                            break
                 else:
                     # Scan already printed all spreads, no action needed
                     pass
