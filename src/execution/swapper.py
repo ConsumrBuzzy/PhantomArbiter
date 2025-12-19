@@ -75,12 +75,14 @@ class JupiterSwapper:
         if direction == "BUY":
             amount_atomic = int(amount_usd * 1_000_000)
         else:
-            token_bal = self.wallet.get_balance(mint)
-            if token_bal <= 0:
+            token_info = self.wallet.get_token_info(mint)
+            if not token_info or int(token_info["amount"]) <= 0:
                 Logger.error("❌ Sell Failed: No Balance")
                 return None
-            amount_atomic = int(token_bal * 1_000_000)
-            Logger.info(f"📉 SELLING Entire Bag: {token_bal:.4f} tokens")
+            
+            amount_atomic = int(token_info["amount"])
+            balance_ui = float(token_info["uiAmount"])
+            Logger.info(f"📉 SELLING Entire Bag: {balance_ui:.4f} tokens")
         
         for tier_idx, slippage_bps in enumerate(SLIPPAGE_TIERS):
             try:

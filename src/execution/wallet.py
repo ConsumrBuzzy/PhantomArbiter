@@ -95,14 +95,12 @@ class WalletManager:
         except Exception as e:
             Logger.error(f"❌ Auto-refuel error: {e}")
 
-    def get_balance(self, mint_str):
+    def get_token_info(self, mint_str):
         """
-        Fetch token balance using RPC Pool (Robust).
-        Uses RPC pool as PRIMARY to avoid rate-limit failures.
+        Fetch full token account info (amount, decimals, uiAmount).
         """
-        if not self.keypair: return 0.0
+        if not self.keypair: return None
         
-        # Try RPC pool FIRST (more reliable)
         try:
             pool = get_rpc_pool()
             result = pool.rpc_call("getTokenAccountsByOwner", [
@@ -113,36 +111,20 @@ class WalletManager:
             if result and "value" in result:
                 accounts = result["value"]
                 if accounts:
-                    info = accounts[0]["account"]["data"]["parsed"]["info"]
-                    return float(info["tokenAmount"]["uiAmount"])
-        except Exception as pool_e:
-            Logger.debug(f"RPC Pool balance failed: {pool_e}")
-        
-        # Fallback to primary RPC
-        try:
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "getTokenAccountsByOwner",
-                "params": [
-                    str(self.keypair.pubkey()),
-                    {"mint": mint_str},
-                    {"encoding": "jsonParsed"}
-                ]
-            }
-            
-            resp = requests.post(Settings.RPC_URL, json=payload, headers=headers, timeout=5)
-            data = resp.json()
-            
-            if "result" in data and "value" in data["result"]:
-                accounts = data["result"]["value"]
-                if accounts:
-                    info = accounts[0]["account"]["data"]["parsed"]["info"]
-                    return float(info["tokenAmount"]["uiAmount"])
+                    return accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]
         except Exception as e:
-            Logger.warning(f"Primary RPC balance failed: {e}")
-        
+            Logger.debug(f"Token info check failed: {e}")
+            
+        return None
+
+    def get_balance(self, mint_str):
+        """
+        Fetch token balance using RPC Pool (Robust).
+        Uses RPC pool as PRIMARY to avoid rate-limit failures.
+        """
+        info = self.get_token_info(mint_str)
+        if info:
+            return float(info["uiAmount"])
         return 0.0
     
     def get_sol_balance(self):
