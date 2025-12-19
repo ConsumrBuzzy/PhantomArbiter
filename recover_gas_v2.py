@@ -1,0 +1,83 @@
+import asyncio
+import os
+import base64
+from dotenv import load_dotenv
+load_dotenv()
+
+from config.settings import Settings
+from src.execution.wallet import WalletManager
+from src.system.smart_router import SmartRouter
+from solana.rpc.api import Client
+from solders.transaction import VersionedTransaction
+from solana.rpc.types import TxOpts
+from solana.rpc.commitment import Confirmed
+
+async def recover():
+    print("🚨 GAS RECOVERY V2 🚨")
+    
+    # 1. Setup
+    manager = WalletManager()
+    if not manager.keypair:
+        print("❌ Keypair not found")
+        return
+        
+    router = SmartRouter()
+    
+    BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+    SOL = "So11111111111111111111111111111111111111112"
+    
+    # 2. Get Balance & Decimals
+    info = manager.get_token_info(BONK)
+    if not info or int(info["amount"]) == 0:
+        print("❌ No BONK found to swap.")
+        return
+        
+    amount_atomic = int(info["amount"])
+    ui_amount = float(info["uiAmount"])
+    print(f"💰 Found {ui_amount:,.2f} BONK ({amount_atomic} atomic)")
+    
+    # 3. Get Quote
+    print("🔄 Getting Quote for BONK -> SOL...")
+    quote = router.get_jupiter_quote(BONK, SOL, amount_atomic, slippage_bps=200)
+    
+    if not quote:
+        print("❌ No quote found.")
+        return
+        
+    out_sol = int(quote["outAmount"]) / 10**9
+    print(f"✅ Quote: {out_sol:.6f} SOL")
+    
+    # 4. Build Tx
+    payload = {
+        "quoteResponse": quote,
+        "userPublicKey": str(manager.keypair.pubkey()),
+        "wrapAndUnwrapSol": True,
+        "computeUnitPriceMicroLamports": 500000  # High priority for recovery
+    }
+    
+    print("🏗️ Building Transaction...")
+    swap_data = router.get_swap_transaction(payload)
+    if not swap_data:
+        print("❌ Failed to build transaction")
+        return
+        
+    # 5. Execute
+    raw_tx = base64.b64decode(swap_data["swapTransaction"])
+    tx = VersionedTransaction.from_bytes(raw_tx)
+    signed_tx = VersionedTransaction(tx.message, [manager.keypair])
+    
+    print("🚀 Sending Transaction...")
+    client = Client(Settings.RPC_URL)
+    try:
+        sig = client.send_transaction(signed_tx, opts=TxOpts(skip_preflight=True)).value
+        print(f"✅ SIG: {sig}")
+        
+        print("⏳ Waiting for confirmation...")
+        await client.confirm_transaction(sig, commitment=Confirmed)
+        print("🎉 SUCCESS! Gas refueled.")
+        
+    except Exception as e:
+        print(f"❌ Transaction failed: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(recover())
