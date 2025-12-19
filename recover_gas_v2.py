@@ -37,8 +37,8 @@ async def recover():
     print(f"💰 Found {ui_amount:,.2f} BONK ({amount_atomic} atomic)")
     
     # 3. Get Quote
-    print("🔄 Getting Quote for BONK -> SOL...")
-    quote = router.get_jupiter_quote(BONK, SOL, amount_atomic, slippage_bps=200)
+    print("🔄 Getting Quote for BONK -> SOL (Aggressive)...")
+    quote = router.get_jupiter_quote(BONK, SOL, amount_atomic, slippage_bps=500) # 5% Slippage
     
     if not quote:
         print("❌ No quote found.")
@@ -52,7 +52,7 @@ async def recover():
         "quoteResponse": quote,
         "userPublicKey": str(manager.keypair.pubkey()),
         "wrapAndUnwrapSol": True,
-        "computeUnitPriceMicroLamports": 500000  # High priority for recovery
+        "computeUnitPriceMicroLamports": 1000000  # 1M MicroLamports (Aggressive)
     }
     
     print("🏗️ Building Transaction...")
