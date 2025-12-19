@@ -383,7 +383,7 @@ class UnifiedTrader:
                 # Live Mode Maintenance
                 if self.live_mode and self.wallet_manager:
                     # 1. Check Gas
-                    self.wallet_manager.check_and_replenish_gas(self.swapper)
+                    await self.wallet_manager.check_and_replenish_gas(self.swapper)
                     
                     # 2. Reclaim Rent (Every 10 loops)
                     if loop_count % 10 == 0:
