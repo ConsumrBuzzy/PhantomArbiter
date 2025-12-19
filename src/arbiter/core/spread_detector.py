@@ -163,41 +163,22 @@ class SpreadDetector:
         # Estimate profitability with ADAPTIVE fees
         gross_profit = trade_size * (spread_pct / 100)
         
-        # === ADAPTIVE FEE MODEL ===
-        # Get live SOL price for gas calculation
-        sol_price_usd = self._get_sol_price()
+        # Use centralized FeeEstimator for adaptive fees
+        from src.arbiter.core.fee_estimator import get_fee_estimator
+        fee_est = get_fee_estimator()
         
-        # Per-DEX trading fees (actual fees vary by DEX)
-        DEX_FEES = {
-            "JUPITER": 0.0035,    # ~0.35% (includes route optimization)
-            "RAYDIUM": 0.0025,    # 0.25%
-            "ORCA": 0.0025,       # 0.25%
-            "PUMPFUN": 0.01,      # 1% (bonding curve)
-            "METEORA": 0.003,     # 0.3%
-        }
-        buy_fee_pct = DEX_FEES.get(buy_dex.upper(), 0.003)
-        sell_fee_pct = DEX_FEES.get(sell_dex.upper(), 0.003)
-        trading_fees = trade_size * (buy_fee_pct + sell_fee_pct)
+        # Update estimator's SOL price cache
+        fee_est._sol_price_cache = self._get_sol_price()
+        fee_est._sol_price_ts = time.time()
         
-        # Gas: ~5000 lamports per tx, ~2 txs = 0.00001 SOL base + priority
-        # Priority varies 0.0001-0.001 SOL depending on congestion
-        base_gas_sol = 0.0001
-        priority_fee_sol = getattr(Settings, 'PRIORITY_FEE_SOL', 0.0005)
-        gas_usd = (base_gas_sol + priority_fee_sol) * sol_price_usd * 2  # x2 for round trip
+        fees = fee_est.estimate(
+            trade_size_usd=trade_size,
+            buy_dex=buy_dex,
+            sell_dex=sell_dex,
+            sol_price=fee_est._sol_price_cache
+        )
         
-        # Dynamic slippage: scales with trade size vs liquidity
-        # Base 0.1% + impact proportional to size
-        slippage_base_pct = getattr(Settings, 'SLIPPAGE_BASE_PCT', 0.001)  # 0.1%
-        slippage_impact = 0.001 * (trade_size / max(trade_size * 10, 10000))  # ~0.01-0.1%
-        slippage_pct = slippage_base_pct + slippage_impact
-        slippage_cost = trade_size * slippage_pct
-        
-        # Safety buffer: quote staleness, rent, rounding (scales with trade size)
-        safety_buffer = max(0.02, trade_size * 0.0005)  # min $0.02 or 0.05% of trade
-        
-        total_fees = trading_fees + gas_usd + slippage_cost + safety_buffer
-        
-        net_profit = gross_profit - total_fees
+        net_profit = gross_profit - fees.total_usd
         
         return SpreadOpportunity(
             pair=pair_name,
