@@ -50,8 +50,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Duration in minutes (default: 10, 0 for infinite)"
     )
     arbiter_parser.add_argument(
-        "--interval", type=int, default=5,
-        help="Scan interval in seconds (default: 5)"
+        "--interval", type=int, default=2,
+        help="Scan interval in seconds (default: 2)"
     )
     arbiter_parser.add_argument(
         "--min-spread", type=float, default=0.50,
@@ -150,11 +150,7 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
     from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
     
     if args.live:
-        print("\n" + "⚠️ "*20)
-        print("   WARNING: LIVE MODE ENABLED!")
-        print("   This will execute REAL transactions with REAL money!")
-        print("⚠️ "*20)
-        confirm = input("\n   Type 'I UNDERSTAND' to proceed: ")
+        confirm = input("\n   ⚠️ LIVE MODE - Type 'I UNDERSTAND' to proceed: ")
         if confirm.strip() != "I UNDERSTAND":
             print("   Cancelled.")
             return
