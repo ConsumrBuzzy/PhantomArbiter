@@ -42,6 +42,7 @@ CORE_PAIRS = [
 class ArbiterConfig:
     """Configuration for the arbiter."""
     budget: float = 50.0
+    gas_budget: float = 5.0  # USD worth of SOL for gas
     min_spread: float = 0.20
     max_trade: float = 10.0
     live_mode: bool = False
@@ -63,12 +64,14 @@ class PhantomArbiter:
         # Balance tracking
         self.starting_balance = config.budget
         self.current_balance = config.budget
+        self.gas_balance = config.gas_budget  # Gas in USD (SOL equivalent)
         
         # Statistics via TurnoverTracker
         from src.arbiter.core.turnover_tracker import TurnoverTracker
         self.tracker = TurnoverTracker(budget=config.budget)
         self.total_trades = 0
         self.total_profit = 0.0
+        self.total_gas_spent = 0.0
         self.trades: List[Dict] = []
         
         # Components (lazy-loaded)
@@ -224,11 +227,9 @@ class PhantomArbiter:
         print("\n" + "="*70)
         print(f"   PHANTOM ARBITER - {mode_str} TRADER")
         print("="*70)
-        print(f"   Starting Balance: ${self.starting_balance:.2f}")
-        print(f"   Min Spread:       {self.config.min_spread}%")
-        print(f"   Max Trade:        ${self.config.max_trade:.2f}")
-        print(f"   Pairs:            {len(self.config.pairs)} core pairs")
-        print(f"   Duration:         {duration_minutes} minutes")
+        print(f"   Budget:     ${self.starting_balance:.2f} USDC | ${self.gas_balance:.2f} Gas")
+        print(f"   Min Spread: {self.config.min_spread}% | Max Trade: ${self.config.max_trade:.2f}")
+        print(f"   Pairs:      {len(self.config.pairs)} | Duration: {duration_minutes} min")
         print("="*70)
         print("\n   Running... (Ctrl+C to stop)\n")
         

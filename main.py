@@ -62,6 +62,10 @@ def create_parser() -> argparse.ArgumentParser:
         help="Maximum trade size in USD (default: 10)"
     )
     arbiter_parser.add_argument(
+        "--gas-budget", type=float, default=5.0,
+        help="Gas budget in USD (SOL for fees, default: 5)"
+    )
+    arbiter_parser.add_argument(
         "--full-wallet", action="store_true",
         help="Use entire wallet balance (up to max-trade)"
     )
@@ -157,6 +161,7 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
     
     config = ArbiterConfig(
         budget=args.budget,
+        gas_budget=args.gas_budget,
         min_spread=args.min_spread,
         max_trade=args.max_trade,
         live_mode=args.live,
