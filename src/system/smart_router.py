@@ -35,10 +35,15 @@ class SmartRouter:
         self.endpoints = self._get_valid_endpoints()
         self.jupiter_url = self.config.get("JUPITER_API_BASE", "https://quote-api.jup.ag/v6")
         
+        # Load and clean API Key
+        self.jupiter_api_key = os.getenv("JUPITER_API_KEY", "").strip("'\" ")
+        
         self.current_rpc_index = 0
         self.jupiter_cooldown_until = 0
         
         Logger.info(f"🌐 SmartRouter initialized with {len(self.endpoints)} RPC endpoints.")
+        if self.jupiter_api_key:
+             Logger.info("   🔑 Jupiter API Key loaded")
 
     def _load_config(self):
         """Load rpc_pool.json or return defaults."""
@@ -185,7 +190,11 @@ class SmartRouter:
                 "slippageBps": slippage_bps
             }
             
-            resp = requests.get(url, params=params, timeout=10)
+            headers = {}
+            if self.jupiter_api_key:
+                headers["x-api-key"] = self.jupiter_api_key
+
+            resp = requests.get(url, params=params, headers=headers, timeout=10)
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(15)  # 15s cooldown
@@ -213,7 +222,11 @@ class SmartRouter:
             url = "https://api.jup.ag/price/v2"
             params = {"ids": ids, "vsToken": vs_token}
             
-            resp = requests.get(url, params=params, timeout=5)
+            headers = {}
+            if self.jupiter_api_key:
+                headers["x-api-key"] = self.jupiter_api_key
+            
+            resp = requests.get(url, params=params, headers=headers, timeout=5)
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(5)
