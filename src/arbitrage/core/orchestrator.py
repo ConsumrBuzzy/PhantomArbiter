@@ -153,7 +153,15 @@ class ArbitrageOrchestrator:
             funding_rates = await self._fetch_funding_rates()
             self.dashboard.update_funding_rates(funding_rates)
         
-        # 5. TODO: Execute profitable opportunities
+        # 5. Send Telegram status update (every 5 minutes)
+        if self._telegram and self.config.telegram_enabled:
+            now = time.time()
+            if now - self.last_telegram_status >= self.telegram_status_interval:
+                self._telegram.send_status_update(self.dashboard)
+                self.last_telegram_status = now
+                Logger.debug("📱 Sent Telegram status update")
+        
+        # 6. TODO: Execute profitable opportunities
         # for opp in opportunities:
         #     if opp.is_profitable and self.config.enable_execution:
         #         await self._execute(opp)
