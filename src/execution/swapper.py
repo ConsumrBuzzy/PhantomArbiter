@@ -41,16 +41,18 @@ class JupiterSwapper:
             except Exception as e:
                 Logger.warning(f"⚠️ JITO unavailable, using standard execution: {e}")
         
-    def execute_swap(self, direction, amount_usd, reason, target_mint=None):
+    def execute_swap(self, direction, amount_usd, reason, target_mint=None, priority_fee=None):
         """
         Execute a Swap with Adaptive Slippage.
         """
+        if not self.wallet.keypair: return None
+        if not Settings.ENABLE_TRADING: return None
+
+        # Get token decimals (default to 6 if not found, e.g. for USDC)
+        token_decimals = self.wallet.get_token_decimals(target_mint) if target_mint else 6
+        
         print(f"   [SWAP] Starting swap: {direction} ${amount_usd} target={target_mint}")
         
-        if not self.wallet.keypair:
-            print("   [SWAP] ❌ FAILED: No wallet keypair loaded!")
-            return None
-            
         print(f"   [SWAP] Wallet OK: {str(self.wallet.keypair.pubkey())[:8]}...")
         
         if not Settings.ENABLE_TRADING:
@@ -94,9 +96,9 @@ class JupiterSwapper:
                 
                 payload = {
                     "quoteResponse": quote,
-                    "userPublicKey": self.wallet.get_public_key(),
+                    "userPublicKey": str(self.wallet.get_public_key()),
                     "wrapAndUnwrapSol": True,
-                    "computeUnitPriceMicroLamports": Settings.PRIORITY_FEE_MICRO_LAMPORTS,
+                    "computeUnitPriceMicroLamports": priority_fee if priority_fee is not None else int(Settings.PRIORITY_FEE_MICRO_LAMPORTS),
                     "dynamicSlippage": {"maxBps": slippage_bps + 200}
                 }
                 

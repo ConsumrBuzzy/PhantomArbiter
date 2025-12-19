@@ -99,7 +99,8 @@ class UnifiedTrader:
             
             print(f"\n✅ LIVE MODE ENABLED")
             print(f"   Wallet: {self.wallet_manager.get_public_key()[:8]}...")
-            print(f"   Max Trade: ${self.max_trade}")
+            max_trade_str = "UNLIMITED ♾️" if self.max_trade <= 0 else f"${self.max_trade}"
+            print(f"   Max Trade: {max_trade_str}")
             print(f"   Gas Mgmt:  Enabled (Replenish < {Settings.GAS_CRITICAL_SOL} SOL)")
             
         except Exception as e:
@@ -222,20 +223,42 @@ class UnifiedTrader:
                 if not target_mint:
                     return {"success": False, "error": f"Unknown pair: {pair}"}
                 
-                # Dynamic Safety Check (Is 0.3 Safe?)
-                # Estimate Gas Cost: Priority Fee + Sig Fee + Potential Rent
-                EST_GAS_COST_USD = 0.05 # Conservative estimate (high priority)
+                if not target_mint:
+                    return {"success": False, "error": f"Unknown pair: {pair}"}
+                
+                # Dynamic Gas & Safety Check (V3.1)
+                # Calculate required priority fee based on trade size
+                # Base Fee: 5000 Lamports ($0.001)
+                # Priority: 
+                #   < $10:   1,000 uL (Micro)
+                #   < $100:  10,000 uL (Low)
+                #   < $500:  100,000 uL (Medium)
+                #   > $500:  1,000,000 uL (High)
+                
+                priority_fee = 1000 # Default Micro
+                est_gas_usd = 0.002 # Base cost estimate
+                
+                if amount >= 500:
+                    priority_fee = 1000000
+                    est_gas_usd = 0.10
+                elif amount >= 100:
+                    priority_fee = 100000
+                    est_gas_usd = 0.02
+                elif amount >= 10:
+                    priority_fee = 10000
+                    est_gas_usd = 0.005
+                
                 gross_profit_usd = amount * (opportunity["spread_pct"] / 100)
                 
-                if gross_profit_usd < EST_GAS_COST_USD:
+                if gross_profit_usd < est_gas_usd:
                      return {
                          "success": False, 
-                         "error": f"Unsafe Trade: Profit ${gross_profit_usd:.4f} < Gas ${EST_GAS_COST_USD}"
+                         "error": f"Unsafe Trade: Profit ${gross_profit_usd:.4f} < Gas ${est_gas_usd:.4f}"
                      }
                 
                 # Execute the buy via existing swapper
                 reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
-                signature = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint)
+                signature = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint, priority_fee=priority_fee)
                 
                 if signature:
                     # In Full Wallet mode, we update balance via sync in run(), but estimate profit here
