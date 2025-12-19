@@ -72,7 +72,7 @@ class ArbiterConfig:
     budget: float = 50.0
     gas_budget: float = 5.0  # USD worth of SOL for gas
     min_spread: float = 0.20
-    max_trade: float = 10.0
+    max_trade: float = 0.0
     live_mode: bool = False
     full_wallet: bool = False
     pairs: List[tuple] = field(default_factory=lambda: CORE_PAIRS)
@@ -183,7 +183,13 @@ class PhantomArbiter:
         Returns: (profitable_opportunities, all_spreads)
         """
         detector = self._get_detector()
-        spreads = detector.scan_all_pairs(self.config.pairs)
+        
+        # Calculate trade size (Budget vs Max Trade)
+        # If max_trade is 0, we assume UNLIMITED (up to budget)
+        limit = self.config.max_trade if self.config.max_trade > 0 else float('inf')
+        trade_size = min(self.current_balance, limit)
+        
+        spreads = detector.scan_all_pairs(self.config.pairs, trade_size=trade_size)
         
         # Filter profitable using SpreadOpportunity's own calculations
         profitable = [opp for opp in spreads if opp.is_profitable]

@@ -198,12 +198,13 @@ class SpreadDetector:
             timestamp=time.time()
         )
     
-    def scan_all_pairs(self, pairs: List[Tuple[str, str, str]]) -> List[SpreadOpportunity]:
+    def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
         """
         Scan multiple pairs for opportunities.
         
         Args:
             pairs: List of (pair_name, base_mint, quote_mint) tuples
+            trade_size: USD value to test (affects slippage/fees)
             
         Returns:
             List of SpreadOpportunity sorted by spread_pct descending
@@ -211,7 +212,7 @@ class SpreadDetector:
         opportunities = []
         
         for pair_name, base_mint, quote_mint in pairs:
-            opp = self.scan_pair(base_mint, quote_mint, pair_name)
+            opp = self.scan_pair(base_mint, quote_mint, pair_name, trade_size=trade_size)
             if opp:
                 opportunities.append(opp)
                 
