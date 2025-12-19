@@ -201,29 +201,33 @@ class SmartRouter:
             Logger.error(f"Jupiter Quote Failed: {e}")
             return None
 
-    def get_jupiter_price(self, ids, vs_token="USDC"):
+    def get_jupiter_price_v2(self, ids, vs_token="USDC"):
         """
-        Fetch price from Jupiter V6 Price API with rate limits.
+        Fetch price from Jupiter V2 Price API (Official & Fast).
+        Support batch requests: ids="mint1,mint2,mint3"
         """
         try:
             self.check_jupiter_cooldown()
             
-            url = "https://price.jup.ag/v6/price"
+            # V2 Endpoint
+            url = "https://api.jup.ag/price/v2"
             params = {"ids": ids, "vsToken": vs_token}
             
             resp = requests.get(url, params=params, timeout=5)
             
             if resp.status_code == 429:
-                self.trigger_jupiter_cooldown(15)
+                self.trigger_jupiter_cooldown(5)
                 return None
                 
             if resp.status_code != 200:
                 Logger.warning(f"⚠️ Jupiter Price API {resp.status_code}")
                 return None
             
-            return resp.json()
+            # V2 returns {"data": {"mint": {"id":..., "price":...}}}
+            return resp.json().get("data", {})
             
-        except Exception:
+        except Exception as e:
+            Logger.debug(f"Jupiter Price V2 Failed: {e}")
             return None
 
     def get_swap_transaction(self, payload):

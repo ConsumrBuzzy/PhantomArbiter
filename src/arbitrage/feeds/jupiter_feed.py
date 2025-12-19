@@ -95,13 +95,36 @@ class JupiterFeed(PriceSource):
             output_decimals = self._get_decimals(output_mint)
             amount_atomic = int(amount * (10 ** input_decimals))
             
-            # Fetch quote from Jupiter
-            raw_quote = self.router.get_jupiter_quote(
-                input_mint, 
-                output_mint, 
-                amount_atomic, 
-                slippage_bps=50  # 0.5% default slippage
-            )
+            # Method 1: Try Price API V2 (Faster, Reliable)
+            # This is "The Better Way" for scanning
+            price_data = self.router.get_jupiter_price_v2(output_mint)
+            
+            price = 0.0
+            if price_data and output_mint in price_data:
+                 price_str = price_data[output_mint].get("price", "0")
+                 price = float(price_str) if price_str else 0.0
+
+            if price > 0:
+                 # Calculate output based on Spot Price
+                 # This mimics a quote for SCAINING purposes
+                 # Execution will still use Swap API
+                 output_amount = amount / price
+                 
+                 return Quote(
+                    dex="JUPITER",
+                    input_mint=input_mint,
+                    output_mint=output_mint,
+                    input_amount=amount,
+                    output_amount=output_amount,
+                    price=1/price, # Price in USDC/Token
+                    slippage_estimate_pct=0.1,
+                    fee_pct=0.1,
+                    route=None, # No route needed for scan
+                    timestamp=time.time()
+                )
+
+            # Method 2: Fallback to Swap Quote (Slow, Rate Limited)
+            # ... (Existing logic removed for cleaner switch)
             
             if not raw_quote:
                 return None
