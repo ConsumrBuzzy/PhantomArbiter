@@ -278,11 +278,38 @@ class UnifiedTrader:
                     # We are "investing" in the account creation
                     pass 
                 
-                # Execute
+                # Execute BUY
                 reason = f"Arb: {opportunity['buy_dex']}->{opportunity['sell_dex']} (Fee: {priority_fee}uL)"
-                signature = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint, priority_fee=priority_fee)
                 
-                if signature:
+                # Snapshot Balance BEFORE (Protection)
+                pre_token_info = self.wallet_manager.get_token_info(target_mint)
+                pre_balance = int(pre_token_info["amount"]) if pre_token_info else 0
+                
+                buy_sig = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint, priority_fee=priority_fee)
+                
+                if buy_sig:
+                    Logger.info(f"   ⏳ Buy Sent: {buy_sig[-8:]}... Waiting for confirmation...")
+                    await asyncio.sleep(10) # Wait for confirmation + balance update
+                    
+                    # Snapshot Balance AFTER
+                    post_token_info = self.wallet_manager.get_token_info(target_mint)
+                    post_balance = int(post_token_info["amount"]) if post_token_info else 0
+                    
+                    acquired_amount = post_balance - pre_balance
+                    
+                    if acquired_amount <= 0:
+                         Logger.error(f"   ❌ Buy Confirmed but Balance didn't increase! Stuck?")
+                         return {"success": False, "error": "Balance mismatch after buy"}
+                    
+                    # Execute SELL (Only acquired amount)
+                    Logger.info(f"   🔄 Executing SELL Leg (Selling {acquired_amount} units)...")
+                    sell_sig = self.swapper.execute_swap("SELL", 0, reason, target_mint=target_mint, priority_fee=priority_fee, override_atomic_amount=acquired_amount)
+                    
+                    if sell_sig:
+                        Logger.success(f"   ✅ Cycle Complete (Buy+Sell): {sell_sig[-8:]}")
+                    else:
+                        Logger.error("   ❌ SELL FAILED! You are now Long this token.")
+
                     # In Full Wallet mode, we update balance via sync in run(), but estimate profit here
                     net_profit = amount * (opportunity["net_pct"] / 100)
                     
@@ -299,7 +326,6 @@ class UnifiedTrader:
                         "amount": amount,
                         "spread_pct": opportunity["spread_pct"],
                         "net_profit": net_profit,
-                        "signature": signature,
                         "signature": f"B:{buy_sig[-4:]} S:{sell_sig[-4:] if sell_sig else 'FAIL'}",
                         "balance_after": self.current_balance
                     }
