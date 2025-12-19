@@ -43,6 +43,10 @@ class JupiterFeed(PriceSource):
     DECIMALS = {
         USDC_MINT: 6,
         SOL_MINT: 9,
+        "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7": 6, # DRIFT
+        "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS": 6, # KMNO
+        "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6": 9, # TNSR
+        "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof": 8, # RENDER
     }
     
     def __init__(self):

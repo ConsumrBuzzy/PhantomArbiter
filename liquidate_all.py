@@ -33,10 +33,10 @@ async def main():
         ("JTO",  "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL"),
         ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3"),
         ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),
-        ("DRIFT", "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b"),
-        ("KMNO", "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp"),
-        ("TNSR", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio"),
-        ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K"),
+        ("DRIFT", "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7"),
+        ("KMNO", "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS"),
+        ("TNSR", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6"),
+        ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof"),
     ]
     
     for symbol, mint in HOLDINGS:

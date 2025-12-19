@@ -136,10 +136,10 @@ class UnifiedTrader:
                 ("PYTH/USDC", "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3", USDC),
                 ("POPCAT/USDC", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", USDC),
                 # DeFi / Infra Additions
-                ("DRIFT/USDC", "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b", USDC),
-                ("KMNO/USDC", "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp", USDC),
-                ("TNSR/USDC", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio", USDC),
-                ("RENDER/USDC", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K", USDC),
+                ("DRIFT/USDC", "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7", USDC),
+                ("KMNO/USDC", "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS", USDC),
+                ("TNSR/USDC", "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6", USDC),
+                ("RENDER/USDC", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", USDC),
             ]
             
             spreads = detector.scan_all_pairs(pairs)
@@ -237,10 +237,10 @@ class UnifiedTrader:
                     "RAY/USDC": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
                     "PYTH/USDC": "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3",
                     "POPCAT/USDC": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
-                    "DRIFT/USDC": "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b",
-                    "KMNO/USDC": "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp",
-                    "TNSR/USDC": "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio",
-                    "RENDER/USDC": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K",
+                    "DRIFT/USDC": "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7",
+                    "KMNO/USDC": "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS",
+                    "TNSR/USDC": "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6",
+                    "RENDER/USDC": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
                 }
                 target_mint = mint_map.get(pair)
                 
@@ -432,10 +432,10 @@ class UnifiedTrader:
                 "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", # RAY
                 "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3", # PYTH
                 "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", # POPCAT
-                "DriFtupWBXJK85kqq6PHJ7JISrguybIbY6bWHq9K51b",  # DRIFT
-                "KMNOxwnvJN6hCpuK4VVznMcKp3IV876WAroqCyGBTEp",  # KMNO
-                "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnC6Mio",  # TNSR
-                "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4kuzv95K",     # RENDER
+                "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7", # DRIFT
+                "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS", # KMNO
+                "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6", # TNSR
+                "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", # RENDER
             ]
             
             # Simple RPC call using requests
