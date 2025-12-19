@@ -162,8 +162,20 @@ class PhantomArbiter:
                 usdc_bal = self._wallet.get_balance(USDC_MINT)
                 self.starting_balance = usdc_bal
                 self.current_balance = usdc_bal
+                
+                # Also sync SOL balance as gas
+                sol_balance = self._wallet.get_sol_balance()
+                try:
+                    from src.core.shared_cache import get_cached_price
+                    sol_price, _ = get_cached_price("SOL")
+                    if not sol_price:
+                        sol_price = 200.0  # Conservative fallback
+                except:
+                    sol_price = 200.0
+                self.gas_balance = sol_balance * sol_price
             
             print(f"   ✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
+            print(f"   💰 USDC: ${self.current_balance:.2f} | SOL (Gas): ${self.gas_balance:.2f}")
             Logger.info(f"✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
             
         except Exception as e:
