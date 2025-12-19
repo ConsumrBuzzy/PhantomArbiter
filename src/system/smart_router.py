@@ -251,7 +251,12 @@ class SmartRouter:
             self.check_jupiter_cooldown()
             
             url = f"{self.jupiter_url}/swap"
-            resp = requests.post(url, json=payload, timeout=15)
+            
+            headers = {}
+            if self.jupiter_api_key:
+                headers["x-api-key"] = self.jupiter_api_key
+                
+            resp = requests.post(url, json=payload, headers=headers, timeout=15)
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(15)
