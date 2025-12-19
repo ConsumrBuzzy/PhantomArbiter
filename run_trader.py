@@ -215,6 +215,17 @@ class UnifiedTrader:
                 if not target_mint:
                     return {"success": False, "error": f"Unknown pair: {pair}"}
                 
+                # Dynamic Safety Check (Is 0.3 Safe?)
+                # Estimate Gas Cost: Priority Fee + Sig Fee + Potential Rent
+                EST_GAS_COST_USD = 0.05 # Conservative estimate (high priority)
+                gross_profit_usd = amount * (opportunity["spread_pct"] / 100)
+                
+                if gross_profit_usd < EST_GAS_COST_USD:
+                     return {
+                         "success": False, 
+                         "error": f"Unsafe Trade: Profit ${gross_profit_usd:.4f} < Gas ${EST_GAS_COST_USD}"
+                     }
+                
                 # Execute the buy via existing swapper
                 reason = f"Spatial Arb: {opportunity['buy_dex']} → {opportunity['sell_dex']}"
                 signature = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint)

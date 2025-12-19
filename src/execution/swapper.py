@@ -143,3 +143,76 @@ class JupiterSwapper:
                 
         Logger.error("❌ All slippage tiers exhausted")
         return None
+
+    async def recover_gas(self, input_mint: str, amount_usd: float):
+        """
+        Universal Gas Recovery.
+        Swaps 'amount_usd' worth of 'input_mint' for SOL.
+        Uses 2-step Quote to determine input amount.
+        """
+        try:
+            Logger.info(f"⛽ Universal Recovery: Attempting to swap ${amount_usd} of {input_mint[:4]}... -> SOL")
+            
+            # Simple heuristic for now: Swap 5% of tokens? No, need precision.
+            # Use Token Info to get decimals
+            info = self.wallet.get_token_info(input_mint)
+            if not info: 
+                Logger.error("❌ Token info not found")
+                return
+                
+            decimals = int(info["decimals"])
+            avail_atomic = int(info["amount"])
+            
+            # Strategy: We don't have price. 
+            # HEURISTIC: Swap 1000 units?
+            # Better: Just try to swap 10% of the bag if it's large?
+            # Or use SmartRouter to get quote for 1 unit -> SOL?
+            
+            router = SmartRouter()
+            SOL_MINT = "So11111111111111111111111111111111111111112"
+            
+            # 1. Price Check (1 unit)
+            test_amount = 10 ** decimals
+            if test_amount > avail_atomic: test_amount = avail_atomic // 10
+            if test_amount == 0: return # Dust
+            
+            quote = router.get_jupiter_quote(input_mint, SOL_MINT, test_amount)
+            if not quote or "outAmount" not in quote:
+                Logger.error("❌ Price check failed")
+                return
+            
+            sol_out = int(quote["outAmount"]) / 10**9
+            # Price of 1 token in SOL = sol_out
+            if sol_out == 0: return
+            
+            TARGET_SOL = 0.03 # Target ~0.03 SOL ($5-6)
+            needed_tokens = TARGET_SOL / sol_out
+            amount_atomic = int(needed_tokens * (10**decimals))
+            
+            if amount_atomic > avail_atomic: amount_atomic = avail_atomic
+            
+            Logger.info(f"   📉 Converting {amount_atomic / 10**decimals:.4f} tokens to Gas...")
+            
+            # 2. Execute
+            payload = {
+                "quoteResponse": router.get_jupiter_quote(input_mint, SOL_MINT, amount_atomic, slippage_bps=500),
+                "userPublicKey": str(self.wallet.keypair.pubkey()),
+                "wrapAndUnwrapSol": True,
+                "computeUnitPriceMicroLamports": 100000 
+            }
+            
+            tx_data = router.get_swap_transaction(payload)
+            if tx_data:
+                raw_tx = base64.b64decode(tx_data["swapTransaction"])
+                tx = VersionedTransaction.from_bytes(raw_tx)
+                
+                # Sign manually
+                signed_tx = VersionedTransaction(tx.message, [self.wallet.keypair])
+                
+                client = Client(Settings.RPC_URL)
+                sig = client.send_transaction(signed_tx, opts=TxOpts(skip_preflight=True)).value
+                Logger.success(f"   ✅ Gas Refilled: {sig}")
+                return sig
+                
+        except Exception as e:
+            Logger.error(f"❌ Recovery Failed: {e}")

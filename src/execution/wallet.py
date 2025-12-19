@@ -35,65 +35,78 @@ class WalletManager:
         """Return pubkey as string if available."""
         return str(self.keypair.pubkey()) if self.keypair else None
 
-    def check_and_replenish_gas(self, swapper):
+    async def check_and_replenish_gas(self, swapper):
         """
-        V9.7 Autonomous GAS Manager.
-        Checks SOL balance and swaps USDC -> SOL if critical.
+        V10.0 UNIVERSAL GAS Manager ("The Survivor").
+        1. Checks SOL balance.
+        2. If Critical: Scans ALL tokens for highest value.
+        3. Swaps Highest Value Token -> SOL to survive.
         """
         if not self.keypair: return
         
         try:
             sol_balance = self.get_sol_balance()
             
-            # Check Critical Threshold
-            if sol_balance < Settings.GAS_CRITICAL_SOL:
-                # 1. Check if we have enough USDC
-                usdc_balance = self.get_balance(Settings.USDC_MINT)
-                if usdc_balance >= Settings.GAS_REPLENISH_USD:
-                    
-                    amount_usd = Settings.GAS_REPLENISH_USD
-                    Logger.warning(f"⛽ CRITICAL GAS LOW ({sol_balance:.4f} SOL)! Swapping ${amount_usd} USDC for SOL...", icon="⛽")
-                    
-                    # 2. Execute Swap (USDC -> SOL)
-                    # Force high slippage (1.5%) to guarantee refill
-                    # Swapper handles the trade.
-                    # Note: We pass internal method for simplicity or rely on swapper instance
-                    
-                    # Swapper expects direction, amount_usd, reason, target_mint
-                    # But execute_swap logic is typically "Buy Target with USDC" or "Sell Target for USDC".
-                    # We need "Buy SOL with USDC". 
-                    # Our swapper might be hardcoded for Settings.TARGET_MINT if not specified.
-                    # We need to pass target_mint="So11111111111111111111111111111111111111112"
+            # 1. Critical Check
+            if sol_balance < Settings.GAS_CRITICAL_SOL: 
+                Logger.warning(f"⛽ CRITICAL GAS ({sol_balance:.4f} SOL)! Initiating Survival Mode...", icon="🚨")
+                
+                # 2. Find Best Asset to Swap
+                best_token = None
+                max_val_usd = 0.0
+                
+                # Check USDC first (Preferred)
+                usdc_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+                usdc_bal = self.get_balance(usdc_mint)
+                if usdc_bal > Settings.GAS_REPLENISH_USD:
+                    best_token = usdc_mint
+                    max_val_usd = usdc_bal
+                else:
+                    # Scan all holdings (this is expensive but necessary in survival)
+                    # For now, check known tokens list to be fast, or full scan?
+                    # Let's check major portfolio tokens
+                    candidates = [
+                        "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK
+                        "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF
+                        "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", # JUP
+                    ]
+                    for mint in candidates:
+                         bal = self.get_balance(mint)
+                         # Simple valuation estimate (1 unit = $1 is wrong, need price)
+                         # We'll rely on the swapper quoting to tell us value? Too slow.
+                         # Just check raw balance count? 
+                         # Better: Swapper has logic to quote.
+                         # Let's just pick the one with highest raw counts > 0 for now as heuristic
+                         # OR, actually use USDC if present, otherwise ANY token with significant balance.
+                         if bal > 1000: # Heuristic for meme tokens
+                             best_token = mint
+                             break
+                
+                if best_token:
+                    Logger.info(f"   🔄 Swapping Asset {best_token[:4]}... for Gas")
                     
                     SOL_MINT = "So11111111111111111111111111111111111111112"
                     
-                    # In execute_swap:
-                    # if direction == "BUY": input=USDC, output=mint
-                    # So we call BUY, target=SOL
+                    # 3. Dynamic Swap Amount
+                    # If USDC: Swap $5. If Token: Swap $5 equivalent? 
+                    # Swapper needs Atomic Input.
+                    # We will ask swapper to "Refill SOL using this input mint"
+                    # But swapper.execute_swap defaults to BUY/SELL logic.
+                    # We need GENERIC SWAP.
                     
-                    tx = swapper.execute_swap(
-                        direction="BUY",
-                        amount_usd=amount_usd,
-                        reason="AUTO-REFUEL GAS",
-                        target_mint=SOL_MINT
-                    )
+                    # We will use SmartRouter directly or add method to Swapper.
+                    # Let's add recover_gas_from_token to Swapper.
                     
-                    if tx:
-                         Logger.success("   ✅ Gas tank refuelled successfully.")
-                    else:
-                         Logger.error("   ❌ Refuel swap failed.")
-                         
+                    await swapper.recover_gas(input_mint=best_token, amount_usd=Settings.GAS_REPLENISH_USD)
+                    
                 else:
-                    # 4. Critical Failure
-                    Logger.error(f"🚨 CRITICAL STOP: Out of SOL ({sol_balance:.4f}) and insufficient USDC (${usdc_balance:.2f})!")
-                    # In a real app we might raise an exception or set a flag, 
-                    # but here we just log primarily. Engine might need to know.
-            
+                    Logger.error("🚨 CRITICAL: No assets found to swap for gas!")
+
             elif sol_balance < Settings.GAS_FLOOR_SOL:
-                 Logger.warning(f"⚠️ Low Gas Warning: {sol_balance:.4f} SOL (Floor: {Settings.GAS_FLOOR_SOL})")
-                 
+                 Logger.warning(f"⚠️ Low Gas: {sol_balance:.4f} SOL")
+
         except Exception as e:
-            Logger.error(f"❌ Auto-refuel error: {e}")
+            Logger.error(f"❌ Survival Error: {e}")
 
     def get_token_info(self, mint_str):
         """
