@@ -271,15 +271,21 @@ class PhantomArbiter:
         
         print("-" * 60)
         
-        # Format for Telegram Dashboard (Code Block)
-        # Format for Telegram Dashboard (Code Block)
-        tg_table = [
-            f"[{now}] MARKET SCAN | P/L: ${self.tracker.daily_profit:+.2f}",
-            f"{'Pair':<12} {'Spread':<8} {'Net':<8} {'St'}",
-            "-" * 40
+        # Format for Telegram Dashboard (Bold Header + Code Block Table)
+        # MarkdownV2 requires escaping, but we'll try to keep it simple with standard markdown if possible, 
+        # or just rely on the manager accepting consistent format.
+        # TelegramManager uses MarkdownV2. 
+        # Header: *BOLD*
+        # Table: ```...```
+        
+        header = f"*⏱️ MARKET SCAN* | P/L: *${self.tracker.daily_profit:+.2f}*"
+        
+        table_lines = [
+            f"{'Pair':<11} {'Spread':<7} {'Net':<8} {'St'}",
+            "-" * 33   # Reduced width slightly to fit mobile screens better
         ]
         
-        # Add ALL rows to TG table (no slice limit)
+        # Add ALL rows to TG table
         for i, opp in enumerate(spreads):
             verified = verified_map.get(opp.pair)
             status = "❌"
@@ -293,15 +299,18 @@ class PhantomArbiter:
                 elif "SCALED" in (verified.verification_status or ""):
                     status = "⚠️"
                 elif "LIQ" in (verified.verification_status or ""):
-                    status = "💧" # Liquid drop for liquidity fail
+                    status = "💧" 
             
-            tg_table.append(f"{opp.pair[:11]:<12} {spread:<8} {net:<8} {status}")
+            table_lines.append(f"{opp.pair[:10]:<11} {spread:<7} {net:<8} {status}")
             
         if profitable_count:
-            tg_table.append(f"\n🎯 {profitable_count} Opportunities!")
+            table_lines.append(f"\n🎯 {profitable_count} Opportunities!")
+            
+        # Construct final message
+        final_msg = f"{header}\n```\n" + "\n".join(table_lines) + "\n```"
             
         # Beam to Telegram
-        self.telegram.update_dashboard("\n".join(tg_table))
+        self.telegram.update_dashboard(final_msg)
         
         if profitable_count:
             print(f"   🎯 {profitable_count} profitable opportunities!")

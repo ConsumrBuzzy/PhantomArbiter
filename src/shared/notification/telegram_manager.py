@@ -130,8 +130,7 @@ class TelegramManager:
 
     async def _async_update_dashboard(self, content: str):
         """Edit existing message or send new one."""
-        # Wrap in code block for formatting
-        formatted = f"```\n{content}\n```"
+        formatted = content  # Caller handles formatting now
         
         # Skip if identical (avoids API errors)
         if formatted == self.last_dashboard_content:
