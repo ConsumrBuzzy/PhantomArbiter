@@ -256,14 +256,81 @@ class SentimentEngine:
         """
         Fetch LunarCrush social score (0-100 normalized).
         
-        Free tier gives "Galaxy Score" and "Social Score".
-        """
-        # LunarCrush requires API key for most endpoints
-        # For now, return None (placeholder)
-        # In production, you'd use:
-        # GET https://lunarcrush.com/api3/coins/{coin}?key=YOUR_KEY
+        Uses Galaxy Score (1-100) which combines:
+        - Social mentions velocity
+        - Market cap
+        - Trading volume
+        - Social engagement
         
-        Logger.debug(f"[SENTIMENT] LunarCrush not configured for {coin}")
+        API Docs: https://lunarcrush.com/developers/api/overview
+        """
+        api_key = getattr(Settings, 'LUNARCRUSH_API_KEY', None)
+        if not api_key:
+            Logger.debug(f"[SENTIMENT] LUNARCRUSH_API_KEY not set")
+            return None
+        
+        cache_key = f"lunarcrush_{coin}"
+        
+        # Check cache
+        if cache_key in self._cache:
+            cached = self._cache[cache_key]
+            if time.time() - cached["timestamp"] < self._cache_ttl:
+                return cached["value"]
+        
+        # Map coin symbols to LunarCrush format
+        coin_map = {
+            "SOL": "solana",
+            "WIF": "dogwifhat",
+            "JUP": "jupiter",
+            "BTC": "bitcoin",
+            "ETH": "ethereum",
+        }
+        
+        lc_coin = coin_map.get(coin, coin.lower())
+        
+        try:
+            # LunarCrush v2 API endpoint
+            url = f"https://lunarcrush.com/api4/public/coins/{lc_coin}/v1"
+            headers = {
+                "Authorization": f"Bearer {api_key}"
+            }
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Try to get Galaxy Score (overall social metric)
+                # Galaxy Score is 1-100
+                if "data" in data:
+                    galaxy_score = data["data"].get("galaxy_score", None)
+                    alt_rank = data["data"].get("alt_rank", None)
+                    social_volume = data["data"].get("social_volume", 0)
+                    
+                    if galaxy_score:
+                        score = float(galaxy_score)
+                        Logger.info(f"[SENTIMENT] LunarCrush {coin}: Galaxy={score:.0f}, AltRank={alt_rank}")
+                        
+                        # Cache it
+                        self._cache[cache_key] = {
+                            "value": score,
+                            "timestamp": time.time()
+                        }
+                        return score
+                
+                # Fallback: try social_volume as proxy
+                Logger.debug(f"[SENTIMENT] LunarCrush response: {data}")
+                
+            elif response.status_code == 401:
+                Logger.warning("[SENTIMENT] LunarCrush API key invalid or expired")
+            elif response.status_code == 429:
+                Logger.warning("[SENTIMENT] LunarCrush rate limit hit")
+            else:
+                Logger.debug(f"[SENTIMENT] LunarCrush status {response.status_code}")
+                
+        except Exception as e:
+            Logger.debug(f"[SENTIMENT] LunarCrush error: {e}")
+        
         return None
     
     async def _get_volume_score(self, coin: str) -> Optional[float]:
