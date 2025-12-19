@@ -485,10 +485,10 @@ class PhantomArbiter:
                         print(f"            Spread: +{trade['spread_pct']:.2f}% → Net: ${trade['net_profit']:+.4f}")
                         print(f"            Balance: ${self.current_balance:.4f}")
                         print()
-                        break
+                        
                     else:
                         print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
-                        break
+                        
                 elif raw_opps and not valid_opps:
                      # Dashboard showed failures, no extra print needed usually, 
                      # but maybe a small summary if spread was high?
