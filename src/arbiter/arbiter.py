@@ -157,16 +157,21 @@ class PhantomArbiter:
         # Filter profitable using SpreadOpportunity's own calculations
         profitable = [opp for opp in spreads if opp.is_profitable]
         
-        if verbose:
+        if verbose and spreads:
             now = datetime.now().strftime("%H:%M:%S")
-            best = max(spreads, key=lambda x: x.spread_pct) if spreads else None
             
-            if best:
-                status = "✅" if best.is_profitable else "❌"
-                # Use SpreadOpportunity's net_profit_usd (accurate fees)
-                print(f"   [{now}] {best.pair}: +{best.spread_pct:.2f}% | Net: ${best.net_profit_usd:+.3f} {status} | Bal: ${self.current_balance:.2f} | Day: ${self.tracker.daily_profit:+.2f}")
-            else:
-                print(f"   [{now}] No spreads | Bal: ${self.current_balance:.2f}")
+            # Clear line and print table header
+            print(f"\n   [{now}] MARKET SCAN | Bal: ${self.current_balance:.2f} | Gas: ${self.gas_balance:.2f} | Day P/L: ${self.tracker.daily_profit:+.2f}")
+            print(f"   {'Pair':<12} {'Buy':<8} {'Sell':<8} {'Spread':<8} {'Net':<10} {'Status'}")
+            print("   " + "-"*60)
+            
+            for opp in spreads:
+                status = "✅ READY" if opp.is_profitable else "❌"
+                print(f"   {opp.pair:<12} {opp.buy_dex:<8} {opp.sell_dex:<8} +{opp.spread_pct:.2f}%   ${opp.net_profit_usd:+.3f}    {status}")
+            
+            print("   " + "-"*60)
+            if profitable:
+                print(f"   🎯 {len(profitable)} profitable opportunities!")
         
         return profitable
     
