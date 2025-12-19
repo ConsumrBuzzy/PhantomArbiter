@@ -3,9 +3,17 @@ PhantomArbiter - Unified CLI Entrypoint
 =======================================
 Single entrypoint with subcommands for all trading modes.
 
-Usage:
+Arbitrage Commands:
     python main.py arbiter --duration 60
     python main.py arbiter --live --full-wallet
+    python main.py scan --min-spread 0.9
+
+Meme Coin Scraper Commands:
+    python main.py discover
+    python main.py watch --duration 60
+    python main.py scout --token <MINT>
+
+Monitoring:
     python main.py monitor --budget 500
 """
 
@@ -17,7 +25,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create argument parser with subcommands."""
     parser = argparse.ArgumentParser(
         prog="PhantomArbiter",
-        description="Solana DEX Arbitrage System"
+        description="Solana DEX Arbitrage & Meme Coin Discovery System"
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -59,7 +67,67 @@ def create_parser() -> argparse.ArgumentParser:
     )
     
     # ═══════════════════════════════════════════════════════════════
-    # MONITOR SUBCOMMAND
+    # SCAN SUBCOMMAND (Quick one-shot opportunity scan)
+    # ═══════════════════════════════════════════════════════════════
+    scan_parser = subparsers.add_parser(
+        "scan",
+        help="Quick one-shot arbitrage opportunity scan"
+    )
+    scan_parser.add_argument(
+        "--min-spread", type=float, default=0.20,
+        help="Minimum spread to show (default: 0.20)"
+    )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # DISCOVER SUBCOMMAND (Meme Coin Scraper)
+    # ═══════════════════════════════════════════════════════════════
+    discover_parser = subparsers.add_parser(
+        "discover",
+        help="Discover trending meme coins (Birdeye/DexScreener)"
+    )
+    discover_parser.add_argument(
+        "--source", type=str, choices=["birdeye", "dexscreener", "auto"], default="auto",
+        help="Data source (default: auto)"
+    )
+    discover_parser.add_argument(
+        "--limit", type=int, default=20,
+        help="Number of tokens to fetch (default: 20)"
+    )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # WATCH SUBCOMMAND (Launchpad Monitor)
+    # ═══════════════════════════════════════════════════════════════
+    watch_parser = subparsers.add_parser(
+        "watch",
+        help="Watch launchpads for new token launches (pump.fun, Raydium, etc.)"
+    )
+    watch_parser.add_argument(
+        "--duration", type=int, default=60,
+        help="Duration in minutes (default: 60, 0 for infinite)"
+    )
+    watch_parser.add_argument(
+        "--platforms", type=str, default="all",
+        help="Platforms to monitor: all, pumpfun, raydium, meteora (default: all)"
+    )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # SCOUT SUBCOMMAND (Smart Money Tracker)
+    # ═══════════════════════════════════════════════════════════════
+    scout_parser = subparsers.add_parser(
+        "scout",
+        help="Scout smart money wallets and audit tokens"
+    )
+    scout_parser.add_argument(
+        "--token", type=str, default=None,
+        help="Token mint to audit for smart money"
+    )
+    scout_parser.add_argument(
+        "--wallet", type=str, default=None,
+        help="Wallet address to analyze performance"
+    )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # MONITOR SUBCOMMAND (Profitability Dashboard)
     # ═══════════════════════════════════════════════════════════════
     monitor_parser = subparsers.add_parser(
         "monitor",
@@ -72,18 +140,6 @@ def create_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument(
         "--interval", type=int, default=600,
         help="Scan interval in seconds (default: 600)"
-    )
-    
-    # ═══════════════════════════════════════════════════════════════
-    # SCAN SUBCOMMAND (Quick one-shot scan)
-    # ═══════════════════════════════════════════════════════════════
-    scan_parser = subparsers.add_parser(
-        "scan",
-        help="Quick one-shot opportunity scan"
-    )
-    scan_parser.add_argument(
-        "--min-spread", type=float, default=0.20,
-        help="Minimum spread to show (default: 0.20)"
     )
     
     return parser
