@@ -432,15 +432,41 @@ class PhantomArbiter:
                     opportunities = []
                 
                 # Execute best opportunity not on cooldown
-                for opp in sorted(opportunities, key=lambda x: x.spread_pct, reverse=True):
+                verified_opps = []
+                
+                # Sort by Scan Spread (descending)
+                raw_opps = sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
+                
+                # Check Top 3 Candidates for Real Liquidity
+                for opp in raw_opps[:3]:
+                    # Quick skip if recently traded
                     if time.time() - last_trade_time.get(opp.pair, 0) < cooldown:
                         continue
+                        
+                    # Pre-Flight Verification (Real Quotes)
+                    is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, self.config.max_trade)
                     
-                    result = await self.execute_trade(opp)
+                    # Update opportunity with real data for display
+                    # We store status_msg in a temporary attribute for display
+                    opp.verification_status = status_msg
+                    opp.net_profit_usd = real_net
+                    
+                    if is_valid:
+                        verified_opps.append(opp)
+                    
+                # Display Dashboard with Verification Status
+                # We'll re-print the table using the verified info if possible, 
+                # but for now let's just print the execution decision based on verification.
+                
+                if verified_opps:
+                    # Pick best verified
+                    best_opp = sorted(verified_opps, key=lambda x: x.net_profit_usd, reverse=True)[0]
+                    
+                    result = await self.execute_trade(best_opp)
                     
                     if result.get("success"):
                         trade = result["trade"]
-                        last_trade_time[opp.pair] = time.time()
+                        last_trade_time[best_opp.pair] = time.time()
                         
                         emoji = "💰" if trade["net_profit"] > 0 else "📉"
                         print(f"   [{now}] {emoji} {trade['mode']} #{self.total_trades}: {trade['pair']}")
@@ -451,6 +477,13 @@ class PhantomArbiter:
                     else:
                         print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
                         break
+                elif raw_opps and not verified_opps:
+                     # Show why the top candidate failed
+                     top_fail = raw_opps[0]
+                     msg = getattr(top_fail, 'verification_status', 'Unknown')
+                     # Only print if it looks enticing (spread > min)
+                     if top_fail.spread_pct > self.config.min_spread:
+                         print(f"   [{now}] 🛑 Skipped {top_fail.pair}: {msg} (Spread: {top_fail.spread_pct:.2f}%)")
                 
                 # Smart Sleep: Wait for interval OR WSS trigger
                 try:

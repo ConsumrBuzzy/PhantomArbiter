@@ -110,6 +110,55 @@ class ArbitrageExecutor:
             self._smart_router = SmartRouter()
         return self._smart_router
     
+    async def verify_liquidity(
+        self, 
+        opportunity, 
+        trade_size: float = None
+    ) -> tuple[bool, float, str]:
+        """
+        Verify if opportunity is profitable with REAL liquidity (fetching quotes).
+        Returns: (is_valid, real_net_profit, status_message)
+        """
+        trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
+        
+        try:
+            router = self._get_smart_router()
+            usdc_amount = int(trade_size * 1_000_000)
+            USDC = Settings.USDC_MINT
+            
+            # 1. Get buy quote
+            buy_quote = router.get_jupiter_quote(
+                USDC, opportunity.base_mint, usdc_amount, slippage_bps=50
+            )
+            if not buy_quote:
+                return False, 0.0, "No Buy Liquidity"
+                
+            expected_tokens = int(buy_quote.get('outAmount', 0))
+            
+            # 2. Get sell quote
+            sell_quote = router.get_jupiter_quote(
+                opportunity.base_mint, USDC, expected_tokens, slippage_bps=50
+            )
+            if not sell_quote:
+                return False, 0.0, "No Sell Liquidity"
+                
+            expected_usdc_back = int(sell_quote.get('outAmount', 0))
+            
+            # 3. Calculate Real Profit
+            projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
+            
+            # Fees (approx)
+            est_fees = 0.01 
+            real_net = projected_profit_usd - est_fees
+            
+            if real_net > 0:
+                return True, real_net, "✅ LIVE"
+            else:
+                return False, real_net, f"❌ LIQ (${real_net:+.2f})"
+                
+        except Exception as e:
+            return False, 0.0, f"Error: {str(e)}"
+    
     async def execute_spatial_arb(
         self,
         opportunity,
