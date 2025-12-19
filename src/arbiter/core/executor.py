@@ -162,9 +162,14 @@ class ArbitrageExecutor:
                 )
                 legs.append(buy_result)
                 
-                # Simulate sell leg with slippage
+                # Simulate sell leg with STOCHASTIC slippage variance
+                # Real slippage varies: sometimes better, sometimes worse
+                import random
+                slippage_variance = random.uniform(0.5, 2.0)  # 0.5x to 2x expected
+                actual_slippage = fees.slippage_cost_usd * slippage_variance
+                
                 sell_output = token_amount * opportunity.sell_price
-                sell_output *= (1 - fees.slippage_cost_usd / trade_size)  # Apply actual slippage
+                sell_output *= (1 - actual_slippage / trade_size)  # Apply variable slippage
                 
                 sell_result = TradeResult(
                     success=True,

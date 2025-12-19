@@ -185,6 +185,27 @@ class PhantomArbiter:
         # Filter profitable using SpreadOpportunity's own calculations
         profitable = [opp for opp in spreads if opp.is_profitable]
         
+        # Log all spreads to DB for training data
+        try:
+            from src.shared.system.db_manager import db_manager
+            for opp in spreads:
+                db_manager.log_spread({
+                    'timestamp': opp.timestamp,
+                    'pair': opp.pair,
+                    'spread_pct': opp.spread_pct,
+                    'net_profit_usd': opp.net_profit_usd,
+                    'buy_dex': opp.buy_dex,
+                    'sell_dex': opp.sell_dex,
+                    'buy_price': opp.buy_price,
+                    'sell_price': opp.sell_price,
+                    'fees_usd': opp.estimated_fees_usd,
+                    'trade_size_usd': opp.max_size_usd,
+                    'was_profitable': opp.is_profitable,
+                    'was_executed': False  # Updated in execute_trade
+                })
+        except Exception as e:
+            Logger.debug(f"Spread logging error: {e}")
+        
         if verbose and spreads:
             now = datetime.now().strftime("%H:%M:%S")
             

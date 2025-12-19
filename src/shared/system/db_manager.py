@@ -173,6 +173,27 @@ class DBManager:
                 last_seen REAL
             )
             """)
+            
+            # 5. SPREAD_OBSERVATIONS (Arbiter training data)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS spread_observations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                pair TEXT NOT NULL,
+                spread_pct REAL,
+                net_profit_usd REAL,
+                buy_dex TEXT,
+                sell_dex TEXT,
+                buy_price REAL,
+                sell_price REAL,
+                fees_usd REAL,
+                trade_size_usd REAL,
+                was_profitable BOOLEAN,
+                was_executed BOOLEAN DEFAULT 0
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_spreads_timestamp ON spread_observations(timestamp)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_spreads_pair ON spread_observations(pair)")
 
     # --- Position Operations (Replacing JSON) ---
 
@@ -278,6 +299,51 @@ class DBManager:
             c.execute("SELECT COUNT(*) FROM trades")
             result = c.fetchone()[0]
             return int(result) if result else 0
+    
+    # --- Arbiter Spread Logging ---
+    
+    def log_spread(self, spread_data: dict):
+        """Log a spread observation for training data."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+            INSERT INTO spread_observations (
+                timestamp, pair, spread_pct, net_profit_usd,
+                buy_dex, sell_dex, buy_price, sell_price,
+                fees_usd, trade_size_usd, was_profitable, was_executed
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                spread_data.get('timestamp', time.time()),
+                spread_data.get('pair'),
+                spread_data.get('spread_pct'),
+                spread_data.get('net_profit_usd'),
+                spread_data.get('buy_dex'),
+                spread_data.get('sell_dex'),
+                spread_data.get('buy_price'),
+                spread_data.get('sell_price'),
+                spread_data.get('fees_usd', 0),
+                spread_data.get('trade_size_usd', 0),
+                spread_data.get('was_profitable', False),
+                spread_data.get('was_executed', False)
+            ))
+    
+    def get_spread_stats(self, hours: int = 24) -> dict:
+        """Get spread statistics for analysis."""
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+            SELECT 
+                pair,
+                COUNT(*) as observations,
+                AVG(spread_pct) as avg_spread,
+                MAX(spread_pct) as max_spread,
+                SUM(CASE WHEN was_profitable THEN 1 ELSE 0 END) as profitable_count,
+                SUM(CASE WHEN was_executed THEN 1 ELSE 0 END) as executed_count
+            FROM spread_observations 
+            WHERE timestamp > ?
+            GROUP BY pair
+            ORDER BY max_spread DESC
+            """, (cutoff,))
+            return [dict(row) for row in c.fetchall()]
 
 # Global Accessor
 db_manager = DBManager()

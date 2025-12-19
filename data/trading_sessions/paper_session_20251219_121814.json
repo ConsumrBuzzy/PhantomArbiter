@@ -1,0 +1,59 @@
+{
+  "mode": "paper",
+  "starting_balance": 25.0,
+  "ending_balance": 25.052043331134897,
+  "total_profit": 0.05204333113489523,
+  "total_trades": 7,
+  "roi_pct": 0.2081733245395867,
+  "trades": [
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.0074350227625442356,
+      "fees": 0.47659399999999996,
+      "timestamp": 1766164396.3963165,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.007411226212659718,
+      "fees": 0.476646,
+      "timestamp": 1766164441.72699,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.007409220116238199,
+      "fees": 0.47665440000000003,
+      "timestamp": 1766164483.5066946,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.0074496486810657365,
+      "fees": 0.47657800000000006,
+      "timestamp": 1766164525.0365796,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.007439852338797495,
+      "fees": 0.47660199999999997,
+      "timestamp": 1766164570.170476,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.007448072682073455,
+      "fees": 0.47659000000000007,
+      "timestamp": 1766164611.845154,
+      "mode": "PAPER"
+    },
+    {
+      "pair": "FIDA/USDC",
+      "profit": 0.0074502883415164005,
+      "fees": 0.47659000000000007,
+      "timestamp": 1766164654.2446065,
+      "mode": "PAPER"
+    }
+  ]
+}
