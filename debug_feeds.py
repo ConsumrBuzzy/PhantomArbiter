@@ -49,6 +49,10 @@ def test():
         # Jupiter
         if jup:
             try:
+                # Debug V2 direct
+                v2_resp = jup.router.get_jupiter_price_v2(mint)
+                print(f"  Jup V2 Raw: {str(v2_resp)[:100]}...")
+                
                 q = jup.get_quote(USDC, mint, 10.0)
                 if q: print(f"  Jupiter: ${q.price:.4f}")
                 else: print(f"  Jupiter: None")

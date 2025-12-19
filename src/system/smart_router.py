@@ -201,7 +201,7 @@ class SmartRouter:
             Logger.error(f"Jupiter Quote Failed: {e}")
             return None
 
-    def get_jupiter_price_v2(self, ids, vs_token="USDC"):
+    def get_jupiter_price_v2(self, ids, vs_token="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"):
         """
         Fetch price from Jupiter V2 Price API (Official & Fast).
         Support batch requests: ids="mint1,mint2,mint3"
