@@ -112,6 +112,12 @@ class RaydiumFeed(PriceSource):
         # Try DexScreener for Raydium pools
         price = self._fetch_dexscreener_price(base_mint, "raydium")
         
+        # Fallback to Raydium API
+        if not price or price <= 0:
+            price = self._fetch_raydium_api_price(base_mint)
+            if price:
+                Logger.info(f"   Using Raydium API fallback for {base_mint[:4]}...")
+
         if price and price > 0:
             timestamp = time.time()
             self._price_cache[cache_key] = {
