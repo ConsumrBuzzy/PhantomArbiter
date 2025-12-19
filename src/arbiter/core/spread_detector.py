@@ -64,7 +64,7 @@ class SpreadDetector:
     """
     
     def __init__(self, feeds: List = None):
-        from src.arbitrage.feeds import PriceSource
+        from src.shared.feeds import PriceSource
         self.feeds: Dict[str, 'PriceSource'] = {}
         
         if feeds:
