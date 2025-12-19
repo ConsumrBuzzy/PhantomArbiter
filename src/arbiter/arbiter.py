@@ -277,6 +277,45 @@ class PhantomArbiter:
         
         return {"success": False, "trade": None, "error": result.error}
     
+    def _check_signals(self):
+        """Poll Scraper signals for high-trust tokens."""
+        try:
+            from src.core.shared_cache import SharedPriceCache
+            # Get tokens with Trust Score >= 0.8 (Smart Money Conviction)
+            hot_tokens = SharedPriceCache.get_all_trust_scores(min_score=0.8)
+            
+            if not hot_tokens: return
+            
+            current_pairs = {p[0] for p in self.config.pairs}
+            added_count = 0
+            
+            from config.settings import Settings
+            # Inverted asset map for lookup (Symbol -> Mint)
+            # Settings.ASSETS is {Symbol: Mint} usually? Let's verify.
+            # Assuming Settings.ASSETS = {"SOL": "..."}
+            
+            for symbol, score in hot_tokens.items():
+                if symbol in current_pairs: continue
+                
+                # Resolve Mint
+                mint = Settings.ASSETS.get(symbol)
+                if not mint: continue
+                
+                # Add to scan list
+                # Assuming USDC quote for all
+                new_pair = (f"{symbol}/USDC", mint, USDC_MINT)
+                self.config.pairs.append(new_pair)
+                current_pairs.add(symbol)
+                added_count += 1
+                
+                Logger.info(f"   🧠 SIGNAL: Added {symbol} (Trust: {score:.1f}) to Arbiter scan list")
+                
+            if added_count > 0:
+                print(f"   🧠 Scraper Signal: Added {added_count} hot tokens to scan list.")
+                
+        except Exception as e:
+            Logger.debug(f"Signal check error: {e}")
+
     async def run(self, duration_minutes: int = 10, scan_interval: int = 5) -> None:
         """Main trading loop."""
         mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
@@ -329,6 +368,7 @@ class PhantomArbiter:
         end_time = start_time + (duration_minutes * 60) if duration_minutes > 0 else float('inf')
         
         last_trade_time: Dict[str, float] = {}
+        last_signal_check = 0.0
         cooldown = 5
         wake_event = asyncio.Event()
 
@@ -336,6 +376,11 @@ class PhantomArbiter:
             while time.time() < end_time:
                 now = datetime.now().strftime("%H:%M:%S")
                 wake_event.clear()
+                
+                # Signal Bridge: Poll for new hot tokens every 60s
+                if time.time() - last_signal_check > 60:
+                     self._check_signals()
+                     last_signal_check = time.time()
                 
                 # Live mode maintenance
                 if self.config.live_mode and self._wallet:

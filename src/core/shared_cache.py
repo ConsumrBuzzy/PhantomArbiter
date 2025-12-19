@@ -576,6 +576,28 @@ class SharedPriceCache:
             
         return item.get("score", 0.0)
 
+    @classmethod
+    def get_all_trust_scores(cls, min_score: float = 0.5, max_age: float = 600.0) -> dict:
+        """
+        Get all active trust scores above threshold.
+        Returns: {symbol: score}
+        """
+        lock = cls._get_lock()
+        try:
+            with lock.acquire(timeout=0.2):
+                data = cls._read_raw()
+        except: return {}
+        
+        scores = data.get("trust_scores", {})
+        result = {}
+        now = time.time()
+        
+        for symbol, item in scores.items():
+            if now - item.get("timestamp", 0) <= max_age and item.get("score", 0) >= min_score:
+                result[symbol] = item.get("score", 0)
+                
+        return result
+
 
 
     # ═══════════════════════════════════════════════════════════════════
