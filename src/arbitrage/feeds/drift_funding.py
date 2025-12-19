@@ -218,7 +218,7 @@ class MockDriftFundingFeed(DriftFundingFeed):
         }
     
     async def get_funding_rate(self, market: str) -> Optional[FundingInfo]:
-        """Return mock funding data."""
+        """Return mock funding data with realistic prices."""
         rate_8h = self._mock_rates.get(market, 0.01)
         
         # Calculate time to next hour
@@ -226,12 +226,21 @@ class MockDriftFundingFeed(DriftFundingFeed):
         next_hour = (now // 3600 + 1) * 3600
         time_to_funding = next_hour - now
         
+        # Use realistic mark prices (close to spot)
+        mark_prices = {
+            "SOL-PERP": 118.0,
+            "BTC-PERP": 105000.0,
+            "ETH-PERP": 3900.0,
+            "WIF-PERP": 0.33,    # Match spot price
+            "JUP-PERP": 0.85,    # Match spot price
+        }
+        
         return FundingInfo(
             market=market,
             rate_8h=rate_8h,
             rate_annual=rate_8h * 3 * 365,  # 3x per day
             is_positive=rate_8h > 0,
-            mark_price={"SOL-PERP": 118.0, "BTC-PERP": 105000.0, "ETH-PERP": 3900.0}.get(market, 100.0),
+            mark_price=mark_prices.get(market, 100.0),
             time_to_next_funding=time_to_funding
         )
 
