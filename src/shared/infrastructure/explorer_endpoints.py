@@ -22,7 +22,7 @@ import time
 import os
 from typing import Dict, Optional, List
 from dataclasses import dataclass
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

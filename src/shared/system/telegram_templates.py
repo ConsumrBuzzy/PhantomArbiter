@@ -7,7 +7,7 @@ All templates return Telegram Markdown-formatted strings.
 Use with send_telegram() from comms_daemon.
 
 Usage:
-    from src.system.telegram_templates import TradeTemplates, OrcaTemplates
+    from src.shared.system.telegram_templates import TradeTemplates, OrcaTemplates
     
     msg = TradeTemplates.entry("WIF", "BUY", 25.00, 2.45, "MOMENTUM")
     send_telegram(msg, source="TRADE", priority="HIGH")

@@ -1,7 +1,7 @@
 import psutil
 import os
 import time
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.core.global_state import GlobalState
 
 class SystemMonitor:
@@ -50,5 +50,5 @@ class SystemMonitor:
         The main loop should handle this.
         """
         GlobalState.update_state({'RESTART_REQUESTED': True})
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         send_telegram("🔄 System Restart Requested (Memory/CPU Limit)", source="SYSTEM", priority="HIGH")

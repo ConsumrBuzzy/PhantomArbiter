@@ -10,7 +10,7 @@ Features:
 - Source tagging for filtering
 
 Usage:
-    from src.system.log_manager import get_log_manager, Logger
+    from src.shared.system.log_manager import get_log_manager, Logger
     
     # New API
     log = get_log_manager()

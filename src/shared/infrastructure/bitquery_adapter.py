@@ -8,7 +8,7 @@ from typing import Callable, Optional, List
 import websockets
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class BitqueryAdapter:
     """

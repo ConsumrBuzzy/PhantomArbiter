@@ -9,10 +9,10 @@ from solana.rpc.types import TxOpts
 from solana.rpc.commitment import Confirmed
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.execution.wallet import WalletManager
 
-from src.system.smart_router import SmartRouter
+from src.shared.system.smart_router import SmartRouter
 
 class JupiterSwapper:
     """

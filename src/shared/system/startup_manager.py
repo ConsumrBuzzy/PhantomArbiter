@@ -4,7 +4,7 @@ import signal
 import sys
 from typing import List, Optional
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.utils.boot_utils import BootTimer
 from src.core.data_broker import DataBroker
 from src.engine.landlord_core import get_landlord
@@ -39,7 +39,7 @@ class StartupManager:
         BootTimer.mark("Init Phase 1: Core Systems")
         
         # 1. Thread Manager
-        from src.system.thread_manager import get_thread_manager
+        from src.shared.system.thread_manager import get_thread_manager
         tm = get_thread_manager()
         BootTimer.mark("Thread Manager Ready")
         
@@ -84,7 +84,7 @@ class StartupManager:
         self.tasks.append(loop.create_task(discovery_monitor_loop(), name="Discovery_Monitor"))
         
         # 7. Dashboard
-        from src.system.dashboard_service import get_dashboard_service
+        from src.shared.system.dashboard_service import get_dashboard_service
         dashboard = get_dashboard_service()
         dashboard.set_broker(self.broker)
         dashboard.start()

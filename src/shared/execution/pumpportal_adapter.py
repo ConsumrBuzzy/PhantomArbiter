@@ -12,7 +12,7 @@ import requests
 import base58
 import logging
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 # Solana / Solders
 from solders.transaction import VersionedTransaction

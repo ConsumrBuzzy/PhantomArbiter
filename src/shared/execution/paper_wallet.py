@@ -8,7 +8,7 @@ internal logic, while CapitalManager maintains the single source of truth.
 
 from dataclasses import dataclass
 from typing import Dict, Any
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.core.capital_manager import get_capital_manager
 
 @dataclass

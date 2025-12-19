@@ -19,7 +19,7 @@ import threading
 import time
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from config.settings import Settings
 
 
@@ -275,7 +275,7 @@ class DashboardService:
         
         # V81.0: Get thread stats
         try:
-            from src.system.thread_manager import get_thread_manager
+            from src.shared.system.thread_manager import get_thread_manager
             tm = get_thread_manager()
             state.threads_active = tm.get_active_count()
         except:
@@ -293,7 +293,7 @@ class DashboardService:
         
         # V85.1: Get paper trading PnL today
         try:
-            from src.system.db_manager import db_manager
+            from src.shared.system.db_manager import db_manager
             state.paper_pnl_today = db_manager.get_pnl_today() or 0.0
         except:
             pass

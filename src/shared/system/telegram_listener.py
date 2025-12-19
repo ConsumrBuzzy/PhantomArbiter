@@ -17,7 +17,7 @@ import queue
 import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 # Command constants
 CMD_STATUS_REPORT = "STATUS_REPORT"

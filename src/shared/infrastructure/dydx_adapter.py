@@ -19,7 +19,7 @@ import os
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

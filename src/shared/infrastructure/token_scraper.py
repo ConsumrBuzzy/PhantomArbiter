@@ -3,7 +3,7 @@ import requests
 import time
 import os
 from typing import Dict, Optional, List
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class TokenScraper:
     """
@@ -54,7 +54,7 @@ class TokenScraper:
     def _load_from_db(self):
         """V67.9: Load cached tokens from database."""
         try:
-            from src.system.db_manager import db_manager
+            from src.shared.system.db_manager import db_manager
             with db_manager.cursor() as c:
                 c.execute("SELECT mint, symbol, name, price, liquidity, volume_24h, dex, source, first_seen, last_seen FROM tokens")
                 rows = c.fetchall()
@@ -77,7 +77,7 @@ class TokenScraper:
     def _save_to_db(self, mint: str, info: Dict):
         """V67.9: Save token to database."""
         try:
-            from src.system.db_manager import db_manager
+            from src.shared.system.db_manager import db_manager
             now = time.time()
             with db_manager.cursor(commit=True) as c:
                 c.execute("""
@@ -393,7 +393,7 @@ class TokenScraper:
     def get_all_tokens(self) -> List[Dict]:
         """V67.9: Get all known tokens for ML training."""
         try:
-            from src.system.db_manager import db_manager
+            from src.shared.system.db_manager import db_manager
             with db_manager.cursor() as c:
                 c.execute("SELECT mint, symbol, name, price, liquidity, volume_24h, first_seen, last_seen FROM tokens ORDER BY last_seen DESC")
                 rows = c.fetchall()

@@ -4,8 +4,8 @@ import requests
 import time
 from solders.keypair import Keypair
 from config.settings import Settings
-from src.system.logging import Logger
-from src.system.rpc_pool import get_rpc_pool
+from src.shared.system.logging import Logger
+from src.shared.system.rpc_pool import get_rpc_pool
 
 class WalletManager:
     """

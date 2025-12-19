@@ -17,7 +17,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Dict, Callable, Optional, Any
 from dataclasses import dataclass
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

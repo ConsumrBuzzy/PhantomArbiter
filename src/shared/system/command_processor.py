@@ -1,8 +1,8 @@
 
 import os
 import asyncio
-from src.system.logging import Logger
-from src.system.comms_daemon import send_telegram
+from src.shared.system.logging import Logger
+from src.shared.system.comms_daemon import send_telegram
 
 class CommandProcessor:
     """

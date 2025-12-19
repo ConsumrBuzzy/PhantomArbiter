@@ -18,7 +18,7 @@ import threading
 from typing import Dict, Optional, Any
 from collections import deque
 from dataclasses import dataclass
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

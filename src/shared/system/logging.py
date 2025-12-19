@@ -4,7 +4,7 @@ V51.0: Centralized Logger with Rich Console
 Backward-compatible wrapper that routes to LogManager.
 
 Usage (unchanged from before):
-    from src.system.logging import Logger
+    from src.shared.system.logging import Logger
     
     Logger.info("[BROKER] Message")
     Logger.success("[ORCA] Position opened")

@@ -1,7 +1,7 @@
 import threading
 import queue
 import time
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class PriorityQueue:
     """
@@ -104,7 +104,7 @@ class PriorityQueue:
         elif task_type == 'ALERT':
             # V11.12: DEPRECATED - Redirect to CommsDaemon
             # All alerts should use send_telegram() from comms_daemon.py instead
-            from src.system.comms_daemon import send_telegram
+            from src.shared.system.comms_daemon import send_telegram
             msg = payload.get('message', '')
             priority = payload.get('priority', 'LOW')
             send_telegram(msg, source="LEGACY", priority=priority)
@@ -112,7 +112,7 @@ class PriorityQueue:
                 
         elif task_type == 'TRADE_RECORD':
             # V10.5: Log to DB
-            from src.system.db_manager import db_manager
+            from src.shared.system.db_manager import db_manager
             db_manager.log_trade(payload)
 
 # Global Instance Accessor

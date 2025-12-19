@@ -2,7 +2,7 @@ import sqlite3
 import time
 import os
 from contextlib import contextmanager
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class DBManager:
     """

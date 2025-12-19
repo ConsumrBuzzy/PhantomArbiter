@@ -1,7 +1,7 @@
 
 import time
-from src.system.logging import Logger
-from src.system.comms_daemon import send_telegram_chunked, send_telegram
+from src.shared.system.logging import Logger
+from src.shared.system.comms_daemon import send_telegram_chunked, send_telegram
 from src.core.shared_cache import SharedPriceCache
 
 class MarketReporter:

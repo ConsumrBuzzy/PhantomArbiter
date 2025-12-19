@@ -3,7 +3,7 @@ Position Manager (DB)
 =====================
 Handles state persistence and lifecycle of positions using SQLite.
 """
-from src.system.db_manager import db_manager
+from src.shared.system.db_manager import db_manager
 from config.thresholds import DEFAULT_LEGACY_ENTRY_SIZE_USD
 
 class PositionManager:
