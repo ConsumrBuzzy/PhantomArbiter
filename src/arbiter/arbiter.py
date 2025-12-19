@@ -378,6 +378,9 @@ class PhantomArbiter:
                 
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\n   Stopping...")
+        finally:
+            if wss:
+                await wss.disconnect()
         
         self._print_summary(start_time, mode_str)
         self._save_session()
