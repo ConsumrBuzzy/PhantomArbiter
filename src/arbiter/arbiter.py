@@ -271,18 +271,13 @@ class PhantomArbiter:
         
         print("-" * 60)
         
-        # Format for Telegram Dashboard (Bold Header + Code Block Table)
-        # MarkdownV2 requires escaping, but we'll try to keep it simple with standard markdown if possible, 
-        # or just rely on the manager accepting consistent format.
-        # TelegramManager uses MarkdownV2. 
-        # Header: *BOLD*
-        # Table: ```...```
+        # Format for Telegram Dashboard (Code Block - SAFE MODE)
+        # We wrap everything in a code block to avoid MarkdownV2 400 errors
         
-        header = f"*⏱️ MARKET SCAN* | P/L: *${self.tracker.daily_profit:+.2f}*"
-        
-        table_lines = [
+        tg_table = [
+            f"[{now}] MARKET SCAN | P/L: ${self.tracker.daily_profit:+.2f}",
             f"{'Pair':<11} {'Spread':<7} {'Net':<8} {'St'}",
-            "-" * 33   # Reduced width slightly to fit mobile screens better
+            "-" * 33
         ]
         
         # Add ALL rows to TG table
@@ -301,15 +296,13 @@ class PhantomArbiter:
                 elif "LIQ" in (verified.verification_status or ""):
                     status = "💧" 
             
-            table_lines.append(f"{opp.pair[:10]:<11} {spread:<7} {net:<8} {status}")
+            tg_table.append(f"{opp.pair[:10]:<11} {spread:<7} {net:<8} {status}")
             
         if profitable_count:
-            table_lines.append(f"\n🎯 {profitable_count} Opportunities!")
+            tg_table.append(f"\n🎯 {profitable_count} Opportunities!")
             
-        # Construct final message
-        final_msg = f"{header}\n```\n" + "\n".join(table_lines) + "\n```"
-            
-        # Beam to Telegram
+        # Beam to Telegram (Wrapped in Code Block)
+        final_msg = "```\n" + "\n".join(tg_table) + "\n```"
         self.telegram.update_dashboard(final_msg)
         
         if profitable_count:
