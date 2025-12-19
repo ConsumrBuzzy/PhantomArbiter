@@ -289,11 +289,24 @@ class UnifiedTrader:
                 
                 if buy_sig:
                     Logger.info(f"   ⏳ Buy Sent: {buy_sig[-8:]}... Waiting for confirmation...")
-                    await asyncio.sleep(10) # Wait for confirmation + balance update
                     
-                    # Snapshot Balance AFTER
-                    post_token_info = self.wallet_manager.get_token_info(target_mint)
-                    post_balance = int(post_token_info["amount"]) if post_token_info else 0
+                    # POLL for balance update (up to 60s)
+                    # RPCs can be slow. We need to see the balance to sell it.
+                    post_token_info = None
+                    post_balance = 0
+                    
+                    for _ in range(12): # 12 * 5s = 60s max
+                        await asyncio.sleep(5)
+                        post_token_info = self.wallet_manager.get_token_info(target_mint)
+                        post_balance = int(post_token_info["amount"]) if post_token_info else 0
+                        
+                        if post_balance > pre_balance:
+                            Logger.info(f"   ✅ Balance updated! (+{post_balance - pre_balance} units)")
+                            break
+                        else:
+                            Logger.info(f"   ⏳ Waiting for RPC sync... (Current: {post_balance})")
+                    
+                    acquired_amount = post_balance - pre_balance
                     
                     acquired_amount = post_balance - pre_balance
                     
