@@ -130,6 +130,11 @@ class UnifiedTrader:
                 ("BONK/USDC", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", USDC),
                 ("WIF/USDC", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", USDC),
                 ("JUP/USDC", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", USDC),
+                # New Additions
+                ("JTO/USDC", "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL", USDC),
+                ("RAY/USDC", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", USDC),
+                ("PYTH/USDC", "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3", USDC),
+                ("POPCAT/USDC", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", USDC),
             ]
             
             spreads = detector.scan_all_pairs(pairs)
@@ -401,7 +406,11 @@ class UnifiedTrader:
                 "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK
                 "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF
                 "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", # JUP
-                "So11111111111111111111111111111111111111112"   # WSOL
+                "So11111111111111111111111111111111111111112",  # WSOL
+                "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",  # JTO
+                "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", # RAY
+                "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3", # PYTH
+                "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", # POPCAT
             ]
             
             # Simple RPC call using requests
