@@ -283,6 +283,34 @@ class PhantomArbiter:
         monitor = AdaptiveScanner() if adaptive_mode else None
         current_interval = monitor.base_interval if adaptive_mode else scan_interval
         
+        # WSS Integration (Real-time triggers)
+        wss = None
+        if adaptive_mode:
+            try:
+                from src.shared.infrastructure.solana_wss import get_solana_wss
+                wss = get_solana_wss()
+                if await wss.connect():
+                    Logger.info("   🔌 WSS Connected - Subscribing to pair activity...")
+                    
+                    # Create subscription for each pair
+                    for pair_tuple in self.config.pairs:
+                        pair_name = pair_tuple[0]
+                        base_mint = pair_tuple[1]
+                        
+                        # Define callback with pair_name captured
+                        async def make_callback(p_name=pair_name):
+                            async def on_activity(result):
+                                monitor.trigger_activity(p_name)
+                            return on_activity
+                            
+                        callback = await make_callback()
+                        await wss.subscribe_logs([base_mint], callback)
+                        
+                    print(f"   📡 Monitoring {len(self.config.pairs)} pairs via WSS")
+            except Exception as e:
+                Logger.error(f"   ⚠️ WSS setup failed: {e}")
+                wss = None
+        
         print("\n" + "="*70)
         print(f"   PHANTOM ARBITER - {mode_str} TRADER")
         print("="*70)

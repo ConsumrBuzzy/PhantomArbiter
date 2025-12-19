@@ -39,6 +39,13 @@ class AdaptiveScanner:
         self.last_spread_spike = 0.0
         self.pair_heat: Dict[str, float] = {}  # {pair: last_activity_time}
         self.current_interval = base_interval
+
+    def trigger_activity(self, pair: str):
+        """External trigger (e.g. WSS) to indicate activity on a pair."""
+        now = time.time()
+        self.last_spread_spike = now
+        self.pair_heat[pair] = now
+        self.current_interval = self.fast_interval
         
     def update(self, spreads: List[SpreadOpportunity]) -> float:
         """Update based on scan results, return next interval."""
