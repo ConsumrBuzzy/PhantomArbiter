@@ -28,7 +28,6 @@ load_dotenv()
 from config.settings import Settings
 from src.system.logging import Logger
 
-
 class UnifiedTrader:
     """
     Unified trader that works in both paper and live mode.
@@ -36,6 +35,27 @@ class UnifiedTrader:
     Paper Mode: Uses real prices, simulates execution
     Live Mode:  Uses real prices, executes real swaps
     """
+
+    async def prepare_atomic_bundle(self, opportunity, amount):
+        # 1. Get BUY Instructions
+        buy_route = await self.swapper.get_quote(USDC, target_mint, amount)
+        buy_ix = await self.swapper.get_swap_instructions(buy_route)
+        
+        # 2. Get SELL Instructions (using the expected output of the buy)
+        sell_route = await self.swapper.get_quote(target_mint, USDC, buy_route['outAmount'])
+        sell_ix = await self.swapper.get_swap_instructions(sell_route)
+        
+        # 3. Combine into one Transaction
+        all_ix = buy_ix + sell_ix
+        recent_blockhash = await self.connection.get_latest_blockhash()
+        
+        msg = MessageV0.try_compile(
+            self.wallet_manager.pubkey, 
+            all_ix, 
+            [], # Address lookup tables if needed
+            recent_blockhash.value.blockhash
+        )
+        
     
     def __init__(
         self,
@@ -201,206 +221,91 @@ class UnifiedTrader:
         return opportunities
     
     async def execute_trade(self, opportunity: Dict) -> Dict:
-        """Execute a trade (paper or live)."""
-        
-        # Determine Trade Amount
-        amount = 0.0
-        
-        if self.live_mode and self.full_wallet and self.wallet_manager:
-            # Full Wallet Mode: internal balance IS the wallet balance
-            real_balance = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-            self.current_balance = real_balance
-            
-            # Use entire balance if max_trade is 0 (Unlimited), otherwise cap
+        """Execute a truly atomic trade using bundled instructions."""
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        pair = opportunity["pair"]
+        target_mint = opportunity.get("buy_mint")
+
+        # 1. Determine Amount
+        if self.live_mode and self.full_wallet:
+            real_balance = self.wallet_manager.get_balance(USDC_MINT)
             limit = self.max_trade if self.max_trade > 0 else float('inf')
             amount = min(real_balance, limit)
-            
-            # Leave dust buffer? (e.g. 0.1 USDC) for fees/rent if holding USDC? 
-            # Usually strict amount is fine if gas is SOL.
         else:
-            # Paper or Fixed Budget Mode
-            limit = self.max_trade if self.max_trade > 0 else float('inf')
-            amount = min(self.current_balance, limit)
-        
-        if self.live_mode and self.swapper:
-            # LIVE EXECUTION
-            try:
-                # Get the mint for the target token
-                pair = opportunity["pair"]
-                mint_map = {
-                    "SOL/USDC": "So11111111111111111111111111111111111111112",
-                    "BONK/USDC": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-                    "WIF/USDC": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
-                    "JUP/USDC": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
-                    # New Additions
-                    "JTO/USDC": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
-                    "RAY/USDC": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
-                    "PYTH/USDC": "HZ1JovNiVvGrGNiiYvEozEVGZ58xaU3RKwX8eACQBCt3",
-                    "POPCAT/USDC": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
-                    "DRIFT/USDC": "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7",
-                    "KMNO/USDC": "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS",
-                    "TNSR/USDC": "TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6",
-                    "RENDER/USDC": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
-                }
-                target_mint = mint_map.get(pair)
-                
-                if not target_mint:
-                    return {"success": False, "error": f"Unknown pair: {pair}"}
-                
-                if not target_mint:
-                    return {"success": False, "error": f"Unknown pair: {pair}"}
-                
-                # Dynamic Gas & Safety Check (V4.0: Rigorous Precision)
-                # -----------------------------------------------------
-                # 1. Determine Priority Fee based on size
-                priority_fee = 1000 # Default Micro
-                if amount >= 500: priority_fee = 1000000
-                elif amount >= 100: priority_fee = 100000
-                elif amount >= 10: priority_fee = 10000
-                
-                # 2. Calculate Exact Tx Fee
-                # Formula: 5000 Sig + (ComputeUnits * MicroLamports)
-                COMPUTE_UNITS = 300_000 # Conservative upper bound for Jupiter swap
-                priority_cost_lamports = COMPUTE_UNITS * priority_fee / 1_000_000
-                total_lamports = 5000 + priority_cost_lamports
-                tx_fee_sol = total_lamports / 1_000_000_000
-                
-                # 3. Calculate Rent (ATA Creation)
-                # If we don't hold the token, we pay 0.002 SOL to open account
-                has_token_account = False
-                buy_mint = opportunity.get("buy_mint")
-                if buy_mint:
-                    # Check if balance > 0 (implies account exists)
-                    # OR check explicit account existence? get_balance returns 0 if no account or empty.
-                    # We assume 0 means "might need to open". 
-                    # Actually wallet.get_token_info returns None if no account.
-                    # But get_balance returns 0.0.
-                    # Let's assume Worst Case: If balance == 0, we pay rent.
-                    if self.wallet_manager.get_balance(buy_mint) > 0:
-                        has_token_account = True
-                
-                rent_cost_sol = 0.0 if has_token_account else 0.002039
-                
-                # 4. Total Cost in USD
-                SOL_PRICE_SAFETY = 250.0 
-                tx_cost_usd = tx_fee_sol * SOL_PRICE_SAFETY
-                rent_cost_usd = rent_cost_sol * SOL_PRICE_SAFETY
-                
-                gross_profit_usd = amount * (opportunity["spread_pct"] / 100)
-                
-                # STRICT RULE: Profit must cover the "Burned" Gas (Priority + Sig)
-                if gross_profit_usd < tx_cost_usd:
-                     return {
-                         "success": False, 
-                         "error": f"Unprofitable: Profit ${gross_profit_usd:.4f} < Gas ${tx_cost_usd:.4f}"
-                     }
-                     
-                # SOFT RULE: Rent is a "Deposit", not a loss.
-                # If profit doesn't cover rent, we still proceed but log it.
-                # This allows entering new markets (like WIF) without needing 3% spreads.
-                if gross_profit_usd < (tx_cost_usd + rent_cost_usd):
-                    # We are "investing" in the account creation
-                    pass 
-                
-                # Execute BUY
-                reason = f"Arb: {opportunity['buy_dex']}->{opportunity['sell_dex']} (Fee: {priority_fee}uL)"
-                
-                # Snapshot Balance BEFORE (Protection)
-                pre_token_info = self.wallet_manager.get_token_info(target_mint)
-                pre_balance = int(pre_token_info["amount"]) if pre_token_info else 0
-                
-                buy_sig = self.swapper.execute_swap("BUY", amount, reason, target_mint=target_mint, priority_fee=priority_fee)
-                
-                if buy_sig:
-                    Logger.info(f" ⏳ Buy Sent: {buy_sig[-8:]}... Waiting for confirmation...")
-    
-                    acquired_amount = 0
-                    # Increase retries and add a small delay
-                    for i in range(15): 
-                        await asyncio.sleep(2) # Give the RPC more time to breathe
-                        post_token_info = self.wallet_manager.get_token_info(target_mint)
-                        post_balance = int(post_token_info["amount"]) if post_token_info else 0
-        
-                        if post_balance > pre_balance:
-                            acquired_amount = post_balance - pre_balance
-                            Logger.info(f" ✅ Balance confirmed! (+{acquired_amount} units)")
-                            break
-                        Logger.info(f" ⏳ Syncing... Retry {i+1}/15")
+            amount = min(self.current_balance, self.max_trade if self.max_trade > 0 else float('inf'))
 
-                    if acquired_amount <= 0:
-                        # EMERGENCY: We have the tokens but the RPC won't show them.
-                        # Don't just return. Log a CRITICAL error.
-                        Logger.error(" !!! CRITICAL: SPLIT-LEG DETECTED !!!")
-                        Logger.error(f" Money is stuck in {target_mint}. Manual sell required.")
-                        return {"success": False, "error": "Split-Leg: RPC Sync Failure"}
+        if not self.live_mode:
+            # Paper mode stays the same for simplicity
+            return self._execute_paper_trade(opportunity, amount)
 
-                    # Execute SELL (Only acquired amount)
-                    Logger.info(f"   🔄 Executing SELL Leg (Selling {acquired_amount} units)...")
-                    sell_sig = self.swapper.execute_swap("SELL", 0, reason, target_mint=target_mint, priority_fee=priority_fee, override_atomic_amount=acquired_amount)
-                    
-                    realized_profit = 0.0
-                    if sell_sig:
-                        Logger.success(f"   ✅ Cycle Complete (Buy+Sell): {sell_sig[-8:]}")
-                        Logger.info("   ⏳ Verifying PnL...")
-                        
-                        # Wait for Sell to settle to see true profit
-                        for _ in range(15): # 15s max
-                            await asyncio.sleep(1)
-                            current_usdc = self.wallet_manager.get_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-                            if current_usdc != real_balance: # Balance changed
-                                realized_profit = current_usdc - real_balance
-                                self.current_balance = current_usdc # Update internal state
-                                break
-                    else:
-                        Logger.error("   ❌ SELL FAILED! You are now Long this token.")
-
-                    # Use REALIZED profit if available, otherwise 0 (or estimate failure)
-                    net_profit = realized_profit if sell_sig else -amount # If sell failed, we assume loss of principal (temporarily)
-                        
-                    self.total_profit += net_profit
-                    self.total_trades += 1
-                    
-                    trade = {
-                        "timestamp": time.time(),
-                        "mode": "LIVE",
-                        "pair": pair,
-                        "amount": amount,
-                        "spread_pct": opportunity["spread_pct"],
-                        "net_profit": net_profit,
-                        "signature": f"B:{buy_sig[-4:]} S:{sell_sig[-4:] if sell_sig else 'FAIL'}",
-                        "balance_after": self.current_balance
-                    }
-                    self.trades.append(trade)
-                    return {"success": True, "trade": trade}
-                else:
-                    return {"success": False, "error": f"Swap returned None (check logs)"}
+        # 🔴 LIVE ATOMIC EXECUTION
+        try:
+            Logger.info(f" 🛡️ Preparing Atomic Bundle for {pair} (${amount:.2f})...")
             
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+            # 2. Build the Atomic Transaction
+            atomic_tx = await self.prepare_atomic_bundle(opportunity, amount)
+            
+            # 3. Pre-flight Simulation (The "Atomic Check")
+            # We check if the transaction would actually succeed before sending
+            simulation = await self.wallet_manager.client.simulate_transaction(atomic_tx)
+            
+            if simulation.value.err:
+                err_msg = str(simulation.value.err)
+                Logger.error(f" ❌ Atomic Check Failed: {err_msg}")
+                return {"success": False, "error": f"Simulation failed: {err_msg}"}
+
+            # 4. Verify PnL in Simulation logs (Optional but Pro)
+            # You can parse simulation.value.logs to see the final USDC balance change
+            
+            # 5. Execute the Bundle
+            Logger.info(f" 🚀 Simulation Passed. Sending Atomic Transaction...")
+            sig = await self.wallet_manager.client.send_transaction(atomic_tx)
+            
+            # 6. Final confirmation
+            if sig:
+                Logger.success(f" ✅ Atomic Arb Landed! Sig: {str(sig)[:8]}...")
+                # Sync balance after trade
+                await asyncio.sleep(2)
+                new_bal = self.wallet_manager.get_balance(USDC_MINT)
+                profit = new_bal - real_balance
+                self.current_balance = new_bal
+                self.total_profit += profit
+                self.total_trades += 1
+                
+                return {"success": True, "trade": {"net_profit": profit, "pair": pair}}
+            
+        except Exception as e:
+            Logger.error(f" 💥 Execution Error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    async def prepare_atomic_bundle(self, opportunity, amount):
+        """Bundles Buy and Sell into a single VersionedTransaction."""
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        target_mint = opportunity["buy_mint"]
+
+        # 1. Get BUY Instructions from Jupiter
+        # Use a low slippage (50bps = 0.5%) for safety
+        buy_quote = await self.swapper.get_quote(USDC_MINT, target_mint, amount, slippage=50)
+        buy_ix = await self.swapper.get_swap_instructions(buy_quote)
         
-        else:
-            # PAPER EXECUTION
-            gross_profit = amount * (opportunity["spread_pct"] / 100)
-            fees = amount * 0.002
-            net_profit = gross_profit - fees
-            
-            self.current_balance += net_profit
-            self.total_profit += net_profit
-            self.total_trades += 1
-            
-            trade = {
-                "timestamp": time.time(),
-                "mode": "PAPER",
-                "pair": opportunity["pair"],
-                "amount": amount,
-                "spread_pct": opportunity["spread_pct"],
-                "net_profit": net_profit,
-                "signature": f"PAPER_{int(time.time())}",
-                "balance_after": self.current_balance
-            }
-            self.trades.append(trade)
-            
-            return {"success": True, "trade": trade}
+        # 2. Get SELL Instructions (using the expected output of the buy)
+        # The amount to sell is the 'outAmount' from the buy quote
+        sell_quote = await self.swapper.get_quote(target_mint, USDC_MINT, buy_quote['outAmount'], slippage=50)
+        sell_ix = await self.swapper.get_swap_instructions(sell_quote)
+        
+        # 3. Combine Instructions
+        all_ix = buy_ix + sell_ix
+        
+        # 4. Compile to Versioned Transaction
+        recent_blockhash = await self.wallet_manager.client.get_latest_blockhash()
+        msg = MessageV0.try_compile(
+            self.wallet_manager.keypair.pubkey(), 
+            all_ix, 
+            [], 
+            recent_blockhash.value.blockhash
+        )
+        
+        return VersionedTransaction(msg, [self.wallet_manager.keypair])
     
     async def _reclaim_rent(self):
         """Scan for empty token accounts and close them to reclaim rent."""
