@@ -291,6 +291,92 @@ class RaydiumBridge:
         
         result = self._run_command("discover", mint_a, mint_b, timeout=15)
         return result
+    
+    def fetch_api_quote(
+        self,
+        input_mint: str,
+        output_mint: str,
+        amount: float,
+        slippage_bps: int = 50
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fetch quote from Raydium Trade API (swap-base-in).
+        
+        This is the most accurate quote source as it accounts for
+        exact tick arrays and fees in CLMM pools.
+        
+        Args:
+            input_mint: Input token mint address
+            output_mint: Output token mint address
+            amount: Input amount in token units (NOT lamports)
+            slippage_bps: Slippage in basis points (default 50 = 0.5%)
+            
+        Returns:
+            Dict with outputAmount, priceImpactPct, feeAmount, or None on failure
+        """
+        import httpx
+        
+        try:
+            # Get decimals for input token (assume 6 for stables, 9 for SOL)
+            if input_mint == "So11111111111111111111111111111111111111112":
+                decimals = 9
+            elif input_mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":
+                decimals = 6
+            elif input_mint == "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB":
+                decimals = 6  # USDT
+            else:
+                decimals = 9  # Default to 9 for most SPL tokens
+            
+            # Convert to lamports
+            amount_lamports = int(amount * (10 ** decimals))
+            
+            url = (
+                f"https://transaction-v1.raydium.io/compute/swap-base-in"
+                f"?inputMint={input_mint}"
+                f"&outputMint={output_mint}"
+                f"&amount={amount_lamports}"
+                f"&slippageBps={slippage_bps}"
+                f"&txVersion=V0"
+            )
+            
+            resp = httpx.get(url, timeout=10.0)
+            
+            if resp.status_code != 200:
+                Logger.debug(f"[RAYDIUM] Trade API error: {resp.status_code}")
+                return None
+            
+            data = resp.json()
+            
+            if not data.get("success"):
+                return None
+            
+            inner = data.get("data", {})
+            
+            # Get output decimals
+            if output_mint == "So11111111111111111111111111111111111111112":
+                out_decimals = 9
+            elif output_mint in ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 
+                                  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]:
+                out_decimals = 6
+            else:
+                out_decimals = 9
+            
+            output_amount = int(inner.get("outputAmount", 0)) / (10 ** out_decimals)
+            
+            return {
+                "success": True,
+                "inputMint": input_mint,
+                "outputMint": output_mint,
+                "inputAmount": amount,
+                "outputAmount": output_amount,
+                "priceImpactPct": inner.get("priceImpactPct", 0),
+                "slippageBps": slippage_bps,
+                "routePlan": inner.get("routePlan", []),
+            }
+            
+        except Exception as e:
+            Logger.debug(f"[RAYDIUM] Trade API error: {e}")
+            return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
