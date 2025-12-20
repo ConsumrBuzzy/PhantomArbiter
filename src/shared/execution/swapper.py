@@ -136,7 +136,11 @@ class JupiterSwapper:
                     SharedPriceCache.invalidate_wallet_state()
                 except: pass
                 
-                return str(tx_sig.value)
+                return {
+                    "success": True, 
+                    "signature": str(tx_sig.value),
+                    "outAmount": quote.get("outAmount")
+                }
                 
             except Exception as e:
                 error_str = str(e)
@@ -145,9 +149,10 @@ class JupiterSwapper:
                         Logger.warning(f"   ⚠️ Slippage exceeded at Tier {tier_idx+1}, escalating...")
                         continue
                 Logger.error(f"❌ Execution Error: {e}")
+                return {"success": False, "error": str(e)}
                 
         Logger.error("❌ All slippage tiers exhausted")
-        return None
+        return {"success": False, "error": "All slippage tiers exhausted"}
 
     async def recover_gas(self, input_mint: str, amount_usd: float):
         """

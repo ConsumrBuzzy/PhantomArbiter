@@ -580,7 +580,8 @@ class ArbitrageExecutor:
                 target_mint=output_mint
             )
             
-            if not result or not result.get('success'):
+            if not result or not isinstance(result, dict) or not result.get('success'):
+                error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else f"Unexpected return: {type(result)}"
                 return TradeResult(
                     success=False,
                     trade_type="SWAP",
@@ -591,7 +592,7 @@ class ArbitrageExecutor:
                     price=0,
                     fee_usd=0,
                     signature=None,
-                    error=result.get('error', 'Unknown error'),
+                    error=error_msg,
                     timestamp=time.time(),
                     execution_time_ms=int((time.time() - start) * 1000)
                 )
