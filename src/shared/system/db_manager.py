@@ -795,5 +795,52 @@ class DBManager:
             row = c.fetchone()
             return float(row['avg_time']) if row and row['avg_time'] else 0.0
 
+    # --- Spread Decay Learning ---
+    
+    def log_spread_decay(self, pair: str, initial_spread: float, final_spread: float, time_delta_sec: float):
+        """Log spread decay between consecutive scans for ML learning."""
+        if time_delta_sec <= 0:
+            return
+        decay_pct = initial_spread - final_spread  # How much it dropped
+        decay_per_sec = decay_pct / time_delta_sec
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT INTO spread_decay 
+                (pair, initial_spread, final_spread, decay_pct, time_delta_sec, decay_per_sec, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (pair, initial_spread, final_spread, decay_pct, time_delta_sec, decay_per_sec, int(time.time())))
+    
+    def get_decay_velocity(self, pair: str, hours: int = 24) -> float:
+        """
+        Get expected decay velocity for a pair (% per second).
+        Positive = spread shrinks over time (bad for arbitrage).
+        Negative = spread grows over time (rare).
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+                SELECT AVG(decay_per_sec) as avg_decay, COUNT(*) as samples
+                FROM spread_decay 
+                WHERE pair = ? AND timestamp > ?
+            """, (pair, cutoff))
+            row = c.fetchone()
+            if row and row['samples'] >= 3 and row['avg_decay'] is not None:
+                return float(row['avg_decay'])
+            return 0.0  # No data
+    
+    def get_stable_pairs(self, min_samples: int = 5, max_decay: float = 0.05) -> list:
+        """Get pairs with stable spreads (low decay velocity)."""
+        with self.cursor() as c:
+            cutoff = time.time() - 3600  # Last hour
+            c.execute("""
+                SELECT pair, AVG(decay_per_sec) as avg_decay, COUNT(*) as samples
+                FROM spread_decay 
+                WHERE timestamp > ?
+                GROUP BY pair
+                HAVING samples >= ? AND ABS(avg_decay) < ?
+                ORDER BY ABS(avg_decay) ASC
+            """, (cutoff, min_samples, max_decay))
+            return [row['pair'] for row in c.fetchall()]
+
 # Global Accessor
 db_manager = DBManager()
