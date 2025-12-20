@@ -47,11 +47,11 @@ class JupiterSwapper:
         """
         if not self.wallet.keypair:
             Logger.error("❌ FAILED: No wallet keypair loaded!")
-            return None
+            return {"success": False, "error": "No wallet keypair loaded"}
             
         if not Settings.ENABLE_TRADING:
             Logger.info(f"🔒 TRADING DISABLED: Would {direction} ${amount_usd} ({reason})")
-            return None
+            return {"success": False, "error": "Trading disabled in Settings"}
 
         # Defines
         mint = target_mint or Settings.TARGET_MINT
@@ -67,7 +67,7 @@ class JupiterSwapper:
             token_info = self.wallet.get_token_info(mint)
             if not token_info: 
                 Logger.error("❌ Sell Failed: No Balance helper")
-                return None
+                return {"success": False, "error": "No balance helper"}
             
             avail_atomic = int(token_info["amount"])
             
