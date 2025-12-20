@@ -250,25 +250,6 @@ class PhantomArbiter:
                 swapper=self._swapper,
                 mode=ExecutionMode.LIVE
             )
-            
-            # V12.3: Start WebSocket Listener for Real-Time Prices
-            try:
-                from src.core.websocket_listener import create_websocket_listener
-                from src.core.shared_cache import SharedPriceCache
-                
-                # Build list of mints to watch (from TRENDING_PAIRS)
-                watched_mints = {}
-                for symbol, mint in Settings.TRENDING_TOKEN_MINTS.items():
-                    watched_mints[mint] = symbol
-                
-                # Create and start listener
-                self._wss_listener = create_websocket_listener(SharedPriceCache, watched_mints)
-                self._wss_listener.start()
-                Logger.info(f"✅ WebSocket Listener active for {len(watched_mints)} tokens")
-                
-            except Exception as e:
-                Logger.warning(f"⚠️ Failed to start WebSocket Listener: {e}")
-                
             self._connected = True
             
             # Sync balance if full wallet mode
@@ -589,40 +570,9 @@ class PhantomArbiter:
         monitor = AdaptiveScanner() if adaptive_mode else None
         current_interval = monitor.base_interval if adaptive_mode else scan_interval
         
-        # V12.3: Wire WSS to Adaptive Scanner
-        wake_event = asyncio.Event()
         
-        if adaptive_mode and getattr(self, '_wss_listener', None):
-            def on_wss_price(pair: str, price: float):
-                # Notify scanner of activity
-                monitor.on_price_update(pair, price)
-                # Wake up the loop immediately
-                wake_event.set()
-                
-            # Register callback (assuming listener supports it, or we hack it)
-            # Since listener is simple, we might need to patch it or just use the cache update
-            # Ideally, WSS listener calls a callback. 
-            # For now, let's poll the cache modification time or rely on WSS log
-            
-            # Better approach: The listener updates SharedPriceCache.
-            # We can have the listener take a callback in its constructor or add it now.
-            # Let's monkey-patch for zero-friction integration if needed, 
-            # or better, rely on the fact we have the instance.
-            
-            # Let's inject the callback into the listener instance if possible
-            if hasattr(self._wss_listener, 'on_price_update'):
-                self._wss_listener.on_price_update = on_wss_price
-                Logger.info("   ⚡ WSS -> Scanner wiring active")
-            else:
-                 # Fallback: We can't easily wire without modifying listener more.
-                 # But we can just rely on the loop waking up fast if we set wake_event from somewhere.
-                 # Let's just modify the listener to accept a callback in a future step if needed.
-                 # For now, we will rely on the poller seeing the cache update? No, that's not real-time.
-                 
-                 # Let's add the callback support to the listener class in memory? No that's messy.
-                 # We already modified AdaptiveScanner. We need WSSListener to call it.
-                 pass
-                 
+        # WSS Integration handled by SignalCoordinator later
+        
         print("\n" + "="*70)
         
         print("\n" + "="*70)
@@ -939,11 +889,6 @@ class PhantomArbiter:
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\n   Stopping...")
         finally:
-            # Stop WSS listener if active
-            if getattr(self, '_wss_listener', None):
-                self._wss_listener.stop()
-                print("   🔌 WebSocket Listener stopped")
-                
             if 'coordinator' in locals() and coordinator:
                 await coordinator.stop()
         
