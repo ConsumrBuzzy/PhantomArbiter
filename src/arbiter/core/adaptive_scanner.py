@@ -13,9 +13,10 @@ Fast interval: 0.5 seconds (when spreads > threshold)
 Cooldown: Returns to slow after 30s of no activity
 """
 
+import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from src.arbiter.core.spread_detector import SpreadOpportunity
 
@@ -32,6 +33,7 @@ class PairMetrics:
     last_scan_time: float = 0.0
     skip_until: float = 0.0       # Unix timestamp - don't scan before this
     scan_count: int = 0           # Total scans for this pair
+    last_status: str = "FAR"      # Last near-miss status for priority sorting
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -73,10 +75,23 @@ class AdaptiveScanner:
     SKIP_COLD = 15.0          # Skip 15 seconds
     SKIP_FROZEN = 20.0        # Very stale + low spread
     
-    def __init__(self, base_interval: float = 5.0, fast_interval: float = 0.5, rps_limit: int = 8):
+    # RPC rate limiting
+    DEFAULT_MAX_CONCURRENT_RPC = 3  # Sweet spot for $30 budget / free-tier RPC
+    
+    def __init__(
+        self, 
+        base_interval: float = 5.0, 
+        fast_interval: float = 0.5, 
+        rps_limit: int = 8,
+        max_concurrent_rpc: int = None
+    ):
         self.base_interval = base_interval
         self.fast_interval = fast_interval
         self.rps_limit = rps_limit
+        
+        # RPC concurrency guard - prevents 429 errors during bulk scans
+        max_rpc = max_concurrent_rpc or self.DEFAULT_MAX_CONCURRENT_RPC
+        self._rpc_semaphore = asyncio.Semaphore(max_rpc)
         
         # Global state
         self.last_spread_spike = 0.0
@@ -115,14 +130,31 @@ class AdaptiveScanner:
         """
         Filter pairs list to only those that should be scanned now.
         
+        Returns pairs sorted by priority (NEAR_MISS/VIABLE first) so 
+        hot targets get semaphore access before stale pairs.
+        
         Args:
             all_pairs: List of (pair_name, base_mint, quote_mint) tuples
             
         Returns:
-            Filtered list of pairs to scan this cycle
+            Filtered and priority-sorted list of pairs to scan this cycle
         """
         now = now or time.time()
-        return [p for p in all_pairs if self.should_scan_pair(p[0], now)]
+        
+        # Filter to pairs not in skip cooldown
+        scannable = [p for p in all_pairs if self.should_scan_pair(p[0], now)]
+        
+        # Priority order: VIABLE > NEAR_MISS > WARM > FAR > unknown
+        status_priority = {"VIABLE": 0, "NEAR_MISS": 1, "WARM": 2, "FAR": 3}
+        
+        def get_priority(pair_tuple: tuple) -> int:
+            pair_name = pair_tuple[0]
+            metrics = self.pair_metrics.get(pair_name)
+            if not metrics:
+                return 4  # Unknown - lowest priority
+            return status_priority.get(metrics.last_status, 3)
+        
+        return sorted(scannable, key=get_priority)
     
     def update_pair(self, opp: SpreadOpportunity) -> None:
         """
@@ -131,6 +163,8 @@ class AdaptiveScanner:
         Calculates skip interval based on:
         1. Absolute spread level (low spread = skip more)
         2. Spread variance (stable = skip more)
+        
+        Also tracks near-miss status for priority sorting.
         """
         now = time.time()
         metrics = self.pair_metrics.setdefault(opp.pair, PairMetrics())
@@ -147,6 +181,10 @@ class AdaptiveScanner:
             alpha * spread_delta + 
             (1 - alpha) * metrics.spread_variance
         )
+        
+        # Track near-miss status for priority sorting
+        from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
+        metrics.last_status = NearMissAnalyzer.classify_status(opp.net_profit_usd)
         
         # Determine skip interval based on BOTH spread level and variance
         skip_seconds = self._calculate_skip_interval(opp.spread_pct, metrics.spread_variance)
