@@ -65,7 +65,7 @@ def test():
     if pools:
         print(f"  Meteora: {pools.meteora_pool}")
         print(f"  Raydium: {pools.raydium_clmm_pool}")
-        print(f"  Orca: {pools.orca_whirlpool_pool}")
+        print(f"  Orca: {pools.orca_pool}")
 
     # Inspect Bridge Caches
     print("Bridge connection test:")
