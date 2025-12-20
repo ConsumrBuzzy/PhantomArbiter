@@ -298,19 +298,28 @@ class SpreadDetector:
                     feed_name, prices = future.result()
                     if prices:
                         feed_prices[feed_name] = prices
-                except Exception:
+                except Exception as e:
+                    import traceback
+                    print(f"DEBUG: Feed {future} failed: {e}")
+                    # traceback.print_exc()
                     pass
         
         if len(feed_prices) < 2:
             # Need at least 2 feeds for spread comparison
             # Fall back to sequential scan
+            # DEBUG: Why sequential?
+            print(f"DEBUG: Falling back to sequential (Feeds: {len(feed_prices)} - {list(feed_prices.keys())})")
+            
+            opps_seq = []
             for pair_name, base_mint, quote_mint in pairs:
                 opp = self.scan_pair(base_mint, quote_mint, pair_name, trade_size=trade_size)
                 if opp:
-                    opportunities.append(opp)
-            return sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
+                    opps_seq.append(opp)
+            return sorted(opps_seq, key=lambda x: x.spread_pct, reverse=True)
         
         # Calculate spreads for each pair
+        print(f"DEBUG: Parallel Scan: {len(pairs)} pairs | Feeds: {list(feed_prices.keys())}") # CONFIRM FEEDS
+        
         from src.arbiter.core.fee_estimator import get_fee_estimator
         fee_est = get_fee_estimator()
         fee_est._sol_price_cache = self._get_sol_price()
