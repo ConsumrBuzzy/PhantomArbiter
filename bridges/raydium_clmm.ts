@@ -352,7 +352,7 @@ async function getQuote(
             inputAmount: amountIn,
             outputAmount: new Decimal(swapResult.amountOut.amount.toString())
                 .div(10 ** outputDecimals).toString(),
-            priceImpact: swapResult.priceImpact ? Number(swapResult.priceImpact.toDecimal()) : 0
+            priceImpact: swapResult.priceImpact ? Number((swapResult.priceImpact as any).numerator) / Number((swapResult.priceImpact as any).denominator) : 0
         };
 
     } catch (error: any) {
