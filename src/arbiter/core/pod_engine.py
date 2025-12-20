@@ -209,12 +209,12 @@ class PodManager:
             del self.watch_list[p]
         return list(self.watch_list.keys())
     
-# V91.0: Category Groups for diversity
-CATEGORY_GROUPS = {
-    "STABLE": ["DEFI_CORE", "DEFI_EXT", "DIRECT_POOLS"],  # Low-risk, high-liq
-    "MEME": ["OG_A", "OG_B", "VIRAL"],                    # Established memes
-    "META": ["AI_A", "AI_B", "PUMP", "INFRA"],            # Current narrative
-}
+    # V91.0: Category Groups for diversity
+    CATEGORY_GROUPS = {
+        "STABLE": ["DEFI_CORE", "DEFI_EXT", "DIRECT_POOLS"],  # Low-risk, high-liq
+        "MEME": ["OG_A", "OG_B", "VIRAL"],                    # Established memes
+        "META": ["AI_A", "AI_B", "PUMP", "INFRA"],            # Current narrative
+    }
 
     def get_active_pods(self) -> list:
         """
@@ -233,7 +233,7 @@ CATEGORY_GROUPS = {
         # 1. Pick one high-priority pod from EACH category group
         # This ensures diversity (e.g., JUP + WIF + GOAT)
         
-        for cat_name, pods in CATEGORY_GROUPS.items():
+        for cat_name, pods in self.CATEGORY_GROUPS.items():
             # Filter pods in this category
             cat_pods = [(name, self.state[name]) for name in pods if name in self.state]
             
