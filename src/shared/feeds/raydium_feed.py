@@ -43,6 +43,15 @@ class RaydiumFeed(PriceSource):
         self._cache_ttl = 3.0  # 3 second cache
         self._pairs_cache: Optional[Dict] = None
         self._pairs_cache_time = 0.0
+        self._bridge = None  # Lazy-loaded RaydiumBridge
+        self.use_live_quotes = True  # Set False to save API credits
+        
+    def _get_bridge(self):
+        """Lazy-load RaydiumBridge to avoid circular imports."""
+        if self._bridge is None:
+            from src.shared.execution.raydium_bridge import RaydiumBridge
+            self._bridge = RaydiumBridge()
+        return self._bridge
         
     def get_name(self) -> str:
         return "RAYDIUM"
@@ -58,11 +67,36 @@ class RaydiumFeed(PriceSource):
         amount: float
     ) -> Optional[Quote]:
         """
-        Get quote from Raydium.
-        
-        Note: Raydium doesn't have a public quote API like Jupiter,
-        so we estimate based on spot price and apply slippage.
+        Get quote from Raydium with dual-path strategy:
+        1. Fast Path: Raydium Trade API (accurate, accounts for ticks/fees)
+        2. Fallback: Spot price estimation (saves API credits)
         """
+        # Path 1: Use Trade API for accurate quote
+        if self.use_live_quotes:
+            try:
+                bridge = self._get_bridge()
+                result = bridge.fetch_api_quote(input_mint, output_mint, amount)
+                
+                if result and result.get("success"):
+                    output_amount = result.get("outputAmount", 0)
+                    price_impact = result.get("priceImpactPct", 0)
+                    
+                    return Quote(
+                        dex="RAYDIUM",
+                        input_mint=input_mint,
+                        output_mint=output_mint,
+                        input_amount=amount,
+                        output_amount=output_amount,
+                        price=output_amount / amount if amount > 0 else 0,
+                        slippage_estimate_pct=price_impact,
+                        fee_pct=self.get_fee_pct(),
+                        route=None,
+                        timestamp=time.time()
+                    )
+            except Exception as e:
+                Logger.debug(f"[RAYDIUM] Trade API quote failed: {e}")
+        
+        # Path 2: Fallback to spot price estimation
         spot = self.get_spot_price(output_mint, input_mint)
         if not spot or spot.price <= 0:
             return None
