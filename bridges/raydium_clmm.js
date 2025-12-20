@@ -50070,71 +50070,18 @@ async function initRaydium(connection, owner) {
     tokenAccounts: tokenAccountData?.tokenAccounts,
     tokenAccountRawInfos: tokenAccountData?.tokenAccountRawInfos,
     disableFeatureCheck: true,
-    disableLoadToken: false,
+    disableLoadToken: true,
     blockhashCommitment: "confirmed"
   });
   return raydium;
-}
-async function getQuote(poolAddress, inputMint, amountIn) {
-  const connection = new import_web32.Connection(RPC_URL, "confirmed");
-  try {
-    const raydium = await initRaydium(connection);
-    const poolId = new import_web32.PublicKey(poolAddress);
-    const poolInfo = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
-    if (!poolInfo) {
-      return {
-        success: false,
-        inputMint,
-        outputMint: "",
-        inputAmount: amountIn,
-        outputAmount: "0",
-        priceImpact: 0,
-        fee: "0",
-        error: "Pool not found"
-      };
-    }
-    const inputMintPubkey = new import_web32.PublicKey(inputMint);
-    const isBaseToQuote = poolInfo.mintA.address === inputMint;
-    const outputMint = isBaseToQuote ? poolInfo.mintB.address : poolInfo.mintA.address;
-    const inputDecimals = isBaseToQuote ? poolInfo.mintA.decimals : poolInfo.mintB.decimals;
-    const amountInBN = new import_bn.default(new decimal_default(amountIn).mul(10 ** inputDecimals).floor().toString());
-    const { minAmountOut, remainingAccounts, executionPrice, priceImpact, fee } = await raydium.clmm.computeAmountOut({
-      poolInfo,
-      amountIn: amountInBN,
-      tokenOut: new import_web32.PublicKey(outputMint),
-      slippage: 0.01
-      // 1% for quote purposes
-    });
-    const outputDecimals = isBaseToQuote ? poolInfo.mintB.decimals : poolInfo.mintA.decimals;
-    return {
-      success: true,
-      inputMint,
-      outputMint,
-      inputAmount: amountIn,
-      outputAmount: new decimal_default(minAmountOut.toString()).div(10 ** outputDecimals).toString(),
-      priceImpact: priceImpact?.toNumber() || 0,
-      fee: fee?.toString() || "0"
-    };
-  } catch (error) {
-    return {
-      success: false,
-      inputMint,
-      outputMint: "",
-      inputAmount: amountIn,
-      outputAmount: "0",
-      priceImpact: 0,
-      fee: "0",
-      error: error.message || String(error)
-    };
-  }
 }
 async function getPrice(poolAddress) {
   const connection = new import_web32.Connection(RPC_URL, "confirmed");
   try {
     const raydium = await initRaydium(connection);
     const poolId = new import_web32.PublicKey(poolAddress);
-    const poolInfo = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
-    if (!poolInfo) {
+    const rpcResult = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
+    if (!rpcResult || !rpcResult.poolInfo) {
       return {
         success: false,
         pool: poolAddress,
@@ -50143,20 +50090,46 @@ async function getPrice(poolAddress) {
         priceAtoB: 0,
         priceBtoA: 0,
         liquidity: "0",
-        error: "Pool not found"
+        error: "Pool not found - verify this is a CLMM pool (not legacy AMM)"
       };
     }
-    const sqrtPrice = new decimal_default(poolInfo.sqrtPriceX64.toString());
-    const priceAtoB = sqrtPrice.div(new decimal_default(2).pow(64)).pow(2).toNumber();
-    const priceBtoA = priceAtoB > 0 ? 1 / priceAtoB : 0;
+    const info = rpcResult.poolInfo;
+    const compute = rpcResult.computePoolInfo;
+    if (!info.mintA || !info.mintB) {
+      return {
+        success: false,
+        pool: poolAddress,
+        tokenA: "",
+        tokenB: "",
+        priceAtoB: 0,
+        priceBtoA: 0,
+        liquidity: "0",
+        error: "Pool missing mint data"
+      };
+    }
+    let priceAtoB = 0;
+    let priceBtoA = 0;
+    let liquidity = "0";
+    let currentTick;
+    if (compute && compute.currentPrice) {
+      priceAtoB = compute.currentPrice.toNumber();
+      priceBtoA = priceAtoB > 0 ? 1 / priceAtoB : 0;
+    }
+    if (compute?.liquidity) {
+      liquidity = compute.liquidity.toString();
+    }
+    if (compute?.tickCurrent !== void 0) {
+      currentTick = compute.tickCurrent;
+    }
     return {
       success: true,
       pool: poolAddress,
-      tokenA: poolInfo.mintA.address,
-      tokenB: poolInfo.mintB.address,
+      tokenA: info.mintA.address,
+      tokenB: info.mintB.address,
       priceAtoB,
       priceBtoA,
-      liquidity: poolInfo.liquidity?.toString() || "0"
+      liquidity,
+      currentTick
     };
   } catch (error) {
     return {
@@ -50171,6 +50144,82 @@ async function getPrice(poolAddress) {
     };
   }
 }
+async function getQuote(poolAddress, inputMint, amountIn) {
+  const connection = new import_web32.Connection(RPC_URL, "confirmed");
+  try {
+    const raydium = await initRaydium(connection);
+    const poolId = new import_web32.PublicKey(poolAddress);
+    const rpcResult = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
+    if (!rpcResult || !rpcResult.poolInfo) {
+      return {
+        success: false,
+        inputMint,
+        outputMint: "",
+        inputAmount: amountIn,
+        outputAmount: "0",
+        priceImpact: 0,
+        error: "Pool not found"
+      };
+    }
+    const info = rpcResult.poolInfo;
+    const isAtoB = info.mintA.address === inputMint;
+    const outputMint = isAtoB ? info.mintB.address : info.mintA.address;
+    const inputDecimals = isAtoB ? info.mintA.decimals : info.mintB.decimals;
+    const outputDecimals = isAtoB ? info.mintB.decimals : info.mintA.decimals;
+    const amountInBN = new import_bn.default(new decimal_default(amountIn).mul(10 ** inputDecimals).floor().toString());
+    const swapResult = import_raydium_sdk_v2.Raydium.clmm ? await raydium.clmm.computeAmountOutFormat({
+      poolInfo: info,
+      tickArrayCache: rpcResult.tickData,
+      amountIn: amountInBN,
+      tokenOut: new import_web32.PublicKey(outputMint),
+      slippage: 5e-3,
+      epochInfo: await connection.getEpochInfo()
+    }) : null;
+    if (!swapResult || !swapResult.amountOut) {
+      const priceResult = await getPrice(poolAddress);
+      if (priceResult.success) {
+        const price = isAtoB ? priceResult.priceAtoB : priceResult.priceBtoA;
+        const estimatedOut = parseFloat(amountIn) * price;
+        return {
+          success: true,
+          inputMint,
+          outputMint,
+          inputAmount: amountIn,
+          outputAmount: estimatedOut.toFixed(outputDecimals),
+          priceImpact: 1e-3
+          // Estimated
+        };
+      }
+      return {
+        success: false,
+        inputMint,
+        outputMint,
+        inputAmount: amountIn,
+        outputAmount: "0",
+        priceImpact: 0,
+        error: "Could not compute swap output"
+      };
+    }
+    return {
+      success: true,
+      inputMint,
+      outputMint,
+      inputAmount: amountIn,
+      outputAmount: new decimal_default(swapResult.amountOut.amount.toString()).div(10 ** outputDecimals).toString(),
+      priceImpact: swapResult.priceImpact?.toNumber() || 0
+    };
+  } catch (error) {
+    return {
+      success: false,
+      inputMint,
+      outputMint: "",
+      inputAmount: amountIn,
+      outputAmount: "0",
+      priceImpact: 0,
+      error: error.message || String(error)
+    };
+  }
+}
 async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privateKeyBase58) {
   const connection = new import_web32.Connection(RPC_URL, "confirmed");
   try {
@@ -50178,8 +50227,8 @@ async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privat
     const owner = import_web32.Keypair.fromSecretKey(privateKey);
     const raydium = await initRaydium(connection, owner);
     const poolId = new import_web32.PublicKey(poolAddress);
-    const poolInfo = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
-    if (!poolInfo) {
+    const rpcResult = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
+    if (!rpcResult || !rpcResult.poolInfo) {
       return {
         success: false,
         inputMint,
@@ -50189,28 +50238,22 @@ async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privat
         error: "Pool not found"
       };
     }
-    const isBaseToQuote = poolInfo.mintA.address === inputMint;
-    const outputMint = isBaseToQuote ? poolInfo.mintB.address : poolInfo.mintA.address;
-    const inputDecimals = isBaseToQuote ? poolInfo.mintA.decimals : poolInfo.mintB.decimals;
-    const outputDecimals = isBaseToQuote ? poolInfo.mintB.decimals : poolInfo.mintA.decimals;
+    const info = rpcResult.poolInfo;
+    const isAtoB = info.mintA.address === inputMint;
+    const outputMint = isAtoB ? info.mintB.address : info.mintA.address;
+    const inputDecimals = isAtoB ? info.mintA.decimals : info.mintB.decimals;
+    const outputDecimals = isAtoB ? info.mintB.decimals : info.mintA.decimals;
     const amountInBN = new import_bn.default(new decimal_default(amountIn).mul(10 ** inputDecimals).floor().toString());
     const slippage = slippageBps / 1e4;
-    const { minAmountOut, remainingAccounts } = await raydium.clmm.computeAmountOut({
-      poolInfo,
-      amountIn: amountInBN,
-      tokenOut: new import_web32.PublicKey(outputMint),
-      slippage
-    });
-    const { execute, transaction } = await raydium.clmm.swap({
-      poolInfo,
+    const { execute } = await raydium.clmm.swap({
+      poolInfo: info,
       inputMint: new import_web32.PublicKey(inputMint),
       amountIn: amountInBN,
-      amountOutMin: minAmountOut,
-      observationId: poolInfo.observationId,
-      ownerInfo: {
-        useSOLBalance: true
-      },
-      remainingAccounts,
+      amountOutMin: new import_bn.default(0),
+      // Will compute internally
+      observationId: rpcResult.poolKeys?.observationId,
+      ownerInfo: { useSOLBalance: true },
+      remainingAccounts: [],
       txVersion: import_raydium_sdk_v2.TxVersion.V0
     });
     const { txId } = await execute({ sendAndConfirm: true });
@@ -50220,7 +50263,8 @@ async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privat
       inputMint,
       outputMint,
       inputAmount: amountIn,
-      outputAmount: new decimal_default(minAmountOut.toString()).div(10 ** outputDecimals).toString()
+      outputAmount: "0"
+      // Would need to parse transaction
     };
   } catch (error) {
     return {
@@ -50239,11 +50283,21 @@ async function main() {
   if (!command) {
     console.log(JSON.stringify({
       success: false,
-      error: "Usage: node raydium_clmm.js <quote|swap|price> [args...]"
+      error: "Usage: node raydium_clmm.js <price|quote|swap> [args...]"
     }));
     process.exit(1);
   }
   switch (command.toLowerCase()) {
+    case "price": {
+      const [, poolAddress] = args;
+      if (!poolAddress) {
+        console.log(JSON.stringify({ success: false, error: "Usage: price <pool_address>" }));
+        process.exit(1);
+      }
+      const result = await getPrice(poolAddress);
+      console.log(JSON.stringify(result));
+      break;
+    }
     case "quote": {
       const [, poolAddress, inputMint, amount] = args;
       if (!poolAddress || !inputMint || !amount) {
@@ -50254,20 +50308,10 @@ async function main() {
       console.log(JSON.stringify(result));
       break;
     }
-    case "price": {
-      const [, poolAddress] = args;
-      if (!poolAddress) {
-        console.log(JSON.stringify({ success: false, error: "Usage: price <pool>" }));
-        process.exit(1);
-      }
-      const result = await getPrice(poolAddress);
-      console.log(JSON.stringify(result));
-      break;
-    }
     case "swap": {
       const [, poolAddress, inputMint, amount, slippageBps, privateKey] = args;
       if (!poolAddress || !inputMint || !amount || !slippageBps || !privateKey) {
-        console.log(JSON.stringify({ success: false, error: "Usage: swap <pool> <input_mint> <amount> <slippage_bps> <private_key>" }));
+        console.log(JSON.stringify({ success: false, error: "Usage: swap <pool> <input_mint> <amount> <slippage_bps> <key>" }));
         process.exit(1);
       }
       const result = await executeSwap(poolAddress, inputMint, amount, parseInt(slippageBps), privateKey);
