@@ -62,8 +62,23 @@ HIGH_RISK_PAIRS = [
     ("COPE/USDC", "8HGyAAB1yoM1ttS7pXjHMa3dukTFGQggnFFH3hJZgzQh", USDC_MINT),
 ]
 
+# TRENDING: High-volatility Dec 2025 targets - pump.fun graduates with 1.5-5%+ spreads
+# These have narrative volatility creating DEX price divergence
+TRENDING_PAIRS = [
+    # TRUMP: Political narrative drives massive price swings between DEXs
+    ("TRUMP/USDC", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN", USDC_MINT),
+    # MOODENG: Top-tier meme with sudden dip spreads
+    ("MOODENG/USDC", "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY", USDC_MINT),
+    # CHILLGUY: TikTok viral momentum = lagging small DEX prices
+    ("CHILLGUY/USDC", "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump", USDC_MINT),
+    # FARTCOIN: Meteora bin volatility = zero-slippage atomic flips
+    ("FART/USDC", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdBbgpump", USDC_MINT),
+    # PNUT: $1B+ cap = 0% price impact on $30 trades
+    ("PNUT/USDC", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump", USDC_MINT),
+]
+
 # Combined default - all pairs for maximum opportunity scanning
-CORE_PAIRS = LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS
+CORE_PAIRS = LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS + TRENDING_PAIRS
 
 
 @dataclass
