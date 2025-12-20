@@ -25,9 +25,14 @@ def test_og_b():
     # 2. Initialize Detector
     print("\n[+] Initializing SpreadDetector with Feeds...")
     try:
-        feeds = [JupiterFeed(), RaydiumFeed(), OrcaFeed()]
+        # Replicate arbiter.py configuration exactly
+        feeds = [
+            JupiterFeed(), 
+            RaydiumFeed(), 
+            OrcaFeed(use_on_chain=False)
+        ]
         detector = SpreadDetector(feeds=feeds)
-        print("    Detector initialized with Jupiter, Raydium & Orca.")
+        print("    Detector initialized with Jupiter, Raydium & Orca(use_on_chain=False).")
     except Exception as e:
         print(f"    ❌ Failed to init detector: {e}")
         return
