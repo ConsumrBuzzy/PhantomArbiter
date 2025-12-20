@@ -683,7 +683,7 @@ class PhantomArbiter:
                             opp.verification_status = f"ERR: {e}"
                             return opp
                     
-                    import asyncio
+                    
                     verified_opps = await asyncio.gather(*[verify_one(c) for c in candidates])
                     
                 # PRINT DASHBOARD (with verification status)
