@@ -223,13 +223,29 @@ class PodManager:
         """Get pods to scan this cycle (primary + optional random check-in)."""
         import time
         import random
+        from datetime import datetime
         
         self._scan_count += 1
         now = time.time()
+        current_hour = datetime.now().hour
         
-        # Find primary pod (highest priority not on cooldown)
+        # Time-based boost: volatile pods get priority during peak hours (US market)
+        # Peak hours: 9-11 AM EST (14-16 UTC), 2-4 PM EST (19-21 UTC)
+        volatile_pods = {"PUMP", "VIRAL", "AI_A", "AI_B"}
+        is_peak_hour = current_hour in [14, 15, 16, 19, 20, 21, 2, 3]  # UTC
+        
+        # Find primary pod (highest priority not on cooldown, with time boost)
         active = []
-        sorted_pods = sorted(self.state.items(), key=lambda x: x[1]["priority"])
+        
+        # Apply time boost temporarily
+        boosted_state = {}
+        for name, state in self.state.items():
+            priority = state["priority"]
+            if is_peak_hour and name in volatile_pods:
+                priority -= 1  # Boost volatile pods during peak
+            boosted_state[name] = priority
+        
+        sorted_pods = sorted(self.state.items(), key=lambda x: boosted_state.get(x[0], x[1]["priority"]))
         
         for name, state in sorted_pods:
             if now > state["cooldown_until"]:
@@ -895,6 +911,21 @@ class PhantomArbiter:
                                         scan_pairs.append(pair_tuple)
                         
                         self.config.pairs = scan_pairs
+                        
+                        # ML FILTER: Skip tokens with >80% LIQ failure rate
+                        try:
+                            from src.shared.system.db_manager import db_manager
+                            liq_rates = db_manager.get_liq_failure_rate(hours=2)
+                            blacklisted = [p for p, rate in liq_rates.items() if rate > 0.8]
+                            if blacklisted:
+                                before_count = len(self.config.pairs)
+                                self.config.pairs = [p for p in self.config.pairs if p[0] not in blacklisted]
+                                skip_count = before_count - len(self.config.pairs)
+                                if skip_count > 0:
+                                    print(f"   🚫 ML Skip: {skip_count} blacklisted pairs ({', '.join(blacklisted[:2])}...)")
+                        except Exception:
+                            pass  # Non-critical
+                        
                         watch_str = f" +{len(watch_pairs)} watch" if watch_pairs else ""
                         print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(scan_pairs)} pairs{watch_str})")
                     elif adaptive_mode and monitor:
