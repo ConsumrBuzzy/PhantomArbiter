@@ -44,22 +44,51 @@ class SpreadOpportunity:
     # Dashboard/Verification fields (added for compatibility)
     verification_status: Optional[str] = None
     
+    def calculate_optimal_size(self, impact_factor: float, min_size: float = 10.0, max_size: float = 1000.0) -> float:
+        """
+        Calculate optimal trade size using calculus.
+        Maximize P(x) = (Spread * x) - (Impact * x^2) - Fees
+        Derivative P'(x) = Spread - 2 * Impact * x = 0
+        x_opt = Spread / (2 * Impact)
+        
+        Args:
+            impact_factor: Price impact coefficient (quadratic cost)
+            min_size: Minimum trade size in USD
+            max_size: Maximum trade size in USD
+            
+        Returns:
+            Optimal trade size in USD (clamped)
+        """
+        if impact_factor <= 0:
+            return max_size
+            
+        # Spread as partial (e.g., 1% = 0.01)
+        s = self.spread_pct / 100
+        
+        # x_opt = S / 2I
+        optimal_size = s / (2 * impact_factor)
+        
+        # Clamp between min and max
+        return max(min_size, min(optimal_size, max_size))
+        
     @property
     def is_profitable(self) -> bool:
         """Is this opportunity profitable after fees?"""
         # For simulation: trigger on any net gain > 0
         # For live: use MIN_PROFIT_AFTER_FEES threshold
         return self.net_profit_usd > 0
-    
+        
     @property
     def status(self) -> str:
         """Status indicator for dashboard."""
-        if self.is_profitable and self.spread_pct >= 0.3:
-            return "READY"
-        elif self.spread_pct >= 0.1:
-            return "MONITOR"
-        else:
-            return "LOW"
+        if self.is_profitable:
+            if self.spread_pct >= 0.5:
+                return "🔥 HOT"
+            elif self.spread_pct >= 0.3:
+                return "READY"
+            else:
+                return "THIN"
+        return "❌"
 
 
 class SpreadDetector:
@@ -143,13 +172,13 @@ class SpreadDetector:
         pair_name = pair_name or f"{base_mint[:8]}/{quote_mint[:8]}"
         
         # Fetch prices from all feeds
-        prices: Dict[str, float] = {}
+        prices: Dict[str, 'SpotPrice'] = {}
         
         for name, feed in self.feeds.items():
             try:
                 spot = feed.get_spot_price(base_mint, quote_mint)
                 if spot and spot.price > 0:
-                    prices[name] = spot.price
+                    prices[name] = spot
             except Exception as e:
                 pass  # Skip failed feeds
                 
@@ -157,9 +186,12 @@ class SpreadDetector:
             return None  # Need at least 2 DEXs to compare
             
         # Find best buy and sell
-        sorted_prices = sorted(prices.items(), key=lambda x: x[1])
-        buy_dex, buy_price = sorted_prices[0]      # Lowest price
-        sell_dex, sell_price = sorted_prices[-1]   # Highest price
+        sorted_prices = sorted(prices.items(), key=lambda x: x[1].price)
+        buy_dex, buy_spot = sorted_prices[0]      # Lowest price
+        sell_dex, sell_spot = sorted_prices[-1]   # Highest price
+        
+        buy_price = buy_spot.price
+        sell_price = sell_spot.price
         
         # Calculate spread
         spread_pct = ((sell_price - buy_price) / buy_price) * 100
@@ -167,6 +199,45 @@ class SpreadDetector:
         if spread_pct < 0.01:  # Negligible spread
             return None
             
+        # ═══ V83.0: CALCULUS-BASED OPTIMAL SIZING ═══
+        # Estimate Impact Factor (I) from liquidity
+        # Model: Impact = (Trade Size / Available Liquidity)^2
+        # Approx: I = 1 / (Liquidity * k) where k is pool constant
+        
+        pool_liquidity = min(buy_spot.liquidity_usd or 100000, sell_spot.liquidity_usd or 100000)
+        
+        # Heuristic: 1% impact at 1% of pool liquidity
+        # I = 0.01 / (0.01 * Liquidity) -> Impact Coeff
+        # Let's use a simpler linear approximation for the derivative:
+        # Impact Coeff 'I' for quadratic cost model: Cost = I * x^2
+        # If we expect 1% slip at $1k trade on $100k pool:
+        # 10 = I * 1000^2  => I = 10 / 1,000,000 = 1e-5
+        
+        # Dynamic Impact Factor derived from Pool Depth
+        # Default to "decent" liquidity ($100k) if unknown
+        impact_factor = 1e-5 * (100000 / max(pool_liquidity, 10000))
+        
+        # Create temp opportunity to calculate size
+        temp_opp = SpreadOpportunity(
+            pair=pair_name,
+            base_mint=base_mint, quote_mint=quote_mint,
+            buy_dex=buy_dex, sell_dex=sell_dex,
+            buy_price=buy_price, sell_price=sell_price,
+            spread_pct=spread_pct,
+            gross_profit_usd=0, estimated_fees_usd=0, net_profit_usd=0,
+            max_size_usd=0, confidence=0
+        )
+        
+        # Calculate Optimal Size (Max Profit)
+        optimal_size = temp_opp.calculate_optimal_size(
+            impact_factor=impact_factor,
+            min_size=10.0,
+            max_size=getattr(Settings, 'MAX_TRADE_SIZE_USD', 1000.0)
+        )
+        
+        # Use optimal size for final calculation
+        trade_size = optimal_size
+        
         # Estimate profitability with ADAPTIVE fees
         gross_profit = trade_size * (spread_pct / 100)
         
