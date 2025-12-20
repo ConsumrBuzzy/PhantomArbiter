@@ -76,7 +76,7 @@ class AdaptiveScanner:
     SKIP_FROZEN = 20.0        # Very stale + low spread
     
     # RPC rate limiting
-    DEFAULT_MAX_CONCURRENT_RPC = 3  # Sweet spot for $30 budget / free-tier RPC
+    DEFAULT_MAX_CONCURRENT_RPC = 5  # Increased for 3 RPC providers
     
     def __init__(
         self, 

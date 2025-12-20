@@ -114,6 +114,9 @@ class ArbiterConfig:
     live_mode: bool = False
     full_wallet: bool = False
     pairs: List[tuple] = field(default_factory=lambda: CORE_PAIRS)
+    # Fast-path: skip verification if net_profit >= this threshold
+    # Risk is gas cost only (~$0.02) due to atomic revert
+    fast_path_threshold: float = -0.03  # Execute immediately if within 3 cents of profit
 
 
 class PhantomArbiter:
@@ -600,6 +603,45 @@ class PhantomArbiter:
                 # PRINT DASHBOARD (with verification status)
                 # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
                 self._print_dashboard(all_spreads if 'all_spreads' in locals() else raw_opps, verified_opps)
+                
+                # ═══════════════════════════════════════════════════════════════
+                # FAST-PATH EXECUTION: Skip verification for near-miss opportunities
+                # Risk is limited to gas cost (~$0.02) due to atomic revert
+                # ═══════════════════════════════════════════════════════════════
+                
+                # Check for fast-path candidates (NEAR_MISS within threshold)
+                fast_path_candidates = [
+                    op for op in raw_opps 
+                    if op.net_profit_usd >= self.config.fast_path_threshold
+                    and time.time() - last_trade_time.get(op.pair, 0) >= cooldown
+                ]
+                
+                if fast_path_candidates:
+                    # Pick best by net profit (closest to positive)
+                    best_fast = sorted(fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True)[0]
+                    
+                    print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
+                    
+                    # Execute immediately - atomic revert protects us
+                    result = await self.execute_trade(best_fast, trade_size=trade_size)
+                    
+                    if result.get("success"):
+                        trade = result["trade"]
+                        last_trade_time[best_fast.pair] = time.time()
+                        
+                        emoji = "💰" if trade["net_profit"] > 0 else "📉"
+                        print(f"   [{now}] {emoji} FAST #{self.total_trades}: {trade['pair']}")
+                        print(f"            Spread: +{trade['spread_pct']:.2f}% → Net: ${trade['net_profit']:+.4f}")
+                        print(f"            Balance: ${self.current_balance:.4f}")
+                        print()
+                    else:
+                        print(f"   [{now}] ❌ FAST REVERTED: {result.get('error', 'atomic revert')}")
+                    
+                    continue  # Skip normal execution path
+                
+                # ═══════════════════════════════════════════════════════════════
+                # NORMAL EXECUTION: Verified opportunities only
+                # ═══════════════════════════════════════════════════════════════
                 
                 # Execute Best Valid Opportunity
                 # Look for "LIVE" or "SCALED"
