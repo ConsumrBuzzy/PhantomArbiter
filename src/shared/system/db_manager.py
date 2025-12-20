@@ -288,6 +288,32 @@ class DBManager:
             """)
             c.execute("CREATE INDEX IF NOT EXISTS idx_decay_pair ON spread_decay(pair)")
 
+            # Pool Index (Meteora + Orca pool discovery)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS pool_index (
+                pair TEXT PRIMARY KEY,
+                meteora_pool TEXT,
+                orca_pool TEXT,
+                preferred_dex TEXT,
+                updated_at REAL
+            )
+            """)
+            
+            # Pool Executions (Performance tracking for smart routing)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS pool_executions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pair TEXT NOT NULL,
+                dex TEXT NOT NULL,
+                success BOOLEAN,
+                latency_ms INTEGER,
+                error TEXT,
+                timestamp REAL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_pool_exec_pair ON pool_executions(pair)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_pool_exec_dex ON pool_executions(dex)")
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):

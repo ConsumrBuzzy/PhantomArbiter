@@ -770,7 +770,7 @@ class PhantomArbiter:
             print(f"   🎯 {profitable_count} profitable opportunities!")
     
     async def execute_trade(self, opportunity: SpreadOpportunity, trade_size: float = None) -> Dict[str, Any]:
-        """Execute a trade using the ArbitrageExecutor."""
+        """Execute a trade using hybrid routing (Unified Engine or Jupiter)."""
         if trade_size is None:
             trade_size = min(
                 self.current_balance,
@@ -780,7 +780,68 @@ class PhantomArbiter:
         if trade_size < 1.0:
             return {"success": False, "error": "Insufficient balance"}
         
-        result = await self._executor.execute_spatial_arb(opportunity, trade_size)
+        result = None
+        engine_used = "jupiter"
+        start_time = time.time()
+        
+        # ═══ HYBRID ROUTING: Try unified engine for Meteora/Orca ═══
+        if self._unified_adapter and self.config.use_unified_engine:
+            try:
+                from src.shared.execution.pool_index import get_pool_index
+                pool_index = get_pool_index()
+                pools = pool_index.get_pools_for_opportunity(opportunity)
+                
+                if pools and pool_index.can_use_unified_engine(opportunity):
+                    # Determine which pools to use
+                    buy_dex = opportunity.buy_dex.lower() if opportunity.buy_dex else ""
+                    sell_dex = opportunity.sell_dex.lower() if opportunity.sell_dex else ""
+                    
+                    buy_pool = pools.meteora_pool if buy_dex == "meteora" else pools.orca_pool
+                    sell_pool = pools.orca_pool if sell_dex == "orca" else pools.meteora_pool
+                    
+                    if buy_pool and sell_pool:
+                        # Convert trade_size USD to lamports (assume 6 decimal USDC)
+                        amount_lamports = int(trade_size * 1_000_000)
+                        
+                        Logger.info(f"[HYBRID] ⚡ Using unified engine: {buy_dex}→{sell_dex}")
+                        
+                        unified_result = await self._unified_adapter.execute_atomic_arb(
+                            buy_dex=buy_dex,
+                            buy_pool=buy_pool,
+                            sell_dex=sell_dex,
+                            sell_pool=sell_pool,
+                            input_mint=opportunity.quote_mint,  # USDC
+                            output_mint=opportunity.base_mint,  # Target token
+                            amount_in=amount_lamports,
+                            slippage_bps=100,
+                        )
+                        
+                        # Record performance
+                        latency_ms = int((time.time() - start_time) * 1000)
+                        pool_index.record_execution(
+                            pair=opportunity.pair,
+                            dex=buy_dex,
+                            success=unified_result.success,
+                            latency_ms=latency_ms,
+                            error=unified_result.error if not unified_result.success else None
+                        )
+                        
+                        if unified_result.success:
+                            engine_used = "unified"
+                            result = type('Result', (), {
+                                'success': True,
+                                'signature': unified_result.signature,
+                                'error': None
+                            })()
+                        else:
+                            Logger.warning(f"[HYBRID] Unified failed: {unified_result.error}, falling back to Jupiter")
+                            
+            except Exception as e:
+                Logger.debug(f"[HYBRID] Unified engine error: {e}, using Jupiter")
+        
+        # ═══ FALLBACK: Use Jupiter via ArbitrageExecutor ═══
+        if result is None:
+            result = await self._executor.execute_spatial_arb(opportunity, trade_size)
         
         if result.success:
             # Use opportunity's calculated net profit (includes accurate fees)
@@ -803,7 +864,8 @@ class PhantomArbiter:
                 "profit": net_profit,
                 "fees": opportunity.estimated_fees_usd,
                 "timestamp": time.time(),
-                "mode": "LIVE" if self.config.live_mode else "PAPER"
+                "mode": "LIVE" if self.config.live_mode else "PAPER",
+                "engine": engine_used
             })
             
             return {
@@ -813,7 +875,8 @@ class PhantomArbiter:
                     "net_profit": net_profit,
                     "spread_pct": opportunity.spread_pct,
                     "fees": opportunity.estimated_fees_usd,
-                    "mode": "LIVE" if self.config.live_mode else "PAPER"
+                    "mode": "LIVE" if self.config.live_mode else "PAPER",
+                    "engine": engine_used
                 },
                 "error": None
             }
