@@ -256,7 +256,12 @@ class PodManager:
                 priority -= 0.5  # Slight boost during cheap gas hours
             boosted_state[name] = priority
         
-        sorted_pods = sorted(self.state.items(), key=lambda x: boosted_state.get(x[0], x[1]["priority"]))
+        # Sort by priority first, then by last_scan timestamp (tie-breaker)
+        # This ensures that among equal-priority pods, the "oldest" scan gets selected
+        sorted_pods = sorted(
+            self.state.items(), 
+            key=lambda x: (boosted_state.get(x[0], x[1]["priority"]), x[1]["last_scan"])
+        )
         
         for name, state in sorted_pods:
             if now > state["cooldown_until"]:
