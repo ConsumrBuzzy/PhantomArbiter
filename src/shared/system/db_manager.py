@@ -715,6 +715,52 @@ class DBManager:
             if row and row['min_spread']:
                 return float(row['min_spread'])
             return 0.0
+    
+    def get_pair_performance(self, pair: str, hours: int = 24) -> dict:
+        """
+        V90.0: Get performance score for a pair used in smart cycling.
+        
+        Score = success_rate - quote_loss_rate + spread_bonus
+        Higher score = keep pair, low score = evict
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            pair_prefix = pair.split('/')[0]
+            
+            # Get fast-path stats
+            c.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successes,
+                AVG(spread_pct) as avg_spread,
+                AVG(profit_delta) as avg_delta
+            FROM fast_path_attempts 
+            WHERE pair LIKE ? AND timestamp > ?
+            """, (f"{pair_prefix}%", cutoff))
+            
+            row = c.fetchone()
+            
+            if not row or row['total'] == 0:
+                return {'score': 0.5, 'attempts': 0}  # Default for new pairs
+            
+            total = row['total']
+            success_rate = row['successes'] / total if total > 0 else 0
+            avg_spread = row['avg_spread'] or 0
+            avg_delta = row['avg_delta'] or 0
+            
+            # Score formula: success_rate (0-1) + spread_bonus (0-0.5) + delta_penalty
+            spread_bonus = min(0.5, avg_spread / 10)  # Up to 0.5 for 5%+ spreads
+            delta_penalty = min(0, avg_delta / 2)  # Negative if losing money
+            
+            score = success_rate + spread_bonus + delta_penalty
+            
+            return {
+                'score': max(0, min(1, score)),
+                'attempts': total,
+                'success_rate': success_rate,
+                'avg_spread': avg_spread,
+                'avg_delta': avg_delta
+            }
 
     # --- Pod State (Smart Rotation Persistence) ---
     

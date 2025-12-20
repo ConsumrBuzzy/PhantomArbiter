@@ -572,6 +572,44 @@ class PhantomArbiter:
                     except Exception as e:
                         Logger.debug(f"Discovery failed: {e}")
                 
+                # V90.0: Smart Pair Cycling - evict low performers when list grows too large
+                MAX_ACTIVE_PAIRS = 60
+                if len(self.config.pairs) > MAX_ACTIVE_PAIRS:
+                    try:
+                        from src.shared.system.db_manager import db_manager
+                        
+                        # Get performance scores for all pairs
+                        pair_scores = {}
+                        for pair_tuple in self.config.pairs:
+                            pair_name = pair_tuple[0]
+                            # Score = success_rate + spread_avg - quote_loss_rate
+                            stats = db_manager.get_pair_performance(pair_name) if hasattr(db_manager, 'get_pair_performance') else None
+                            if stats:
+                                pair_scores[pair_name] = stats.get('score', 0)
+                            else:
+                                # Default score for new pairs (give them a chance)
+                                pair_scores[pair_name] = 0.5
+                        
+                        # Keep top performers + all discovered in last hour
+                        one_hour_ago = time.time() - 3600
+                        keep_pairs = []
+                        evict_pairs = []
+                        
+                        sorted_pairs = sorted(self.config.pairs, key=lambda p: pair_scores.get(p[0], 0), reverse=True)
+                        
+                        for pair_tuple in sorted_pairs:
+                            if len(keep_pairs) < MAX_ACTIVE_PAIRS:
+                                keep_pairs.append(pair_tuple)
+                            else:
+                                evict_pairs.append(pair_tuple[0])
+                        
+                        if evict_pairs:
+                            self.config.pairs = keep_pairs
+                            print(f"   [{now}] 🔄 Cycled: -{len(evict_pairs)} stale pairs, keeping {len(keep_pairs)}")
+                            
+                    except Exception as e:
+                        Logger.debug(f"Pair cycling error: {e}")
+                
                 # Live mode maintenance
                 if self.config.live_mode and self._wallet:
                     await self._wallet.check_and_replenish_gas(self._swapper)
