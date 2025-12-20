@@ -147,9 +147,10 @@ class MeteoraBridge:
             pool=data.get("pool", pool_address),
             token_x=data.get("tokenX", ""),
             token_y=data.get("tokenY", ""),
-            price_x_to_y=data.get("priceXtoY", 0.0),
-            price_y_to_x=data.get("priceYtoX", 0.0),
-            active_bin_id=data.get("activeBinId", 0),
+            # Handle string prices from JSON (BigInt serialization)
+            price_x_to_y=float(data.get("priceXtoY", 0)),
+            price_y_to_x=float(data.get("priceYtoX", 0)),
+            active_bin_id=int(data.get("activeBinId", 0)),
             error=data.get("error")
         )
         
@@ -255,27 +256,12 @@ class MeteoraBridge:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# KNOWN METEORA DLMM POOLS
-# ═══════════════════════════════════════════════════════════════════
-
-# Common DLMM pools for arbitrage
-# Verified from: https://dlmm-api.meteora.ag/pair/all
-METEORA_POOLS = {
-    # Format: "PAIR": ("POOL_ADDRESS", BIN_STEP)
-    # SOL/USDC - bin step 10 (tighter spreads, more common)
-    "SOL/USDC": "L2unwYfS6reFe7yqC4LwY7e4pEru23rE8rA7fX7e1e6",
-    # SOL/USDC - bin step 100 (wider spreads, more stable)
-    "SOL/USDC_100": "ARwi1S4DaiTG5DX7S4M4ZsrXqpMD1MrTmbu9ue2tpmEq",
-    # USDC/USDT - bin step 2 (stables, very tight)
-    "USDC/USDT": "6L689vto58p4fPMe3qT6nKxPz8zG5mC99vWscEym89G6",
-}
-
-
-# ═══════════════════════════════════════════════════════════════════
 # TEST
 # ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    from src.shared.execution.pool_fetcher import MeteoraPoolFetcher
+    
     print("=" * 60)
     print("Meteora DLMM Bridge Test")
     print("=" * 60)
@@ -284,23 +270,33 @@ if __name__ == "__main__":
     
     if not bridge.is_available():
         print("❌ Bridge not available. Run:")
-        print("   cd bridges && npm install && npm run build")
+        print("   cd bridges; npm install; npm run build")
         exit(1)
     
-    print("\n1. Testing price fetch...")
+    # Dynamically fetch valid pool
+    print("\n1. Fetching valid pool from Meteora API...")
+    fetcher = MeteoraPoolFetcher()
+    best_pool = fetcher.get_best_pool("SOL", "USDC", min_liquidity=50000)
     
-    # Test with SOL/USDC pool
-    pool = METEORA_POOLS.get("SOL/USDC")
-    if pool:
-        result = bridge.get_price(pool)
-        if result.success:
-            print(f"   ✅ Price fetched!")
-            print(f"   Token X: {result.token_x[:16]}...")
-            print(f"   Token Y: {result.token_y[:16]}...")
-            print(f"   Price X→Y: {result.price_x_to_y:.6f}")
-            print(f"   Active Bin: {result.active_bin_id}")
-        else:
-            print(f"   ❌ Error: {result.error}")
+    if not best_pool:
+        print("   ❌ Could not find SOL/USDC pool")
+        exit(1)
+    
+    print(f"   ✅ Found: {best_pool.name}")
+    print(f"   Address: {best_pool.address}")
+    print(f"   Liquidity: ${best_pool.liquidity:,.0f}")
+    
+    print("\n2. Testing price fetch via bridge...")
+    result = bridge.get_price(best_pool.address)
+    
+    if result.success:
+        print(f"   ✅ Price fetched!")
+        print(f"   Token X: {result.token_x[:16]}...")
+        print(f"   Token Y: {result.token_y[:16]}...")
+        print(f"   Price X→Y: {result.price_x_to_y:.6f}")
+        print(f"   Active Bin: {result.active_bin_id}")
+    else:
+        print(f"   ❌ Error: {result.error}")
     
     print("\n" + "=" * 60)
     print("Test complete!")
