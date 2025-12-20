@@ -273,6 +273,21 @@ class DBManager:
             """)
             c.execute("CREATE INDEX IF NOT EXISTS idx_cycle_pod ON cycle_timing(pod_name)")
 
+            # Spread Decay (for learning decay velocity per token)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS spread_decay (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pair TEXT NOT NULL,
+                initial_spread REAL,
+                final_spread REAL,
+                decay_pct REAL,
+                time_delta_sec REAL,
+                decay_per_sec REAL,
+                timestamp INTEGER NOT NULL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_decay_pair ON spread_decay(pair)")
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
