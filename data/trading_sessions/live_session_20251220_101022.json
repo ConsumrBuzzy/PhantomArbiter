@@ -1,0 +1,17 @@
+{
+  "mode": "live",
+  "starting_balance": 93.691134,
+  "ending_balance": 0.0,
+  "total_profit": 0.332438,
+  "total_trades": 1,
+  "roi_pct": -100.0,
+  "trades": [
+    {
+      "pair": "PIPPIN/USDC",
+      "profit": 0.332438,
+      "fees": 0.851219653295103,
+      "timestamp": 1766243029.0982351,
+      "mode": "LIVE"
+    }
+  ]
+}
