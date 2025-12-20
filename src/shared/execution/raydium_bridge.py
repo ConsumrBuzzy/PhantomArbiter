@@ -293,8 +293,22 @@ class RaydiumBridge:
         if len(token_b) < 30:
             mint_b = Settings.ASSETS.get(token_b.upper(), token_b)
         
-        result = self._run_command("discover", mint_a, mint_b, timeout=15)
-        return result
+        # Use direct subprocess for discovery (not supported in daemon yet)
+        try:
+            cmd = ["node", str(self.bridge_path), "discover", mint_a, mint_b]
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(self.bridge_path.parent)
+            )
+            if proc.stdout:
+                return json.loads(proc.stdout.strip())
+        except Exception as e:
+            Logger.error(f"[RAYDIUM] Discover error: {e}")
+            return None
+        return None
     
     def fetch_api_quote(
         self,
