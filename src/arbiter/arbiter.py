@@ -938,6 +938,27 @@ class PhantomArbiter:
                      # but maybe a small summary if spread was high?
                      pass
                 
+                # ═══════════════════════════════════════════════════════════════
+                # LANDLORD: Delta-neutral yield farming on idle capital
+                # If no execution happened this cycle, tick the Landlord
+                # ═══════════════════════════════════════════════════════════════
+                if self._landlord and self.config.live_mode:
+                    try:
+                        # Determine if we had an arb opportunity (to close hedge for)
+                        has_arb = bool(valid_opps and len(valid_opps) > 0)
+                        
+                        # Calculate spot inventory value
+                        inventory_usd = self.current_balance
+                        
+                        # Tick the Landlord (will open/close/monitor hedges)
+                        landlord_result = await self._landlord.tick(inventory_usd, arb_opportunity=has_arb)
+                        
+                        if landlord_result.get("action") == "OPEN_HEDGE":
+                            Logger.info(f"[LANDLORD] 🏠 Opened hedge: {landlord_result}")
+                        elif landlord_result.get("action") == "CLOSE_FOR_ARB":
+                            Logger.info(f"[LANDLORD] 📉 Closed hedge for arb opportunity")
+                    except Exception as e:
+                        Logger.debug(f"[LANDLORD] Tick error: {e}")
                 # Smart Sleep: Wait for interval OR WSS trigger
                 try:
                     await asyncio.wait_for(wake_event.wait(), timeout=current_interval)
