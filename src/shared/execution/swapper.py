@@ -64,23 +64,32 @@ class JupiterSwapper:
             amount_atomic = int(amount_usd * 1_000_000)
         else:
             # SELL Direction (With HODL Protection)
-            token_info = self.wallet.get_token_info(mint)
-            if not token_info: 
-                Logger.error("❌ Sell Failed: No Balance helper")
-                return {"success": False, "error": "No balance helper"}
+            SOL_MINT = "So11111111111111111111111111111111111111112"
             
-            avail_atomic = int(token_info["amount"])
+            if mint == SOL_MINT:
+                avail_atomic = int(self.wallet.get_sol_balance() * 1_000_000_000)
+                ui_amount = self.wallet.get_sol_balance()
+            else:
+                token_info = self.wallet.get_token_info(mint)
+                if not token_info: 
+                    Logger.error(f"❌ Sell Failed: No Balance helper for {mint[:6]}")
+                    return {"success": False, "error": "No balance helper"}
+                avail_atomic = int(token_info["amount"])
+                ui_amount = float(token_info["uiAmount"])
             
             if override_atomic_amount:
                 # Sell EXACTLY what we bought (Protection)
                 amount_atomic = min(avail_atomic, int(override_atomic_amount))
                 Logger.info(f"📉 SELLING Acquired Amount: {amount_atomic} units (HODL Protected)")
             elif amount_usd > 0:
-                 # Start with ALL if no atomic override provided (Fallback)
+                 # Calculate atomic from USD if requested
+                 # We don't have price here, so we sell ALL as fallback if amount_usd is set but no atomic
+                 # Actually, if amount_usd is set, we should probably try to calculate units.
+                 # For now, let's just sell all if amount_usd is set but no atomic override.
                  amount_atomic = avail_atomic 
             else:
                  amount_atomic = avail_atomic
-                 Logger.info(f"📉 SELLING Entire Bag: {float(token_info['uiAmount']):.4f} tokens")
+                 Logger.info(f"📉 SELLING Entire Bag: {ui_amount:.4f} units")
                  
         SLIPPAGE_TIERS = Settings.ADAPTIVE_SLIPPAGE_TIERS
         Logger.info(f"🚀 EXECUTION: {direction} ${amount_usd} ({reason})")
