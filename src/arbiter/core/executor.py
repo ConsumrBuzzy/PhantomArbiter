@@ -549,14 +549,58 @@ class ArbitrageExecutor:
             signed_buy = VersionedTransaction(buy_tx.message, [self.wallet.keypair])
             signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
             
-            # Encode for Jito bundle
+            # ═══ CREATE TIP TRANSACTION ═══
+            # Jito requires a SOL transfer to a tip account in the bundle
+            from solders.system_program import TransferParams, transfer
+            from solders.message import MessageV0
+            from solders.pubkey import Pubkey
+            from solders.hash import Hash
+            import httpx
             import base58
-            buy_b58 = base58.b58encode(bytes(signed_buy)).decode()
-            sell_b58 = base58.b58encode(bytes(signed_sell)).decode()
             
-            # Submit as atomic bundle
-            Logger.info("[EXEC] 🚀 Submitting Jito bundle (both legs)...")
-            bundle_id = self.jito.submit_bundle([buy_b58, sell_b58])
+            # Get random tip account from Jito
+            tip_account = self.jito.get_random_tip_account()
+            if not tip_account:
+                Logger.warning("[EXEC] No Jito tip account available, falling back to sequential")
+                # Return None to trigger sequential fallback
+                return {"success": False, "error": "No Jito tip account available", "legs": []}
+            
+            Logger.info(f"[EXEC] 💰 Using tip account: {tip_account[:16]}...")
+            
+            # Create tip transfer instruction (10,000 lamports ≈ $0.002)
+            TIP_AMOUNT_LAMPORTS = 10000
+            tip_ix = transfer(TransferParams(
+                from_pubkey=self.wallet.keypair.pubkey(),
+                to_pubkey=Pubkey.from_string(tip_account),
+                lamports=TIP_AMOUNT_LAMPORTS
+            ))
+            
+            # Get recent blockhash for tip tx
+            async with httpx.AsyncClient() as client:
+                rpc_resp = await client.post(
+                    "https://api.mainnet-beta.solana.com",
+                    json={"jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash"},
+                    timeout=10
+                )
+                blockhash_data = rpc_resp.json()
+                recent_blockhash = blockhash_data.get("result", {}).get("value", {}).get("blockhash")
+            
+            if not recent_blockhash:
+                return {"success": False, "error": "Failed to get blockhash for tip tx", "legs": []}
+            
+            # Build tip transaction
+            tip_msg = MessageV0.try_compile(
+                payer=self.wallet.keypair.pubkey(),
+                instructions=[tip_ix],
+                address_lookup_table_accounts=[],
+                recent_blockhash=Hash.from_string(recent_blockhash)
+            )
+            tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
+            tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
+            
+            # Submit bundle with tip tx included
+            Logger.info("[EXEC] 🚀 Submitting Jito bundle (buy + sell + tip)...")
+            bundle_id = self.jito.submit_bundle([buy_b58, sell_b58, tip_b58])
             
             if not bundle_id:
                 return {"success": False, "error": "Jito bundle submission failed", "legs": []}
