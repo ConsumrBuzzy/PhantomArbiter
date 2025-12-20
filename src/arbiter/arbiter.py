@@ -288,7 +288,7 @@ class PhantomArbiter:
                 elif "LIQ" in status:
                      status = "❌ LIQ" # Shorten for table
                 
-        else:
+            else:
                 # Use Scan data + NearMissAnalyzer for nuanced status
                 net_profit = opp.net_profit_usd
                 spread_pct = opp.spread_pct
