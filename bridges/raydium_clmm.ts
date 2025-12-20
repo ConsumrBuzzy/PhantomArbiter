@@ -105,6 +105,81 @@ async function initRaydium(connection: Connection, owner?: Keypair): Promise<Ray
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// DISCOVER: Find CLMM pool ID from token mints via Raydium V3 API
+// This is the safety-first approach that prevents "pool not found" errors
+// ═══════════════════════════════════════════════════════════════════
+
+interface DiscoverResult {
+    success: boolean;
+    poolId: string;
+    mintA: string;
+    mintB: string;
+    tvl: number;
+    volume24h: number;
+    feeRate: number;
+    error?: string;
+}
+
+async function discoverPool(mintA: string, mintB: string): Promise<DiscoverResult> {
+    try {
+        const url = `https://api-v3.raydium.io/pools/info/mint?mint1=${mintA}&mint2=${mintB}&poolType=clmm&poolSortField=default&sortType=desc&pageSize=1&page=1`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            return {
+                success: false,
+                poolId: '',
+                mintA,
+                mintB,
+                tvl: 0,
+                volume24h: 0,
+                feeRate: 0,
+                error: `API error: ${response.status}`
+            };
+        }
+
+        const data = await response.json() as any;
+
+        if (!data.success || !data.data || data.data.count === 0) {
+            return {
+                success: false,
+                poolId: '',
+                mintA,
+                mintB,
+                tvl: 0,
+                volume24h: 0,
+                feeRate: 0,
+                error: 'No CLMM pool found for this token pair'
+            };
+        }
+
+        const pool = data.data.data[0];
+
+        return {
+            success: true,
+            poolId: pool.id,
+            mintA: pool.mintA?.address || mintA,
+            mintB: pool.mintB?.address || mintB,
+            tvl: pool.tvl || 0,
+            volume24h: pool.day?.volume || 0,
+            feeRate: pool.feeRate || 0
+        };
+
+    } catch (error: any) {
+        return {
+            success: false,
+            poolId: '',
+            mintA,
+            mintB,
+            tvl: 0,
+            volume24h: 0,
+            feeRate: 0,
+            error: error.message || String(error)
+        };
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // PRICE: Get current pool price from RPC
 // ═══════════════════════════════════════════════════════════════════
 async function getPrice(poolAddress: string): Promise<PriceResult> {
