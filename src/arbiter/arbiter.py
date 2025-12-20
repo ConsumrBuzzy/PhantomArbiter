@@ -665,10 +665,31 @@ class PhantomArbiter:
                             
                             # Sort by score descending
                             ranked_pairs.sort(key=lambda x: x[1], reverse=True)
-                            self.config.pairs = [x[0] for x in ranked_pairs[:15]] # Limit to 15 best
                             
-                        except Exception:
-                             self.config.pairs = scan_pairs[:15] # Fallback
+                            # V91.1: Guard Watcher Pairs (Force Include)
+                            final_pairs = []
+                            watch_set = set(watch_pairs) if watch_pairs else set()
+                            
+                            # 1. Add Watchers first
+                            included_indices = set()
+                            for i, (p, score) in enumerate(ranked_pairs):
+                                if p[0] in watch_set:
+                                    final_pairs.append(p)
+                                    included_indices.add(i)
+                            
+                            # 2. Fill to limit (8) with best remaining
+                            limit = 8 # V91.2: Reduced for speed (was 15)
+                            for i, (p, score) in enumerate(ranked_pairs):
+                                if len(final_pairs) >= limit:
+                                    break
+                                if i not in included_indices:
+                                    final_pairs.append(p)
+                                    
+                            self.config.pairs = final_pairs
+                            
+                        except Exception as e:
+                             Logger.debug(f"Ranking error: {e}")
+                             self.config.pairs = scan_pairs[:8] # Fallback
                         
                     
                         # ML FILTER: Skip tokens with >80% LIQ failure rate
