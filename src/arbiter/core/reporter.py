@@ -165,7 +165,7 @@ class ArbiterReporter:
         
         # Send to Telegram
         if self.telegram:
-            self.telegram.send_message(
+            self.telegram.send_alert(
                  f"🏁 <b>Session Ended</b>\n"
                  f"Runtime: {duration:.1f} min\n"
                  f"Profit: ${profit:+.4f} (ROI: {roi:+.2f}%)\n"

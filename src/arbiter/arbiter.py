@@ -35,7 +35,8 @@ from src.arbiter.core.reporter import ArbiterReporter
 from src.arbiter.core.pod_engine import (
     USDC_MINT, SOL_MINT,
     CORE_PAIRS, TRENDING_PAIRS,
-    ALL_PODS, pod_manager
+    ALL_PODS, pod_manager,
+    _build_pairs_from_pods
 )
 
 
