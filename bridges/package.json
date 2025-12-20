@@ -7,7 +7,8 @@
         "build": "npx esbuild execution_engine.ts --bundle --platform=node --outfile=execution_engine.js --external:@solana/web3.js --external:@coral-xyz/anchor",
         "build:meteora": "npx esbuild meteora_dlmm.ts --bundle --platform=node --outfile=meteora_bridge.js --external:@solana/web3.js",
         "build:raydium": "npx esbuild raydium_daemon.ts --bundle --platform=node --outfile=raydium_daemon.js --external:@solana/web3.js",
-        "build:all": "npm run build && npm run build:meteora && npm run build:raydium",
+        "build:orca": "npx esbuild orca_daemon.ts --bundle --platform=node --outfile=orca_daemon.js --external:@solana/web3.js",
+        "build:all": "npm run build && npm run build:meteora && npm run build:raydium && npm run build:orca",
         "build:prod": "npx esbuild execution_engine.ts --bundle --platform=node --minify --outfile=execution_engine.js"
     },
     "dependencies": {

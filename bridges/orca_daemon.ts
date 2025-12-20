@@ -12,8 +12,7 @@ import {
     ORCA_WHIRLPOOL_PROGRAM_ID,
     PDAUtil,
     PriceMath,
-    swapQuoteByInputToken,
-    IGeneralTokenAccountInfo
+    swapQuoteByInputToken
 } from "@orca-so/whirlpools-sdk";
 import { DecimalUtil, Percentage } from "@orca-so/common-sdk";
 import { Decimal } from "decimal.js";
