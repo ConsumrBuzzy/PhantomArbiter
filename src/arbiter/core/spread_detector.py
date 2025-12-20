@@ -355,7 +355,13 @@ class SpreadDetector:
                 if decay_velocity > 0:
                     exec_window = db_manager.get_avg_cycle_time() / 1000 if db_manager.get_avg_cycle_time() > 0 else 3.0
                     exec_window = min(exec_window, 10.0)
-                    decay_cost = trade_size * (decay_velocity * exec_window / 100)
+                    
+                    # Dampen penalty for established tokens (trust them more)
+                    token_base = pair_name.split('/')[0] if '/' in pair_name else pair_name
+                    ESTABLISHED = {'SOL', 'USDC', 'USDT', 'BONK', 'RAY', 'JUP', 'ORCA', 'WIF', 'JTO', 'PYTH'}
+                    decay_multiplier = 0.3 if token_base in ESTABLISHED else 1.0
+                    
+                    decay_cost = trade_size * (decay_velocity * exec_window / 100) * decay_multiplier
             except:
                 pass
             
