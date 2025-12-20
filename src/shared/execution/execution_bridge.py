@@ -236,7 +236,7 @@ class ExecutionBridge:
         legs: List[SwapLeg],
         private_key: str,
         priority_fee: Optional[int] = None,
-        use_jito: bool = False,
+        jito_tip_lamports: int = 0,
     ) -> ExecutionResult:
         """
         Execute atomic multi-leg swap.
@@ -247,7 +247,7 @@ class ExecutionBridge:
             legs: List of SwapLeg objects (executed atomically)
             private_key: Base58-encoded wallet private key
             priority_fee: Priority fee in microlamports per CU (default: 50,000)
-            use_jito: Use Jito bundles for MEV protection (not yet implemented)
+            jito_tip_lamports: Tip for Jito bundles (0 = no tip, 10000+ recommended)
             
         Returns:
             ExecutionResult with transaction signature
@@ -258,7 +258,7 @@ class ExecutionBridge:
             "command": "swap",
             "legs": [leg.to_dict() for leg in legs],
             "privateKey": private_key,
-            "useJito": use_jito,
+            "jitoTipLamports": jito_tip_lamports,
         }
         
         if priority_fee is not None:
