@@ -872,6 +872,12 @@ class PhantomArbiter:
                     # Update adaptive interval based on results (no redundant RPC call)
                     if adaptive_mode and monitor:
                         current_interval = monitor.update(all_spreads)
+                    
+                    # Report results to PodManager for priority updates
+                    if self._smart_pods_enabled and active_pod_names:
+                        found_opp = len(opportunities) > 0
+                        for pod_name in active_pod_names:
+                            pod_manager.report_result(pod_name, found_opportunity=found_opp, executed=False, success=False)
                         
                 except Exception as e:
                     Logger.debug(f"Scan error: {e}")
