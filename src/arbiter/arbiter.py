@@ -670,9 +670,10 @@ class PhantomArbiter:
                 # Sort by NET PROFIT (descending) - prioritize actually profitable opportunities
                 raw_opps = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)
                 
-                # Check Top 3 Candidates for Real Liquidity (IN PARALLEL)
+                # Check Top 6 Candidates for Real Liquidity (IN PARALLEL)
+                # increased from 3 to 6 to ensure we catch SOL pairs if USDC pairs fail
                 candidates = []
-                for opp in raw_opps[:3]:
+                for opp in raw_opps[:6]:
                     if time.time() - last_trade_time.get(opp.pair, 0) >= cooldown:
                         candidates.append(opp)
                 
