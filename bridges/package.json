@@ -11,7 +11,7 @@
         "build:prod": "npx esbuild execution_engine.ts --bundle --platform=node --minify --outfile=execution_engine.js"
     },
     "dependencies": {
-        "@raydium-io/raydium-sdk-v2": "^0.1.0",
+        "@raydium-io/raydium-sdk-v2": "^0.2.31-alpha",
         "@meteora-ag/dlmm": "^1.0.0",
         "@orca-so/whirlpools-sdk": "^0.13.0",
         "@coral-xyz/anchor": "^0.29.0",
