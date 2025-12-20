@@ -30,6 +30,7 @@ from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 # CONSTANTS
 # ═══════════════════════════════════════════════════════════════════
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+SOL_MINT = "So11111111111111111111111111111111111111112"
 
 # ═══════════════════════════════════════════════════════════════════
 # TRADING PAIRS BY RISK TIER
@@ -37,7 +38,7 @@ USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
 # LOW RISK: Blue chips, high liquidity, tight spreads (0.05-0.3%)
 LOW_RISK_PAIRS = [
-    ("SOL/USDC", "So11111111111111111111111111111111111111112", USDC_MINT),
+    ("SOL/USDC", SOL_MINT, USDC_MINT),
     ("JUP/USDC", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", USDC_MINT),
     ("RAY/USDC", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", USDC_MINT),
     ("ORCA/USDC", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE", USDC_MINT),
@@ -63,20 +64,41 @@ HIGH_RISK_PAIRS = [
     ("COPE/USDC", "8HGyAAB1yoM1ttS7pXjHMa3dukTFGQggnFFH3hJZgzQh", USDC_MINT),
 ]
 
-# TRENDING: High-volatility Dec 2025 targets - pump.fun graduates with 1.5-5%+ spreads
-# These have narrative volatility creating DEX price divergence
-TRENDING_PAIRS = [
-    # TRUMP: Political narrative drives massive price swings between DEXs
-    ("TRUMP/USDC", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN", USDC_MINT),
-    # MOODENG: Top-tier meme with sudden dip spreads
-    ("MOODENG/USDC", "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY", USDC_MINT),
-    # CHILLGUY: TikTok viral momentum = lagging small DEX prices
-    ("CHILLGUY/USDC", "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump", USDC_MINT),
-    # FARTCOIN: Meteora bin volatility = zero-slippage atomic flips
-    ("FART/USDC", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdBbgpump", USDC_MINT),
-    # PNUT: $1B+ cap = 0% price impact on $30 trades
-    ("PNUT/USDC", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump", USDC_MINT),
+# ═══════════════════════════════════════════════════════════════════
+# TRENDING: High-volatility Dec 2025 - Pump.fun graduates with 1.5-5%+ spreads
+# Includes BOTH USDC and SOL pairs for deeper liquidity access
+# ═══════════════════════════════════════════════════════════════════
+
+# AI & Narrative Tier (High spreads, news-driven)
+_AI_TOKENS = [
+    ("GOAT", "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump"),      # Goatseus Maximus
+    ("ACT", "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump"),       # AI Prophecy
+    ("AI16Z", "4ptu2LhxRTERJNJWqnYZ681srxquMBumTHD3XQvDRTjt"),     # AI16Z
+    ("FARTCOIN", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"), # Meteora bin volatility
 ]
+
+# Viral Meme Tier (High volume, zero $30 impact)
+_MEME_TOKENS = [
+    ("PNUT", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"),      # Peanut Squirrel
+    ("MOODENG", "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY"),   # Moo Deng
+    ("CHILLGUY", "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump"),  # TikTok viral
+    ("PENGU", "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv"),     # Pudgy Penguins
+    ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),    # Popcat
+]
+
+# Heavy-Hitter Tier (Strategic targets)
+_HEAVY_TOKENS = [
+    ("PIPPIN", "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump"),    # Pippin
+    ("TRUMP", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN"),     # Official Trump
+    ("FWOG", "A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump"),      # Fwog
+    ("GIGA", "8v8GSr4p7Gz8xw6nF22m1LSfSgY7T2nBv2nK3y7f3z6A"),      # Gigachad
+]
+
+# Build TRENDING_PAIRS with BOTH USDC and SOL quote currencies
+TRENDING_PAIRS = []
+for symbol, mint in _AI_TOKENS + _MEME_TOKENS + _HEAVY_TOKENS:
+    TRENDING_PAIRS.append((f"{symbol}/USDC", mint, USDC_MINT))
+    TRENDING_PAIRS.append((f"{symbol}/SOL", mint, SOL_MINT))
 
 # Combined default - all pairs for maximum opportunity scanning
 CORE_PAIRS = LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS + TRENDING_PAIRS
