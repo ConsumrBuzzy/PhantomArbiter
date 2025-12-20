@@ -218,6 +218,19 @@ class DBManager:
             c.execute("CREATE INDEX IF NOT EXISTS idx_fastpath_pair ON fast_path_attempts(pair)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_fastpath_success ON fast_path_attempts(success)")
 
+            # Pod State (for smart rotation persistence)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS pod_state (
+                pod_name TEXT PRIMARY KEY,
+                priority REAL NOT NULL,
+                success_count INTEGER DEFAULT 0,
+                fail_count INTEGER DEFAULT 0,
+                best_spread REAL DEFAULT 0,
+                last_scan INTEGER DEFAULT 0,
+                updated_at INTEGER NOT NULL
+            )
+            """)
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
@@ -593,6 +606,42 @@ class DBManager:
             if row and row['min_spread']:
                 return float(row['min_spread'])
             return 0.0
+
+    # --- Pod State (Smart Rotation Persistence) ---
+    
+    def save_pod_state(self, pod_name: str, state: dict):
+        """Save pod state for persistence across restarts."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT OR REPLACE INTO pod_state 
+                (pod_name, priority, success_count, fail_count, best_spread, last_scan, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pod_name,
+                state.get('priority', 1),
+                state.get('success_count', 0),
+                state.get('fail_count', 0),
+                state.get('best_spread', 0),
+                state.get('last_scan', 0),
+                int(time.time())
+            ))
+    
+    def load_all_pod_states(self) -> dict:
+        """Load all pod states from DB."""
+        result = {}
+        with self.cursor() as c:
+            c.execute("SELECT * FROM pod_state")
+            rows = c.fetchall()
+            for row in rows:
+                result[row['pod_name']] = {
+                    'priority': row['priority'],
+                    'success_count': row['success_count'],
+                    'fail_count': row['fail_count'],
+                    'best_spread': row['best_spread'],
+                    'last_scan': row['last_scan'],
+                    'cooldown_until': 0,  # Reset cooldown on restart
+                }
+        return result
 
 # Global Accessor
 db_manager = DBManager()
