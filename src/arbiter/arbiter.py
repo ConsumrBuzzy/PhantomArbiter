@@ -900,9 +900,10 @@ class PhantomArbiter:
                     
                     # Check for scaled size
                     exec_size = trade_size
-                    if "SCALED" in best_opp.verification_status:
+                    status_str = str(best_opp.verification_status or "")
+                    if "SCALED" in status_str:
                         import re
-                        match = re.search(r'\$(\d+)', best_opp.verification_status)
+                        match = re.search(r'\$(\d+)', status_str)
                         if match:
                             exec_size = float(match.group(1))
                             # Skip if liquidity is too thin (< $10)
