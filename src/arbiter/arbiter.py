@@ -772,7 +772,7 @@ class PhantomArbiter:
                     scan_duration_ms = (time.time() - scan_start) * 1000
                     self._last_duration = scan_duration_ms  # V92.0: Feed into adaptive sizing
                     
-                    if verbose:
+                    if should_print:
                         print(f"   ⏱️ Scan: {scan_duration_ms:.0f}ms | Batch: {self._batch_size} pairs")
                     
                     # Log cycle timing for ML optimization
