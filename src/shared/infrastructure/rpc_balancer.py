@@ -109,7 +109,7 @@ class RPCBalancer:
         result = balancer.call("getAccountInfo", [mint, {"encoding": "jsonParsed"}])
     """
     
-    REQUEST_TIMEOUT = 10  # seconds
+    REQUEST_TIMEOUT = 3.0  # seconds (V92.2 reduced from 10s for speed)
     MAX_RETRIES = 3       # max providers to try per request
     
     def __init__(self):
