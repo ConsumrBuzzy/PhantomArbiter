@@ -461,12 +461,33 @@ class ExecutionEngine {
 
             // ═══ LIVE EXECUTION ═══
             // Simulation passed - safe to send
-            const signature = await sendAndConfirmTransaction(
-                this.connection,
-                tx,
-                [this.wallet!],
-                { commitment: 'confirmed', maxRetries: 3 }
-            );
+            // Prefer Helius Sender (free 15 TPS) over standard RPC
+            let signature: string;
+
+            if (HELIUS_SENDER_URL) {
+                // Use Helius for faster, rate-limit-free sending
+                signature = await this.sendViaHelius(tx);
+                // Wait for confirmation
+                const confirmed = await this.confirmTransaction(signature);
+                if (!confirmed) {
+                    return {
+                        success: false,
+                        command: 'swap',
+                        signature,
+                        legs: legResults,
+                        error: 'Transaction not confirmed within timeout',
+                        timestamp,
+                    };
+                }
+            } else {
+                // Fallback to standard RPC
+                signature = await sendAndConfirmTransaction(
+                    this.connection,
+                    tx,
+                    [this.wallet!],
+                    { commitment: 'confirmed', maxRetries: 3 }
+                );
+            }
 
             return {
                 success: true,
