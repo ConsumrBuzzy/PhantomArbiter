@@ -120,7 +120,10 @@ interface DiscoverResult {
     error?: string;
 }
 
-async function discoverPool(mintA: string, mintB: string): Promise<DiscoverResult> {
+async function discoverPoolViaRaydiumV3(mintA: string, mintB: string): Promise<DiscoverResult> {
+    /**
+     * Primary discovery via Raydium V3 API.
+     */
     try {
         const url = `https://api-v3.raydium.io/pools/info/mint?mint1=${mintA}&mint2=${mintB}&poolType=clmm&poolSortField=default&sortType=desc&pageSize=1&page=1`;
 
@@ -134,7 +137,7 @@ async function discoverPool(mintA: string, mintB: string): Promise<DiscoverResul
                 tvl: 0,
                 volume24h: 0,
                 feeRate: 0,
-                error: `API error: ${response.status}`
+                error: `Raydium V3 API error: ${response.status}`
             };
         }
 
@@ -149,7 +152,7 @@ async function discoverPool(mintA: string, mintB: string): Promise<DiscoverResul
                 tvl: 0,
                 volume24h: 0,
                 feeRate: 0,
-                error: 'No CLMM pool found for this token pair'
+                error: 'No CLMM pool found via Raydium V3'
             };
         }
 
@@ -174,9 +177,120 @@ async function discoverPool(mintA: string, mintB: string): Promise<DiscoverResul
             tvl: 0,
             volume24h: 0,
             feeRate: 0,
-            error: error.message || String(error)
+            error: `Raydium V3: ${error.message || String(error)}`
         };
     }
+}
+
+async function discoverPoolViaDexScreener(mintA: string, mintB: string): Promise<DiscoverResult> {
+    /**
+     * Fallback discovery via DexScreener API.
+     * Searches for Raydium CLMM pools containing both mints.
+     */
+    try {
+        // Query DexScreener for the first mint
+        const url = `https://api.dexscreener.com/latest/dex/tokens/${mintA}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            return {
+                success: false,
+                poolId: '',
+                mintA,
+                mintB,
+                tvl: 0,
+                volume24h: 0,
+                feeRate: 0,
+                error: `DexScreener API error: ${response.status}`
+            };
+        }
+
+        const data = await response.json() as any;
+        const pairs = data.pairs || [];
+
+        // Filter for Raydium pairs containing both our mints
+        // CLMM pools typically have concentrated liquidity indicators
+        const raydiumPairs = pairs.filter((p: any) => {
+            if (p.dexId !== 'raydium') return false;
+            const base = p.baseToken?.address;
+            const quote = p.quoteToken?.address;
+            // Check if this pair contains both our mints
+            return (base === mintA && quote === mintB) ||
+                (base === mintB && quote === mintA);
+        });
+
+        if (raydiumPairs.length === 0) {
+            return {
+                success: false,
+                poolId: '',
+                mintA,
+                mintB,
+                tvl: 0,
+                volume24h: 0,
+                feeRate: 0,
+                error: 'No Raydium pool found via DexScreener'
+            };
+        }
+
+        // Select best pool by liquidity
+        const bestPair = raydiumPairs.sort((a: any, b: any) =>
+            (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
+        )[0];
+
+        return {
+            success: true,
+            poolId: bestPair.pairAddress,
+            mintA: bestPair.baseToken?.address || mintA,
+            mintB: bestPair.quoteToken?.address || mintB,
+            tvl: bestPair.liquidity?.usd || 0,
+            volume24h: bestPair.volume?.h24 || 0,
+            feeRate: 0 // DexScreener doesn't expose fee tier
+        };
+
+    } catch (error: any) {
+        return {
+            success: false,
+            poolId: '',
+            mintA,
+            mintB,
+            tvl: 0,
+            volume24h: 0,
+            feeRate: 0,
+            error: `DexScreener: ${error.message || String(error)}`
+        };
+    }
+}
+
+async function discoverPool(mintA: string, mintB: string): Promise<DiscoverResult> {
+    /**
+     * Discover CLMM pool with fallback strategy:
+     * 1. Try Raydium V3 API (primary)
+     * 2. Fallback to DexScreener if V3 fails
+     */
+
+    // Primary: Raydium V3 API
+    const v3Result = await discoverPoolViaRaydiumV3(mintA, mintB);
+    if (v3Result.success) {
+        return v3Result;
+    }
+
+    // Fallback: DexScreener API
+    const dexResult = await discoverPoolViaDexScreener(mintA, mintB);
+    if (dexResult.success) {
+        return dexResult;
+    }
+
+    // Both failed - return combined error
+    return {
+        success: false,
+        poolId: '',
+        mintA,
+        mintB,
+        tvl: 0,
+        volume24h: 0,
+        feeRate: 0,
+        error: `${v3Result.error} | ${dexResult.error}`
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════
