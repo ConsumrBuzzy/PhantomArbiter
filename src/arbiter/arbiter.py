@@ -868,8 +868,8 @@ class PhantomArbiter:
                 # ═══════════════════════════════════════════════════════════════
                 
                 # Execute Best Valid Opportunity
-                # Look for "LIVE" or "SCALED"
-                valid_opps = [op for op in verified_opps if op.verification_status and ("LIVE" in op.verification_status or "SCALED" in op.verification_status)]
+                # Look for "LIVE" or "SCALED" (Default to LIVE if status is None/Empty, consistent with Reporter)
+                valid_opps = [op for op in verified_opps if "LIVE" in str(op.verification_status or "LIVE") or "SCALED" in str(op.verification_status or "")]
                 
                 # DEBUG: Show what we found
                 if verified_opps:
