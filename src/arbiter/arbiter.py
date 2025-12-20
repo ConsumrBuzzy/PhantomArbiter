@@ -116,7 +116,7 @@ class ArbiterConfig:
     pairs: List[tuple] = field(default_factory=lambda: CORE_PAIRS)
     # Fast-path threshold (Option A: Conservative baseline)
     # Require +$0.12 at scan time to absorb typical ~$0.10 decay
-    fast_path_threshold: float = 0.12  # Must show 12 cents PROFIT at scan
+    fast_path_threshold: float = 0.10  # Must show 10 cents PROFIT at scan
 
 
 # Bootstrap defaults based on observed data (used until ML has enough samples)
