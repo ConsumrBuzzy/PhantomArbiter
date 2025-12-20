@@ -575,6 +575,7 @@ class PhantomArbiter:
         verbose: bool = True, 
         scanner: Optional[AdaptiveScanner] = None
     ) -> Tuple[List[SpreadOpportunity], List[SpreadOpportunity]]:
+        print(f"DEBUG: Entered scan_opportunities (Scanner: {scanner is not None})")
         """
         Scan for spatial arbitrage opportunities.
         
