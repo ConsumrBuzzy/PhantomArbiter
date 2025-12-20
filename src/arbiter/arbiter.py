@@ -568,12 +568,15 @@ class PhantomArbiter:
         
         return profitable, spreads
     
-    def _print_dashboard(self, spreads: List[SpreadOpportunity], verified_opps: List[SpreadOpportunity] = None):
+    def _print_dashboard(self, spreads: List[SpreadOpportunity], verified_opps: List[SpreadOpportunity] = None, pod_names: List[str] = None):
         """Print the market dashboard with merged verification status."""
         now = datetime.now().strftime("%H:%M:%S")
         
         # Verify map for O(1) lookup
         verified_map = {op.pair: op for op in (verified_opps or [])}
+        
+        # Pod info for display
+        pod_str = f" | Pod: {','.join(pod_names)}" if pod_names else ""
         
         # Clear line and print table header
         print(f"\n   [{now}] MARKET SCAN | Bal: ${self.current_balance:.2f} | Gas: ${self.gas_balance:.2f} | Day P/L: ${self.tracker.daily_profit:+.2f}")
@@ -626,7 +629,7 @@ class PhantomArbiter:
         # We wrap everything in a code block to avoid MarkdownV2 400 errors
         
         tg_table = [
-            f"[{now}] MARKET SCAN | P/L: ${self.tracker.daily_profit:+.2f}",
+            f"[{now}] SCAN{pod_str} | P/L: ${self.tracker.daily_profit:+.2f}",
             f"{'Pair':<11} {'Spread':<7} {'Net':<8} {'St'}",
             "-" * 33
         ]
