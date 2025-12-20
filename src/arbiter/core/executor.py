@@ -341,7 +341,6 @@ class ArbitrageExecutor:
                     return self._error_result("Failed to get buy quote", start_time)
                 
                 expected_tokens = int(buy_quote.get('outAmount', 0))
-                expected_usdc_back = int(sell_quote.get('outAmount', 0)) if 'sell_quote' in dir() else 0
                 
                 # 2. Get sell quote (using expected tokens from buy)
                 sell_quote = router.get_jupiter_quote(
@@ -365,11 +364,13 @@ class ArbitrageExecutor:
                 Logger.info(f"[EXEC] ✅ Quote verified: ${projected_profit_usd:+.4f} projected profit")
 
                 # 3. Execute atomically via Jito bundle (or sequential fallback)
-                if self.jito and self.jito.is_available():
+                jito_status = "READY" if self.jito and self.jito.is_available() else ("MISSING" if not self.jito else "OFFLINE")
+                
+                if jito_status == "READY":
                     Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
                     result = await self._execute_bundled_swaps(buy_quote, sell_quote)
                 else:
-                    Logger.warning("[EXEC] ⚠️ Jito unavailable - using sequential (flux risk!)")
+                    Logger.warning(f"[EXEC] ⚠️ Jito {jito_status} - using sequential (flux risk!)")
                     # Fallback to sequential
                     buy_result = await self._execute_swap(buy_quote)
                     if not buy_result.success:

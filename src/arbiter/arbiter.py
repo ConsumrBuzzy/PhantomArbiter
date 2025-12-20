@@ -24,6 +24,7 @@ from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
 from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
+from src.speed.jito_adapter import JitoAdapter
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -500,9 +501,11 @@ class PhantomArbiter:
                 raise ValueError("WalletManager failed to load keypair")
             
             self._swapper = JupiterSwapper(self._wallet)
+            self._jito = JitoAdapter()
             self._executor = ArbitrageExecutor(
                 wallet=self._wallet,
                 swapper=self._swapper,
+                jito_adapter=self._jito,
                 mode=ExecutionMode.LIVE
             )
             self._connected = True
