@@ -691,12 +691,24 @@ class PhantomArbiter:
                                     self._batch_size = max(2, self._batch_size - 1)
                             
                             # 2. Fill to adaptive limit with best remaining
-                            limit = self._batch_size
+                            # V92.1: Fix Starvation - Ensure at least 2 rotating pairs
+                            # even if watchers consume the whole batch budget.
+                            
+                            target_limit = self._batch_size
+                            slots_active = len(final_pairs)
+                            slots_remaining = target_limit - slots_active
+                            
+                            # Force at least 2 rotating pairs to keep discovery alive
+                            if slots_remaining < 2:
+                                slots_remaining = 2
+                                
+                            added_rotating = 0
                             for i, (p, score) in enumerate(ranked_pairs):
-                                if len(final_pairs) >= limit:
+                                if added_rotating >= slots_remaining:
                                     break
                                 if i not in included_indices:
                                     final_pairs.append(p)
+                                    added_rotating += 1
                                     
                             self.config.pairs = final_pairs
                             
@@ -759,6 +771,9 @@ class PhantomArbiter:
                     Logger.info(f"DEBUG: Scan returned {len(opportunities)} opps, {len(all_spreads)} spreads.")
                     scan_duration_ms = (time.time() - scan_start) * 1000
                     self._last_duration = scan_duration_ms  # V92.0: Feed into adaptive sizing
+                    
+                    if verbose:
+                        print(f"   ⏱️ Scan: {scan_duration_ms:.0f}ms | Batch: {self._batch_size} pairs")
                     
                     # Log cycle timing for ML optimization
                     if self._smart_pods_enabled and active_pod_names:

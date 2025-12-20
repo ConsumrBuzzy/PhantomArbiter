@@ -384,7 +384,7 @@ class SpreadDetector:
             # Need at least 2 feeds for spread comparison
             # Fall back to sequential scan
             # DEBUG: Why sequential?
-            # print(f"DEBUG: Falling back to sequential (Feeds: {len(feed_prices)} - {list(feed_prices.keys())})")
+            print(f"DEBUG: Falling back to sequential (Feeds: {len(feed_prices)} - {list(feed_prices.keys())})")
             
             opps_seq = []
             for pair_name, base_mint, quote_mint in pairs:
