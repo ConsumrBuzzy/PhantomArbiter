@@ -10,7 +10,7 @@ Supports:
 
 from typing import Optional, Dict, Tuple
 from enum import Enum
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 class TokenStandard(Enum):
@@ -77,7 +77,7 @@ def detect_token_standard_rpc(mint: str) -> Tuple[TokenStandard, Optional[Dict]]
         return KNOWN_TOKEN_STANDARDS[mint], None
     
     try:
-        from src.infrastructure.rpc_balancer import get_rpc_balancer
+        from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
         rpc = get_rpc_balancer()
         
         # Get account info
@@ -160,7 +160,7 @@ def has_transfer_fee(mint: str) -> Tuple[bool, float]:
     
     # Query mint extensions for transfer fee
     try:
-        from src.infrastructure.rpc_balancer import get_rpc_balancer
+        from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
         rpc = get_rpc_balancer()
         
         response = rpc.post({
