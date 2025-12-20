@@ -729,6 +729,23 @@ class PhantomArbiter:
                     for pod_name in active_pod_names:
                         pod_manager.report_result(pod_name, found_opportunity=is_actionable, executed=False, success=False)
                 
+                # Sticky Watch Logic: Automatically track "Warm" opportunities (Net Profit > -$0.20)
+                # This ensures we don't rotate away from a pair that is about to become profitable
+                if self._smart_pods_enabled:
+                     # Check all scanned spreads
+                     candidates_to_check = all_spreads if 'all_spreads' in locals() else raw_opps
+                     for op in candidates_to_check:
+                         metrics = NearMissAnalyzer.calculate_metrics(op)
+                         if metrics.status in ["NEAR_MISS", "WARM"]:
+                             # Don't track if it failed verification (LIQ/SLIP)
+                             status = str(op.verification_status or "")
+                             if "LIQ" in status or "SLIP" in status or "ERR" in status:
+                                 continue
+                             
+                             if op.pair not in pod_manager.watch_list:
+                                 pod_manager.add_to_watch(op.pair, reason=metrics.status)
+                                 # Logger.info(f"[WATCH] 👀 Locked onto {op.pair} ({metrics.status})")
+                
                 # ═══════════════════════════════════════════════════════════════
                 # FAST-PATH EXECUTION: Skip verification for near-miss opportunities
                 # Uses per-pair ML thresholds based on historical profit decay
