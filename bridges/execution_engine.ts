@@ -32,6 +32,17 @@ import {
     LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import DLMM from '@meteora-ag/dlmm';
+import {
+    WhirlpoolContext,
+    buildWhirlpoolClient,
+    ORCA_WHIRLPOOL_PROGRAM_ID,
+    PDAUtil,
+    SwapUtils,
+    swapQuoteByInputToken,
+    WhirlpoolIx,
+} from '@orca-so/whirlpools-sdk';
+import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
+import { Percentage } from '@orca-so/common-sdk';
 import bs58 from 'bs58';
 import BN from 'bn.js';
 
@@ -197,12 +208,64 @@ class ExecutionEngine {
     }
 
     /**
-     * Build Orca Whirlpool swap instruction (placeholder)
-     * TODO: Add @orca-so/whirlpools-sdk implementation
+     * Build Orca Whirlpool swap instruction
+     * Uses concentrated liquidity pools for efficient swaps
      */
     private async buildOrcaSwap(leg: SwapLeg): Promise<any> {
-        // Placeholder - Orca SDK needs to be added
-        throw new Error('Orca integration not yet implemented. Use Meteora or Jupiter.');
+        const poolAddr = new PublicKey(leg.pool);
+        const inputMint = new PublicKey(leg.inputMint);
+
+        // Create Anchor provider for Orca SDK
+        const anchorWallet = new Wallet(this.wallet!);
+        const provider = new AnchorProvider(
+            this.connection,
+            anchorWallet,
+            { commitment: 'confirmed' }
+        );
+
+        // Initialize Orca client
+        const ctx = WhirlpoolContext.from(
+            this.connection,
+            anchorWallet,
+            ORCA_WHIRLPOOL_PROGRAM_ID
+        );
+        const client = buildWhirlpoolClient(ctx);
+
+        // Fetch pool data
+        const whirlpool = await client.getPool(poolAddr);
+        const whirlpoolData = whirlpool.getData();
+
+        // Determine swap direction (A to B or B to A)
+        const aToB = inputMint.equals(whirlpoolData.tokenMintA);
+
+        // Get swap quote
+        const slippage = Percentage.fromFraction(
+            leg.slippageBps || DEFAULT_SLIPPAGE_BPS,
+            10000
+        );
+
+        const quote = await swapQuoteByInputToken(
+            whirlpool,
+            inputMint,
+            new BN(leg.amount),
+            slippage,
+            ORCA_WHIRLPOOL_PROGRAM_ID,
+            await client.getFetcher(),
+            true // refresh
+        );
+
+        // Build swap instruction
+        const swapTx = await whirlpool.swap(quote);
+
+        return {
+            instructions: swapTx.compressIx ? [swapTx.compressIx] : [],
+            quote: {
+                inputAmount: leg.amount,
+                outputAmount: quote.estimatedAmountOut.toNumber(),
+                minOutputAmount: quote.otherAmountThreshold.toNumber(),
+                priceImpact: 0, // Orca doesn't provide this directly
+            }
+        };
     }
 
     /**
