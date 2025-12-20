@@ -314,6 +314,21 @@ class DBManager:
             c.execute("CREATE INDEX IF NOT EXISTS idx_pool_exec_pair ON pool_executions(pair)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_pool_exec_dex ON pool_executions(dex)")
 
+            # Pool Registry (Smart Pool Tracking)
+            # Tracks which DEXs have liquidity for each token
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS pool_registry (
+                mint TEXT PRIMARY KEY,
+                symbol TEXT,
+                has_jupiter BOOLEAN DEFAULT 0,
+                has_raydium BOOLEAN DEFAULT 0,
+                has_orca BOOLEAN DEFAULT 0,
+                has_meteora BOOLEAN DEFAULT 0,
+                last_checked REAL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_registry_symbol ON pool_registry(symbol)")
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):

@@ -332,6 +332,20 @@ class SpreadDetector:
                 if base_mint in feed_data:
                     prices[feed_name] = feed_data[base_mint]
             
+            # Update PoolRegistry (Smart Pool Tracking)
+            try:
+                from src.shared.execution.pool_registry import get_pool_registry
+                registry = get_pool_registry()
+                registry.update_coverage(
+                    symbol=pair_name.split('/')[0],
+                    mint=base_mint,
+                    has_raydium=("RAYDIUM" in prices),
+                    has_orca=("ORCA" in prices),
+                    has_meteora=("METEORA" in prices)
+                )
+            except ImportError:
+                pass
+            
             if len(prices) < 2:
                 continue
             
