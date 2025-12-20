@@ -204,6 +204,51 @@ class RaydiumFeed(PriceSource):
         except Exception as e:
             Logger.debug(f"DexScreener error: {e}")
             return None
+
+    def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
+        """
+        Batch fetch prices via DexScreener (up to 30 tokens).
+        V92.2: Added to prevent sequential scan bottlenecks.
+        """
+        if not mints:
+            return {}
+            
+        try:
+            ids = ",".join(mints[:30])
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
+            resp = requests.get(url, timeout=5)
+            
+            if resp.status_code != 200:
+                return {}
+                
+            data = resp.json()
+            pairs = data.get('pairs', [])
+            results = {}
+            
+            for pair in pairs:
+                # Filter for Raydium pairs
+                if "raydium" not in pair.get('dexId', '').lower():
+                    continue
+                    
+                base = pair.get('baseToken', {}).get('address')
+                price = float(pair.get('priceUsd', 0) or 0)
+                
+                if base and price > 0 and base not in results:
+                    results[base] = price
+                    
+                    # Update cache
+                    key = f"{base}:{self.USDC_MINT}"
+                    self._price_cache[key] = {
+                        'price': price,
+                        'timestamp': time.time()
+                    }
+            
+            return results
+            
+        except Exception as e:
+            Logger.debug(f"Raydium batch fetch error: {e}")
+            return {}
+
     
     def _fetch_raydium_api_price(self, mint: str) -> Optional[float]:
         """
