@@ -100,6 +100,13 @@ const DEFAULT_PRIORITY_FEE = 50_000;     // 50k microlamports per CU
 const DEFAULT_SLIPPAGE_BPS = 100;        // 1%
 const DEFAULT_JITO_TIP = 10_000;         // 10k lamports (~$0.002)
 
+// ═══ HELIUS SENDER (Free 15 TPS) ═══
+// Bypasses standard RPC limits, auto-routes to fastest validator
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY || '';
+const HELIUS_SENDER_URL = HELIUS_API_KEY
+    ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+    : '';
+
 // Verified Jito Tip Accounts (2025)
 const JITO_TIP_ACCOUNTS = [
     '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
@@ -164,6 +171,71 @@ class ExecutionEngine {
             toPubkey: randomTipAccount,
             lamports: lamports,
         });
+    }
+
+    /**
+     * Send transaction via Helius Sender endpoint
+     * Free 15 TPS, auto-routes to fastest validator
+     */
+    private async sendViaHelius(tx: Transaction): Promise<string> {
+        if (!HELIUS_SENDER_URL) {
+            throw new Error('HELIUS_API_KEY not configured');
+        }
+
+        const serialized = tx.serialize();
+        const base64 = serialized.toString('base64');
+
+        const response = await fetch(HELIUS_SENDER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'sendTransaction',
+                params: [
+                    base64,
+                    {
+                        encoding: 'base64',
+                        skipPreflight: false,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3,
+                    }
+                ]
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(`Helius send failed: ${JSON.stringify(result.error)}`);
+        }
+
+        return result.result;
+    }
+
+    /**
+     * Wait for transaction confirmation
+     */
+    private async confirmTransaction(signature: string, timeout: number = 30000): Promise<boolean> {
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            try {
+                const status = await this.connection.getSignatureStatus(signature);
+                if (status.value?.confirmationStatus === 'confirmed' ||
+                    status.value?.confirmationStatus === 'finalized') {
+                    return true;
+                }
+                if (status.value?.err) {
+                    return false;
+                }
+            } catch (e) {
+                // Ignore and retry
+            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        return false;
     }
 
     /**
