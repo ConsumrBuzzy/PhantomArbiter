@@ -76,13 +76,14 @@ class JitoAdapter:
         self._bundles_submitted = 0
         self._bundles_landed = 0
     
-    def _rpc_call(self, method: str, params: list = None) -> Optional[Dict]:
+    def _rpc_call(self, method: str, params: list = None, max_retries: int = 3) -> Optional[Dict]:
         """
-        Make a JSON-RPC call to the Block Engine.
+        Make a JSON-RPC call to the Block Engine with retry logic.
         
         Args:
             method: RPC method name
             params: Optional parameters
+            max_retries: Maximum retry attempts for rate limiting
             
         Returns:
             Response dict or None on error
@@ -94,25 +95,38 @@ class JitoAdapter:
             "params": params or []
         }
         
-        try:
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                timeout=self.REQUEST_TIMEOUT
-            )
-            
-            if response.status_code == 200:
-                return response.json()
-            else:
-                print(f"   ⚠️ [JITO] HTTP {response.status_code}: {response.text[:100]}")
-                return None
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    json=payload,
+                    timeout=self.REQUEST_TIMEOUT
+                )
                 
-        except requests.exceptions.Timeout:
-            print("   ⚠️ [JITO] Request timeout")
-            return None
-        except Exception as e:
-            print(f"   ❌ [JITO] RPC error: {e}")
-            return None
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 429:
+                    # Rate limited - exponential backoff
+                    wait_time = (2 ** attempt)  # 1s, 2s, 4s
+                    if attempt < max_retries - 1:
+                        print(f"   ⚠️ [JITO] Rate limited, waiting {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"   ❌ [JITO] Rate limited, max retries exceeded")
+                        return None
+                else:
+                    print(f"   ⚠️ [JITO] HTTP {response.status_code}: {response.text[:100]}")
+                    return None
+                    
+            except requests.exceptions.Timeout:
+                print("   ⚠️ [JITO] Request timeout")
+                return None
+            except Exception as e:
+                print(f"   ❌ [JITO] RPC error: {e}")
+                return None
+        
+        return None
     
     def get_tip_accounts(self, force_refresh: bool = False) -> List[str]:
         """
