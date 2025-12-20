@@ -239,7 +239,6 @@ class SpreadDetector:
     
     def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
         print(f"DEBUG: Entered scan_all_pairs with {len(pairs)} pairs")
-        self.update_prices()
         """
         Scan multiple pairs for opportunities using SHARED batch price fetch.
         
