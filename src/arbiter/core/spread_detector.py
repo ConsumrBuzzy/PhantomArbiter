@@ -38,6 +38,12 @@ class SpreadOpportunity:
     
     timestamp: float = field(default_factory=time.time)
     
+    # Dashboard/Verification fields (added for compatibility)
+    verification_status: Optional[str] = None
+    
+    # Dashboard/Verification fields (added for compatibility)
+    verification_status: Optional[str] = None
+    
     @property
     def is_profitable(self) -> bool:
         """Is this opportunity profitable after fees?"""
