@@ -142,7 +142,8 @@ class MeteoraPoolFetcher:
         token_upper = token_symbol.upper()
         pools = [
             p for p in self._cache 
-            if (token_upper in p.token_x_symbol.upper() or 
+            if (token_upper in p.name.upper() or
+                token_upper in p.token_x_symbol.upper() or 
                 token_upper in p.token_y_symbol.upper())
             and p.liquidity >= min_liquidity
         ]
@@ -173,13 +174,20 @@ class MeteoraPoolFetcher:
         
         candidates = []
         for pool in self._cache:
-            x_sym = pool.token_x_symbol.upper()
-            y_sym = pool.token_y_symbol.upper()
+            # Check both name field (e.g., "SOL-USDC") and symbol fields
+            name_upper = pool.name.upper()
+            x_sym = pool.token_x_symbol.upper() if pool.token_x_symbol else ""
+            y_sym = pool.token_y_symbol.upper() if pool.token_y_symbol else ""
             
-            if ((a_upper in x_sym and b_upper in y_sym) or
-                (b_upper in x_sym and a_upper in y_sym)):
-                if pool.liquidity >= min_liquidity:
-                    candidates.append(pool)
+            # Match in name field (most reliable)
+            name_match = (a_upper in name_upper and b_upper in name_upper)
+            
+            # Match in symbol fields
+            symbol_match = ((a_upper in x_sym and b_upper in y_sym) or
+                           (b_upper in x_sym and a_upper in y_sym))
+            
+            if (name_match or symbol_match) and pool.liquidity >= min_liquidity:
+                candidates.append(pool)
         
         if not candidates:
             return None
