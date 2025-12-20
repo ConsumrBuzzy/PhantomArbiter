@@ -48,11 +48,12 @@ interface SwapLeg {
 }
 
 interface EngineCommand {
-    command: 'swap' | 'quote' | 'health';
+    command: 'swap' | 'quote' | 'health' | 'simulate';
     legs?: SwapLeg[];
     privateKey?: string;
     useJito?: boolean;
     priorityFee?: number;  // In microlamports per CU
+    simulateOnly?: boolean; // If true, simulate but don't send
 }
 
 interface EngineResult {
