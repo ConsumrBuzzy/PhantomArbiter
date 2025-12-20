@@ -198,14 +198,16 @@ class SpreadDetector:
         slippage_cost = trade_size * (expected_slippage_pct / 100)
         
         # ML Decay Prediction: adjust for expected spread decay during execution
-        # Assumes ~3 second execution window
+        # Uses learned cycle time (or default 3s) as execution window
         decay_cost = 0.0
         try:
             from src.shared.system.db_manager import db_manager
             decay_velocity = db_manager.get_decay_velocity(pair_name)  # %/sec
             if decay_velocity > 0:
-                # Expected spread loss over 3s execution window
-                expected_decay = decay_velocity * 3.0  # % points
+                # Use learned cycle time (ms -> sec), fallback to 3s
+                exec_window = db_manager.get_avg_cycle_time() / 1000 if db_manager.get_avg_cycle_time() > 0 else 3.0
+                exec_window = min(exec_window, 10.0)  # Cap at 10s
+                expected_decay = decay_velocity * exec_window
                 decay_cost = trade_size * (expected_decay / 100)
         except Exception:
             pass
