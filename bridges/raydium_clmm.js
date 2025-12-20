@@ -50075,6 +50075,58 @@ async function initRaydium(connection, owner) {
   });
   return raydium;
 }
+async function discoverPool(mintA, mintB) {
+  try {
+    const url = `https://api-v3.raydium.io/pools/info/mint?mint1=${mintA}&mint2=${mintB}&poolType=clmm&poolSortField=default&sortType=desc&pageSize=1&page=1`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return {
+        success: false,
+        poolId: "",
+        mintA,
+        mintB,
+        tvl: 0,
+        volume24h: 0,
+        feeRate: 0,
+        error: `API error: ${response.status}`
+      };
+    }
+    const data = await response.json();
+    if (!data.success || !data.data || data.data.count === 0) {
+      return {
+        success: false,
+        poolId: "",
+        mintA,
+        mintB,
+        tvl: 0,
+        volume24h: 0,
+        feeRate: 0,
+        error: "No CLMM pool found for this token pair"
+      };
+    }
+    const pool = data.data.data[0];
+    return {
+      success: true,
+      poolId: pool.id,
+      mintA: pool.mintA?.address || mintA,
+      mintB: pool.mintB?.address || mintB,
+      tvl: pool.tvl || 0,
+      volume24h: pool.day?.volume || 0,
+      feeRate: pool.feeRate || 0
+    };
+  } catch (error) {
+    return {
+      success: false,
+      poolId: "",
+      mintA,
+      mintB,
+      tvl: 0,
+      volume24h: 0,
+      feeRate: 0,
+      error: error.message || String(error)
+    };
+  }
+}
 async function getPrice(poolAddress) {
   const connection = new import_web32.Connection(RPC_URL, "confirmed");
   try {
@@ -50318,8 +50370,18 @@ async function main() {
       console.log(JSON.stringify(result));
       break;
     }
+    case "discover": {
+      const [, mintA, mintB] = args;
+      if (!mintA || !mintB) {
+        console.log(JSON.stringify({ success: false, error: "Usage: discover <mint_a> <mint_b>" }));
+        process.exit(1);
+      }
+      const result = await discoverPool(mintA, mintB);
+      console.log(JSON.stringify(result));
+      break;
+    }
     default:
-      console.log(JSON.stringify({ success: false, error: `Unknown command: ${command}` }));
+      console.log(JSON.stringify({ success: false, error: `Unknown command: ${command}. Use: discover|price|quote|swap` }));
       process.exit(1);
   }
 }
