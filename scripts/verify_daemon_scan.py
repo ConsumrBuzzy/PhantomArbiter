@@ -14,6 +14,7 @@ from src.shared.system.logging import Logger
 from src.shared.feeds.raydium_feed import RaydiumFeed
 from src.shared.feeds.meteora_feed import MeteoraFeed
 from src.shared.execution.pool_index import get_pool_index
+from src.shared.execution.pool_registry import get_pool_registry
 import logging
 
 # Configure logger to stdout
@@ -38,6 +39,14 @@ def test():
     print("Initializing Feeds...")
     ray = RaydiumFeed()
     met = MeteoraFeed()
+    
+    print("\nPopulating Pool Registry (Mint -> Symbol)...")
+    reg = get_pool_registry()
+    SOL_MINT = "So11111111111111111111111111111111111111112"
+    USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    
+    reg.update_coverage("SOL", SOL_MINT, has_raydium=True, has_meteora=True)
+    reg.update_coverage("USDC", USDC_MINT, has_raydium=True, has_meteora=True)
     
     print("\nPre-warming Pool Index (Discovery)...")
     idx = get_pool_index()
