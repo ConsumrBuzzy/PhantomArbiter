@@ -231,6 +231,23 @@ class DBManager:
             )
             """)
 
+            # Slippage History (for ML slippage prediction)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS slippage_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT NOT NULL,
+                pair TEXT NOT NULL,
+                expected_out REAL,
+                actual_out REAL,
+                slippage_pct REAL,
+                trade_size_usd REAL,
+                dex TEXT,
+                timestamp INTEGER NOT NULL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_slippage_token ON slippage_history(token)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_slippage_timestamp ON slippage_history(timestamp)")
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
@@ -642,6 +659,50 @@ class DBManager:
                     'cooldown_until': 0,  # Reset cooldown on restart
                 }
         return result
+
+    # --- Slippage Prediction (ML-based) ---
+    
+    def log_slippage(self, token: str, pair: str, expected_out: float, actual_out: float, 
+                     trade_size_usd: float, dex: str):
+        """Log actual slippage for ML training."""
+        slippage_pct = ((expected_out - actual_out) / expected_out * 100) if expected_out > 0 else 0
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT INTO slippage_history 
+                (token, pair, expected_out, actual_out, slippage_pct, trade_size_usd, dex, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (token, pair, expected_out, actual_out, slippage_pct, trade_size_usd, dex, int(time.time())))
+    
+    def get_expected_slippage(self, token: str, trade_size_usd: float = 50, hours: int = 24) -> float:
+        """
+        Get expected slippage for a token based on historical data.
+        Returns estimated slippage as percentage (e.g., 0.5 = 0.5% slippage).
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            # Get average slippage for similar trade sizes (within 50% of target size)
+            c.execute("""
+                SELECT AVG(slippage_pct) as avg_slippage, COUNT(*) as samples
+                FROM slippage_history 
+                WHERE token = ? 
+                AND timestamp > ?
+                AND trade_size_usd BETWEEN ? AND ?
+            """, (token, cutoff, trade_size_usd * 0.5, trade_size_usd * 1.5))
+            row = c.fetchone()
+            if row and row['samples'] >= 3 and row['avg_slippage']:
+                return float(row['avg_slippage'])
+            
+            # Fallback: get average across all sizes
+            c.execute("""
+                SELECT AVG(slippage_pct) as avg_slippage
+                FROM slippage_history 
+                WHERE token = ? AND timestamp > ?
+            """, (token, cutoff))
+            row = c.fetchone()
+            if row and row['avg_slippage']:
+                return float(row['avg_slippage'])
+            
+            return 0.0  # No data = assume no extra slippage
 
 # Global Accessor
 db_manager = DBManager()
