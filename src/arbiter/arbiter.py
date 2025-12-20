@@ -298,6 +298,19 @@ class PodManager:
                 pairs.extend(_build_pairs_from_pods([self.pods[name]]))
         return pairs
     
+    def penalize_pod(self, pod_name: str, duration_sec: int = 120):
+        """Penalize a pod for severe execution failures (e.g. quote loss)."""
+        import time
+        if pod_name not in self.state:
+            return
+            
+        state = self.state[pod_name]
+        state["fail_count"] += 1
+        state["cooldown_until"] = time.time() + duration_sec
+        # Demote priority significantly
+        state["priority"] = min(10, state["priority"] + 2)
+        self.save_to_db()
+
     def report_result(self, pod_name: str, found_opportunity: bool, executed: bool, success: bool):
         """Update pod state based on scan/execution results."""
         import time
@@ -313,20 +326,26 @@ class PodManager:
             
             if executed:
                 if success:
+                    # Jackpot: Major boost
                     state["success_count"] += 1
                     state["fail_count"] = 0
-                    state["priority"] = max(1, state["priority"] - 2)  # Strong boost
+                    state["priority"] = 1  # Instant VIP status
+                    # Reward: keep scanning this pod immediately by clearing last_scan
+                    # effectively giving it consecutive turns
+                    state["last_scan"] = 0 
                 else:
                     state["fail_count"] += 1
+                    state["priority"] = min(10, state["priority"] + 1)
                     
-                    # 3 failures = 5 minute cooldown
-                    if state["fail_count"] >= 3:
-                        state["cooldown_until"] = time.time() + 300
-                        state["priority"] = min(6, state["priority"] + 2)
+                    # 2 consecutive execution failures = Penalty Box
+                    if state["fail_count"] >= 2:
+                        state["cooldown_until"] = time.time() + 120 # 2 mins
                         state["fail_count"] = 0
         else:
-            # No opportunities - slight demotion
-            state["priority"] = min(6, state["priority"] + 0.5)
+            # No opportunities - slight demotion to rotate
+            state["priority"] = min(8, state["priority"] + 0.5)
+            # Short cooldown to force rotation to other pods
+            state["cooldown_until"] = time.time() + 15
         
         # Auto-save after each update
         self.save_to_db()
