@@ -936,10 +936,21 @@ class PhantomArbiter:
                     trade_size = min(self.current_balance, limit)
 
                     # Single scan with per-pair filtering (skips stale/low-spread pairs)
+                    scan_start = time.time()
                     opportunities, all_spreads = await self.scan_opportunities(
                         verbose=False, 
                         scanner=monitor if adaptive_mode else None
                     )
+                    scan_duration_ms = (time.time() - scan_start) * 1000
+                    
+                    # Log cycle timing for ML optimization
+                    if self._smart_pods_enabled and active_pod_names:
+                        try:
+                            from src.shared.system.db_manager import db_manager
+                            for pod_name in active_pod_names:
+                                db_manager.log_cycle(pod_name, len(self.config.pairs), scan_duration_ms / len(active_pod_names))
+                        except Exception:
+                            pass  # Non-critical
                     
                     # Update adaptive interval based on results (no redundant RPC call)
                     if adaptive_mode and monitor:
