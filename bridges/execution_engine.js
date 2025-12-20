@@ -60722,8 +60722,8 @@ var ExecutionEngine = class {
       slippage,
       import_whirlpools_sdk.ORCA_WHIRLPOOL_PROGRAM_ID,
       await client.getFetcher(),
-      true
-      // refresh
+      { maxAge: 0 }
+      // Force refresh of account data
     );
     const swapTx = await whirlpool.swap(quote);
     return {

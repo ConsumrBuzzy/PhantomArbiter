@@ -126,7 +126,7 @@ class ExecutionResult(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# DYNAMIC TIP CALCULATOR
+# PROFIT & TIP CALCULATORS
 # ═══════════════════════════════════════════════════════════════════
 
 def calculate_dynamic_tip(expected_profit_lamports: int, min_tip: int = 10000, tip_ratio: float = 0.1) -> int:
@@ -145,6 +145,65 @@ def calculate_dynamic_tip(expected_profit_lamports: int, min_tip: int = 10000, t
     """
     profit_based_tip = int(expected_profit_lamports * tip_ratio)
     return max(min_tip, profit_based_tip)
+
+
+def calculate_arb_strategy(
+    amount_in_lamports: int,
+    expected_out_lamports: int,
+    gas_cost_lamports: int = 5000,
+    tip_ratio: float = 0.20,
+    min_tip_lamports: int = 10000,
+) -> dict:
+    """
+    Calculate complete arbitrage strategy with profit waterfall.
+    
+    Formula: Net Profit = (Gross Revenue - Swap Fees) - (Gas + Jito Tip)
+    
+    Args:
+        amount_in_lamports: Amount put into first leg (in lamports)
+        expected_out_lamports: Expected return after all legs (in lamports)
+        gas_cost_lamports: Estimated gas cost (default: 5000 = ~$0.001)
+        tip_ratio: Percentage of gross profit for Jito tip (default: 20%)
+        min_tip_lamports: Minimum tip to ensure inclusion (default: 10000)
+        
+    Returns:
+        dict with:
+            - is_viable: True if net profit > 0
+            - gross_profit_lamports: Raw profit before costs
+            - jito_tip_lamports: Calculated tip amount
+            - net_profit_lamports: Final profit after all costs
+            - profit_bps: Net profit as basis points of input
+    
+    Example:
+        result = calculate_arb_strategy(
+            amount_in_lamports=100_000_000,    # 0.1 SOL
+            expected_out_lamports=100_500_000  # 0.1005 SOL
+        )
+        if result['is_viable']:
+            execute_arb(jito_tip=result['jito_tip_lamports'])
+    """
+    # Gross profit
+    gross_profit = expected_out_lamports - amount_in_lamports
+    
+    # Calculate Jito tip (percentage of gross, with floor)
+    tip_from_profit = int(gross_profit * tip_ratio)
+    jito_tip = max(min_tip_lamports, tip_from_profit) if gross_profit > 0 else 0
+    
+    # Net profit after all costs
+    total_costs = gas_cost_lamports + jito_tip
+    net_profit = gross_profit - total_costs
+    
+    # Profit as basis points of input (for comparison)
+    profit_bps = int((net_profit / amount_in_lamports) * 10000) if amount_in_lamports > 0 else 0
+    
+    return {
+        "is_viable": net_profit > 0,
+        "gross_profit_lamports": gross_profit,
+        "jito_tip_lamports": jito_tip,
+        "gas_cost_lamports": gas_cost_lamports,
+        "net_profit_lamports": net_profit,
+        "profit_bps": profit_bps,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════
