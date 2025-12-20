@@ -114,9 +114,45 @@ class ArbiterConfig:
     live_mode: bool = False
     full_wallet: bool = False
     pairs: List[tuple] = field(default_factory=lambda: CORE_PAIRS)
-    # Fast-path: skip verification if net_profit >= this threshold
-    # Risk is gas cost only (~$0.02) due to atomic revert
-    fast_path_threshold: float = -0.03  # Execute immediately if within 3 cents of profit
+    # Fast-path threshold (Option A: Conservative baseline)
+    # Require +$0.05 at scan time to absorb typical decay
+    fast_path_threshold: float = 0.05  # Must show 5 cents PROFIT at scan
+
+
+def get_pair_threshold(pair: str, default: float = 0.05) -> float:
+    """
+    Get ML-informed fast-path threshold for a specific pair (Option B).
+    
+    Uses historical profit_delta from fast_path_attempts table to calculate
+    the required buffer for each pair.
+    
+    Returns: minimum scan profit required for fast-path execution
+    """
+    try:
+        from src.shared.system.db_manager import db_manager
+        
+        with db_manager.cursor() as c:
+            # Get average profit_delta for this pair (last 24 hours)
+            c.execute("""
+            SELECT 
+                AVG(profit_delta) as avg_delta,
+                COUNT(*) as attempts
+            FROM fast_path_attempts 
+            WHERE pair LIKE ? AND timestamp > ?
+            """, (f"{pair.split('/')[0]}%", time.time() - 86400))
+            
+            row = c.fetchone()
+            if row and row['attempts'] and row['attempts'] >= 3:
+                avg_delta = row['avg_delta'] or 0
+                # Required threshold = enough to absorb average decay + safety margin
+                # If avg_delta is -0.10, we need at least +0.12 at scan time
+                required = abs(avg_delta) + 0.02  # 2 cent safety margin
+                return max(required, default)  # Never below baseline
+        
+        return default
+        
+    except Exception:
+        return default
 
 
 class PhantomArbiter:
@@ -606,21 +642,30 @@ class PhantomArbiter:
                 
                 # ═══════════════════════════════════════════════════════════════
                 # FAST-PATH EXECUTION: Skip verification for near-miss opportunities
+                # Uses per-pair ML thresholds based on historical profit decay
                 # Risk is limited to gas cost (~$0.02) due to atomic revert
                 # ═══════════════════════════════════════════════════════════════
                 
-                # Check for fast-path candidates (NEAR_MISS within threshold)
-                fast_path_candidates = [
-                    op for op in raw_opps 
-                    if op.net_profit_usd >= self.config.fast_path_threshold
-                    and time.time() - last_trade_time.get(op.pair, 0) >= cooldown
-                ]
+                # Check for fast-path candidates using per-pair thresholds
+                fast_path_candidates = []
+                for op in raw_opps:
+                    # Skip if on cooldown
+                    if time.time() - last_trade_time.get(op.pair, 0) < cooldown:
+                        continue
+                    
+                    # Get ML-informed threshold for this pair (Option B)
+                    # Falls back to baseline (Option A: +$0.05) if no history
+                    pair_threshold = get_pair_threshold(op.pair, self.config.fast_path_threshold)
+                    
+                    if op.net_profit_usd >= pair_threshold:
+                        fast_path_candidates.append(op)
                 
                 if fast_path_candidates:
                     # Pick best by net profit (closest to positive)
                     best_fast = sorted(fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True)[0]
+                    pair_threshold = get_pair_threshold(best_fast.pair, self.config.fast_path_threshold)
                     
-                    print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
+                    print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f} (threshold: ${pair_threshold:+.3f})")
                     
                     # Execute immediately - atomic revert protects us
                     fast_start = time.time()
