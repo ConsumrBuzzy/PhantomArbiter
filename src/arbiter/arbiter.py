@@ -950,7 +950,7 @@ class PhantomArbiter:
                     
                 # PRINT DASHBOARD (with verification status)
                 # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
-                self._print_dashboard(all_spreads if 'all_spreads' in locals() else raw_opps, verified_opps)
+                self._print_dashboard(all_spreads if 'all_spreads' in locals() else raw_opps, verified_opps, active_pod_names if self._smart_pods_enabled else None)
                 
                 # ═══════════════════════════════════════════════════════════════
                 # FAST-PATH EXECUTION: Skip verification for near-miss opportunities
