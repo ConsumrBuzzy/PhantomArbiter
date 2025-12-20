@@ -426,6 +426,9 @@ class PhantomArbiter:
         
         print("-" * 60)
         
+        if profitable_count > 0:
+            print(f"   🎯 {profitable_count} profitable opportunit{'y' if profitable_count == 1 else 'ies'}!")
+        
         # Format for Telegram Dashboard (Code Block - SAFE MODE)
         # We wrap everything in a code block to avoid MarkdownV2 400 errors
         
