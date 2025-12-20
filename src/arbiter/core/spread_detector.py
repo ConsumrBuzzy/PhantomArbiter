@@ -200,10 +200,12 @@ class SpreadDetector:
     
     def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
         """
-        Scan multiple pairs for opportunities using BATCH price fetch.
+        Scan multiple pairs for opportunities using SHARED batch price fetch.
         
-        Uses Jupiter's batch API to get all prices in ONE call, then
-        calculates spreads locally. Much faster than per-pair fetching.
+        Uses src/core/data.batch_fetch_jupiter_prices which has:
+        - Circuit breaker for Jupiter API
+        - DexScreener fallback
+        - Chunking for large batches
         
         Args:
             pairs: List of (pair_name, base_mint, quote_mint) tuples
@@ -213,30 +215,37 @@ class SpreadDetector:
             List of SpreadOpportunity sorted by spread_pct descending
         """
         import time
+        from src.core.data import batch_fetch_jupiter_prices
+        
         trade_size = trade_size or self.default_trade_size
         opportunities = []
         
         # Collect unique mints
-        all_mints = set()
-        for pair_name, base_mint, quote_mint in pairs:
-            all_mints.add(base_mint)
-            all_mints.add(quote_mint)
+        all_mints = list(set(
+            base_mint for pair_name, base_mint, quote_mint in pairs
+        ))
         
-        # Batch fetch prices from each feed
-        feed_prices: Dict[str, Dict[str, float]] = {}  # {feed_name: {mint: price}}
+        # Use shared batch fetch (has circuit breaker + DexScreener fallback)
+        jupiter_prices = batch_fetch_jupiter_prices(all_mints)
+        
+        # Also get prices from each feed for spread comparison
+        feed_prices: Dict[str, Dict[str, float]] = {}
+        feed_prices['JUPITER'] = jupiter_prices
+        
+        # Parallel fetch from other feeds
+        from concurrent.futures import ThreadPoolExecutor
         
         for feed_name, feed in self.feeds.items():
+            if feed_name.upper() == 'JUPITER':
+                continue  # Already have Jupiter prices
             try:
-                # Use batch method if available
                 if hasattr(feed, 'get_multiple_prices'):
-                    prices = feed.get_multiple_prices(list(all_mints))
+                    prices = feed.get_multiple_prices(all_mints)
                     if prices:
                         feed_prices[feed_name] = prices
                 else:
-                    # Fallback to individual fetches (parallel)
-                    from concurrent.futures import ThreadPoolExecutor
+                    # Fallback to parallel individual fetches
                     prices = {}
-                    
                     def fetch_single(mint):
                         try:
                             spot = feed.get_spot_price(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
