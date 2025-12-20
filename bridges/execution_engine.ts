@@ -605,13 +605,93 @@ class ExecutionEngine {
 async function main() {
     const engine = new ExecutionEngine();
 
-    // Parse command from CLI args
-    const input = process.argv[2];
+    // V94 DAEMON MODE
+    const args = process.argv.slice(2);
+    if (args[0] === 'daemon') {
+        const readline = require('readline');
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            terminal: false
+        });
+
+        console.error("DEBUG: Execution Engine Daemon Ready");
+
+        rl.on('line', async (line: string) => {
+            if (!line.trim()) return;
+            const timestamp = Date.now();
+            try {
+                const cmd: EngineCommand = JSON.parse(line);
+                let result: EngineResult;
+
+                switch (cmd.command) {
+                    case 'health':
+                        result = await engine.healthCheck();
+                        break;
+
+                    case 'quote':
+                        if (!cmd.legs || cmd.legs.length === 0) {
+                            result = { success: false, command: 'quote', error: 'No legs provided', timestamp };
+                        } else {
+                            result = await engine.getQuotes(cmd.legs);
+                        }
+                        break;
+
+                    case 'simulate':
+                        if (!cmd.privateKey) {
+                            result = { success: false, command: 'simulate', error: 'No private key provided', timestamp };
+                        } else if (!cmd.legs || cmd.legs.length === 0) {
+                            result = { success: false, command: 'simulate', error: 'No legs provided', timestamp };
+                        } else {
+                            result = await engine.executeSwap(
+                                cmd.legs,
+                                cmd.privateKey,
+                                cmd.priorityFee,
+                                true, // simulateOnly
+                                cmd.jitoTipLamports || 0
+                            );
+                        }
+                        break;
+
+                    case 'swap':
+                        if (!cmd.privateKey) {
+                            result = { success: false, command: 'swap', error: 'No private key provided', timestamp };
+                        } else if (!cmd.legs || cmd.legs.length === 0) {
+                            result = { success: false, command: 'swap', error: 'No legs provided', timestamp };
+                        } else {
+                            result = await engine.executeSwap(
+                                cmd.legs,
+                                cmd.privateKey,
+                                cmd.priorityFee,
+                                cmd.simulateOnly || false,
+                                cmd.jitoTipLamports || 0
+                            );
+                        }
+                        break;
+
+                    default:
+                        result = { success: false, command: 'unknown', error: `Unknown command: ${cmd.command}`, timestamp };
+                }
+                console.log(JSON.stringify(result));
+            } catch (e: any) {
+                console.log(JSON.stringify({
+                    success: false,
+                    command: 'error',
+                    error: e.message || String(e),
+                    timestamp
+                }));
+            }
+        });
+        return;
+    }
+
+    // LEGACY MODE (One-off)
+    const input = args[0];
     if (!input) {
         console.log(JSON.stringify({
             success: false,
             error: 'No command provided',
-            usage: 'node execution_engine.js \'{"command":"health"}\'',
+            usage: 'node execution_engine.js \'{"command":"health"}\' OR node execution_engine.js daemon',
             timestamp: Date.now(),
         }));
         process.exit(1);
@@ -645,7 +725,6 @@ async function main() {
             break;
 
         case 'simulate':
-            // Simulate-only mode (seatbelt check without spending gas)
             if (!cmd.privateKey) {
                 result = { success: false, command: 'simulate', error: 'No private key provided', timestamp: Date.now() };
             } else if (!cmd.legs || cmd.legs.length === 0) {
@@ -663,7 +742,6 @@ async function main() {
             } else if (!cmd.legs || cmd.legs.length === 0) {
                 result = { success: false, command: 'swap', error: 'No legs provided', timestamp: Date.now() };
             } else {
-                // Pass all options to executeSwap
                 result = await engine.executeSwap(
                     cmd.legs,
                     cmd.privateKey,
