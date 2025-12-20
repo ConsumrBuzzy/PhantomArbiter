@@ -201,7 +201,34 @@ async function getPrice(poolAddress: string): Promise<PriceResult> {
                 priceAtoB: 0,
                 priceBtoA: 0,
                 liquidity: '0',
-                error: 'Pool not found'
+                error: 'Pool not found - may be an AMM pool (not CLMM)'
+            };
+        }
+
+        // Safety checks for required properties
+        if (!poolInfo.mintA || !poolInfo.mintB) {
+            return {
+                success: false,
+                pool: poolAddress,
+                tokenA: '',
+                tokenB: '',
+                priceAtoB: 0,
+                priceBtoA: 0,
+                liquidity: '0',
+                error: 'Pool data incomplete - missing mint info'
+            };
+        }
+
+        if (!poolInfo.sqrtPriceX64) {
+            return {
+                success: false,
+                pool: poolAddress,
+                tokenA: poolInfo.mintA?.address || '',
+                tokenB: poolInfo.mintB?.address || '',
+                priceAtoB: 0,
+                priceBtoA: 0,
+                liquidity: '0',
+                error: 'Pool data incomplete - no price data'
             };
         }
 
