@@ -1031,7 +1031,9 @@ class PhantomArbiter:
                             pod_manager.report_result(pod_name, found_opportunity=found_opp, executed=False, success=False)
                         
                 except Exception as e:
-                    Logger.debug(f"Scan error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    Logger.error(f"Scan error: {e}")
                     opportunities = []
                 
                 # Execute best opportunity not on cooldown
