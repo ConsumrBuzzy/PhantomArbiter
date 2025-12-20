@@ -677,8 +677,21 @@ class PhantomArbiter:
                                     final_pairs.append(p)
                                     included_indices.add(i)
                             
-                            # 2. Fill to limit (8) with best remaining
-                            limit = 8 # V91.2: Reduced for speed (was 15)
+                            # V92.0: Adaptive Batch Sizing (Target 2000ms cycle)
+                            if not hasattr(self, '_batch_size'): 
+                                self._batch_size = 5
+                                self._last_duration = 0
+                            
+                            # Adjust based on previous cycle (if available)
+                            if hasattr(self, '_last_duration') and self._last_duration > 0:
+                                target_ms = 2000
+                                if self._last_duration < target_ms * 0.7:  # < 1400ms
+                                    self._batch_size = min(12, self._batch_size + 1)
+                                elif self._last_duration > target_ms * 1.3:  # > 2600ms
+                                    self._batch_size = max(2, self._batch_size - 1)
+                            
+                            # 2. Fill to adaptive limit with best remaining
+                            limit = self._batch_size
                             for i, (p, score) in enumerate(ranked_pairs):
                                 if len(final_pairs) >= limit:
                                     break
@@ -689,7 +702,7 @@ class PhantomArbiter:
                             
                         except Exception as e:
                              Logger.debug(f"Ranking error: {e}")
-                             self.config.pairs = scan_pairs[:8] # Fallback
+                             self.config.pairs = scan_pairs[:5] # Fallback to 5
                         
                     
                         # ML FILTER: Skip tokens with >80% LIQ failure rate
@@ -745,6 +758,7 @@ class PhantomArbiter:
                     )
                     Logger.info(f"DEBUG: Scan returned {len(opportunities)} opps, {len(all_spreads)} spreads.")
                     scan_duration_ms = (time.time() - scan_start) * 1000
+                    self._last_duration = scan_duration_ms  # V92.0: Feed into adaptive sizing
                     
                     # Log cycle timing for ML optimization
                     if self._smart_pods_enabled and active_pod_names:
