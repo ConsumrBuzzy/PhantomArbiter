@@ -13,6 +13,7 @@ from typing import Optional, Dict
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
+from src.shared.execution.pool_index import get_pool_index
 from .price_source import PriceSource, Quote, SpotPrice
 
 
@@ -40,8 +41,19 @@ class OrcaFeed(PriceSource):
         self._price_cache: Dict[str, dict] = {}
         self._cache_ttl = 3.0  # 3 second cache
         
-        # Lazy-load on-chain adapter
+        # Lazy-load on-chain adapter and bridge
         self._orca_adapter = None
+        self._bridge = None
+        
+    def _get_bridge(self):
+        """Lazy-load the Daemon Bridge."""
+        if not self._bridge:
+            try:
+                from src.shared.execution.orca_bridge import OrcaBridge
+                self._bridge = OrcaBridge()
+            except Exception as e:
+                Logger.debug(f"[ORCA] Failed to load bridge: {e}")
+        return self._bridge
         
     def _get_orca_adapter(self):
         """Lazy-load the Orca adapter."""
@@ -118,7 +130,39 @@ class OrcaFeed(PriceSource):
         
         # Try on-chain first if enabled
         price = None
-        if self.use_on_chain:
+        # 1. Try Daemon (Fast Path)
+        try:
+            pool_index = get_pool_index()
+            pools = pool_index.get_pools(base_mint, quote_mint)
+            
+            if pools and pools.orca_pool:
+                bridge = self._get_bridge()
+                if bridge:
+                    result = bridge.get_price(pools.orca_pool)
+                    if result and result.get('success'):
+                        price = float(result.get('price', 0))
+                        Logger.debug(f"[ORCA] 🟢 Daemon price for {base_mint[:4]}: ${price}")
+                        
+                        if price > 0:
+                            timestamp = time.time()
+                            self._price_cache[cache_key] = {
+                                'price': price,
+                                'timestamp': timestamp
+                            }
+                            return SpotPrice(
+                                dex="ORCA",
+                                base_mint=base_mint,
+                                quote_mint=quote_mint,
+                                price=price,
+                                timestamp=timestamp,
+                                source="ORCA",
+                                liquidity_usd=float(result.get('liquidity', 0))
+                            )
+        except Exception as e:
+            Logger.debug(f"[ORCA] Daemon check failed: {e}")
+        
+        # 2. Try on-chain (Slow Path)
+        if not price and self.use_on_chain:
             price = self._fetch_on_chain_price(base_mint, quote_mint)
         
         # Fallback to DexScreener
