@@ -670,33 +670,60 @@ class PhantomArbiter:
                 # Sort by NET PROFIT (descending) - prioritize actually profitable opportunities
                 raw_opps = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)
                 
-                # Check Top 6 Candidates for Real Liquidity (IN PARALLEL)
-                # increased from 3 to 6 to ensure we catch SOL pairs if USDC pairs fail
+                # Check Top Candidates for Real Liquidity
+                # V12.2: Parallel DSM Pre-Check (Local/API) -> Then Parallel RPC Verification
+                
+                # 1. Select Candidates (Top 8 to allow for filtering)
                 candidates = []
-                for opp in raw_opps[:6]:
+                for opp in raw_opps[:8]:
                     if time.time() - last_trade_time.get(opp.pair, 0) >= cooldown:
                         candidates.append(opp)
                 
-                # DEBUG: Show what we're verifying
                 if candidates:
-                    print(f"   📋 Verifying {len(candidates)}: {[c.pair for c in candidates]}")
-                
-                # Parallel verification using asyncio.gather
-                if candidates:
-                    async def verify_one(opp):
-                        try:
-                            is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, trade_size)
-                            opp.verification_status = status_msg
-                            opp.net_profit_usd = real_net
-                            print(f"   🔍 {opp.pair}: {status_msg} @ ${real_net:+.3f}")
-                            return opp
-                        except Exception as e:
-                            opp.verification_status = f"ERR: {e}"
-                            print(f"   ❌ {opp.pair}: ERR {e}")
-                            return opp
+                    # 2. Pre-Check all candidates in parallel using DSM (Liquidity + Slippage)
+                    # This prevents wasting RPC calls on bad pairs
+                    from src.shared.system.data_source_manager import DataSourceManager
+                    dsm = DataSourceManager()
                     
+                    pre_checked = []
                     
-                    verified_opps = await asyncio.gather(*[verify_one(c) for c in candidates])
+                    # We can run these synchronously as they are fast (cached or HTTP API)
+                    # or use ThreadPool if needed, but local cache is instant
+                    for opp in candidates:
+                         # A. Liquidity Check
+                         liq = dsm.get_liquidity(opp.base_mint)
+                         if liq > 0 and liq < 5000:
+                             opp.verification_status = f"❌ LIQ (${liq/1000:.1f}k)"
+                             continue
+                             
+                         # B. Slippage Check
+                         passes, slip, _ = dsm.check_slippage_filter(opp.base_mint)
+                         if not passes:
+                             opp.verification_status = f"❌ SLIP ({slip:.1f}%)"
+                             continue
+                             
+                         pre_checked.append(opp)
+                    
+                    # 3. Verify survivors with RPC (Top 4)
+                    valid_candidates = pre_checked[:4]
+                    
+                    if valid_candidates:
+                        print(f"   📋 Verifying {len(valid_candidates)} (filtered from {len(candidates)}): {[c.pair for c in valid_candidates]}")
+                        
+                        async def verify_one(opp):
+                            try:
+                                is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, trade_size)
+                                opp.verification_status = status_msg
+                                opp.net_profit_usd = real_net
+                                return opp
+                            except Exception as e:
+                                opp.verification_status = f"ERR: {e}"
+                                return opp
+                        
+                        verified_opps = await asyncio.gather(*[verify_one(c) for c in valid_candidates])
+                        
+                    # Add back the failed pre-checks so they show in dashboard
+                    verified_opps.extend([c for c in candidates if c not in valid_candidates])
                     
                 # PRINT DASHBOARD (with verification status)
                 # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
