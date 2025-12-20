@@ -150,7 +150,7 @@ def _build_pairs_from_pods(pods):
     return pairs
 
 # Default: All pods combined
-TRENDING_PAIRS = _build_pairs_from_pods([POD_DEFI, POD_INFRA, POD_OG_MEME, POD_VIRAL, POD_AI, POD_PUMP])
+TRENDING_PAIRS = _build_pairs_from_pods([POD_DEFI_CORE, POD_DEFI_EXT, POD_INFRA, POD_OG_A, POD_OG_B, POD_VIRAL, POD_AI_A, POD_AI_B, POD_PUMP])
 
 # Deduplicate pairs to avoid scanning the same token twice
 def _dedupe_pairs(pairs):
