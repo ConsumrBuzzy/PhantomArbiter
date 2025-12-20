@@ -671,6 +671,10 @@ class PhantomArbiter:
                     if time.time() - last_trade_time.get(opp.pair, 0) >= cooldown:
                         candidates.append(opp)
                 
+                # DEBUG: Show what we're verifying
+                if candidates:
+                    print(f"   📋 Verifying {len(candidates)}: {[c.pair for c in candidates]}")
+                
                 # Parallel verification using asyncio.gather
                 if candidates:
                     async def verify_one(opp):
@@ -678,9 +682,11 @@ class PhantomArbiter:
                             is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, trade_size)
                             opp.verification_status = status_msg
                             opp.net_profit_usd = real_net
+                            print(f"   🔍 {opp.pair}: {status_msg} @ ${real_net:+.3f}")
                             return opp
                         except Exception as e:
                             opp.verification_status = f"ERR: {e}"
+                            print(f"   ❌ {opp.pair}: ERR {e}")
                             return opp
                     
                     
