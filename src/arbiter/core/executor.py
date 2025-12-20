@@ -561,11 +561,24 @@ class ArbitrageExecutor:
         
         try:
             if not self.swapper:
-                from src.shared.system.smart_router import SmartRouter
-                self.swapper = SmartRouter()
+                from src.shared.execution.swapper import JupiterSwapper
+                from src.shared.execution.wallet import WalletManager
+                wallet = WalletManager()
+                self.swapper = JupiterSwapper(wallet)
             
-            # Get swap transaction
-            result = self.swapper.execute_jupiter_swap(quote)
+            # Get swap transaction - use the quote to execute
+            # JupiterSwapper.execute_swap expects different params
+            input_mint = quote.get('inputMint', '')
+            output_mint = quote.get('outputMint', '')
+            in_amount = int(quote.get('inAmount', 0))
+            
+            # Execute the swap through JupiterSwapper
+            result = self.swapper.execute_swap(
+                direction="BUY",  # Direction relative to the output
+                amount_usd=in_amount / 1_000_000,  # Convert from USDC units
+                reason="ARB",
+                target_mint=output_mint
+            )
             
             if not result or not result.get('success'):
                 return TradeResult(
