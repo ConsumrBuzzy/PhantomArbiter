@@ -122,6 +122,25 @@ class ArbitrageExecutor:
         trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
         
         try:
+            # 0. Pre-Check using DataSourceManager (Local Cache / Tiered API)
+            # This avoids expensive RPC calls for obviously bad tokens
+            from src.shared.system.data_source_manager import DataSourceManager
+            dsm = DataSourceManager()
+            
+            # A. Liquidity Check (TVL)
+            liquidity_usd = dsm.get_liquidity(opportunity.base_mint)
+            if liquidity_usd > 0 and liquidity_usd < 5000: # Skip if TVL < $5k
+                 return False, 0.0, f"LOW LIQ (${liquidity_usd/1000:.1f}k)"
+                 
+            # B. Slippage Check
+            passes, slip_pct, action = dsm.check_slippage_filter(opportunity.base_mint)
+            if not passes:
+                 return False, 0.0, f"HIGH SLIP ({slip_pct:.1f}%)"
+            
+            # If "HALF_SIZE" action, reduce trade size automatically
+            if action == 'HALF_SIZE':
+                 trade_size = trade_size / 2
+            
             router = self._get_smart_router()
             usdc_amount = int(trade_size * 1_000_000)
             USDC = Settings.USDC_MINT
