@@ -200,7 +200,10 @@ class SpreadDetector:
     
     def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
         """
-        Scan multiple pairs for opportunities IN PARALLEL.
+        Scan multiple pairs for opportunities using BATCH price fetch.
+        
+        Uses Jupiter's batch API to get all prices in ONE call, then
+        calculates spreads locally. Much faster than per-pair fetching.
         
         Args:
             pairs: List of (pair_name, base_mint, quote_mint) tuples
@@ -209,26 +212,110 @@ class SpreadDetector:
         Returns:
             List of SpreadOpportunity sorted by spread_pct descending
         """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        
+        import time
+        trade_size = trade_size or self.default_trade_size
         opportunities = []
         
-        def scan_single(pair_tuple):
-            pair_name, base_mint, quote_mint = pair_tuple
-            return self.scan_pair(base_mint, quote_mint, pair_name, trade_size=trade_size)
+        # Collect unique mints
+        all_mints = set()
+        for pair_name, base_mint, quote_mint in pairs:
+            all_mints.add(base_mint)
+            all_mints.add(quote_mint)
         
-        # Parallel scan with max 10 concurrent threads
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {executor.submit(scan_single, pair): pair for pair in pairs}
+        # Batch fetch prices from each feed
+        feed_prices: Dict[str, Dict[str, float]] = {}  # {feed_name: {mint: price}}
+        
+        for feed_name, feed in self.feeds.items():
+            try:
+                # Use batch method if available
+                if hasattr(feed, 'get_multiple_prices'):
+                    prices = feed.get_multiple_prices(list(all_mints))
+                    if prices:
+                        feed_prices[feed_name] = prices
+                else:
+                    # Fallback to individual fetches (parallel)
+                    from concurrent.futures import ThreadPoolExecutor
+                    prices = {}
+                    
+                    def fetch_single(mint):
+                        try:
+                            spot = feed.get_spot_price(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+                            return mint, spot.price if spot else 0
+                        except:
+                            return mint, 0
+                    
+                    with ThreadPoolExecutor(max_workers=10) as ex:
+                        for mint, price in ex.map(fetch_single, all_mints):
+                            if price > 0:
+                                prices[mint] = price
+                    
+                    if prices:
+                        feed_prices[feed_name] = prices
+                        
+            except Exception:
+                pass
+        
+        if len(feed_prices) < 2:
+            # Need at least 2 feeds for spread comparison
+            # Fall back to sequential scan
+            for pair_name, base_mint, quote_mint in pairs:
+                opp = self.scan_pair(base_mint, quote_mint, pair_name, trade_size=trade_size)
+                if opp:
+                    opportunities.append(opp)
+            return sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
+        
+        # Calculate spreads for each pair
+        from src.arbiter.core.fee_estimator import get_fee_estimator
+        fee_est = get_fee_estimator()
+        fee_est._sol_price_cache = self._get_sol_price()
+        fee_est._sol_price_ts = time.time()
+        
+        for pair_name, base_mint, quote_mint in pairs:
+            # Gather prices from all feeds for this token
+            prices: Dict[str, float] = {}
+            for feed_name, feed_data in feed_prices.items():
+                if base_mint in feed_data:
+                    prices[feed_name] = feed_data[base_mint]
             
-            for future in as_completed(futures):
-                try:
-                    opp = future.result(timeout=5.0)  # 5s timeout per pair
-                    if opp:
-                        opportunities.append(opp)
-                except Exception:
-                    pass  # Skip failed scans
-                
+            if len(prices) < 2:
+                continue
+            
+            # Find best buy and sell
+            sorted_prices = sorted(prices.items(), key=lambda x: x[1])
+            buy_dex, buy_price = sorted_prices[0]
+            sell_dex, sell_price = sorted_prices[-1]
+            
+            spread_pct = ((sell_price - buy_price) / buy_price) * 100
+            
+            if spread_pct < 0.01:
+                continue
+            
+            gross_profit = trade_size * (spread_pct / 100)
+            fees = fee_est.estimate(
+                trade_size_usd=trade_size,
+                buy_dex=buy_dex,
+                sell_dex=sell_dex,
+                sol_price=fee_est._sol_price_cache
+            )
+            net_profit = gross_profit - fees.total_usd
+            
+            opportunities.append(SpreadOpportunity(
+                pair=pair_name,
+                base_mint=base_mint,
+                quote_mint=quote_mint,
+                buy_dex=buy_dex,
+                sell_dex=sell_dex,
+                buy_price=buy_price,
+                sell_price=sell_price,
+                spread_pct=spread_pct,
+                gross_profit_usd=gross_profit,
+                estimated_fees_usd=fees.total_usd,
+                net_profit_usd=net_profit,
+                max_size_usd=trade_size,
+                confidence=0.9,
+                timestamp=time.time()
+            ))
+        
         return sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
     
     def get_price_matrix(self) -> Dict[str, Dict[str, float]]:
