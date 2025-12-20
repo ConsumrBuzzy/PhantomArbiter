@@ -78,6 +78,10 @@ def create_parser() -> argparse.ArgumentParser:
         "--smart-pods", action="store_true",
         help="Enable smart pod rotation (focus 1 pod per scan, auto-promote/demote)"
     )
+    arbiter_parser.add_argument(
+        "--unified-engine", action="store_true",
+        help="Use unified execution engine (Meteora + Orca atomic, bypasses Jupiter)"
+    )
     
     # ═══════════════════════════════════════════════════════════════
     # SCAN SUBCOMMAND (Quick one-shot opportunity scan)
@@ -196,7 +200,8 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
         max_trade=args.max_trade,
         live_mode=args.live,
         full_wallet=args.full_wallet,
-        pairs=selected_pairs
+        pairs=selected_pairs,
+        use_unified_engine=getattr(args, 'unified_engine', False)
     )
     
     smart_pods_mode = getattr(args, 'smart_pods', False)
