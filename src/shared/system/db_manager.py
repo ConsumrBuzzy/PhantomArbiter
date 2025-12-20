@@ -194,6 +194,29 @@ class DBManager:
             """)
             c.execute("CREATE INDEX IF NOT EXISTS idx_spreads_timestamp ON spread_observations(timestamp)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_spreads_pair ON spread_observations(pair)")
+            
+            # 6. FAST_PATH_ATTEMPTS (ML training data for near-miss execution)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS fast_path_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                pair TEXT NOT NULL,
+                scan_profit_usd REAL,
+                execution_profit_usd REAL,
+                profit_delta REAL,
+                spread_pct REAL,
+                trade_size_usd REAL,
+                gas_cost_usd REAL,
+                latency_ms REAL,
+                success BOOLEAN,
+                revert_reason TEXT,
+                buy_dex TEXT,
+                sell_dex TEXT
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_fastpath_timestamp ON fast_path_attempts(timestamp)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_fastpath_pair ON fast_path_attempts(pair)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_fastpath_success ON fast_path_attempts(success)")
 
     # --- Position Operations (Replacing JSON) ---
 
@@ -342,6 +365,57 @@ class DBManager:
             WHERE timestamp > ?
             GROUP BY pair
             ORDER BY max_spread DESC
+            """, (cutoff,))
+            return [dict(row) for row in c.fetchall()]
+    
+    # --- Fast-Path Attempt Logging (ML Training Data) ---
+    
+    def log_fast_path(self, attempt_data: dict):
+        """
+        Log a fast-path execution attempt for ML training.
+        
+        Captures the delta between scan-time profit estimate and execution-time
+        reality, enabling training of latency-aware profit predictors.
+        """
+        with self.cursor(commit=True) as c:
+            c.execute("""
+            INSERT INTO fast_path_attempts (
+                timestamp, pair, scan_profit_usd, execution_profit_usd,
+                profit_delta, spread_pct, trade_size_usd, gas_cost_usd,
+                latency_ms, success, revert_reason, buy_dex, sell_dex
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                attempt_data.get('timestamp', time.time()),
+                attempt_data.get('pair'),
+                attempt_data.get('scan_profit_usd'),
+                attempt_data.get('execution_profit_usd'),
+                attempt_data.get('profit_delta'),
+                attempt_data.get('spread_pct'),
+                attempt_data.get('trade_size_usd'),
+                attempt_data.get('gas_cost_usd', 0.02),  # Default gas estimate
+                attempt_data.get('latency_ms'),
+                attempt_data.get('success', False),
+                attempt_data.get('revert_reason'),
+                attempt_data.get('buy_dex'),
+                attempt_data.get('sell_dex')
+            ))
+    
+    def get_fast_path_stats(self, hours: int = 24) -> dict:
+        """Get fast-path attempt statistics for analysis."""
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+            SELECT 
+                pair,
+                COUNT(*) as attempts,
+                SUM(CASE WHEN success THEN 1 ELSE 0 END) as successes,
+                AVG(profit_delta) as avg_delta,
+                AVG(latency_ms) as avg_latency,
+                SUM(gas_cost_usd) as total_gas_spent
+            FROM fast_path_attempts 
+            WHERE timestamp > ?
+            GROUP BY pair
+            ORDER BY attempts DESC
             """, (cutoff,))
             return [dict(row) for row in c.fetchall()]
 
