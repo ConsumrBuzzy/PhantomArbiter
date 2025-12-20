@@ -200,7 +200,7 @@ class SpreadDetector:
     
     def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
         """
-        Scan multiple pairs for opportunities.
+        Scan multiple pairs for opportunities IN PARALLEL.
         
         Args:
             pairs: List of (pair_name, base_mint, quote_mint) tuples
@@ -209,12 +209,25 @@ class SpreadDetector:
         Returns:
             List of SpreadOpportunity sorted by spread_pct descending
         """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
         opportunities = []
         
-        for pair_name, base_mint, quote_mint in pairs:
-            opp = self.scan_pair(base_mint, quote_mint, pair_name, trade_size=trade_size)
-            if opp:
-                opportunities.append(opp)
+        def scan_single(pair_tuple):
+            pair_name, base_mint, quote_mint = pair_tuple
+            return self.scan_pair(base_mint, quote_mint, pair_name, trade_size=trade_size)
+        
+        # Parallel scan with max 10 concurrent threads
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(scan_single, pair): pair for pair in pairs}
+            
+            for future in as_completed(futures):
+                try:
+                    opp = future.result(timeout=5.0)  # 5s timeout per pair
+                    if opp:
+                        opportunities.append(opp)
+                except Exception:
+                    pass  # Skip failed scans
                 
         return sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
     
