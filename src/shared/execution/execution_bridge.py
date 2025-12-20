@@ -87,15 +87,12 @@ class ExecutionBridge:
     """
     Python wrapper for the Unified TypeScript Execution Engine.
     
-    Enables atomic multi-DEX swaps with proper error handling.
+    Enables atomic multi-DEX swaps via persistent Node.js daemon.
     """
     
     def __init__(self, engine_path: Optional[str] = None):
         """
         Initialize the bridge.
-        
-        Args:
-            engine_path: Path to execution_engine.js. Defaults to bridges/execution_engine.js
         """
         if engine_path:
             self.engine_path = Path(engine_path)
@@ -106,39 +103,58 @@ class ExecutionBridge:
         if not self.engine_path.exists():
             Logger.warning(f"[EXEC] Engine not found at {self.engine_path}")
             Logger.warning("[EXEC] Run: cd bridges && npm install && npm run build")
+            
+        self._daemon = None
+
+    def _ensure_daemon(self):
+        """Start daemon if not running."""
+        if self._daemon and self._daemon.poll() is None:
+            return
+
+        try:
+            cmd = ["node", str(self.engine_path), "daemon"]
+            self._daemon = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=str(self.engine_path.parent),
+                bufsize=1
+            )
+            Logger.info("[EXEC] Daemon started (PID: %s)", self._daemon.pid)
+        except Exception as e:
+            Logger.error(f"[EXEC] Failed to start daemon: {e}")
+            self._daemon = None
+
+    def _send_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
+        """Send command to daemon via IPC."""
+        self._ensure_daemon()
+        if not self._daemon:
+            return {"success": False, "error": "Daemon failed to start"}
+            
+        try:
+            payload = json.dumps(command) + "\n"
+            self._daemon.stdin.write(payload)
+            self._daemon.stdin.flush()
+            
+            line = self._daemon.stdout.readline()
+            if not line:
+                Logger.error("[EXEC] Daemon closed stream")
+                self._daemon = None
+                return {"success": False, "error": "Daemon closed stream"}
+                
+            return json.loads(line.strip())
+        except Exception as e:
+            Logger.error(f"[EXEC] IPC error: {e}")
+            if self._daemon:
+                self._daemon.kill()
+                self._daemon = None
+            return {"success": False, "error": str(e)}
 
     def _run_engine(self, command: Dict[str, Any]) -> Dict[str, Any]:
-        """Run the execution engine with a command."""
-        cmd = ["node", str(self.engine_path), json.dumps(command)]
-        
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60,  # Longer timeout for multi-DEX swaps
-                cwd=str(self.engine_path.parent)
-            )
-            
-            if result.returncode != 0:
-                Logger.error(f"[EXEC] Engine error: {result.stderr}")
-                return {"success": False, "error": result.stderr or "Unknown error"}
-            
-            try:
-                return json.loads(result.stdout.strip())
-            except json.JSONDecodeError as e:
-                Logger.error(f"[EXEC] JSON parse error: {e}")
-                return {"success": False, "error": f"JSON parse error: {e}"}
-                
-        except subprocess.TimeoutExpired:
-            Logger.error("[EXEC] Engine timeout (60s)")
-            return {"success": False, "error": "Timeout"}
-        except FileNotFoundError:
-            Logger.error("[EXEC] Node.js not found")
-            return {"success": False, "error": "Node.js not found"}
-        except Exception as e:
-            Logger.error(f"[EXEC] Bridge exception: {e}")
-            return {"success": False, "error": str(e)}
+        """Legacy wrapper: run command via Daemon."""
+        return self._send_command(command)
 
     def _parse_result(self, data: Dict[str, Any]) -> ExecutionResult:
         """Parse engine response into ExecutionResult."""
