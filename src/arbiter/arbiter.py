@@ -234,6 +234,15 @@ class PodManager:
         volatile_pods = {"PUMP", "VIRAL", "AI_A", "AI_B"}
         is_peak_hour = current_hour in [14, 15, 16, 19, 20, 21, 2, 3]  # UTC
         
+        # ML-learned cheap gas hours (from historical data)
+        cheap_gas_hours = []
+        try:
+            from src.shared.system.db_manager import db_manager
+            cheap_gas_hours = db_manager.get_cheap_gas_hours(days=7)
+        except Exception:
+            pass
+        is_cheap_gas = current_hour in cheap_gas_hours
+        
         # Find primary pod (highest priority not on cooldown, with time boost)
         active = []
         
@@ -243,6 +252,8 @@ class PodManager:
             priority = state["priority"]
             if is_peak_hour and name in volatile_pods:
                 priority -= 1  # Boost volatile pods during peak
+            if is_cheap_gas:
+                priority -= 0.5  # Slight boost during cheap gas hours
             boosted_state[name] = priority
         
         sorted_pods = sorted(self.state.items(), key=lambda x: boosted_state.get(x[0], x[1]["priority"]))
