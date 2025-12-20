@@ -495,7 +495,9 @@ async function main() {
             } else if (!cmd.legs || cmd.legs.length === 0) {
                 result = { success: false, command: 'simulate', error: 'No legs provided', timestamp: Date.now() };
             } else {
-                result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, true);
+                result = await engine.executeSwap(
+                    cmd.legs, cmd.privateKey, cmd.priorityFee, true, cmd.jitoTipLamports || 0
+                );
             }
             break;
 
@@ -505,8 +507,14 @@ async function main() {
             } else if (!cmd.legs || cmd.legs.length === 0) {
                 result = { success: false, command: 'swap', error: 'No legs provided', timestamp: Date.now() };
             } else {
-                // Pass simulateOnly flag from command (defaults to false)
-                result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, cmd.simulateOnly || false);
+                // Pass all options to executeSwap
+                result = await engine.executeSwap(
+                    cmd.legs,
+                    cmd.privateKey,
+                    cmd.priorityFee,
+                    cmd.simulateOnly || false,
+                    cmd.jitoTipLamports || 0
+                );
             }
             break;
 
