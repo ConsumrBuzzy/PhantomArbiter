@@ -60998,12 +60998,85 @@ var ExecutionEngine = class {
 };
 async function main() {
   const engine = new ExecutionEngine();
-  const input = process.argv[2];
+  const args = process.argv.slice(2);
+  if (args[0] === "daemon") {
+    const readline = require("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false
+    });
+    console.error("DEBUG: Execution Engine Daemon Ready");
+    rl.on("line", async (line) => {
+      if (!line.trim())
+        return;
+      const timestamp = Date.now();
+      try {
+        const cmd2 = JSON.parse(line);
+        let result2;
+        switch (cmd2.command) {
+          case "health":
+            result2 = await engine.healthCheck();
+            break;
+          case "quote":
+            if (!cmd2.legs || cmd2.legs.length === 0) {
+              result2 = { success: false, command: "quote", error: "No legs provided", timestamp };
+            } else {
+              result2 = await engine.getQuotes(cmd2.legs);
+            }
+            break;
+          case "simulate":
+            if (!cmd2.privateKey) {
+              result2 = { success: false, command: "simulate", error: "No private key provided", timestamp };
+            } else if (!cmd2.legs || cmd2.legs.length === 0) {
+              result2 = { success: false, command: "simulate", error: "No legs provided", timestamp };
+            } else {
+              result2 = await engine.executeSwap(
+                cmd2.legs,
+                cmd2.privateKey,
+                cmd2.priorityFee,
+                true,
+                // simulateOnly
+                cmd2.jitoTipLamports || 0
+              );
+            }
+            break;
+          case "swap":
+            if (!cmd2.privateKey) {
+              result2 = { success: false, command: "swap", error: "No private key provided", timestamp };
+            } else if (!cmd2.legs || cmd2.legs.length === 0) {
+              result2 = { success: false, command: "swap", error: "No legs provided", timestamp };
+            } else {
+              result2 = await engine.executeSwap(
+                cmd2.legs,
+                cmd2.privateKey,
+                cmd2.priorityFee,
+                cmd2.simulateOnly || false,
+                cmd2.jitoTipLamports || 0
+              );
+            }
+            break;
+          default:
+            result2 = { success: false, command: "unknown", error: `Unknown command: ${cmd2.command}`, timestamp };
+        }
+        console.log(JSON.stringify(result2));
+      } catch (e) {
+        console.log(JSON.stringify({
+          success: false,
+          command: "error",
+          error: e.message || String(e),
+          timestamp
+        }));
+      }
+    });
+    return;
+  }
+  const input = args[0];
   if (!input) {
     console.log(JSON.stringify({
       success: false,
       error: "No command provided",
-      usage: `node execution_engine.js '{"command":"health"}'`,
+      usage: `node execution_engine.js '{"command":"health"}' OR node execution_engine.js daemon`,
       timestamp: Date.now()
     }));
     process.exit(1);
