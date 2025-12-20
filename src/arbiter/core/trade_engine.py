@@ -54,17 +54,56 @@ class TradeEngine:
         engine_used = "jupiter"
         start_time = time.time()
         
-        # ═══ HYBRID ROUTING: Try unified engine for Meteora/Orca ═══
+        # ═══ HYBRID ROUTING: Try direct DEX execution for Meteora/Orca/Raydium ═══
         if self.unified_adapter and self.use_unified:
             try:
                 pool_index = get_pool_index()
                 pools = pool_index.get_pools_for_opportunity(opportunity)
                 
-                if pools and pool_index.can_use_unified_engine(opportunity):
+                buy_dex = opportunity.buy_dex.lower() if opportunity.buy_dex else ""
+                sell_dex = opportunity.sell_dex.lower() if opportunity.sell_dex else ""
+                
+                # ═══ RAYDIUM CLMM PATH ═══
+                if pools and pools.raydium_clmm_pool and (buy_dex == "raydium" or sell_dex == "raydium"):
+                    try:
+                        from src.shared.execution.raydium_bridge import RaydiumBridge
+                        bridge = RaydiumBridge()
+                        
+                        Logger.info(f"[HYBRID] ⚡ Using Raydium CLMM: {pools.raydium_clmm_pool[:8]}...")
+                        
+                        swap_result = bridge.execute_swap(
+                            pool_address=pools.raydium_clmm_pool,
+                            input_mint=opportunity.quote_mint,  # USDC
+                            amount=trade_size,
+                            slippage_bps=50  # 0.5% for CLMM
+                        )
+                        
+                        latency_ms = int((time.time() - start_time) * 1000)
+                        pool_index.record_execution(
+                            pair=opportunity.pair,
+                            dex="raydium",
+                            success=swap_result.success if swap_result else False,
+                            latency_ms=latency_ms,
+                            error=swap_result.error if swap_result and not swap_result.success else None
+                        )
+                        
+                        if swap_result and swap_result.success:
+                            get_fee_estimator().update_congestion_factor(is_congested=False)
+                            engine_used = "raydium_clmm"
+                            result = type('Result', (), {
+                                'success': True,
+                                'signature': swap_result.signature,
+                                'error': None
+                            })()
+                        else:
+                            Logger.warning(f"[HYBRID] Raydium CLMM failed: {swap_result.error if swap_result else 'No result'}")
+                            
+                    except Exception as e:
+                        Logger.debug(f"[HYBRID] Raydium CLMM error: {e}")
+                
+                # ═══ METEORA/ORCA PATH ═══
+                if result is None and pools and pool_index.can_use_unified_engine(opportunity):
                     # Determine which pools to use
-                    buy_dex = opportunity.buy_dex.lower() if opportunity.buy_dex else ""
-                    sell_dex = opportunity.sell_dex.lower() if opportunity.sell_dex else ""
-                    
                     buy_pool = pools.meteora_pool if buy_dex == "meteora" else pools.orca_pool
                     sell_pool = pools.orca_pool if sell_dex == "orca" else pools.meteora_pool
                     

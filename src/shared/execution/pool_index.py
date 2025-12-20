@@ -323,21 +323,23 @@ class PoolIndex:
         """Get index statistics."""
         meteora_count = sum(1 for p in self._pool_cache.values() if p.meteora_pool)
         orca_count = sum(1 for p in self._pool_cache.values() if p.orca_pool)
+        raydium_count = sum(1 for p in self._pool_cache.values() if p.raydium_clmm_pool)
         both_count = sum(1 for p in self._pool_cache.values() if p.meteora_pool and p.orca_pool)
         
         return {
             "total_pairs": len(self._pool_cache),
             "meteora_pools": meteora_count,
             "orca_pools": orca_count,
+            "raydium_clmm_pools": raydium_count,
             "both_dexs": both_count,
         }
     
     def can_use_unified_engine(self, opportunity) -> bool:
         """
-        Check if an opportunity can be executed via unified engine.
+        Check if an opportunity can be executed via unified/direct engine.
         
         Requirements:
-        - At least one pool exists (Meteora or Orca)
+        - At least one pool exists (Meteora, Orca, or Raydium CLMM)
         - buy_dex or sell_dex matches available pools
         """
         pools = self.get_pools_for_opportunity(opportunity)
@@ -347,9 +349,17 @@ class PoolIndex:
         buy_dex = opportunity.buy_dex.lower() if opportunity.buy_dex else ""
         sell_dex = opportunity.sell_dex.lower() if opportunity.sell_dex else ""
         
-        # Can use if we have pools for both sides
-        buy_ok = (buy_dex == "meteora" and pools.meteora_pool) or (buy_dex == "orca" and pools.orca_pool)
-        sell_ok = (sell_dex == "meteora" and pools.meteora_pool) or (sell_dex == "orca" and pools.orca_pool)
+        # Can use if we have pools for the DEXs involved
+        buy_ok = (
+            (buy_dex == "meteora" and pools.meteora_pool) or 
+            (buy_dex == "orca" and pools.orca_pool) or
+            (buy_dex == "raydium" and pools.raydium_clmm_pool)
+        )
+        sell_ok = (
+            (sell_dex == "meteora" and pools.meteora_pool) or 
+            (sell_dex == "orca" and pools.orca_pool) or
+            (sell_dex == "raydium" and pools.raydium_clmm_pool)
+        )
         
         return buy_ok or sell_ok
 
