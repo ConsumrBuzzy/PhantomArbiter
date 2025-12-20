@@ -670,22 +670,31 @@ class PhantomArbiter:
                 # ═══════════════════════════════════════════════════════════════
                 # FAST-PATH EXECUTION: Skip verification for near-miss opportunities
                 # Uses per-pair ML thresholds based on historical profit decay
+                # Also checks minimum spread requirement from success history
                 # Risk is limited to gas cost (~$0.02) due to atomic revert
                 # ═══════════════════════════════════════════════════════════════
                 
                 # Check for fast-path candidates using per-pair thresholds
                 fast_path_candidates = []
+                from src.shared.system.db_manager import db_manager
+                
                 for op in raw_opps:
                     # Skip if on cooldown
                     if time.time() - last_trade_time.get(op.pair, 0) < cooldown:
                         continue
                     
-                    # Get ML-informed threshold for this pair (Option B)
-                    # Falls back to baseline (Option A: +$0.05) if no history
+                    # Check 1: Net profit threshold (per-pair ML)
                     pair_threshold = get_pair_threshold(op.pair, self.config.fast_path_threshold)
+                    if op.net_profit_usd < pair_threshold:
+                        continue
                     
-                    if op.net_profit_usd >= pair_threshold:
-                        fast_path_candidates.append(op)
+                    # Check 2: Minimum spread requirement (spread-to-profit correlation)
+                    # Skip if spread is below the minimum that ever succeeded for this pair
+                    min_spread = db_manager.get_minimum_profitable_spread(op.pair, hours=24)
+                    if min_spread > 0 and op.spread_pct < min_spread * 0.9:  # 10% margin
+                        continue
+                    
+                    fast_path_candidates.append(op)
                 
                 if fast_path_candidates:
                     # Pick best by net profit (closest to positive)

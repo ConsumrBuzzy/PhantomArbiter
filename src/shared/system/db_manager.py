@@ -530,6 +530,69 @@ class DBManager:
             ORDER BY profitable_count DESC
             """, (cutoff,))
             return [dict(row) for row in c.fetchall()]
+    
+    def get_pair_success_rate(self, pair: str, hours: int = 24) -> dict:
+        """
+        Get success rate for a pair at different spread levels.
+        
+        Returns: {
+            'total_attempts': int,
+            'successes': int,
+            'success_rate': float,
+            'avg_spread_at_success': float,
+            'min_spread_at_success': float
+        }
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            
+            # From fast_path_attempts
+            c.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN success THEN 1 ELSE 0 END) as successes,
+                AVG(CASE WHEN success THEN spread_pct ELSE NULL END) as avg_spread_success,
+                MIN(CASE WHEN success THEN spread_pct ELSE NULL END) as min_spread_success
+            FROM fast_path_attempts 
+            WHERE pair LIKE ? AND timestamp > ?
+            """, (f"{pair.split('/')[0]}%", cutoff))
+            
+            row = c.fetchone()
+            if not row or not row['total']:
+                return {'total_attempts': 0, 'successes': 0, 'success_rate': 0, 
+                        'avg_spread_at_success': 0, 'min_spread_at_success': 0}
+            
+            total = row['total'] or 0
+            successes = row['successes'] or 0
+            
+            return {
+                'total_attempts': total,
+                'successes': successes,
+                'success_rate': successes / total if total > 0 else 0,
+                'avg_spread_at_success': row['avg_spread_success'] or 0,
+                'min_spread_at_success': row['min_spread_success'] or 0
+            }
+    
+    def get_minimum_profitable_spread(self, pair: str, hours: int = 24) -> float:
+        """
+        Get the minimum spread at which this pair was historically profitable.
+        
+        Used for smart filtering: if current spread < min_profitable, skip.
+        Returns 0.0 if no data (allows all spreads).
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            
+            c.execute("""
+            SELECT MIN(spread_pct) as min_spread
+            FROM fast_path_attempts 
+            WHERE pair LIKE ? AND success = 1 AND timestamp > ?
+            """, (f"{pair.split('/')[0]}%", cutoff))
+            
+            row = c.fetchone()
+            if row and row['min_spread']:
+                return float(row['min_spread'])
+            return 0.0
 
 # Global Accessor
 db_manager = DBManager()
