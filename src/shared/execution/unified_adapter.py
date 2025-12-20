@@ -205,6 +205,29 @@ class UnifiedEngineAdapter:
             )
         
         try:
+            # ═══ V83.0: GATEKEEPER PRE-CHECK ═══
+            if pre_check:
+                Logger.info("[UNIFIED] 🔍 Running Jupiter pre-check...")
+                is_profitable, jup_out = await self.pre_check_arbitrage(
+                    mint_in=input_mint,
+                    mint_out=output_mint,
+                    amount=amount_in,
+                    min_profit_bps=10
+                )
+                if not is_profitable:
+                    return AtomicArbResult(
+                        success=False,
+                        error=f"Pre-check failed: Jupiter quote unprofitable",
+                        execution_time_ms=int((time.time() - start_time) * 1000)
+                    )
+                Logger.info(f"[UNIFIED] ✅ Pre-check passed (out: {jup_out})")
+            
+            # ═══ V83.0: DYNAMIC PRIORITY FEE ═══
+            priority_fee_micro = 0
+            if use_dynamic_fee:
+                priority_fee_micro = await self.get_priority_fee(priority_tier)
+                Logger.debug(f"[UNIFIED] 💰 Priority fee ({priority_tier}): {priority_fee_micro} µL")
+            
             Logger.info(f"[UNIFIED] ⚡ Executing atomic arb: {buy_dex} → {sell_dex}")
             
             # Build legs
