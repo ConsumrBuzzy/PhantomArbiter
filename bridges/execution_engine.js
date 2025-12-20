@@ -48765,8 +48765,9 @@ var ExecutionEngine = class {
   }
   /**
    * Execute atomic multi-leg swap
+   * @param simulateOnly If true, simulate but don't send (seatbelt mode)
    */
-  async executeSwap(legs, privateKey, priorityFee) {
+  async executeSwap(legs, privateKey, priorityFee, simulateOnly = false) {
     const timestamp = Date.now();
     try {
       this.setWallet(privateKey);
@@ -48818,6 +48819,31 @@ var ExecutionEngine = class {
           tx.add(ix);
         }
       }
+      tx.sign(this.wallet);
+      const simulation = await this.connection.simulateTransaction(tx);
+      if (simulation.value.err) {
+        const simError = JSON.stringify(simulation.value.err);
+        return {
+          success: false,
+          command: simulateOnly ? "simulate" : "swap",
+          legs: legResults,
+          simulationSuccess: false,
+          simulationError: `Simulation failed: ${simError}`,
+          computeUnitsUsed: simulation.value.unitsConsumed,
+          error: `Transaction would fail: ${simError}`,
+          timestamp
+        };
+      }
+      if (simulateOnly) {
+        return {
+          success: true,
+          command: "simulate",
+          legs: legResults,
+          simulationSuccess: true,
+          computeUnitsUsed: simulation.value.unitsConsumed,
+          timestamp
+        };
+      }
       const signature = await (0, import_web321.sendAndConfirmTransaction)(
         this.connection,
         tx,
@@ -48829,6 +48855,8 @@ var ExecutionEngine = class {
         command: "swap",
         signature,
         legs: legResults,
+        simulationSuccess: true,
+        computeUnitsUsed: simulation.value.unitsConsumed,
         timestamp
       };
     } catch (e) {
@@ -48952,13 +48980,22 @@ async function main() {
         result = await engine.getQuotes(cmd.legs);
       }
       break;
+    case "simulate":
+      if (!cmd.privateKey) {
+        result = { success: false, command: "simulate", error: "No private key provided", timestamp: Date.now() };
+      } else if (!cmd.legs || cmd.legs.length === 0) {
+        result = { success: false, command: "simulate", error: "No legs provided", timestamp: Date.now() };
+      } else {
+        result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, true);
+      }
+      break;
     case "swap":
       if (!cmd.privateKey) {
         result = { success: false, command: "swap", error: "No private key provided", timestamp: Date.now() };
       } else if (!cmd.legs || cmd.legs.length === 0) {
         result = { success: false, command: "swap", error: "No legs provided", timestamp: Date.now() };
       } else {
-        result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee);
+        result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, cmd.simulateOnly || false);
       }
       break;
     default:

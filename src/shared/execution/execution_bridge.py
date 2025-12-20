@@ -77,6 +77,9 @@ class ExecutionResult:
     signature: Optional[str] = None
     legs: List[LegResult] = field(default_factory=list)
     error: Optional[str] = None
+    simulation_success: Optional[bool] = None
+    simulation_error: Optional[str] = None
+    compute_units_used: Optional[int] = None
     timestamp: int = 0
 
 
@@ -156,6 +159,9 @@ class ExecutionBridge:
             signature=data.get('signature'),
             legs=legs,
             error=data.get('error'),
+            simulation_success=data.get('simulationSuccess'),
+            simulation_error=data.get('simulationError'),
+            compute_units_used=data.get('computeUnitsUsed'),
             timestamp=int(data.get('timestamp', 0)),
         )
 
@@ -184,6 +190,46 @@ class ExecutionBridge:
         
         data = self._run_engine(command)
         return self._parse_result(data)
+
+    def simulate(
+        self,
+        legs: List[SwapLeg],
+        private_key: str,
+        priority_fee: Optional[int] = None,
+    ) -> ExecutionResult:
+        """
+        Simulate a multi-leg swap without executing (seatbelt check).
+        
+        Use this to verify a transaction would succeed before spending gas.
+        
+        Args:
+            legs: List of SwapLeg objects
+            private_key: Base58-encoded wallet private key
+            priority_fee: Priority fee in microlamports per CU
+            
+        Returns:
+            ExecutionResult with simulation status (no signature)
+        """
+        Logger.info(f"[EXEC] Simulating {len(legs)}-leg swap (seatbelt check)...")
+        
+        command = {
+            "command": "simulate",
+            "legs": [leg.to_dict() for leg in legs],
+            "privateKey": private_key,
+        }
+        
+        if priority_fee is not None:
+            command["priorityFee"] = priority_fee
+        
+        data = self._run_engine(command)
+        result = self._parse_result(data)
+        
+        if result.success:
+            Logger.info(f"[EXEC] ✅ Simulation passed! CU: {result.compute_units_used}")
+        else:
+            Logger.warning(f"[EXEC] ⚠️ Simulation failed: {result.simulation_error}")
+        
+        return result
 
     def execute_swap(
         self,
