@@ -802,7 +802,12 @@ class PhantomArbiter:
                 # Look for "LIVE" or "SCALED"
                 valid_opps = [op for op in verified_opps if op.verification_status and ("LIVE" in op.verification_status or "SCALED" in op.verification_status)]
                 
+                # DEBUG: Show what we found
+                if verified_opps:
+                    for op in verified_opps:
+                        Logger.debug(f"   Verified: {op.pair} -> {op.verification_status} @ ${op.net_profit_usd:+.3f}")
                 if valid_opps:
+                    print(f"   🎯 {len(valid_opps)} LIVE opportunities ready for execution")
                     # Pick best by Real Net Profit
                     best_opp = sorted(valid_opps, key=lambda x: x.net_profit_usd, reverse=True)[0]
                     
