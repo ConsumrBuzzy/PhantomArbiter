@@ -77,10 +77,11 @@ class RaydiumBridge:
             self.bridge_path = Path(bridge_path)
         else:
             # Auto-detect path relative to project root
-            project_root = Path(__file__).parent.parent.parent.parent
-            self.bridge_path = project_root / "bridges" / "raydium_clmm.js"
+            # Path to the JS bridge script
+            self.bridge_path = Path(__file__).parent.parent.parent.parent / "bridges" / "raydium_daemon.js"
         
-        self._private_key = None
+        # State
+        self.process = None
         self._load_private_key()
         
         # V93: Daemon Process management
@@ -315,7 +316,10 @@ class RaydiumBridge:
                 Logger.warning(f"[RAYDIUM] Invalid discovery output: {output}")
                 return {"success": False, "error": "Invalid output from bridge"}
                 
-            return json.loads(json_line)
+            data = json.loads(json_line)
+            if data.get('success'):
+                Logger.debug(f"[RAYDIUM] Discovered pool {data.get('poolId')} ({data.get('type', 'unknown')})")
+            return data
             
         except Exception as e:
             Logger.error(f"[RAYDIUM] Discover error: {e}")
