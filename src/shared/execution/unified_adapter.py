@@ -206,8 +206,12 @@ class UnifiedEngineAdapter:
         
         try:
             # ═══ V83.0: GATEKEEPER PRE-CHECK ═══
-            if pre_check:
-                Logger.info("[UNIFIED] 🔍 Running Jupiter pre-check...")
+            # Smart Skip: If we are doing direct atomic arb (Meteora <-> Orca),
+            # we don't need Jupiter validation. The simulation is our source of truth.
+            is_atomic_pair = (buy_dex in ["meteora", "orca"]) and (sell_dex in ["meteora", "orca"])
+            
+            if pre_check and not is_atomic_pair:
+                Logger.info("[UNIFIED] 🔍 Running Jupiter pre-check (Aggregator Route)...")
                 is_profitable, jup_out = await self.pre_check_arbitrage(
                     mint_in=input_mint,
                     mint_out=output_mint,
@@ -221,6 +225,8 @@ class UnifiedEngineAdapter:
                         execution_time_ms=int((time.time() - start_time) * 1000)
                     )
                 Logger.info(f"[UNIFIED] ✅ Pre-check passed (out: {jup_out})")
+            elif is_atomic_pair:
+                Logger.info(f"[UNIFIED] ⏩ Skipping Jupiter pre-check for Atomic Route ({buy_dex}↔{sell_dex})")
             
             # ═══ V83.0: DYNAMIC PRIORITY FEE ═══
             priority_fee_micro = 0
