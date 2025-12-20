@@ -242,13 +242,40 @@ class PhantomArbiter:
                 
                 # Also sync SOL balance as gas
                 sol_balance = self._wallet.get_sol_balance()
+                sol_price = None
+                
+                # Try cache first (5 minute max age for SOL price)
                 try:
                     from src.core.shared_cache import get_cached_price
-                    sol_price, _ = get_cached_price("SOL")
-                    if not sol_price:
-                        sol_price = 200.0  # Conservative fallback
+                    sol_price, _ = get_cached_price("SOL", max_age=300.0)
                 except:
-                    sol_price = 200.0
+                    pass
+                
+                # If cache stale, fetch fresh from Jupiter
+                if not sol_price:
+                    try:
+                        import httpx
+                        resp = httpx.get(
+                            "https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112",
+                            timeout=5.0
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            sol_price = float(data.get("data", {}).get("So11111111111111111111111111111111111111112", {}).get("price", 0))
+                            Logger.debug(f"Fresh SOL price: ${sol_price:.2f}")
+                            
+                            # Write back to cache for other processes
+                            if sol_price > 0:
+                                from src.core.shared_cache import SharedPriceCache
+                                SharedPriceCache.write_price("SOL", sol_price, source="ARBITER")
+                    except Exception as e:
+                        Logger.debug(f"SOL price fetch failed: {e}")
+                
+                # Final fallback (should rarely hit)
+                if not sol_price:
+                    sol_price = 130.0  # More realistic fallback
+                    Logger.warning(f"Using fallback SOL price: ${sol_price}")
+                    
                 self.gas_balance = sol_balance * sol_price
             
             print(f"   ✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
