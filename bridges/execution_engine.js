@@ -48696,6 +48696,16 @@ var RPC_URL = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com
 var DEFAULT_COMPUTE_UNITS = 4e5;
 var DEFAULT_PRIORITY_FEE = 5e4;
 var DEFAULT_SLIPPAGE_BPS = 100;
+var JITO_TIP_ACCOUNTS = [
+  "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
+  "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRE",
+  "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
+  "ADaUMid9yfUytqMBgTQ37Kq7PevX2dKS2nxMxSQrcFpM",
+  "DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh",
+  "ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt",
+  "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL",
+  "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT"
+];
 var ExecutionEngine = class {
   connection;
   wallet;
@@ -48721,6 +48731,20 @@ var ExecutionEngine = class {
       import_web321.ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }),
       import_web321.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee })
     ];
+  }
+  /**
+   * Build Jito tip instruction
+   * Tips a random Jito validator to include our bundle privately
+   */
+  buildJitoTipIx(lamports) {
+    const randomTipAccount = new import_web321.PublicKey(
+      JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)]
+    );
+    return import_web321.SystemProgram.transfer({
+      fromPubkey: this.wallet.publicKey,
+      toPubkey: randomTipAccount,
+      lamports
+    });
   }
   /**
    * Build Meteora DLMM swap instruction
@@ -48766,8 +48790,9 @@ var ExecutionEngine = class {
   /**
    * Execute atomic multi-leg swap
    * @param simulateOnly If true, simulate but don't send (seatbelt mode)
+   * @param jitoTipLamports Tip amount for Jito bundles (0 = no tip)
    */
-  async executeSwap(legs, privateKey, priorityFee, simulateOnly = false) {
+  async executeSwap(legs, privateKey, priorityFee, simulateOnly = false, jitoTipLamports = 0) {
     const timestamp = Date.now();
     try {
       this.setWallet(privateKey);
@@ -48818,6 +48843,10 @@ var ExecutionEngine = class {
         if (ix.keys && ix.programId) {
           tx.add(ix);
         }
+      }
+      if (jitoTipLamports > 0) {
+        const tipIx = this.buildJitoTipIx(jitoTipLamports);
+        tx.add(tipIx);
       }
       tx.sign(this.wallet);
       const simulation = await this.connection.simulateTransaction(tx);
@@ -48986,7 +49015,13 @@ async function main() {
       } else if (!cmd.legs || cmd.legs.length === 0) {
         result = { success: false, command: "simulate", error: "No legs provided", timestamp: Date.now() };
       } else {
-        result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, true);
+        result = await engine.executeSwap(
+          cmd.legs,
+          cmd.privateKey,
+          cmd.priorityFee,
+          true,
+          cmd.jitoTipLamports || 0
+        );
       }
       break;
     case "swap":
@@ -48995,7 +49030,13 @@ async function main() {
       } else if (!cmd.legs || cmd.legs.length === 0) {
         result = { success: false, command: "swap", error: "No legs provided", timestamp: Date.now() };
       } else {
-        result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, cmd.simulateOnly || false);
+        result = await engine.executeSwap(
+          cmd.legs,
+          cmd.privateKey,
+          cmd.priorityFee,
+          cmd.simulateOnly || false,
+          cmd.jitoTipLamports || 0
+        );
       }
       break;
     default:
