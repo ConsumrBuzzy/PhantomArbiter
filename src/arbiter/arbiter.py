@@ -51,9 +51,12 @@ class ArbiterConfig:
     live_mode: bool = False
     full_wallet: bool = False
     pairs: List[tuple] = field(default_factory=lambda: CORE_PAIRS)
-    # Fast-path threshold (Option A: Conservative baseline)
-    # Require +$0.12 at scan time to absorb typical ~$0.10 decay
-    fast_path_threshold: float = 0.15  # Must show 15 cents PROFIT at scan
+    # V88.0 Precision Striker: Raised threshold to absorb ~$0.45 decay
+    fast_path_threshold: float = 0.75  # Must show 75 cents PROFIT at scan
+    # V88.0: Fixed decay buffer based on observed HFT front-running
+    decay_buffer: float = 0.45  # Expected quote loss from latency
+    # V88.0: Minimum liquidity = trade_size * this multiplier
+    liquidity_multiplier: float = 50.0  # Min $1250 liq for $25 trades
     # Use unified engine for direct Meteora/Orca atomic execution (bypasses Jupiter)
     use_unified_engine: bool = False
 
@@ -64,6 +67,8 @@ BOOTSTRAP_MIN_SPREADS = {
     "PIPPIN": 4.0,   # Observed extreme slippage: +$0.21 scan → -$0.34 quote
     "PNUT": 1.8,     # Observed 1.2% → reverts with -$0.13
     "ACT": 2.5,      # High LIQ failure rate
+    "GOAT": 2.0,     # V88.0: Observed consistent ~$0.44 quote loss
+    "FWOG": 2.0,     # V88.0: Similar decay pattern
 }
 
 
@@ -799,17 +804,28 @@ class PhantomArbiter:
                                  continue
 
                     # B. Standard ML Fast Path
-                    # Check 1: Net profit threshold (per-pair ML)
+                    # Check 1: Net profit threshold (per-pair ML) with V88.0 decay buffer
                     pair_threshold = get_pair_threshold(op.pair, self.config.fast_path_threshold)
+                    # V88.0: Subtract expected decay to get realistic profit
+                    expected_net = op.net_profit_usd - self.config.decay_buffer
+                    if expected_net < 0.10:  # Must still be profitable after decay
+                        continue
                     if op.net_profit_usd < pair_threshold:
                         continue
                     
-                    # Check 2: Minimum spread from success history (ML-learned)
+                    # Check 2: V88.0 Liquidity Filter
+                    # Skip if pool liquidity < trade_size * multiplier
+                    min_liquidity = trade_size * self.config.liquidity_multiplier
+                    op_liquidity = getattr(op, 'liquidity_usd', 0) or 0
+                    if op_liquidity > 0 and op_liquidity < min_liquidity:
+                        continue
+                    
+                    # Check 3: Minimum spread from success history (ML-learned)
                     min_spread_ml = db_manager.get_minimum_profitable_spread(op.pair, hours=24)
                     if min_spread_ml > 0 and op.spread_pct < min_spread_ml * 0.9:
                         continue
                     
-                    # Check 3: Bootstrap minimum spread (observed defaults)
+                    # Check 4: Bootstrap minimum spread (observed defaults)
                     # Used until ML has enough data
                     min_spread_bootstrap = get_bootstrap_min_spread(op.pair)
                     if min_spread_bootstrap > 0 and op.spread_pct < min_spread_bootstrap:
