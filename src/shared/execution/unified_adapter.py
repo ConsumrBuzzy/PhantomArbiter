@@ -161,6 +161,9 @@ class UnifiedEngineAdapter:
         slippage_bps: int = 100,
         simulate_first: bool = True,
         jito_tip_lamports: Optional[int] = None,
+        pre_check: bool = False,
+        use_dynamic_fee: bool = True,
+        priority_tier: str = "h",
     ) -> AtomicArbResult:
         """
         Execute an atomic arbitrage trade.
