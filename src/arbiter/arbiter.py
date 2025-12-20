@@ -544,6 +544,34 @@ class PhantomArbiter:
                     await coordinator.register_new_pairs(new_pairs)
                     print(f"   [{now}] 🧠 Added {len(new_pairs)} hot tokens from Scraper")
                 
+                # V90.0: Periodic Discovery Refresh (every 30 min)
+                if not hasattr(self, '_discovery_engine'):
+                    from src.tools.discovery import TokenDiscovery
+                    self._discovery_engine = TokenDiscovery()
+                    self._last_discovery_time = 0
+                
+                if time.time() - self._last_discovery_time > 1800:  # 30 minutes
+                    try:
+                        known_mints = set(Settings.ASSETS.values())
+                        discovered = self._discovery_engine.discover_and_validate(known_mints)
+                        
+                        if discovered:
+                            # Convert to pair format and inject
+                            USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+                            new_discovered = []
+                            for token in discovered:
+                                pair = (f"{token['symbol']}/USDC", token['mint'], USDC)
+                                if pair not in self.config.pairs:
+                                    new_discovered.append(pair)
+                            
+                            if new_discovered:
+                                self.config.pairs.extend(new_discovered)
+                                print(f"   [{now}] 🔭 Discovery: +{len(new_discovered)} trending tokens")
+                        
+                        self._last_discovery_time = time.time()
+                    except Exception as e:
+                        Logger.debug(f"Discovery failed: {e}")
+                
                 # Live mode maintenance
                 if self.config.live_mode and self._wallet:
                     await self._wallet.check_and_replenish_gas(self._swapper)
