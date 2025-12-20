@@ -214,19 +214,34 @@ class PhantomArbiter:
             ])
         return self._detector
     
-    async def scan_opportunities(self, verbose: bool = True) -> Tuple[List[SpreadOpportunity], List[SpreadOpportunity]]:
+    async def scan_opportunities(
+        self, 
+        verbose: bool = True, 
+        scanner: Optional[AdaptiveScanner] = None
+    ) -> Tuple[List[SpreadOpportunity], List[SpreadOpportunity]]:
         """
         Scan for spatial arbitrage opportunities.
+        
+        Args:
+            verbose: Print debug output
+            scanner: Optional AdaptiveScanner for per-pair filtering
+            
         Returns: (profitable_opportunities, all_spreads)
         """
         detector = self._get_detector()
         
         # Calculate trade size (Budget vs Max Trade)
-        # If max_trade is 0, we assume UNLIMITED (up to budget)
         limit = self.config.max_trade if self.config.max_trade > 0 else float('inf')
         trade_size = min(self.current_balance, limit)
         
-        spreads = detector.scan_all_pairs(self.config.pairs, trade_size=trade_size)
+        # Filter pairs if scanner provided (skip stale/low-spread pairs)
+        pairs_to_scan = self.config.pairs
+        skipped_count = 0
+        if scanner:
+            pairs_to_scan = scanner.filter_pairs(self.config.pairs)
+            skipped_count = len(self.config.pairs) - len(pairs_to_scan)
+        
+        spreads = detector.scan_all_pairs(pairs_to_scan, trade_size=trade_size)
         
         # Filter profitable using SpreadOpportunity's own calculations
         profitable = [opp for opp in spreads if opp.is_profitable]
@@ -524,8 +539,11 @@ class PhantomArbiter:
                     limit = self.config.max_trade if self.config.max_trade > 0 else float('inf')
                     trade_size = min(self.current_balance, limit)
 
-                    # Single scan returns both profitable and all spreads (VERBOSE=FALSE)
-                    opportunities, all_spreads = await self.scan_opportunities(verbose=False)
+                    # Single scan with per-pair filtering (skips stale/low-spread pairs)
+                    opportunities, all_spreads = await self.scan_opportunities(
+                        verbose=False, 
+                        scanner=monitor if adaptive_mode else None
+                    )
                     
                     # Update adaptive interval based on results (no redundant RPC call)
                     if adaptive_mode and monitor:
