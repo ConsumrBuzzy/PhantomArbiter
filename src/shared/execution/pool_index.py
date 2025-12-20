@@ -145,6 +145,19 @@ class PoolIndex:
         
         return self.get_pools(tokens[0], tokens[1])
     
+    def _resolve_symbol(self, mint: str) -> Optional[str]:
+        """Resolve mint to symbol via Registry DB."""
+        try:
+            if db_manager:
+                with db_manager.cursor() as c:
+                    c.execute("SELECT symbol FROM pool_registry WHERE mint = ?", (mint,))
+                    row = c.fetchone()
+                    if row:
+                        return row['symbol']
+        except:
+            pass
+        return None
+
     def _resolve_mint(self, symbol: str) -> Optional[str]:
         """Resolve symbol to mint via Registry DB (reverse lookup)."""
         try:
