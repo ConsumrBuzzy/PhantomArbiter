@@ -877,8 +877,12 @@ class PhantomArbiter:
                         current_interval = monitor.update(all_spreads)
                     
                     # Report results to PodManager for priority updates
+                    # Only count ACTUAL profitable opportunities (net_profit > 0)
+                    # LIQ failures should not promote a pod
                     if self._smart_pods_enabled and active_pod_names:
-                        found_opp = len(opportunities) > 0
+                        # Filter: only positive net profit = real opportunity
+                        real_opps = [o for o in opportunities if o.net_profit_usd > 0]
+                        found_opp = len(real_opps) > 0
                         for pod_name in active_pod_names:
                             pod_manager.report_result(pod_name, found_opportunity=found_opp, executed=False, success=False)
                         
