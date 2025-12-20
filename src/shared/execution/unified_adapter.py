@@ -73,6 +73,82 @@ class UnifiedEngineAdapter:
         """Check if the unified engine is available."""
         return self._bridge.is_available()
     
+    async def pre_check_arbitrage(
+        self,
+        mint_in: str,
+        mint_out: str,
+        amount: int,
+        min_profit_bps: int = 10
+    ) -> tuple[bool, int]:
+        """
+        V83.0: Gatekeeper Quote.
+        
+        Uses Jupiter's Free API (60 RPM) to verify that the global routing
+        confirms our local pool discovery before firing the atomic bundle.
+        
+        Args:
+            mint_in: Input token mint
+            mint_out: Output token mint
+            amount: Amount in smallest units
+            min_profit_bps: Minimum profit in basis points (default 10 = 0.1%)
+            
+        Returns:
+            (is_profitable, out_amount) tuple
+        """
+        import os
+        try:
+            import httpx
+        except ImportError:
+            Logger.warning("[PRE-CHECK] httpx not installed, skipping pre-check")
+            return True, 0
+        
+        api_key = os.getenv("JUPITER_API_KEY", "")
+        url = f"https://api.jup.ag/swap/v1/quote?inputMint={mint_in}&outputMint={mint_out}&amount={amount}"
+        
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                headers = {}
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                
+                response = await client.get(url, headers=headers)
+                
+                if response.status_code == 200:
+                    quote = response.json()
+                    out_amount = int(quote.get('outAmount', 0))
+                    
+                    # Calculate profit in basis points
+                    if amount > 0:
+                        profit_bps = ((out_amount - amount) / amount) * 10000
+                        
+                        if profit_bps >= min_profit_bps:
+                            Logger.debug(f"[PRE-CHECK] ✅ Profit {profit_bps:.1f} bps >= {min_profit_bps} bps")
+                            return True, out_amount
+                        else:
+                            Logger.debug(f"[PRE-CHECK] ❌ Profit {profit_bps:.1f} bps < {min_profit_bps} bps")
+                            return False, out_amount
+                else:
+                    Logger.warning(f"[PRE-CHECK] Jupiter API returned {response.status_code}")
+                    
+        except Exception as e:
+            Logger.debug(f"[PRE-CHECK] Error: {e}")
+        
+        # Default: allow execution (fail open for speed)
+        return True, 0
+    
+    async def get_priority_fee(self, tier: str = "h") -> int:
+        """
+        Get dynamic priority fee from Raydium.
+        
+        Args:
+            tier: "m" (Medium), "h" (High), "vh" (Very High)
+            
+        Returns:
+            Priority fee in microLamports
+        """
+        from src.shared.execution.priority_fee import PriorityFeeClient
+        return await PriorityFeeClient.get_fee_estimate(tier)
+    
     async def execute_atomic_arb(
         self,
         buy_dex: str,
