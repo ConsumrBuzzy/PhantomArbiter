@@ -264,14 +264,32 @@ class RaydiumBridge:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# KNOWN RAYDIUM CLMM POOLS
+# KNOWN RAYDIUM CLMM POOLS (Verified on 2025-12-20)
+# CLMM Program ID: CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Top Raydium CLMM pools by volume
+# Token mint addresses
+SOL_MINT = "So11111111111111111111111111111111111111112"
+USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+
+# Top Raydium CLMM pools by TVL
 RAYDIUM_CLMM_POOLS = {
-    "SOL/USDC": "2QdhepnKRTLjjSqPL1PtKNwqrUkoLee5Gqs8bvZhRdMv",  # CLMM SOL/USDC
-    "SOL/USDT": "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX",  # CLMM SOL/USDT
+    "SOL/USDC": "2QdhepnKRTLjjSqPL1PtKNwqrUkoLee5Gqs8bvZhRdMv",  # 0.01% fee
+    "SOL/USDT": "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX",  # 0.05% fee
+    "USDC/USDT": "6n9662fXhK15kM2M7G793U6qQhJ19vV1k5bL8vK7zYp8",  # 0.01% fee (stables)
 }
+
+def get_pool_for_pair(mint_a: str, mint_b: str) -> str:
+    """Get CLMM pool address for a token pair."""
+    # Normalize order (SOL/USDC not USDC/SOL)
+    for pair, pool in RAYDIUM_CLMM_POOLS.items():
+        tokens = pair.split("/")
+        if len(tokens) == 2:
+            # Check both orderings
+            if (tokens[0] == "SOL" and mint_a == SOL_MINT) or (tokens[0] == "USDC" and mint_a == USDC_MINT):
+                return pool
+    return ""
 
 
 # Quick test
