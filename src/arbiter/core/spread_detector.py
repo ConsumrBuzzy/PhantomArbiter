@@ -365,7 +365,7 @@ class SpreadDetector:
             futures = [executor.submit(fetch_from_feed, item) for item in self.feeds.items()]
             
             try:
-                for future in as_completed(futures, timeout=15):  # V88.0: Increased from 10s
+                for future in as_completed(futures, timeout=8):  # V91.0: Reduced to 8s for speed
                     try:
                         feed_name, prices = future.result()
                         if prices:

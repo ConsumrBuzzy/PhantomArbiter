@@ -209,64 +209,55 @@ class PodManager:
             del self.watch_list[p]
         return list(self.watch_list.keys())
     
+# V91.0: Category Groups for diversity
+CATEGORY_GROUPS = {
+    "STABLE": ["DEFI_CORE", "DEFI_EXT", "DIRECT_POOLS"],  # Low-risk, high-liq
+    "MEME": ["OG_A", "OG_B", "VIRAL"],                    # Established memes
+    "META": ["AI_A", "AI_B", "PUMP", "INFRA"],            # Current narrative
+}
+
     def get_active_pods(self) -> list:
-        """Get pods to scan this cycle (primary + optional random check-in)."""
+        """
+        V91.0: Get pods to scan this cycle with Category Mixing.
+        Ensure we scan a mix of STABLE, MEME, and META pods.
+        """
         import time
         import random
         from datetime import datetime
         
         self._scan_count += 1
         now = time.time()
-        current_hour = datetime.now().hour
         
-        # Time-based boost: volatile pods get priority during peak hours (US market)
-        # Peak hours: 9-11 AM EST (14-16 UTC), 2-4 PM EST (19-21 UTC)
-        volatile_pods = {"PUMP", "VIRAL", "AI_A", "AI_B"}
-        is_peak_hour = current_hour in [14, 15, 16, 19, 20, 21, 2, 3]  # UTC
-        
-        # ML-learned cheap gas hours (from historical data)
-        cheap_gas_hours = []
-        try:
-            from src.shared.system.db_manager import db_manager
-            cheap_gas_hours = db_manager.get_cheap_gas_hours(days=7)
-        except Exception:
-            pass
-        is_cheap_gas = current_hour in cheap_gas_hours
-        
-        # Find primary pod (highest priority not on cooldown, with time boost)
         active = []
         
-        # Apply time boost temporarily
-        boosted_state = {}
-        for name, state in self.state.items():
-            priority = state["priority"]
-            if is_peak_hour and name in volatile_pods:
-                priority -= 1  # Boost volatile pods during peak
-            if is_cheap_gas:
-                priority -= 0.5  # Slight boost during cheap gas hours
-            boosted_state[name] = priority
+        # 1. Pick one high-priority pod from EACH category group
+        # This ensures diversity (e.g., JUP + WIF + GOAT)
         
-        # Sort by priority first, then by last_scan timestamp (tie-breaker)
-        # This ensures that among equal-priority pods, the "oldest" scan gets selected
-        sorted_pods = sorted(
-            self.state.items(), 
-            key=lambda x: (boosted_state.get(x[0], x[1]["priority"]), x[1]["last_scan"])
-        )
+        for cat_name, pods in CATEGORY_GROUPS.items():
+            # Filter pods in this category
+            cat_pods = [(name, self.state[name]) for name in pods if name in self.state]
+            
+            # Sort by priority (lower is better)
+            # Add randomness to break ties and rotate
+            cat_pods.sort(key=lambda x: (x[1]["priority"], x[1]["last_scan"] + random.uniform(0, 300)))
+            
+            # Pick best available
+            for name, state in cat_pods:
+                if now > state["cooldown_until"]:
+                    active.append(name)
+                    state["last_scan"] = now
+                    break
         
-        for name, state in sorted_pods:
-            if now > state["cooldown_until"]:
-                active.append(name)
-                state["last_scan"] = now
-                break
-        
-        # 20% chance: Random check-in on a different pod
-        if random.random() < 0.2 and len(self.state) > 1:
-            other_pods = [n for n in self.state.keys() if n not in active]
-            if other_pods:
-                checkin = random.choice(other_pods)
-                active.append(checkin)
-                self.state[checkin]["last_scan"] = now
-        
+        # 2. Wildcard (20% chance): Add one random neglected pod
+        if random.random() < 0.2:
+            neglected = [n for n in self.state.keys() if n not in active]
+            if neglected:
+                # Weighted random choice favoring neglected pods (older last_scan)
+                neglected.sort(key=lambda n: self.state[n]["last_scan"])
+                victim = neglected[0]  # The most neglected
+                active.append(victim)
+                self.state[victim]["last_scan"] = now
+                
         return active
     
     def get_pairs_for_pods(self, pod_names: list) -> list:

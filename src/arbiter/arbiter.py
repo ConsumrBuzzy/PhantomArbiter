@@ -621,13 +621,22 @@ class PhantomArbiter:
                         else:
                              self.current_balance = new_bal
                 
+                # V91.0: Print Throttling (Log scan every 3 cycles unless opportunity found)
+                if not hasattr(self, '_scan_counter'): self._scan_counter = 0
+                self._scan_counter += 1
+                should_print = (self._scan_counter % 3 == 0)
+
                 # Scan (prioritize hot pairs in adaptive mode)
                 try:
-                    # Smart pod rotation: focus on 1-2 pods per scan
+                    # Smart pod rotation: focus on diversified pods (STABLE + MEME + META)
                     active_pod_names = []
                     if self._smart_pods_enabled:
                         active_pod_names = pod_manager.get_active_pods()
                         scan_pairs = pod_manager.get_pairs_for_pods(active_pod_names)
+                        
+                        # V91.0: Optimization - Skip SOL pairs initially for speed (50% reduction)
+                        # We only add SOL pairs if USDC side is profitable later
+                        scan_pairs = [p for p in scan_pairs if p[2] == USDC_MINT]
                         
                         # Add watch pairs (always included)
                         watch_pairs = pod_manager.get_watch_pairs()
@@ -637,13 +646,35 @@ class PhantomArbiter:
                             for wp in watch_pairs:
                                 for pair_tuple in all_pod_pairs:
                                     if pair_tuple[0] == wp and pair_tuple not in scan_pairs:
-                                        scan_pairs.append(pair_tuple)
+                                        # Only add USDC variant for speed
+                                        if pair_tuple[2] == USDC_MINT:
+                                            scan_pairs.append(pair_tuple)
                         
-                        self.config.pairs = scan_pairs
+                        # V91.0: Smart Priority Sorting (Best 15 pairs)
+                        # Sort by: Success rate (high) + Cooldown (low) + Spread Potential
+                        try:
+                            from src.shared.system.db_manager import db_manager
+                            ranked_pairs = []
+                            for p in scan_pairs:
+                                stats = db_manager.get_pair_performance(p[0])
+                                score = stats.get('score', 0.5)
+                                # Bonus for fresh pairs (low attempts)
+                                if stats.get('attempts', 0) < 5:
+                                    score += 0.2
+                                ranked_pairs.append((p, score))
+                            
+                            # Sort by score descending
+                            ranked_pairs.sort(key=lambda x: x[1], reverse=True)
+                            self.config.pairs = [x[0] for x in ranked_pairs[:15]] # Limit to 15 best
+                            
+                        except Exception:
+                             self.config.pairs = scan_pairs[:15] # Fallback
                         
+                    
                         # ML FILTER: Skip tokens with >80% LIQ failure rate
                         # Cache blacklist to avoid repeated DB queries (refresh every 5 min)
                         if not hasattr(self, '_blacklist_cache') or time.time() - self._blacklist_cache_ts > 300:
+
                             try:
                                 from src.shared.system.db_manager import db_manager
                                 liq_rates = db_manager.get_liq_failure_rate(hours=2)
@@ -688,7 +719,7 @@ class PhantomArbiter:
                     scan_start = time.time()
                     Logger.info(f"DEBUG: Calling scan with {len(self.config.pairs)} pairs...")
                     opportunities, all_spreads = await self.scan_opportunities(
-                        verbose=False, 
+                        verbose=should_print, 
                         scanner=monitor if adaptive_mode else None
                     )
                     Logger.info(f"DEBUG: Scan returned {len(opportunities)} opps, {len(all_spreads)} spreads.")
