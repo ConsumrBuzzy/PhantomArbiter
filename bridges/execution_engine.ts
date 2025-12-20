@@ -440,13 +440,25 @@ async function main() {
             }
             break;
 
+        case 'simulate':
+            // Simulate-only mode (seatbelt check without spending gas)
+            if (!cmd.privateKey) {
+                result = { success: false, command: 'simulate', error: 'No private key provided', timestamp: Date.now() };
+            } else if (!cmd.legs || cmd.legs.length === 0) {
+                result = { success: false, command: 'simulate', error: 'No legs provided', timestamp: Date.now() };
+            } else {
+                result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, true);
+            }
+            break;
+
         case 'swap':
             if (!cmd.privateKey) {
                 result = { success: false, command: 'swap', error: 'No private key provided', timestamp: Date.now() };
             } else if (!cmd.legs || cmd.legs.length === 0) {
                 result = { success: false, command: 'swap', error: 'No legs provided', timestamp: Date.now() };
             } else {
-                result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee);
+                // Pass simulateOnly flag from command (defaults to false)
+                result = await engine.executeSwap(cmd.legs, cmd.privateKey, cmd.priorityFee, cmd.simulateOnly || false);
             }
             break;
 
