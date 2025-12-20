@@ -196,7 +196,21 @@ class SpreadDetector:
             pass  # No data = assume no extra slippage
         
         slippage_cost = trade_size * (expected_slippage_pct / 100)
-        net_profit = gross_profit - fees.total_usd - slippage_cost
+        
+        # ML Decay Prediction: adjust for expected spread decay during execution
+        # Assumes ~3 second execution window
+        decay_cost = 0.0
+        try:
+            from src.shared.system.db_manager import db_manager
+            decay_velocity = db_manager.get_decay_velocity(pair_name)  # %/sec
+            if decay_velocity > 0:
+                # Expected spread loss over 3s execution window
+                expected_decay = decay_velocity * 3.0  # % points
+                decay_cost = trade_size * (expected_decay / 100)
+        except Exception:
+            pass
+        
+        net_profit = gross_profit - fees.total_usd - slippage_cost - decay_cost
         
         return SpreadOpportunity(
             pair=pair_name,
