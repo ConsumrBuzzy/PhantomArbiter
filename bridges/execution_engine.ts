@@ -27,6 +27,7 @@ import {
     VersionedTransaction,
     TransactionMessage,
     ComputeBudgetProgram,
+    SystemProgram,
     sendAndConfirmTransaction,
     LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
@@ -52,6 +53,7 @@ interface EngineCommand {
     legs?: SwapLeg[];
     privateKey?: string;
     useJito?: boolean;
+    jitoTipLamports?: number;  // Tip amount for Jito bundles (default: 10000)
     priorityFee?: number;  // In microlamports per CU
     simulateOnly?: boolean; // If true, simulate but don't send
 }
@@ -85,6 +87,22 @@ const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.c
 const DEFAULT_COMPUTE_UNITS = 400_000;  // Multi-DEX swaps need more CU
 const DEFAULT_PRIORITY_FEE = 50_000;     // 50k microlamports per CU
 const DEFAULT_SLIPPAGE_BPS = 100;        // 1%
+const DEFAULT_JITO_TIP = 10_000;         // 10k lamports (~$0.002)
+
+// Verified Jito Tip Accounts (2025)
+const JITO_TIP_ACCOUNTS = [
+    '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
+    'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRE',
+    'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
+    'ADaUMid9yfUytqMBgTQ37Kq7PevX2dKS2nxMxSQrcFpM',
+    'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
+    'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
+    'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
+    '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
+];
+
+// Jito Block Engine URL
+const JITO_BLOCK_ENGINE_URL = 'https://mainnet.block-engine.jito.wtf/api/v1/bundles';
 
 // ═══════════════════════════════════════════════════════════════════
 // EXECUTION ENGINE
@@ -118,6 +136,23 @@ class ExecutionEngine {
             ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }),
             ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
         ];
+    }
+
+    /**
+     * Build Jito tip instruction
+     * Tips a random Jito validator to include our bundle privately
+     */
+    private buildJitoTipIx(lamports: number) {
+        // Pick a random tip account to spread the load
+        const randomTipAccount = new PublicKey(
+            JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)]
+        );
+
+        return SystemProgram.transfer({
+            fromPubkey: this.wallet!.publicKey,
+            toPubkey: randomTipAccount,
+            lamports: lamports,
+        });
     }
 
     /**
@@ -173,8 +208,15 @@ class ExecutionEngine {
     /**
      * Execute atomic multi-leg swap
      * @param simulateOnly If true, simulate but don't send (seatbelt mode)
+     * @param jitoTipLamports Tip amount for Jito bundles (0 = no tip)
      */
-    async executeSwap(legs: SwapLeg[], privateKey: string, priorityFee?: number, simulateOnly: boolean = false): Promise<EngineResult> {
+    async executeSwap(
+        legs: SwapLeg[],
+        privateKey: string,
+        priorityFee?: number,
+        simulateOnly: boolean = false,
+        jitoTipLamports: number = 0
+    ): Promise<EngineResult> {
         const timestamp = Date.now();
 
         try {
@@ -241,6 +283,12 @@ class ExecutionEngine {
                 if (ix.keys && ix.programId) {
                     tx.add(ix);
                 }
+            }
+
+            // ═══ JITO TIP (must be LAST instruction) ═══
+            if (jitoTipLamports > 0) {
+                const tipIx = this.buildJitoTipIx(jitoTipLamports);
+                tx.add(tipIx);
             }
 
             // Sign the transaction for simulation
