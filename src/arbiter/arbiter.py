@@ -373,6 +373,8 @@ class ArbiterConfig:
     # Fast-path threshold (Option A: Conservative baseline)
     # Require +$0.12 at scan time to absorb typical ~$0.10 decay
     fast_path_threshold: float = 0.15  # Must show 15 cents PROFIT at scan
+    # Use unified engine for direct Meteora/Orca atomic execution (bypasses Jupiter)
+    use_unified_engine: bool = False
 
 
 # Bootstrap defaults based on observed data (used until ML has enough samples)
@@ -509,6 +511,18 @@ class PhantomArbiter:
                 mode=ExecutionMode.LIVE
             )
             self._connected = True
+            
+            # Initialize unified engine adapter if enabled
+            self._unified_adapter = None
+            if self.config.use_unified_engine:
+                from src.shared.execution.unified_adapter import UnifiedEngineAdapter
+                self._unified_adapter = UnifiedEngineAdapter()
+                if self._unified_adapter.is_available():
+                    Logger.info("⚡ Unified Engine: ENABLED (Meteora + Orca atomic)")
+                    print(f"   ⚡ Unified Engine: ENABLED")
+                else:
+                    Logger.warning("⚡ Unified Engine: NOT AVAILABLE (run: cd bridges && npm run build)")
+                    self._unified_adapter = None
             
             # Sync balance if full wallet mode
             if self.config.full_wallet:
