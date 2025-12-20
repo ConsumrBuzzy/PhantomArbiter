@@ -670,6 +670,17 @@ class PhantomArbiter:
                 # Calculate near-miss metrics for rich status display
                 metrics = NearMissAnalyzer.calculate_metrics(opp)
                 status = metrics.status_icon
+                
+                # Add decay indicator if we have decay data
+                try:
+                    from src.shared.system.db_manager import db_manager
+                    decay_v = db_manager.get_decay_velocity(opp.pair)
+                    if decay_v > 0.1:
+                        status += f" ⚡{decay_v:.1f}%/s"  # Fast decay warning
+                    elif decay_v > 0:
+                        status += f" 📉"  # Has decay data
+                except:
+                    pass
             
             if opp.is_profitable:
                 profitable_count += 1
