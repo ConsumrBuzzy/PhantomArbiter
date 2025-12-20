@@ -549,6 +549,11 @@ class ArbitrageExecutor:
             signed_buy = VersionedTransaction(buy_tx.message, [self.wallet.keypair])
             signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
             
+            # Encode signed transactions to base58 for Jito bundle
+            import base58 as b58_module
+            buy_b58 = b58_module.b58encode(bytes(signed_buy)).decode()
+            sell_b58 = b58_module.b58encode(bytes(signed_sell)).decode()
+            
             # ═══ CREATE TIP TRANSACTION ═══
             # Jito requires a SOL transfer to a tip account in the bundle
             from solders.system_program import TransferParams, transfer
