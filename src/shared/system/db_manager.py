@@ -729,5 +729,56 @@ class DBManager:
             
             return 0.0  # No data = assume no extra slippage
 
+    # --- Gas Price Learning ---
+    
+    def log_gas(self, gas_cost_usd: float, gas_cost_sol: float = 0, priority_fee: float = 0):
+        """Log gas cost for time-of-day optimization."""
+        from datetime import datetime
+        hour_utc = datetime.utcnow().hour
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT INTO gas_history (gas_cost_usd, gas_cost_sol, priority_fee, hour_utc, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            """, (gas_cost_usd, gas_cost_sol, priority_fee, hour_utc, int(time.time())))
+    
+    def get_cheap_gas_hours(self, days: int = 7) -> list:
+        """Get hours with historically cheap gas."""
+        with self.cursor() as c:
+            cutoff = time.time() - (days * 86400)
+            c.execute("""
+                SELECT hour_utc, AVG(gas_cost_usd) as avg_gas
+                FROM gas_history 
+                WHERE timestamp > ?
+                GROUP BY hour_utc
+                HAVING COUNT(*) >= 3
+                ORDER BY avg_gas ASC
+                LIMIT 6
+            """, (cutoff,))
+            return [row['hour_utc'] for row in c.fetchall()]
+
+    # --- Cycle Time Optimization ---
+    
+    def log_cycle(self, pod_name: str, pairs_scanned: int, duration_ms: float):
+        """Log scan cycle duration for optimization."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT INTO cycle_timing (pod_name, pairs_scanned, duration_ms, timestamp)
+                VALUES (?, ?, ?, ?)
+            """, (pod_name, pairs_scanned, duration_ms, int(time.time())))
+    
+    def get_avg_cycle_time(self, pod_name: str = None) -> float:
+        """Get average cycle time (ms) for a pod or all pods."""
+        with self.cursor() as c:
+            if pod_name:
+                c.execute("""
+                    SELECT AVG(duration_ms) as avg_time
+                    FROM cycle_timing 
+                    WHERE pod_name = ?
+                """, (pod_name,))
+            else:
+                c.execute("SELECT AVG(duration_ms) as avg_time FROM cycle_timing")
+            row = c.fetchone()
+            return float(row['avg_time']) if row and row['avg_time'] else 0.0
+
 # Global Accessor
 db_manager = DBManager()
