@@ -594,11 +594,13 @@ class PhantomArbiter:
             from src.shared.feeds.jupiter_feed import JupiterFeed
             from src.shared.feeds.raydium_feed import RaydiumFeed
             from src.shared.feeds.orca_feed import OrcaFeed
+            from src.shared.feeds.meteora_feed import MeteoraFeed
             
             self._detector = SpreadDetector(feeds=[
                 JupiterFeed(),
                 RaydiumFeed(),
                 OrcaFeed(use_on_chain=False),
+                MeteoraFeed(),  # NEW: Meteora DLMM pools
             ])
         return self._detector
     
