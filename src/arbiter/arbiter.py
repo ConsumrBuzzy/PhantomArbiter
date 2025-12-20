@@ -839,6 +839,10 @@ class PhantomArbiter:
                         )
                         
                         if unified_result.success:
+                            # Decay congestion multiplier on success
+                            from src.arbiter.core.fee_estimator import get_fee_estimator
+                            get_fee_estimator().update_congestion_factor(is_congested=False)
+                            
                             engine_used = "unified"
                             result = type('Result', (), {
                                 'success': True,
@@ -847,6 +851,37 @@ class PhantomArbiter:
                             })()
                         else:
                             Logger.warning(f"[HYBRID] Unified failed: {unified_result.error}, falling back to Jupiter")
+                            
+                            # ═══ V83.0: REALITY CHECK LOOP (Auto-Calibration) ═══
+                            if unified_result.error and "Quote loss" in str(unified_result.error):
+                                try:
+                                    import re
+                                    # Extract loss amount (e.g. "Quote loss $-0.5668")
+                                    loss_match = re.search(r"Quote loss \$-?([\d\.]+)", str(unified_result.error))
+                                    if loss_match:
+                                        loss_amt = float(loss_match.group(1))
+                                        
+                                        # Log slippage for ML calibration
+                                        # Use symbol from pair (e.g. "SOL" from "SOL/USDC")
+                                        token_symbol = opportunity.pair.split('/')[0]
+                                        
+                                        from src.shared.system.db_manager import db_manager
+                                        db_manager.log_slippage(
+                                            token=token_symbol,
+                                            pair=opportunity.pair,
+                                            expected_out=trade_size,
+                                            actual_out=trade_size - loss_amt,
+                                            trade_size_usd=trade_size,
+                                            dex="UNIFIED"
+                                        )
+                                        Logger.info(f"[ML] 🧠 Auto-calibrated slippage logic for {opportunity.pair} (Loss: ${loss_amt:.4f})")
+                                        
+                                        # Update congestion factor if it looks like a congestion issue
+                                        # (Persistent failures often mean we aren't paying enough bribe to land fast)
+                                        from src.arbiter.core.fee_estimator import get_fee_estimator
+                                        get_fee_estimator().update_congestion_factor(is_congested=True)
+                                except Exception as e:
+                                    Logger.debug(f"[ML] Calibration failed: {e}")
                             
             except Exception as e:
                 Logger.debug(f"[HYBRID] Unified engine error: {e}, using Jupiter")

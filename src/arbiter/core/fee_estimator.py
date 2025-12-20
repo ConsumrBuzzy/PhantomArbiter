@@ -58,6 +58,17 @@ class FeeEstimator:
         # Cache SOL price
         self._sol_price_cache: float = 100.0  # Default
         self._sol_price_ts: float = 0.0
+        
+        # Jito Bribe Multiplier (Congestion Factor)
+        # Scales up when we detect congestion issues via failure feedback
+        self.jito_multiplier: float = 1.0  # Default 1.0x
+    
+    def update_congestion_factor(self, is_congested: bool):
+        """Update Jito multiplier based on recent feedback."""
+        if is_congested:
+            self.jito_multiplier = min(self.jito_multiplier * 1.5, 5.0)  # Scale up, max 5x
+        else:
+            self.jito_multiplier = max(self.jito_multiplier * 0.9, 1.0)  # Decay back to 1x
     
     def get_priority_fee(self) -> float:
         """Get current network priority fee in SOL."""
@@ -124,9 +135,9 @@ class FeeEstimator:
         base_gas_sol = 0.0002  # 2 transactions
         gas_fee = base_gas_sol * sol_price
         
-        # 3. Priority fee (adaptive from network)
+        # 3. Priority fee (adaptive from network + congestion multiplier)
         priority_sol = self.get_priority_fee()
-        priority_fee = priority_sol * sol_price * 2  # x2 for round trip
+        priority_fee = priority_sol * sol_price * 2 * self.jito_multiplier  # x2 round trip * congestion
         
         # 4. Slippage (scales with trade size vs liquidity)
         slippage_base = getattr(Settings, 'SLIPPAGE_BASE_PCT', 0.001)
