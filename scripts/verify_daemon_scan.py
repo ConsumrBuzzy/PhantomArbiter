@@ -50,6 +50,13 @@ def test():
     
     print("\nPre-warming Pool Index (Discovery)...")
     idx = get_pool_index()
+    
+    # CLEAR STALE CACHE to test new discovery logic
+    if "SOL/USDC" in idx._pool_cache:
+        del idx._pool_cache["SOL/USDC"]
+    if "USDC/SOL" in idx._pool_cache:
+        del idx._pool_cache["USDC/SOL"]
+        
     # Force discovery for SOL/USDC
     pools = idx.get_pools("SOL", "USDC")
     print(f"Pool Discovery Result: {pools}")
