@@ -628,14 +628,7 @@ class PhantomArbiter:
                     if adaptive_mode and monitor:
                         current_interval = monitor.update(all_spreads)
                     
-                    # Report results to PodManager for priority updates
-                    # We promote pods if they find profitable OR promising near-miss opportunities
-                    # A near-miss (within $0.10 of break-even) is a sign of high potential activity
-                    if self._smart_pods_enabled and active_pod_names:
-                        # Any pair > -$0.10 is considered a "found opportunity" for priority purposes
-                        found_opp = any(o.net_profit_usd > -0.10 for o in all_spreads)
-                        for pod_name in active_pod_names:
-                            pod_manager.report_result(pod_name, found_opportunity=found_opp, executed=False, success=False)
+                    # Reporting moved to after verification to filter out LIQ/SLIP failures
                         
                 except Exception as e:
                     import traceback
@@ -717,6 +710,24 @@ class PhantomArbiter:
                     gas=self.gas_balance,
                     daily_profit=self.tracker.daily_profit
                 )
+                
+                # Report verified/actionable results to PodManager
+                # This prevents pods from being promoted for finding "LIQ" or "SLIP" failed opportunities
+                if self._smart_pods_enabled and active_pod_names:
+                    is_actionable = False
+                    if verified_opps:
+                        for op in verified_opps:
+                            status = str(op.verification_status or "LIVE")
+                            if "LIVE" in status or "SCALED" in status:
+                                is_actionable = True
+                                break
+                            # Actionable near-miss: > -$0.20 and NOT a structural failure (LIQ/SLIP/ERR)
+                            if op.net_profit_usd > -0.20 and not any(x in status for x in ["LIQ", "SLIP", "ERR"]):
+                                is_actionable = True
+                                break
+                    
+                    for pod_name in active_pod_names:
+                        pod_manager.report_result(pod_name, found_opportunity=is_actionable, executed=False, success=False)
                 
                 # ═══════════════════════════════════════════════════════════════
                 # FAST-PATH EXECUTION: Skip verification for near-miss opportunities

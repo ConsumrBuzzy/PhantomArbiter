@@ -143,6 +143,13 @@ class TradeEngine:
 
     def _handle_quote_loss(self, opportunity: SpreadOpportunity, trade_size: float, error_msg: str):
         """Handle quote loss feedback loop."""
+        # Always Penalize Pod on Quote Loss (Strategy Correction)
+        # We process this BEFORE regex parsing to ensure penalty applies even if parsing fails
+        pods_containing = pod_manager.get_pods_for_pair(opportunity.pair)
+        for pod_name in pods_containing:
+            pod_manager.penalize_pod(pod_name, duration_sec=300) # 5 min penalty
+            Logger.info(f"[POD] 🥅 Penalty Box for {pod_name} (5m) due to Quote Loss")
+            
         try:
             # Extract loss amount (e.g. "Quote loss $-0.5668")
             loss_match = re.search(r"Quote loss \$-?([\d\.]+)", error_msg)
@@ -163,16 +170,6 @@ class TradeEngine:
                 
                 # 2. Update congestion factor
                 get_fee_estimator().update_congestion_factor(is_congested=True)
-                
-                # 3. V83.0.4: Penalize the Pod effectively
-                # Determine pod name implies checking which pod lists this token
-                # For now, penalize pods that contain this pair
-                # We can't easily know which pod triggered this without passing it down
-                # But we can find pods that contain this pair
-                pods_containing = pod_manager.get_pods_for_pair(opportunity.pair)
-                for pod_name in pods_containing:
-                    pod_manager.penalize_pod(pod_name, duration_sec=120)
-                    Logger.info(f"[POD] 🥅 Penalty Box for {pod_name} due to Quote Loss")
                     
         except Exception as e:
             Logger.debug(f"[ML] Calibration failed: {e}")
