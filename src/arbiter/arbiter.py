@@ -26,6 +26,7 @@ from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 from src.speed.jito_adapter import JitoAdapter
 from src.arbiter.core.trade_engine import TradeEngine
+from src.arbiter.core.reporter import ArbiterReporter
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -141,6 +142,7 @@ class PhantomArbiter:
         from src.shared.notification.telegram_manager import TelegramManager
         self.telegram = TelegramManager()
         self.telegram.start()
+        self.reporter = ArbiterReporter(self.telegram)
         
         # Scraper/Signal Coordinator
         self._coordinator = None
@@ -339,124 +341,6 @@ class PhantomArbiter:
             Logger.debug(f"Spread logging error: {e}")
         
         return profitable, spreads
-    
-    def _print_dashboard(self, spreads: List[SpreadOpportunity], verified_opps: List[SpreadOpportunity] = None, pod_names: List[str] = None):
-        """Print the market dashboard with merged verification status."""
-        now = datetime.now().strftime("%H:%M:%S")
-        
-        # Verify map for O(1) lookup
-        verified_map = {op.pair: op for op in (verified_opps or [])}
-        
-        # Pod info for display
-        pod_str = f" | Pod: {','.join(pod_names)}" if pod_names else ""
-        
-        # Clear line and print table header
-        print(f"\n   [{now}] MARKET SCAN | Bal: ${self.current_balance:.2f} | Gas: ${self.gas_balance:.2f} | Day P/L: ${self.tracker.daily_profit:+.2f}")
-        print(f"   {'Pair':<12} {'Buy':<8} {'Sell':<8} {'Spread':<8} {'Net':<10} {'Status'}")
-        print("   " + "-"*60)
-        
-        profitable_count = 0
-        
-        # We only show top N spreads to avoid spam, or all? 
-        # Original showed all spreads passed to it (which was all scanned pairs).
-        # Let's show all spreads, but updated with verification info if available.
-        
-        for opp in spreads:
-            # Check if we have verified data for this opp
-            verified = verified_map.get(opp.pair)
-            
-            if verified:
-                # Use verified data (Real Net Profit & Status)
-                net_profit = verified.net_profit_usd
-                spread_pct = verified.spread_pct # Should match scan usually
-                
-                # Status: "✅ LIVE" or "❌ LIQ ($...)"
-                status = verified.verification_status or "✅ LIVE"
-                if "LIVE" in status:
-                     status = "✅ READY" # Keep UI consistent for good ones
-                elif "LIQ" in status:
-                     status = "❌ LIQ" # Shorten for table
-                
-            else:
-                # Use Scan data + NearMissAnalyzer for nuanced status
-                net_profit = opp.net_profit_usd
-                spread_pct = opp.spread_pct
-                
-                # Calculate near-miss metrics for rich status display
-                metrics = NearMissAnalyzer.calculate_metrics(opp)
-                status = metrics.status_icon
-                
-                # Add decay indicator if we have decay data
-                try:
-                    from src.shared.system.db_manager import db_manager
-                    decay_v = db_manager.get_decay_velocity(opp.pair)
-                    if decay_v > 0.1:
-                        status += f" ⚡{decay_v:.1f}%/s"  # Fast decay warning
-                    elif decay_v > 0:
-                        status += f" 📉"  # Has decay data
-                except:
-                    pass
-            
-            if opp.is_profitable:
-                profitable_count += 1
-                
-            # Color/Format based on status
-            print(f"   {opp.pair:<12} {opp.buy_dex:<8} {opp.sell_dex:<8} +{spread_pct:.2f}%   ${net_profit:+.3f}    {status}")
-        
-        print("-" * 60)
-        
-        if profitable_count > 0:
-            print(f"   🎯 {profitable_count} profitable opportunit{'y' if profitable_count == 1 else 'ies'}!")
-        
-        # SHADOW RECEIPT: Disabled for speed (Net Profit column is now accurate)
-        # if spreads:
-        #     try:
-        #         top_opp = spreads[0] ...
-
-        # Format for Telegram Dashboard (Code Block - SAFE MODE)
-        # We wrap everything in a code block to avoid MarkdownV2 400 errors
-        
-        tg_table = [
-            f"[{now}] SCAN{pod_str} | P/L: ${self.tracker.daily_profit:+.2f}",
-            f"{'Pair':<11} {'Spread':<7} {'Net':<8} {'St'}",
-            "-" * 33
-        ]
-        
-        # Add ALL rows to TG table
-        for i, opp in enumerate(spreads):
-            verified = verified_map.get(opp.pair)
-            status = "❌"
-            net = f"${opp.net_profit_usd:+.3f}"
-            spread = f"{opp.spread_pct:+.2f}%"
-            
-            if verified:
-                net = f"${verified.net_profit_usd:+.3f}"
-                if "LIVE" in (verified.verification_status or ""):
-                    status = "✅"
-                elif "SCALED" in (verified.verification_status or ""):
-                    status = "⚠️"
-                elif "LIQ" in (verified.verification_status or ""):
-                    status = "💧"
-            else:
-                # Use NearMissAnalyzer for better status
-                metrics = NearMissAnalyzer.calculate_metrics(opp)
-                match metrics.status:
-                    case "VIABLE": status = "✅"
-                    case "NEAR_MISS": status = "⚡"
-                    case "WARM": status = "🔸"
-                    case _: status = "❌"
-            
-            tg_table.append(f"{opp.pair[:10]:<11} {spread:<7} {net:<8} {status}")
-            
-        if profitable_count:
-            tg_table.append(f"\n🎯 {profitable_count} Opportunities!")
-            
-        # Beam to Telegram (Wrapped in Code Block)
-        final_msg = "```\n" + "\n".join(tg_table) + "\n```"
-        self.telegram.update_dashboard(final_msg)
-        
-        if profitable_count:
-            print(f"   🎯 {profitable_count} profitable opportunities!")
     
     async def execute_trade(self, opportunity: SpreadOpportunity, trade_size: float = None) -> Dict[str, Any]:
         """Execute a trade delegates to TradeEngine."""
@@ -823,7 +707,16 @@ class PhantomArbiter:
                     
                 # PRINT DASHBOARD (with verification status)
                 # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
-                self._print_dashboard(all_spreads if 'all_spreads' in locals() else raw_opps, verified_opps, active_pod_names if self._smart_pods_enabled else None)
+                # PRINT DASHBOARD (with verification status)
+                # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
+                self.reporter.print_dashboard(
+                    spreads=all_spreads if 'all_spreads' in locals() else raw_opps,
+                    verified_opps=verified_opps,
+                    pod_names=active_pod_names if self._smart_pods_enabled else None,
+                    balance=self.current_balance,
+                    gas=self.gas_balance,
+                    daily_profit=self.tracker.daily_profit
+                )
                 
                 # ═══════════════════════════════════════════════════════════════
                 # FAST-PATH EXECUTION: Skip verification for near-miss opportunities
@@ -992,58 +885,9 @@ class PhantomArbiter:
             if 'coordinator' in locals() and coordinator:
                 await coordinator.stop()
         
-        self._print_summary(start_time, mode_str)
-        self._save_session()
+        self.reporter.print_summary(start_time, self.starting_balance, self.current_balance, self.trades, mode_str)
+        self.reporter.save_session(self.trades, self.starting_balance, self.current_balance, start_time, self.tracker)
     
-    def _print_summary(self, start_time: float, mode_str: str) -> None:
-        """Print session summary."""
-        runtime = (time.time() - start_time) / 60
-        
-        # Fallback: if current_balance is 0 (RPC error) but we didn't lose everything, 
-        # use starting_balance + profit
-        ending_balance = self.current_balance
-        if ending_balance == 0 and self.starting_balance > 0:
-            ending_balance = self.starting_balance + self.total_profit
-        
-        denom = self.starting_balance if self.starting_balance > 0 else 1
-        roi = ((ending_balance - self.starting_balance) / denom) * 100
-        
-        print("\n\n" + "="*70)
-        print(f"   SESSION SUMMARY ({mode_str})")
-        print("="*70)
-        print(f"   Runtime:      {runtime:.1f} minutes")
-        print(f"   Starting:     ${self.starting_balance:.2f}")
-        print(f"   Ending:       ${ending_balance:.4f}")
-        print(f"   Profit:       ${self.total_profit:+.4f}")
-        print(f"   ROI:          {roi:+.2f}%")
-        print(f"   Trades:       {self.total_trades}")
-        print("="*70)
-    
-    def _save_session(self) -> None:
-        """Save session data to JSON."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        mode = "live" if self.config.live_mode else "paper"
-        save_path = f"data/trading_sessions/{mode}_session_{timestamp}.json"
-        
-        denom = self.starting_balance if self.starting_balance > 0 else 1
-        roi = ((self.current_balance - self.starting_balance) / denom) * 100
-        
-        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(save_path, 'w') as f:
-            json.dump({
-                "mode": mode,
-                "starting_balance": self.starting_balance,
-                "ending_balance": self.current_balance,
-                "total_profit": self.total_profit,
-                "total_trades": self.total_trades,
-                "roi_pct": roi,
-                "trades": self.trades
-            }, f, indent=2)
-        
-        print(f"\n   Session saved: {save_path}")
-
-
-# ═══════════════════════════════════════════════════════════════════
 # CLI ENTRY (for direct module execution)
 # ═══════════════════════════════════════════════════════════════════
 
