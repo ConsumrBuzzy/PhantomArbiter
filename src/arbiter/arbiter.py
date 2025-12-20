@@ -662,8 +662,8 @@ class PhantomArbiter:
                 # Execute best opportunity not on cooldown
                 verified_opps = []
                 
-                # Sort by Scan Spread (descending)
-                raw_opps = sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
+                # Sort by NET PROFIT (descending) - prioritize actually profitable opportunities
+                raw_opps = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)
                 
                 # Check Top 3 Candidates for Real Liquidity
                 for opp in raw_opps[:3]:
