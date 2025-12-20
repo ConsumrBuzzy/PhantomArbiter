@@ -498,6 +498,10 @@ class PhantomArbiter:
 
         # ═══════════════════════════════════════════════════════════════════
         # SIGNAL COORDINATOR (External Triggers)
+        
+        # V92.0: Initialize batch size for adaptive scanning
+        self._batch_size = 5
+        self._last_duration = 0
         # ═══════════════════════════════════════════════════════════════════
         from src.arbiter.core.signal_coordinator import SignalCoordinator, CoordinatorConfig
         
