@@ -118,6 +118,9 @@ class MeteoraFeed(PriceSource):
                     bridge = self._get_bridge()
                     result = bridge.get_price(pools.meteora_pool)
                     
+                    if result:
+                        Logger.debug(f"[METEORA] Bridge Result: success={result.success}, err={result.error}")
+                
                     if result and result.success:
                         token_x = result.token_x
                         token_y = result.token_y

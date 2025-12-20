@@ -296,19 +296,30 @@ class RaydiumBridge:
         # Use direct subprocess for discovery (not supported in daemon yet)
         try:
             cmd = ["node", str(self.bridge_path), "discover", mint_a, mint_b]
-            proc = subprocess.run(
+            result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=15,
                 cwd=str(self.bridge_path.parent)
             )
-            if proc.stdout:
-                return json.loads(proc.stdout.strip())
+            
+            output = result.stdout.strip()
+            # Handle noise in output (e.g. warnings)
+            json_line = None
+            for line in output.split('\n'):
+                if line.strip().startswith('{'):
+                    json_line = line.strip()
+                    break
+            
+            if not json_line:
+                Logger.warning(f"[RAYDIUM] Invalid discovery output: {output}")
+                return {"success": False, "error": "Invalid output from bridge"}
+                
+            return json.loads(json_line)
+            
         except Exception as e:
             Logger.error(f"[RAYDIUM] Discover error: {e}")
             return None
-        return None
     
     def fetch_api_quote(
         self,
