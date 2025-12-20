@@ -1032,12 +1032,11 @@ class PhantomArbiter:
                         current_interval = monitor.update(all_spreads)
                     
                     # Report results to PodManager for priority updates
-                    # Only count ACTUAL profitable opportunities (net_profit > 0)
-                    # LIQ failures should not promote a pod
+                    # We promote pods if they find profitable OR promising near-miss opportunities
+                    # A near-miss (within $0.10 of break-even) is a sign of high potential activity
                     if self._smart_pods_enabled and active_pod_names:
-                        # Filter: only positive net profit = real opportunity
-                        real_opps = [o for o in opportunities if o.net_profit_usd > 0]
-                        found_opp = len(real_opps) > 0
+                        # Any pair > -$0.10 is considered a "found opportunity" for priority purposes
+                        found_opp = any(o.net_profit_usd > -0.10 for o in all_spreads)
                         for pod_name in active_pod_names:
                             pod_manager.report_result(pod_name, found_opportunity=found_opp, executed=False, success=False)
                         
