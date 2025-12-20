@@ -187,7 +187,7 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
             return
     
     # Select pairs based on risk tier
-    from src.arbiter.arbiter import LOW_RISK_PAIRS, MID_RISK_PAIRS, HIGH_RISK_PAIRS, TRENDING_PAIRS, CORE_PAIRS
+    from src.arbiter.core.pod_engine import LOW_RISK_PAIRS, MID_RISK_PAIRS, HIGH_RISK_PAIRS, TRENDING_PAIRS, CORE_PAIRS
     tier_map = {
         "all": CORE_PAIRS,
         "low": LOW_RISK_PAIRS,
