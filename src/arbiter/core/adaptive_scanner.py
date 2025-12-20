@@ -140,6 +140,12 @@ class AdaptiveScanner:
         # Reset skip for this pair
         if pair in self.pair_metrics:
             self.pair_metrics[pair].skip_until = 0.0
+            
+    def on_price_update(self, pair: str, price: float):
+        """Callback for WSS price updates."""
+        # Significant update logic could be here
+        # For now, just mark activity so it gets scanned on next loop
+        self.trigger_activity(pair)
     
     def should_scan_pair(self, pair: str, now: float = None) -> bool:
         """
