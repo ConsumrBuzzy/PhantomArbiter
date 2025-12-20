@@ -84,7 +84,7 @@ def test():
     else:
         print("  Orca Bridge Not Loaded (Lazy)")
     
-    SOL_MINT = "So11111111111111111111111111111131111111112"
+    SOL_MINT = "So11111111111111111111111111111111111111112"
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
     print("\n--- Testing Raydium Daemon Scan (SOL/USDC) ---")
