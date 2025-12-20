@@ -65,22 +65,16 @@ class MeteoraSwapResult:
 
 class MeteoraBridge:
     """
-    Python wrapper for Meteora DLMM TypeScript bridge.
-    
-    Calls the bundled JS file via subprocess and parses JSON output.
+    Python wrapper for Meteora DLMM TypeScript bridge via Persistent Daemon.
     """
     
     def __init__(self, bridge_path: Optional[str] = None):
         """
         Initialize the bridge.
-        
-        Args:
-            bridge_path: Path to meteora_bridge.js. Defaults to bridges/meteora_bridge.js
         """
         if bridge_path:
             self.bridge_path = Path(bridge_path)
         else:
-            # Default path relative to project root
             project_root = Path(__file__).parent.parent.parent.parent
             self.bridge_path = project_root / "bridges" / "meteora_bridge.js"
         
@@ -88,66 +82,66 @@ class MeteoraBridge:
             Logger.warning(f"[METEORA] Bridge not found at {self.bridge_path}")
             Logger.warning("[METEORA] Run: cd bridges && npm install && npm run build")
         
-        # Cache for pool info
+        self._daemon = None
         self._pool_cache: Dict[str, MeteoraPriceResult] = {}
-    
-    def _run_command(self, *args) -> Dict[str, Any]:
-        """Run the bridge command and parse JSON output."""
-        cmd = ["node", str(self.bridge_path)] + list(args)
-        
+
+    def _ensure_daemon(self):
+        """Start daemon if not running."""
+        if self._daemon and self._daemon.poll() is None:
+            return
+
         try:
-            result = subprocess.run(
+            cmd = ["node", str(self.bridge_path), "daemon"]
+            self._daemon = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=30,
-                cwd=str(self.bridge_path.parent)
+                cwd=str(self.bridge_path.parent),
+                bufsize=1
             )
-            
-            if result.returncode != 0:
-                Logger.error(f"[METEORA] Bridge error: {result.stderr}")
-                return {"success": False, "error": result.stderr or "Unknown error"}
-            
-            # Parse JSON output
-            try:
-                return json.loads(result.stdout.strip())
-            except json.JSONDecodeError as e:
-                Logger.error(f"[METEORA] JSON parse error: {e}")
-                Logger.debug(f"[METEORA] Raw output: {result.stdout[:200]}")
-                return {"success": False, "error": f"JSON parse error: {e}"}
-                
-        except subprocess.TimeoutExpired:
-            Logger.error("[METEORA] Bridge timeout (30s)")
-            return {"success": False, "error": "Timeout"}
-        except FileNotFoundError:
-            Logger.error("[METEORA] Node.js not found. Install Node.js to use Meteora bridge.")
-            return {"success": False, "error": "Node.js not found"}
+            Logger.info("[METEORA] Daemon started (PID: %s)", self._daemon.pid)
         except Exception as e:
-            Logger.error(f"[METEORA] Bridge exception: {e}")
-            return {"success": False, "error": str(e)}
-    
-    def get_price(self, pool_address: str, use_cache: bool = True) -> MeteoraPriceResult:
-        """
-        Get current price from a Meteora DLMM pool.
-        
-        Args:
-            pool_address: The pool's public key
-            use_cache: Use cached result if available (default True)
+            Logger.error(f"[METEORA] Failed to start daemon: {e}")
+            self._daemon = None
+
+    def _send_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
+        """Send command to daemon via IPC."""
+        self._ensure_daemon()
+        if not self._daemon:
+            return {"success": False, "error": "Daemon failed to start"}
             
-        Returns:
-            MeteoraPriceResult with price data
-        """
+        try:
+            payload = json.dumps(command) + "\n"
+            self._daemon.stdin.write(payload)
+            self._daemon.stdin.flush()
+            
+            line = self._daemon.stdout.readline()
+            if not line:
+                Logger.error("[METEORA] Daemon closed stream")
+                self._daemon = None
+                return {"success": False, "error": "Daemon closed stream"}
+                
+            return json.loads(line.strip())
+        except Exception as e:
+            Logger.error(f"[METEORA] IPC error: {e}")
+            if self._daemon:
+                self._daemon.kill()
+                self._daemon = None
+            return {"success": False, "error": str(e)}
+
+    def get_price(self, pool_address: str, use_cache: bool = True) -> MeteoraPriceResult:
         if use_cache and pool_address in self._pool_cache:
             return self._pool_cache[pool_address]
         
-        data = self._run_command("price", pool_address)
+        data = self._send_command({"command": "price", "pool": pool_address})
         
         result = MeteoraPriceResult(
             success=data.get("success", False),
             pool=data.get("pool", pool_address),
             token_x=data.get("tokenX", ""),
             token_y=data.get("tokenY", ""),
-            # Handle string prices from JSON (BigInt serialization)
             price_x_to_y=float(data.get("priceXtoY", 0)),
             price_y_to_x=float(data.get("priceYtoX", 0)),
             active_bin_id=int(data.get("activeBinId", 0)),
@@ -156,7 +150,6 @@ class MeteoraBridge:
         
         if result.success:
             self._pool_cache[pool_address] = result
-            Logger.debug(f"[METEORA] Price: {result.token_x[:8]}/{result.token_y[:8]} = {result.price_x_to_y:.8f}")
         
         return result
     
@@ -166,20 +159,14 @@ class MeteoraBridge:
         input_mint: str, 
         amount_in: int
     ) -> MeteoraQuoteResult:
-        """
-        Get a swap quote from a Meteora DLMM pool.
+        data = self._send_command({
+            "command": "quote",
+            "pool": pool_address,
+            "inputMint": input_mint,
+            "amount": str(amount_in)
+        })
         
-        Args:
-            pool_address: The pool's public key
-            input_mint: Token mint address to swap FROM
-            amount_in: Amount in smallest units (lamports, etc.)
-            
-        Returns:
-            MeteoraQuoteResult with expected output
-        """
-        data = self._run_command("quote", pool_address, input_mint, str(amount_in))
-        
-        result = MeteoraQuoteResult(
+        return MeteoraQuoteResult(
             success=data.get("success", False),
             input_mint=data.get("inputMint", input_mint),
             output_mint=data.get("outputMint", ""),
@@ -189,11 +176,6 @@ class MeteoraBridge:
             fee=int(data.get("fee", 0)),
             error=data.get("error")
         )
-        
-        if result.success:
-            Logger.debug(f"[METEORA] Quote: {result.input_amount} → {result.output_amount} (impact: {result.price_impact:.4f})")
-        
-        return result
     
     def swap(
         self,
@@ -203,31 +185,16 @@ class MeteoraBridge:
         slippage_bps: int,
         private_key: str
     ) -> MeteoraSwapResult:
-        """
-        Execute a swap on a Meteora DLMM pool.
-        
-        ⚠️ LIVE EXECUTION - Uses real funds!
-        
-        Args:
-            pool_address: The pool's public key
-            input_mint: Token mint address to swap FROM
-            amount_in: Amount in smallest units
-            slippage_bps: Slippage tolerance in basis points (100 = 1%)
-            private_key: Base58-encoded wallet private key
-            
-        Returns:
-            MeteoraSwapResult with transaction signature
-        """
         Logger.info(f"[METEORA] Executing swap: {amount_in} of {input_mint[:8]}...")
         
-        data = self._run_command(
-            "swap",
-            pool_address,
-            input_mint,
-            str(amount_in),
-            str(slippage_bps),
-            private_key
-        )
+        data = self._send_command({
+            "command": "swap",
+            "pool": pool_address,
+            "inputMint": input_mint,
+            "amount": str(amount_in),
+            "slippageBps": slippage_bps,
+            "privateKey": private_key
+        })
         
         result = MeteoraSwapResult(
             success=data.get("success", False),
@@ -247,11 +214,9 @@ class MeteoraBridge:
         return result
     
     def clear_cache(self):
-        """Clear the price cache."""
         self._pool_cache.clear()
     
     def is_available(self) -> bool:
-        """Check if the bridge is available."""
         return self.bridge_path.exists()
 
 
