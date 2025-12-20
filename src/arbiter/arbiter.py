@@ -984,10 +984,12 @@ class PhantomArbiter:
 
                     # Single scan with per-pair filtering (skips stale/low-spread pairs)
                     scan_start = time.time()
+                    Logger.info(f"DEBUG: Calling scan with {len(self.config.pairs)} pairs...")
                     opportunities, all_spreads = await self.scan_opportunities(
                         verbose=False, 
                         scanner=monitor if adaptive_mode else None
                     )
+                    Logger.info(f"DEBUG: Scan returned {len(opportunities)} opps, {len(all_spreads)} spreads.")
                     scan_duration_ms = (time.time() - scan_start) * 1000
                     
                     # Log cycle timing for ML optimization
