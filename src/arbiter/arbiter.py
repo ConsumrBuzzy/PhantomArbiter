@@ -128,6 +128,15 @@ POD_PUMP = [
     ("GIGA", "8v8GSr4p7Gz8xw6nF22m1LSfSgY7T2nBv2nK3y7f3z6A"),      # Gigachad
 ]
 
+# POD 10: Direct Pools (Pre-verified Meteora + Orca high-liquidity pools)
+# These bypass aggregator routing for atomic execution
+POD_DIRECT_POOLS = [
+    ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),      # Orca Whirlpool
+    ("WIF", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),       # Orca Whirlpool
+    ("JITOSOL", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"),   # Orca Whirlpool
+    ("MSOL", "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"),       # Orca Whirlpool
+]
+
 # All pods for reference
 ALL_PODS = {
     "DEFI_CORE": POD_DEFI_CORE,
@@ -139,6 +148,7 @@ ALL_PODS = {
     "AI_A": POD_AI_A,
     "AI_B": POD_AI_B,
     "PUMP": POD_PUMP,
+    "DIRECT_POOLS": POD_DIRECT_POOLS,
 }
 
 # Build pairs from all pods
@@ -190,8 +200,8 @@ class PodManager:
     
     def _init_state(self):
         priority = 1
-        # Priority order: OG memes first, then viral, AI, DeFi, pump, infra
-        for name in ["OG_A", "OG_B", "VIRAL", "AI_A", "AI_B", "PUMP", "DEFI_CORE", "DEFI_EXT", "INFRA"]:
+        # Priority order: DIRECT_POOLS first (atomic execution), then OG memes, viral, AI, DeFi, pump, infra
+        for name in ["DIRECT_POOLS", "OG_A", "OG_B", "VIRAL", "AI_A", "AI_B", "PUMP", "DEFI_CORE", "DEFI_EXT", "INFRA"]:
             self.state[name] = {
                 "priority": priority,
                 "last_scan": 0,

@@ -82,6 +82,10 @@ def create_parser() -> argparse.ArgumentParser:
         "--unified-engine", action="store_true",
         help="Use unified execution engine (Meteora + Orca atomic, bypasses Jupiter)"
     )
+    arbiter_parser.add_argument(
+        "--pool-scan", action="store_true",
+        help="Run pool discovery on startup (finds Meteora + Orca pools for all tokens)"
+    )
     
     # ═══════════════════════════════════════════════════════════════
     # SCAN SUBCOMMAND (Quick one-shot opportunity scan)
@@ -208,6 +212,14 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
     if smart_pods_mode:
         print(f"   🔀 Smart Pod Rotation: ENABLED")
     print(f"   📊 Risk Tier: {args.risk_tier.upper()} ({len(selected_pairs)} pairs)")
+    
+    # Pool discovery on startup
+    if getattr(args, 'pool_scan', False):
+        print(f"   🔍 Running pool discovery...")
+        from src.shared.execution.pool_scanner import PoolScanner
+        scanner = PoolScanner()
+        count = await scanner.discover_all()
+        print(f"   ✅ Discovered {count} Meteora/Orca pools")
     
     arbiter = PhantomArbiter(config)
     await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval, smart_pods=smart_pods_mode)
