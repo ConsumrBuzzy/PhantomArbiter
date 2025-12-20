@@ -364,16 +364,21 @@ class SpreadDetector:
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(fetch_from_feed, item) for item in self.feeds.items()]
             
-            for future in as_completed(futures, timeout=10):
-                try:
-                    feed_name, prices = future.result()
-                    if prices:
-                        feed_prices[feed_name] = prices
-                except Exception as e:
-                    import traceback
-                    print(f"DEBUG: Feed {future} failed: {e}")
-                    # traceback.print_exc()
-                    pass
+            try:
+                for future in as_completed(futures, timeout=15):  # V88.0: Increased from 10s
+                    try:
+                        feed_name, prices = future.result()
+                        if prices:
+                            feed_prices[feed_name] = prices
+                    except Exception as e:
+                        import traceback
+                        print(f"DEBUG: Feed {future} failed: {e}")
+                        # traceback.print_exc()
+                        pass
+            except TimeoutError:
+                # V88.0: Graceful handling - continue with feeds we have
+                from src.shared.system.logging import Logger
+                Logger.debug(f"[SCAN] Some feeds timed out, continuing with {len(feed_prices)} feeds")
         
         if len(feed_prices) < 2:
             # Need at least 2 feeds for spread comparison
