@@ -348,12 +348,13 @@ class DriftAdapter:
         
         try:
             # 1. Check if user account exists
-            user = await self.client.get_user()
+            # In newer driftpy, after subscribe(), get_user() is synchronous
+            user = self.client.get_user()
             if not user:
                 result["message"] = "❌ Drift Account NOT FOUND. Initialize account first."
                 return result
             
-            # 2. Get collateral info
+            # 2. Get collateral info (these methods are sync after user is loaded)
             result["collateral"] = user.get_total_collateral() / QUOTE_PRECISION
             result["free_collateral"] = user.get_free_collateral() / QUOTE_PRECISION
             
