@@ -418,6 +418,118 @@ class DBManager:
             ORDER BY attempts DESC
             """, (cutoff,))
             return [dict(row) for row in c.fetchall()]
+    
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # LEARNING ANALYTICS - Data-driven optimization from scan history
+    # ═══════════════════════════════════════════════════════════════════════════════
+    
+    def get_spread_variance(self, hours: int = 1) -> list:
+        """
+        Get spread variance per pair for scan priority optimization.
+        High variance = scan more frequently (volatile opportunities).
+        Low variance = scan less (stable, predictable).
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+            SELECT 
+                pair,
+                COUNT(*) as samples,
+                AVG(spread_pct) as avg_spread,
+                MAX(spread_pct) - MIN(spread_pct) as spread_range,
+                AVG(net_profit_usd) as avg_profit
+            FROM spread_observations 
+            WHERE timestamp > ?
+            GROUP BY pair
+            HAVING samples >= 3
+            ORDER BY spread_range DESC
+            """, (cutoff,))
+            return [dict(row) for row in c.fetchall()]
+    
+    def get_dex_route_performance(self, hours: int = 24) -> list:
+        """
+        Analyze which DEX routes (buy→sell) have best execution reliability.
+        Returns success rate per route combination.
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+            SELECT 
+                buy_dex || ' → ' || sell_dex as route,
+                COUNT(*) as attempts,
+                SUM(CASE WHEN success THEN 1 ELSE 0 END) as successes,
+                AVG(profit_delta) as avg_decay,
+                AVG(latency_ms) as avg_latency
+            FROM fast_path_attempts 
+            WHERE timestamp > ?
+            GROUP BY route
+            HAVING attempts >= 2
+            ORDER BY successes DESC
+            """, (cutoff,))
+            return [dict(row) for row in c.fetchall()]
+    
+    def get_high_variance_pairs(self, hours: int = 1, min_range: float = 0.3) -> list:
+        """
+        Get pairs with high spread variance that should be scanned more frequently.
+        These are volatile pairs where opportunities appear and disappear quickly.
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+            SELECT pair
+            FROM spread_observations 
+            WHERE timestamp > ?
+            GROUP BY pair
+            HAVING (MAX(spread_pct) - MIN(spread_pct)) > ?
+            """, (cutoff, min_range))
+            return [row['pair'] for row in c.fetchall()]
+    
+    def get_liq_failure_rate(self, hours: int = 2) -> dict:
+        """
+        Calculate LIQ failure rate per pair.
+        Pairs with >80% LIQ rate should be temporarily excluded.
+        
+        Returns: {pair: failure_rate}
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (hours * 3600)
+            c.execute("""
+            SELECT 
+                pair,
+                COUNT(*) as total,
+                SUM(CASE WHEN was_profitable = 0 AND net_profit_usd < -0.05 THEN 1 ELSE 0 END) as liq_failures
+            FROM spread_observations 
+            WHERE timestamp > ?
+            GROUP BY pair
+            HAVING total >= 5
+            """, (cutoff,))
+            
+            result = {}
+            for row in c.fetchall():
+                total = row['total'] or 1
+                failures = row['liq_failures'] or 0
+                result[row['pair']] = failures / total
+            return result
+    
+    def get_profitable_hours(self, days: int = 7) -> list:
+        """
+        Analyze which hours of day have highest profitable spread frequency.
+        Returns list of hours (0-23) sorted by profitability.
+        """
+        with self.cursor() as c:
+            cutoff = time.time() - (days * 86400)
+            c.execute("""
+            SELECT 
+                CAST((timestamp % 86400) / 3600 AS INTEGER) as hour_utc,
+                COUNT(*) as total_spreads,
+                SUM(CASE WHEN was_profitable THEN 1 ELSE 0 END) as profitable_count,
+                AVG(CASE WHEN was_profitable THEN spread_pct ELSE NULL END) as avg_profitable_spread
+            FROM spread_observations 
+            WHERE timestamp > ?
+            GROUP BY hour_utc
+            ORDER BY profitable_count DESC
+            """, (cutoff,))
+            return [dict(row) for row in c.fetchall()]
 
 # Global Accessor
 db_manager = DBManager()

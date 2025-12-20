@@ -100,6 +100,35 @@ class AdaptiveScanner:
         # Per-pair state
         self.pair_metrics: Dict[str, PairMetrics] = {}
         self.pair_heat: Dict[str, float] = {}  # Legacy: {pair: last_activity_time}
+        
+        # Learning-based promotion/demotion
+        self.promoted_pairs: set = set()   # High-variance pairs → scan faster
+        self.demoted_pairs: set = set()    # High LIQ failure → skip more
+        self._last_db_sync = 0.0
+    
+    def sync_with_db(self) -> None:
+        """
+        Sync promotion/demotion lists from DB analytics.
+        Called periodically (every 5 minutes) to update based on learned patterns.
+        """
+        now = time.time()
+        if now - self._last_db_sync < 300:  # 5 minute cooldown
+            return
+        
+        try:
+            from src.shared.system.db_manager import db_manager
+            
+            # Promote high-variance pairs (scan them faster)
+            self.promoted_pairs = set(db_manager.get_high_variance_pairs(hours=1, min_range=0.4))
+            
+            # Demote high-LIQ-failure pairs (skip them more)
+            liq_rates = db_manager.get_liq_failure_rate(hours=2)
+            self.demoted_pairs = {pair for pair, rate in liq_rates.items() if rate > 0.7}
+            
+            self._last_db_sync = now
+            
+        except Exception:
+            pass  # Silent fail - don't break scanning
 
     def trigger_activity(self, pair: str) -> None:
         """External trigger (e.g. WSS) to indicate activity on a pair."""
@@ -186,11 +215,11 @@ class AdaptiveScanner:
         from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
         metrics.last_status = NearMissAnalyzer.classify_status(opp.net_profit_usd)
         
-        # Determine skip interval based on BOTH spread level and variance
-        skip_seconds = self._calculate_skip_interval(opp.spread_pct, metrics.spread_variance)
+        # Determine skip interval based on spread, variance, AND learned data
+        skip_seconds = self._calculate_skip_interval(opp.pair, opp.spread_pct, metrics.spread_variance)
         metrics.skip_until = now + skip_seconds
     
-    def _calculate_skip_interval(self, spread_pct: float, variance: float) -> float:
+    def _calculate_skip_interval(self, pair: str, spread_pct: float, variance: float) -> float:
         """
         Calculate how long to skip before next scan.
         
@@ -199,28 +228,38 @@ class AdaptiveScanner:
         - Medium spread (0.4-0.8%) + high variance → short skip
         - Medium spread (0.4-0.8%) + low variance → medium skip
         - Low spread (< 0.4%) + any variance → long skip (not worth it for $30)
+        
+        Learning adjustments:
+        - Promoted pairs (high variance history) → reduce skip by 50%
+        - Demoted pairs (high LIQ failure) → increase skip by 2x
         """
-        # High spread = always scan (potential profit)
+        # Base calculation
         if spread_pct >= self.HOT_SPREAD_PCT:
-            return self.SKIP_HOT
-        
-        # Medium spread - variance matters
-        if spread_pct >= self.WARM_SPREAD_PCT:
+            base_skip = self.SKIP_HOT
+        elif spread_pct >= self.WARM_SPREAD_PCT:
             if variance >= self.VARIANCE_HOT:
-                return self.SKIP_HOT       # Volatile, watch closely
+                base_skip = self.SKIP_HOT
             elif variance >= self.VARIANCE_WARM:
-                return self.SKIP_WARM      # 3s skip
+                base_skip = self.SKIP_WARM
             else:
-                return self.SKIP_COOL      # 8s skip
-        
-        # Low spread - deprioritize heavily
-        # Not worth watching for $30 budget even if volatile
-        if variance >= self.VARIANCE_HOT:
-            return self.SKIP_COOL          # 8s - volatile but low spread
-        elif variance >= self.VARIANCE_COLD:
-            return self.SKIP_COLD          # 15s - stable and low
+                base_skip = self.SKIP_COOL
         else:
-            return self.SKIP_FROZEN        # 20s - frozen target
+            # Low spread - deprioritize heavily
+            if variance >= self.VARIANCE_HOT:
+                base_skip = self.SKIP_COOL
+            elif variance >= self.VARIANCE_COLD:
+                base_skip = self.SKIP_COLD
+            else:
+                base_skip = self.SKIP_FROZEN
+        
+        # Learning-based adjustments
+        if pair in self.promoted_pairs:
+            return base_skip * 0.5  # Scan 2x faster for volatile pairs
+        
+        if pair in self.demoted_pairs:
+            return min(base_skip * 2.0, 30.0)  # Scan 2x slower for LIQ-prone pairs
+        
+        return base_skip
     
     def update(self, spreads: List[SpreadOpportunity]) -> float:
         """
@@ -231,6 +270,9 @@ class AdaptiveScanner:
         Returns: Next global scan interval
         """
         now = time.time()
+        
+        # Periodically sync promotion/demotion from DB analytics
+        self.sync_with_db()
         
         # Update per-pair metrics
         for opp in spreads:
