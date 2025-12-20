@@ -337,7 +337,29 @@ class SpreadDetector:
                 sell_dex=sell_dex,
                 sol_price=fee_est._sol_price_cache
             )
-            net_profit = gross_profit - fees.total_usd
+            
+            # ML Slippage Prediction
+            slippage_cost = 0.0
+            try:
+                from src.shared.system.db_manager import db_manager
+                token = pair_name.split('/')[0] if '/' in pair_name else pair_name
+                expected_slippage_pct = db_manager.get_expected_slippage(token, trade_size)
+                slippage_cost = trade_size * (expected_slippage_pct / 100)
+            except:
+                pass
+            
+            # ML Decay Prediction
+            decay_cost = 0.0
+            try:
+                decay_velocity = db_manager.get_decay_velocity(pair_name)
+                if decay_velocity > 0:
+                    exec_window = db_manager.get_avg_cycle_time() / 1000 if db_manager.get_avg_cycle_time() > 0 else 3.0
+                    exec_window = min(exec_window, 10.0)
+                    decay_cost = trade_size * (decay_velocity * exec_window / 100)
+            except:
+                pass
+            
+            net_profit = gross_profit - fees.total_usd - slippage_cost - decay_cost
             
             opportunities.append(SpreadOpportunity(
                 pair=pair_name,
