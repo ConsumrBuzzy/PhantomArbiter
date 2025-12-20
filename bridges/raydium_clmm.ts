@@ -309,7 +309,7 @@ async function getQuote(
         const amountInBN = new BN(new Decimal(amountIn).mul(10 ** inputDecimals).floor().toString());
 
         // Compute output using SDK
-        const swapResult = Raydium.clmm ? await (raydium as any).clmm.computeAmountOutFormat({
+        const swapResult = raydium.clmm ? await raydium.clmm.computeAmountOutFormat({
             poolInfo: info,
             tickArrayCache: rpcResult.tickData,
             amountIn: amountInBN,
