@@ -662,10 +662,7 @@ class PhantomArbiter:
                 # Execute best opportunity not on cooldown
                 verified_opps = []
                 
-                # DEBUG: Show scan profits before sorting
-                if opportunities:
-                    top5 = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)[:5]
-                    print(f"   📊 Top 5 by scan profit: {[(o.pair, f'${o.net_profit_usd:+.3f}') for o in top5]}")
+                # Sort opportunities for verification
                 
                 # Sort by NET PROFIT (descending) - prioritize actually profitable opportunities
                 raw_opps = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)
@@ -708,7 +705,6 @@ class PhantomArbiter:
                     valid_candidates = pre_checked[:4]
                     
                     if valid_candidates:
-                        print(f"   📋 Verifying {len(valid_candidates)} (filtered from {len(candidates)}): {[c.pair for c in valid_candidates]}")
                         
                         async def verify_one(opp):
                             try:
