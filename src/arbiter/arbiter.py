@@ -61,7 +61,7 @@ class ArbiterConfig:
 # Bootstrap defaults based on observed data (used until ML has enough samples)
 # These protect against wasted gas on pairs with known issues
 BOOTSTRAP_MIN_SPREADS = {
-    "PIPPIN": 2.0,   # Observed 1.2% → reverts with -$0.07 to -$0.14
+    "PIPPIN": 4.0,   # Observed extreme slippage: +$0.21 scan → -$0.34 quote
     "PNUT": 1.8,     # Observed 1.2% → reverts with -$0.13
     "ACT": 2.5,      # High LIQ failure rate
 }
