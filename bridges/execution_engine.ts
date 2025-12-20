@@ -251,7 +251,7 @@ class ExecutionEngine {
             slippage,
             ORCA_WHIRLPOOL_PROGRAM_ID,
             await client.getFetcher(),
-            true // refresh
+            { maxAge: 0 } // Force refresh of account data
         );
 
         // Build swap instruction
