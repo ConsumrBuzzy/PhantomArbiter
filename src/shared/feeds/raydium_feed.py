@@ -14,6 +14,7 @@ from typing import Optional, Dict, List
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from .price_source import PriceSource, Quote, SpotPrice
+from src.shared.execution.pool_index import get_pool_index
 
 
 class RaydiumFeed(PriceSource):
@@ -125,13 +126,11 @@ class RaydiumFeed(PriceSource):
     
     def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
-        Get spot price from Raydium via DexScreener (more reliable).
-        
-        DexScreener provides Raydium pool prices with good accuracy.
+        Get spot price from Raydium via Daemon (fast) or DexScreener (fallback).
         """
         cache_key = f"{base_mint}:{quote_mint}"
         
-        # Check cache
+        # Check cache (short TTL)
         if cache_key in self._price_cache:
             cached = self._price_cache[cache_key]
             if time.time() - cached['timestamp'] < self._cache_ttl:
@@ -142,11 +141,54 @@ class RaydiumFeed(PriceSource):
                     price=cached['price'],
                     timestamp=cached['timestamp']
                 )
+
+        # 1. Try Daemon (Fast Path)
+        try:
+            pool_index = get_pool_index()
+            # Only checking CLMM pools for now (Daemon requirement)
+            pools = pool_index.get_pools(base_mint, quote_mint)
+            
+            if pools and pools.raydium_clmm_pool:
+                bridge = self._get_bridge()
+                
+                # Check if bridge is actually daemonized/ready? 
+                # Just call get_price, it handles daemon communication.
+                result = bridge.get_price(pools.raydium_clmm_pool)
+                
+                if result and result.get('success'):
+                    # Determine price direction
+                    token_a = result.get('tokenA')
+                    token_b = result.get('tokenB')
+                    price_a_to_b = float(result.get('priceAtoB', 0))
+                    price_b_to_a = float(result.get('priceBtoA', 0))
+                    
+                    price = 0.0
+                    if base_mint == token_a:
+                        price = price_a_to_b
+                    elif base_mint == token_b:
+                        price = price_b_to_a
+                        
+                    if price > 0:
+                        Logger.debug(f"[RAYDIUM] 🟢 Daemon price for {base_mint[:4]}: ${price}")
+                        timestamp = time.time()
+                        self._price_cache[cache_key] = {
+                            'price': price,
+                            'timestamp': timestamp
+                        }
+                        return SpotPrice(
+                            dex="RAYDIUM",
+                            base_mint=base_mint,
+                            quote_mint=quote_mint,
+                            price=price,
+                            timestamp=timestamp
+                        )
+        except Exception as e:
+            Logger.debug(f"[RAYDIUM] Daemon check failed: {e}")
         
-        # Try DexScreener for Raydium pools
+        # 2. Try DexScreener (Fallback)
         price = self._fetch_dexscreener_price(base_mint, "raydium")
         
-        # Fallback to Raydium API
+        # 3. Try Raydium V2 API (Last Resort)
         if not price or price <= 0:
             price = self._fetch_raydium_api_price(base_mint)
             if price:

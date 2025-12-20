@@ -16,6 +16,7 @@ from typing import Optional, Dict
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from .price_source import PriceSource, Quote, SpotPrice
+from src.shared.execution.pool_index import get_pool_index
 
 
 class MeteoraFeed(PriceSource):
@@ -37,6 +38,14 @@ class MeteoraFeed(PriceSource):
         """Initialize Meteora feed."""
         self._price_cache: Dict[str, tuple] = {}  # mint -> (price, timestamp)
         self._cache_ttl = 5.0  # 5 second cache
+        self._bridge = None
+
+    def _get_bridge(self):
+        """Lazy-load MeteoraBridge."""
+        if self._bridge is None:
+            from src.shared.execution.meteora_bridge import MeteoraBridge
+            self._bridge = MeteoraBridge()
+        return self._bridge
     
     def get_name(self) -> str:
         return "METEORA"
@@ -100,7 +109,40 @@ class MeteoraFeed(PriceSource):
                         timestamp=cached_time
                     )
             
-            # Fetch from DexScreener filtered for Meteora
+            # 1. Try Daemon (Fast Path)
+            try:
+                pool_index = get_pool_index()
+                pools = pool_index.get_pools(base_mint, quote_mint)
+                
+                if pools and pools.meteora_pool:
+                    bridge = self._get_bridge()
+                    result = bridge.get_price(pools.meteora_pool)
+                    
+                    if result and result.success:
+                        token_x = result.token_x
+                        token_y = result.token_y
+                        
+                        price = 0.0
+                        if base_mint == token_x:
+                            price = result.price_x_to_y
+                        elif base_mint == token_y:
+                            price = result.price_y_to_x
+                            
+                        if price > 0:
+                            Logger.debug(f"[METEORA] 🟢 Daemon price for {base_mint[:4]}: ${price}")
+                            self._price_cache[cache_key] = (price, time.time())
+                            return SpotPrice(
+                                base_mint=base_mint,
+                                quote_mint=quote_mint,
+                                price=price,
+                                source="METEORA",
+                                liquidity_usd=0, # Not provided by fast check
+                                timestamp=time.time()
+                            )
+            except Exception as e:
+                Logger.debug(f"[METEORA] Daemon check failed: {e}")
+            
+            # 2. Fetch from DexScreener (Fallback)
             result = self._fetch_dexscreener_price(base_mint, dex_filter="meteora")
             
             if result:
