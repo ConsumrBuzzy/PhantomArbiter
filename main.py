@@ -225,8 +225,28 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
         count = await scanner.discover_all()
         print(f"   ✅ Discovered {count} Meteora/Orca pools")
     
+    # Landlord (Drift hedging) initialization
+    landlord = None
+    if getattr(args, 'landlord', False):
+        print(f"   🏠 Landlord Strategy: ENABLED")
+        try:
+            from src.arbiter.strategies.landlord import Landlord
+            landlord = Landlord()
+            landlord_ready = await landlord.initialize()
+            if landlord_ready:
+                funding = await landlord.get_funding_snapshot()
+                if funding:
+                    print(f"   📊 SOL Funding: {funding.rate_hourly:.3f}%/h ({funding.rate_annual:.0f}% APY)")
+                    print(f"   💰 Direction: {'Shorts earn ✅' if funding.is_positive else 'Longs earn'}")
+            else:
+                print(f"   ⚠️ Landlord init failed - continuing without hedging")
+                landlord = None
+        except Exception as e:
+            print(f"   ⚠️ Landlord error: {e}")
+            landlord = None
+    
     arbiter = PhantomArbiter(config)
-    await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval, smart_pods=smart_pods_mode)
+    await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval, smart_pods=smart_pods_mode, landlord=landlord)
 
 
 async def cmd_scan(args: argparse.Namespace) -> None:
