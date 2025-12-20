@@ -50210,10 +50210,13 @@ async function discoverPool(mintA, mintB) {
     error: `${v3Result.error} | ${dexResult.error}`
   };
 }
-async function getPrice(poolAddress) {
-  const connection = new import_web32.Connection(RPC_URL, "confirmed");
+async function getPrice(poolAddress, existingRaydium) {
   try {
-    const raydium = await initRaydium(connection);
+    let raydium = existingRaydium;
+    if (!raydium) {
+      const connection = new import_web32.Connection(RPC_URL, "confirmed");
+      raydium = await initRaydium(connection);
+    }
     const poolId = new import_web32.PublicKey(poolAddress);
     const rpcResult = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
     if (!rpcResult || !rpcResult.poolInfo) {
@@ -50279,10 +50282,13 @@ async function getPrice(poolAddress) {
     };
   }
 }
-async function getQuote(poolAddress, inputMint, amountIn) {
-  const connection = new import_web32.Connection(RPC_URL, "confirmed");
+async function getQuote(poolAddress, inputMint, amountIn, existingRaydium) {
   try {
-    const raydium = await initRaydium(connection);
+    let raydium = existingRaydium;
+    let connection = raydium?.connection || new import_web32.Connection(RPC_URL, "confirmed");
+    if (!raydium) {
+      raydium = await initRaydium(connection);
+    }
     const poolId = new import_web32.PublicKey(poolAddress);
     const rpcResult = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
     if (!rpcResult || !rpcResult.poolInfo) {
@@ -50356,12 +50362,17 @@ async function getQuote(poolAddress, inputMint, amountIn) {
     };
   }
 }
-async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privateKeyBase58) {
-  const connection = new import_web32.Connection(RPC_URL, "confirmed");
+async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privateKeyBase58, existingRaydium) {
   try {
-    const privateKey = import_bs58.default.decode(privateKeyBase58);
-    const owner = import_web32.Keypair.fromSecretKey(privateKey);
-    const raydium = await initRaydium(connection, owner);
+    let raydium = existingRaydium;
+    let connection = raydium?.connection || new import_web32.Connection(RPC_URL, "confirmed");
+    if (!raydium) {
+      if (!privateKeyBase58)
+        throw new Error("Missing private key");
+      const privateKey = import_bs58.default.decode(privateKeyBase58);
+      const owner = import_web32.Keypair.fromSecretKey(privateKey);
+      raydium = await initRaydium(connection, owner);
+    }
     const poolId = new import_web32.PublicKey(poolAddress);
     const rpcResult = await raydium.clmm.getPoolInfoFromRpc(poolId.toString());
     if (!rpcResult || !rpcResult.poolInfo) {
@@ -50416,10 +50427,51 @@ async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privat
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
+  if (command === "daemon") {
+    const connection = new import_web32.Connection(RPC_URL, "confirmed");
+    console.error("DEBUG: Initializing Raydium Daemon...");
+    const privateKeyBase58 = process.env.PHANTOM_PRIVATE_KEY;
+    let owner;
+    if (privateKeyBase58) {
+      try {
+        const privateKey = import_bs58.default.decode(privateKeyBase58);
+        owner = import_web32.Keypair.fromSecretKey(privateKey);
+      } catch (e) {
+        console.error("DEBUG: Invalid Private Key in env");
+      }
+    }
+    const raydium = await initRaydium(connection, owner);
+    console.error("DEBUG: Raydium Daemon Ready");
+    const readline = require("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false
+    });
+    rl.on("line", async (line) => {
+      if (!line.trim())
+        return;
+      try {
+        const req = JSON.parse(line);
+        let result = {};
+        if (req.cmd === "price") {
+          result = await getPrice(req.pool, raydium);
+        } else if (req.cmd === "quote") {
+          result = await getQuote(req.pool, req.inputMint, req.amount, raydium);
+        } else if (req.cmd === "swap") {
+          result = await executeSwap(req.pool, req.inputMint, req.amount, req.slippageBps, void 0, raydium);
+        }
+        console.log(JSON.stringify(result));
+      } catch (e) {
+        console.log(JSON.stringify({ success: false, error: e.message }));
+      }
+    });
+    return;
+  }
   if (!command) {
     console.log(JSON.stringify({
       success: false,
-      error: "Usage: node raydium_clmm.js <price|quote|swap> [args...]"
+      error: "Usage: node raydium_clmm.js <price|quote|swap|daemon> [args...]"
     }));
     process.exit(1);
   }
@@ -50465,7 +50517,7 @@ async function main() {
       break;
     }
     default:
-      console.log(JSON.stringify({ success: false, error: `Unknown command: ${command}. Use: discover|price|quote|swap` }));
+      console.log(JSON.stringify({ success: false, error: `Unknown command: ${command}. Use: discover|price|quote|swap|daemon` }));
       process.exit(1);
   }
 }
