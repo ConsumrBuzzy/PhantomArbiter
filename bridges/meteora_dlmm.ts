@@ -127,8 +127,8 @@ async function getPrice(poolAddress: string, existingConnection?: Connection): P
             pool: poolAddress,
             tokenX: dlmmPool.tokenX.publicKey.toBase58(),
             tokenY: dlmmPool.tokenY.publicKey.toBase58(),
-            priceXtoY: pricePerToken,
-            priceYtoX: 1 / pricePerToken,
+            priceXtoY: Number(pricePerToken),
+            priceYtoX: 1 / Number(pricePerToken),
             activeBinId: activeBin.binId
         };
 
