@@ -215,7 +215,7 @@ class SpreadDetector:
             List of SpreadOpportunity sorted by spread_pct descending
         """
         import time
-        from src.core.data import batch_fetch_jupiter_prices
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         
         trade_size = trade_size or self.default_trade_size
         opportunities = []
@@ -225,44 +225,42 @@ class SpreadDetector:
             base_mint for pair_name, base_mint, quote_mint in pairs
         ))
         
-        # Use shared batch fetch (has circuit breaker + DexScreener fallback)
-        jupiter_prices = batch_fetch_jupiter_prices(all_mints)
+        if not all_mints or not self.feeds:
+            return []
         
-        # Also get prices from each feed for spread comparison
+        # Parallel fetch from ALL feeds
         feed_prices: Dict[str, Dict[str, float]] = {}
-        feed_prices['JUPITER'] = jupiter_prices
         
-        # Parallel fetch from other feeds
-        from concurrent.futures import ThreadPoolExecutor
-        
-        for feed_name, feed in self.feeds.items():
-            if feed_name.upper() == 'JUPITER':
-                continue  # Already have Jupiter prices
+        def fetch_from_feed(feed_item):
+            feed_name, feed = feed_item
             try:
                 if hasattr(feed, 'get_multiple_prices'):
-                    prices = feed.get_multiple_prices(all_mints)
-                    if prices:
-                        feed_prices[feed_name] = prices
+                    return feed_name, feed.get_multiple_prices(all_mints)
                 else:
-                    # Fallback to parallel individual fetches
+                    # Fallback: parallel individual fetches
                     prices = {}
-                    def fetch_single(mint):
+                    for mint in all_mints:
                         try:
                             spot = feed.get_spot_price(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-                            return mint, spot.price if spot else 0
+                            if spot and spot.price > 0:
+                                prices[mint] = spot.price
                         except:
-                            return mint, 0
-                    
-                    with ThreadPoolExecutor(max_workers=10) as ex:
-                        for mint, price in ex.map(fetch_single, all_mints):
-                            if price > 0:
-                                prices[mint] = price
-                    
+                            pass
+                    return feed_name, prices
+            except Exception:
+                return feed_name, {}
+        
+        # Fetch from all feeds in parallel (3 feeds = 3 threads)
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(fetch_from_feed, item) for item in self.feeds.items()]
+            
+            for future in as_completed(futures, timeout=10):
+                try:
+                    feed_name, prices = future.result()
                     if prices:
                         feed_prices[feed_name] = prices
-                        
-            except Exception:
-                pass
+                except Exception:
+                    pass
         
         if len(feed_prices) < 2:
             # Need at least 2 feeds for spread comparison
