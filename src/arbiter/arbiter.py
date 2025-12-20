@@ -65,54 +65,78 @@ HIGH_RISK_PAIRS = [
 ]
 
 # ═══════════════════════════════════════════════════════════════════
-# TRENDING: High-volatility Dec 2025 - Pump.fun graduates with 1.5-5%+ spreads
-# Includes BOTH USDC and SOL pairs for deeper liquidity access
+# SMART PODS: Grouped by similarity for focused scanning
+# Each pod: 4-6 tokens with similar characteristics
 # ═══════════════════════════════════════════════════════════════════
 
-# AI & Narrative Tier (High spreads, news-driven)
-_AI_TOKENS = [
-    ("GOAT", "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump"),      # Goatseus Maximus
-    ("ACT", "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump"),       # AI Prophecy
-    ("AI16Z", "4ptu2LhxRTERJNJWqnYZ681srxquMBumTHD3XQvDRTjt"),     # AI16Z
-    ("FARTCOIN", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"), # Meteora bin volatility
-]
-
-# Viral Meme Tier (High volume, zero $30 impact)
-_MEME_TOKENS = [
-    ("PNUT", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"),      # Peanut Squirrel
-    ("MOODENG", "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY"),   # Moo Deng
-    ("CHILLGUY", "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump"),  # TikTok viral
-    ("PENGU", "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv"),     # Pudgy Penguins
-    ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),    # Popcat
-]
-
-# Heavy-Hitter Tier (Strategic targets)
-_HEAVY_TOKENS = [
-    ("PIPPIN", "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump"),    # Pippin
-    ("TRUMP", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN"),     # Official Trump
-    ("FWOG", "A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump"),      # Fwog
-    ("GIGA", "8v8GSr4p7Gz8xw6nF22m1LSfSgY7T2nBv2nK3y7f3z6A"),      # Gigachad
-]
-
-# Deep Liquidity Tier (Established tokens with $100k+ pools)
-_DEEP_LIQUIDITY = [
+# POD 1: DeFi Blue Chips (Deep liquidity, tight spreads, $100k+ pools)
+POD_DEFI = [
     ("JUP", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"),        # Jupiter
     ("RAY", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"),       # Raydium
     ("ORCA", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE"),       # Orca
     ("JITO", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"),      # Jito
     ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3"),      # Pyth Network
+]
+
+# POD 2: Infrastructure (Utility tokens, medium liquidity)
+POD_INFRA = [
     ("W", "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ"),          # Wormhole
     ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof"),     # Render
     ("HNT", "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux"),        # Helium
-    ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),      # Bonk (deep pools)
-    ("WIF", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),       # dogwifhat
 ]
 
-# Build TRENDING_PAIRS with BOTH USDC and SOL quote currencies
-TRENDING_PAIRS = []
-for symbol, mint in _AI_TOKENS + _MEME_TOKENS + _HEAVY_TOKENS + _DEEP_LIQUIDITY:
-    TRENDING_PAIRS.append((f"{symbol}/USDC", mint, USDC_MINT))
-    TRENDING_PAIRS.append((f"{symbol}/SOL", mint, SOL_MINT))
+# POD 3: OG Memes (Established memes, good liquidity, 0.5-2% spreads)
+POD_OG_MEME = [
+    ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),      # Bonk
+    ("WIF", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),       # dogwifhat
+    ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),    # Popcat
+    ("PENGU", "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv"),     # Pudgy Penguins
+]
+
+# POD 4: Viral Memes (New viral tokens, medium liquidity, 1-3% spreads)
+POD_VIRAL = [
+    ("PNUT", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"),      # Peanut Squirrel
+    ("MOODENG", "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY"),   # Moo Deng
+    ("CHILLGUY", "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump"),  # TikTok viral
+    ("TRUMP", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN"),     # Official Trump
+]
+
+# POD 5: AI Narrative (AI-themed tokens, volatile, 2-5% spreads)
+POD_AI = [
+    ("GOAT", "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump"),      # Goatseus Maximus
+    ("ACT", "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump"),       # AI Prophecy
+    ("AI16Z", "4ptu2LhxRTERJNJWqnYZ681srxquMBumTHD3XQvDRTjt"),     # AI16Z
+    ("FARTCOIN", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"), # Meteora volatility
+]
+
+# POD 6: Pump Graduates (High volatility pump.fun tokens, thin liquidity, 2-5%+ spreads)
+POD_PUMP = [
+    ("PIPPIN", "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump"),    # Pippin
+    ("FWOG", "A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump"),      # Fwog
+    ("GIGA", "8v8GSr4p7Gz8xw6nF22m1LSfSgY7T2nBv2nK3y7f3z6A"),      # Gigachad
+]
+
+# All pods for reference
+ALL_PODS = {
+    "DEFI": POD_DEFI,
+    "INFRA": POD_INFRA,
+    "OG_MEME": POD_OG_MEME,
+    "VIRAL": POD_VIRAL,
+    "AI": POD_AI,
+    "PUMP": POD_PUMP,
+}
+
+# Build pairs from all pods
+def _build_pairs_from_pods(pods):
+    pairs = []
+    for pod_tokens in pods:
+        for symbol, mint in pod_tokens:
+            pairs.append((f"{symbol}/USDC", mint, USDC_MINT))
+            pairs.append((f"{symbol}/SOL", mint, SOL_MINT))
+    return pairs
+
+# Default: All pods combined
+TRENDING_PAIRS = _build_pairs_from_pods([POD_DEFI, POD_INFRA, POD_OG_MEME, POD_VIRAL, POD_AI, POD_PUMP])
 
 # Combined default - all pairs for maximum opportunity scanning
 CORE_PAIRS = LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS + TRENDING_PAIRS
