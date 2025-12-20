@@ -13,6 +13,7 @@ This replaces the standalone run_arbiter.py with proper src/ integration.
 import asyncio
 import time
 import json
+import queue
 from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -141,7 +142,8 @@ class PhantomArbiter:
         
         # Telegram Manager
         from src.shared.notification.telegram_manager import TelegramManager
-        self.telegram = TelegramManager()
+        self.command_queue = queue.Queue()
+        self.telegram = TelegramManager(command_queue=self.command_queue)
         self.telegram.start()
         self.reporter = ArbiterReporter(self.telegram)
         
@@ -513,6 +515,16 @@ class PhantomArbiter:
                 now = datetime.now().strftime("%H:%M:%S")
                 wake_event.clear()
                 
+                # 0. Check Remote Commands (Timeout / Stop)
+                while not self.command_queue.empty():
+                    cmd = self.command_queue.get_nowait()
+                    if cmd == "STOP_ENGINE":
+                        print(f"   [{now}] 🛑 RECEIVED REMOTE STOP COMMAND")
+                        return # Exit run loop
+                    elif cmd == "STATUS_REPORT":
+                        # Handled by reporter normally (implicit) or we can trigger print
+                        pass
+
                 # 1. Poll Scraper Signals
                 new_pairs = coordinator.poll_signals()
                 if new_pairs:
@@ -524,7 +536,12 @@ class PhantomArbiter:
                 if self.config.live_mode and self._wallet:
                     await self._wallet.check_and_replenish_gas(self._swapper)
                     if self.config.full_wallet:
-                        self.current_balance = self._wallet.get_balance(USDC_MINT)
+                        new_bal = self._wallet.get_balance(USDC_MINT)
+                        # Protect against RPC failure returning 0
+                        if new_bal == 0 and self.current_balance > 10:
+                             Logger.warning(f"⚠️ RPC Balance Glitch? Read $0, keeping ${self.current_balance:.2f}")
+                        else:
+                             self.current_balance = new_bal
                 
                 # Scan (prioritize hot pairs in adaptive mode)
                 try:
