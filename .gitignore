@@ -76,3 +76,11 @@ reports/
 *.keypair
 *.keypair.json
 solana-keypair.json
+
+# NPM/Node.js (bridges folder)
+bridges/node_modules/
+bridges/package-lock.json
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
