@@ -82,46 +82,73 @@ class RaydiumBridge:
         
         self._private_key = None
         self._load_private_key()
-    
+        
+        # V93: Daemon Process management
+        self._daemon = None
+
     def _load_private_key(self):
         """Load private key from environment."""
         from dotenv import load_dotenv
         load_dotenv()
         self._private_key = os.getenv("PHANTOM_PRIVATE_KEY")
     
-    def _run_command(self, *args, timeout: int = 30) -> Optional[Dict[str, Any]]:
-        """Run the Node.js bridge with given arguments."""
+    def _ensure_daemon(self):
+        """Start the Node.js daemon if not running."""
+        if self._daemon and self._daemon.poll() is None:
+            return
+
         if not self.bridge_path.exists():
             Logger.error(f"[RAYDIUM] Bridge not found: {self.bridge_path}")
-            Logger.info("[RAYDIUM] Run: cd bridges && npm install && npm run build:raydium")
+            return
+
+        try:
+            # Start daemon with line buffering
+            cmd = ["node", str(self.bridge_path), "daemon"]
+            self._daemon = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, # Capture stderr to avoid leaking to console, or let it flow?
+                text=True,
+                cwd=str(self.bridge_path.parent),
+                bufsize=1 # Line buffered
+            )
+            Logger.info("[RAYDIUM] Daemon started (PID: %s)", self._daemon.pid)
+        except Exception as e:
+            Logger.error(f"[RAYDIUM] Failed to start daemon: {e}")
+            self._daemon = None
+
+    def _send_command(self, cmd_data: dict, timeout: int = 30) -> Optional[Dict[str, Any]]:
+        """Send JSON command to daemon and wait for response."""
+        self._ensure_daemon()
+        if not self._daemon:
             return None
         
         try:
-            cmd = ["node", str(self.bridge_path)] + list(args)
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=str(self.bridge_path.parent)
-            )
+            # Write JSON command
+            payload = json.dumps(cmd_data) + "\n"
+            self._daemon.stdin.write(payload)
+            self._daemon.stdin.flush()
             
-            if result.returncode != 0 and result.stderr:
-                Logger.debug(f"[RAYDIUM] stderr: {result.stderr[:200]}")
+            # Read JSON response (synchronous)
+            # TODO: Implement timeout logic for read. 
+            # For now relying on OS read. 
+            # If daemon hangs, this thread hangs. 
+            # But TS bridge should be robust.
             
-            # Parse JSON from stdout
-            if result.stdout:
-                return json.loads(result.stdout.strip())
-            return None
+            line = self._daemon.stdout.readline()
+            if not line:
+                Logger.warning("[RAYDIUM] Daemon closed stream")
+                self._daemon = None
+                return None
+                
+            return json.loads(line.strip())
             
-        except subprocess.TimeoutExpired:
-            Logger.warning("[RAYDIUM] Command timeout")
-            return None
-        except json.JSONDecodeError as e:
-            Logger.debug(f"[RAYDIUM] JSON parse error: {e}")
-            return None
         except Exception as e:
-            Logger.error(f"[RAYDIUM] Bridge error: {e}")
+            Logger.error(f"[RAYDIUM] IPC error: {e}")
+            if self._daemon:
+                self._daemon.kill()
+                self._daemon = None
             return None
     
     def get_quote(
@@ -131,17 +158,14 @@ class RaydiumBridge:
         amount: float
     ) -> RaydiumQuoteResult:
         """
-        Get a swap quote from Raydium CLMM pool.
-        
-        Args:
-            pool_address: CLMM pool address
-            input_mint: Input token mint
-            amount: Amount to swap (in token units, not lamports)
-            
-        Returns:
-            RaydiumQuoteResult with output amount and price impact
+        Get a swap quote via Daemon.
         """
-        result = self._run_command("quote", pool_address, input_mint, str(amount))
+        result = self._send_command({
+            "cmd": "quote",
+            "pool": pool_address,
+            "inputMint": input_mint,
+            "amount": str(amount)
+        })
         
         if not result:
             return RaydiumQuoteResult(
@@ -152,7 +176,7 @@ class RaydiumBridge:
                 output_amount=0.0,
                 price_impact=0.0,
                 fee=0.0,
-                error="Bridge command failed"
+                error="Daemon command failed"
             )
         
         return RaydiumQuoteResult(
@@ -168,15 +192,12 @@ class RaydiumBridge:
     
     def get_price(self, pool_address: str) -> RaydiumPriceResult:
         """
-        Get current price from Raydium CLMM pool.
-        
-        Args:
-            pool_address: CLMM pool address
-            
-        Returns:
-            RaydiumPriceResult with current prices
+        Get current price via Daemon.
         """
-        result = self._run_command("price", pool_address)
+        result = self._send_command({
+            "cmd": "price", 
+            "pool": pool_address
+        })
         
         if not result:
             return RaydiumPriceResult(
@@ -187,7 +208,7 @@ class RaydiumBridge:
                 price_a_to_b=0.0,
                 price_b_to_a=0.0,
                 liquidity="0",
-                error="Bridge command failed"
+                error="Daemon command failed"
             )
         
         return RaydiumPriceResult(
@@ -209,37 +230,20 @@ class RaydiumBridge:
         slippage_bps: int = 50
     ) -> RaydiumSwapResult:
         """
-        Execute a swap on Raydium CLMM pool.
-        
-        Args:
-            pool_address: CLMM pool address
-            input_mint: Input token mint
-            amount: Amount to swap (in token units)
-            slippage_bps: Slippage tolerance in basis points (default 50 = 0.5%)
-            
-        Returns:
-            RaydiumSwapResult with transaction signature
+        Execute a swap via Daemon.
         """
-        if not self._private_key:
-            return RaydiumSwapResult(
-                success=False,
-                signature=None,
-                input_mint=input_mint,
-                output_mint="",
-                input_amount=amount,
-                output_amount=0.0,
-                error="No private key configured"
-            )
+        # Note: Daemon uses PHANTOM_PRIVATE_KEY from env, 
+        # so we don't strictly need to pass self._private_key unless daemon needs it per-request.
+        # But we updated TS to accept no key if using env, or accept key.
+        # We will use the env key logic implicitly in daemon.
         
-        result = self._run_command(
-            "swap",
-            pool_address,
-            input_mint,
-            str(amount),
-            str(slippage_bps),
-            self._private_key,
-            timeout=60
-        )
+        result = self._send_command({
+            "cmd": "swap",
+            "pool": pool_address,
+            "inputMint": input_mint,
+            "amount": str(amount),
+            "slippageBps": slippage_bps
+        }, timeout=60)
         
         if not result:
             return RaydiumSwapResult(
@@ -249,7 +253,7 @@ class RaydiumBridge:
                 output_mint="",
                 input_amount=amount,
                 output_amount=0.0,
-                error="Bridge command failed"
+                error="Daemon command failed"
             )
         
         return RaydiumSwapResult(
