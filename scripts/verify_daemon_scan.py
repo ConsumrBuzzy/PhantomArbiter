@@ -13,6 +13,7 @@ except:
 from src.shared.system.logging import Logger
 from src.shared.feeds.raydium_feed import RaydiumFeed
 from src.shared.feeds.meteora_feed import MeteoraFeed
+from src.shared.feeds.orca_feed import OrcaFeed
 from src.shared.execution.pool_index import get_pool_index
 from src.shared.execution.pool_registry import get_pool_registry
 import logging
@@ -37,16 +38,17 @@ def test():
     print("=" * 60)
 
     print("Initializing Feeds...")
-    ray = RaydiumFeed()
-    met = MeteoraFeed()
+    raydium = RaydiumFeed()
+    meteora = MeteoraFeed()
+    orca = OrcaFeed()
     
     print("\nPopulating Pool Registry (Mint -> Symbol)...")
     reg = get_pool_registry()
     SOL_MINT = "So11111111111111111111111111111111111111112"
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
     
-    reg.update_coverage("SOL", SOL_MINT, has_raydium=True, has_meteora=True)
-    reg.update_coverage("USDC", USDC_MINT, has_raydium=True, has_meteora=True)
+    reg.update_coverage("SOL", SOL_MINT, has_raydium=True, has_meteora=True, has_orca=True)
+    reg.update_coverage("USDC", USDC_MINT, has_raydium=True, has_meteora=True, has_orca=True)
     
     print("\nPre-warming Pool Index (Discovery)...")
     idx = get_pool_index()
@@ -63,41 +65,59 @@ def test():
     if pools:
         print(f"  Meteora: {pools.meteora_pool}")
         print(f"  Raydium: {pools.raydium_clmm_pool}")
+        print(f"  Orca: {pools.orca_whirlpool_pool}")
 
-    # Inspect Raydium Bridge Cache
+    # Inspect Bridge Caches
     print("Bridge connection test:")
-    if ray._bridge:
-        print(f"  Bridge Loaded: {ray._bridge}")
+    if raydium._bridge:
+        print(f"  Raydium Bridge Loaded: {raydium._bridge}")
     else:
-        print("  Bridge Not Loaded (Lazy)")
+        print("  Raydium Bridge Not Loaded (Lazy)")
     
-    SOL_MINT = "So11111111111111111111111111111111111111112"
+    if meteora._bridge:
+        print(f"  Meteora Bridge Loaded: {meteora._bridge}")
+    else:
+        print("  Meteora Bridge Not Loaded (Lazy)")
+
+    if orca._bridge:
+        print(f"  Orca Bridge Loaded: {orca._bridge}")
+    else:
+        print("  Orca Bridge Not Loaded (Lazy)")
+    
+    SOL_MINT = "So11111111111111111111111111111131111111112"
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
     print("\n--- Testing Raydium Daemon Scan (SOL/USDC) ---")
-    start = time.time()
-    q = ray.get_spot_price(SOL_MINT, USDC_MINT)
-    lat = (time.time() - start) * 1000
-    if q:
-        source = getattr(q, 'source', 'Unknown')
+    t0 = time.time()
+    price = raydium.get_spot_price(SOL_MINT, USDC_MINT)
+    t1 = time.time()
+    if price:
         # RaydiumFeed doesn't explicitly set source in SpotPrice (oops), but logs it.
         # Wait, I checked code, only MeteoraFeed sets source="METEORA".
         # Raydium sets dex="RAYDIUM".
-        print(f"Price: ${q.price:.4f} | Source: {q.dex} | Latency: {lat:.2f}ms")
+        print(f"Price: ${price.price:.4f} | Source: {price.dex} | Latency: {(t1-t0)*1000:.2f}ms")
     else:
-        print("Failed to get Raydium price")
+        print("Raydium Scan Failed")
 
     print("\n--- Testing Meteora Daemon Scan (SOL/USDC) ---")
-    start = time.time()
-    q = met.get_spot_price(SOL_MINT, USDC_MINT)
-    lat = (time.time() - start) * 1000
-    if q:
-        source = getattr(q, 'source', 'Unknown')
-        print(f"Price: ${q.price:.4f} | Source: {source} | Latency: {lat:.2f}ms")
+    t0 = time.time()
+    price = meteora.get_spot_price(SOL_MINT, USDC_MINT)
+    t1 = time.time()
+    if price:
+        print(f"Price: ${price.price:.4f} | Source: {price.source} | Latency: {(t1-t0)*1000:.2f}ms")
     else:
-        print("Failed to get Meteora price")
+        print("Meteora Scan Failed")
 
-    print("\nCheck logs for [RAYDIUM] 🟢 Daemon price... or [METEORA] 🟢 Daemon price...")
+    print("\n--- Testing Orca Daemon Scan (SOL/USDC) ---")
+    t0 = time.time()
+    price = orca.get_spot_price(SOL_MINT, USDC_MINT)
+    t1 = time.time()
+    if price:
+        print(f"Price: ${price.price:.4f} | Source: {price.source} | Latency: {(t1-t0)*1000:.2f}ms")
+    else:
+        print("Orca Scan Failed")
+
+    print("\nCheck logs for [RAYDIUM] 🟢 Daemon price... or [METEORA] 🟢 Daemon price... or [ORCA] 🟢 Daemon price...")
 
 if __name__ == "__main__":
     test()
