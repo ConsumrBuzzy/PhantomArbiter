@@ -86,6 +86,10 @@ def create_parser() -> argparse.ArgumentParser:
         "--pool-scan", action="store_true",
         help="Run pool discovery on startup (finds Meteora + Orca pools for all tokens)"
     )
+    arbiter_parser.add_argument(
+        "--landlord", action="store_true",
+        help="Enable Landlord strategy (delta-neutral yield on Drift during idle)"
+    )
     
     # ═══════════════════════════════════════════════════════════════
     # SCAN SUBCOMMAND (Quick one-shot opportunity scan)
