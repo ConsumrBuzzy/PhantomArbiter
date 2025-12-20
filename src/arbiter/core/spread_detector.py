@@ -333,9 +333,9 @@ class SpreadDetector:
             
             spread_pct = ((sell_price - buy_price) / buy_price) * 100
             
-            # Allow slightly negative spreads to show up in dashboard (proof of life)
-            if spread_pct < -2.0: 
-                continue
+            # Allow ALL spreads (even negative) to show up in dashboard (proof of life)
+            # if spread_pct < -2.0: 
+            #     continue
             
             # Show even tiny spreads so dashboard isn't blank
             # if spread_pct < 0.01:
