@@ -60605,6 +60605,8 @@ var RPC_URL = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com
 var DEFAULT_COMPUTE_UNITS = 4e5;
 var DEFAULT_PRIORITY_FEE = 5e4;
 var DEFAULT_SLIPPAGE_BPS = 100;
+var HELIUS_API_KEY = process.env.HELIUS_API_KEY || "";
+var HELIUS_SENDER_URL = HELIUS_API_KEY ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}` : "";
 var JITO_TIP_ACCOUNTS = [
   "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
   "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRE",
@@ -60654,6 +60656,60 @@ var ExecutionEngine = class {
       toPubkey: randomTipAccount,
       lamports
     });
+  }
+  /**
+   * Send transaction via Helius Sender endpoint
+   * Free 15 TPS, auto-routes to fastest validator
+   */
+  async sendViaHelius(tx) {
+    if (!HELIUS_SENDER_URL) {
+      throw new Error("HELIUS_API_KEY not configured");
+    }
+    const serialized = tx.serialize();
+    const base64 = serialized.toString("base64");
+    const response = await fetch(HELIUS_SENDER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "sendTransaction",
+        params: [
+          base64,
+          {
+            encoding: "base64",
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+            maxRetries: 3
+          }
+        ]
+      })
+    });
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(`Helius send failed: ${JSON.stringify(result.error)}`);
+    }
+    return result.result;
+  }
+  /**
+   * Wait for transaction confirmation
+   */
+  async confirmTransaction(signature, timeout = 3e4) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      try {
+        const status = await this.connection.getSignatureStatus(signature);
+        if (status.value?.confirmationStatus === "confirmed" || status.value?.confirmationStatus === "finalized") {
+          return true;
+        }
+        if (status.value?.err) {
+          return false;
+        }
+      } catch (e) {
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return false;
   }
   /**
    * Build Meteora DLMM swap instruction
@@ -60823,12 +60879,28 @@ var ExecutionEngine = class {
           timestamp
         };
       }
-      const signature = await (0, import_web321.sendAndConfirmTransaction)(
-        this.connection,
-        tx,
-        [this.wallet],
-        { commitment: "confirmed", maxRetries: 3 }
-      );
+      let signature;
+      if (HELIUS_SENDER_URL) {
+        signature = await this.sendViaHelius(tx);
+        const confirmed = await this.confirmTransaction(signature);
+        if (!confirmed) {
+          return {
+            success: false,
+            command: "swap",
+            signature,
+            legs: legResults,
+            error: "Transaction not confirmed within timeout",
+            timestamp
+          };
+        }
+      } else {
+        signature = await (0, import_web321.sendAndConfirmTransaction)(
+          this.connection,
+          tx,
+          [this.wallet],
+          { commitment: "confirmed", maxRetries: 3 }
+        );
+      }
       return {
         success: true,
         command: "swap",
