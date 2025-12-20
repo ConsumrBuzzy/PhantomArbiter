@@ -665,21 +665,26 @@ class PhantomArbiter:
                 # Sort by NET PROFIT (descending) - prioritize actually profitable opportunities
                 raw_opps = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)
                 
-                # Check Top 3 Candidates for Real Liquidity
+                # Check Top 3 Candidates for Real Liquidity (IN PARALLEL)
+                candidates = []
                 for opp in raw_opps[:3]:
-                    # Quick skip if recently traded
-                    if time.time() - last_trade_time.get(opp.pair, 0) < cooldown:
-                        continue
-                        
-                    # Pre-Flight Verification (Real Quotes)
-                    is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, trade_size)
+                    if time.time() - last_trade_time.get(opp.pair, 0) >= cooldown:
+                        candidates.append(opp)
+                
+                # Parallel verification using asyncio.gather
+                if candidates:
+                    async def verify_one(opp):
+                        try:
+                            is_valid, real_net, status_msg = await self._executor.verify_liquidity(opp, trade_size)
+                            opp.verification_status = status_msg
+                            opp.net_profit_usd = real_net
+                            return opp
+                        except Exception as e:
+                            opp.verification_status = f"ERR: {e}"
+                            return opp
                     
-                    # Store verification data
-                    opp.verification_status = status_msg
-                    opp.net_profit_usd = real_net
-                    
-                    # We add ALL verified ones to list for dashboard display, valid or not
-                    verified_opps.append(opp)
+                    import asyncio
+                    verified_opps = await asyncio.gather(*[verify_one(c) for c in candidates])
                     
                 # PRINT DASHBOARD (with verification status)
                 # We pass 'all_spreads' (all scan results) + 'verified_opps' (updated top 3)
