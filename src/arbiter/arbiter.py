@@ -575,7 +575,6 @@ class PhantomArbiter:
         verbose: bool = True, 
         scanner: Optional[AdaptiveScanner] = None
     ) -> Tuple[List[SpreadOpportunity], List[SpreadOpportunity]]:
-        print(f"DEBUG: Entered scan_opportunities (Scanner: {scanner is not None})")
         """
         Scan for spatial arbitrage opportunities.
         
@@ -1039,9 +1038,8 @@ class PhantomArbiter:
                         
                 except Exception as e:
                     import traceback
-                    import sys
-                    print(f"\n🛑 CRITICAL SCAN ERROR: {e}")
-                    traceback.print_exc(file=sys.stdout)
+                    traceback.print_exc()
+                    Logger.error(f"Scan error: {e}")
                     opportunities = []
                 
                 # Execute best opportunity not on cooldown

@@ -238,7 +238,6 @@ class SpreadDetector:
         )
     
     def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
-        print(f"DEBUG: Entered scan_all_pairs with {len(pairs)} pairs")
         """
         Scan multiple pairs for opportunities using SHARED batch price fetch.
         
@@ -309,7 +308,7 @@ class SpreadDetector:
             # Need at least 2 feeds for spread comparison
             # Fall back to sequential scan
             # DEBUG: Why sequential?
-            print(f"DEBUG: Falling back to sequential (Feeds: {len(feed_prices)} - {list(feed_prices.keys())})")
+            # print(f"DEBUG: Falling back to sequential (Feeds: {len(feed_prices)} - {list(feed_prices.keys())})")
             
             opps_seq = []
             for pair_name, base_mint, quote_mint in pairs:
@@ -319,7 +318,7 @@ class SpreadDetector:
             return sorted(opps_seq, key=lambda x: x.spread_pct, reverse=True)
         
         # Calculate spreads for each pair
-        print(f"DEBUG: Parallel Scan: {len(pairs)} pairs | Feeds: {list(feed_prices.keys())}") # CONFIRM FEEDS
+        # print(f"DEBUG: Parallel Scan: {len(pairs)} pairs | Feeds: {list(feed_prices.keys())}") # CONFIRM FEEDS
         
         from src.arbiter.core.fee_estimator import get_fee_estimator
         fee_est = get_fee_estimator()
