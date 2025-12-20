@@ -101,6 +101,17 @@ class PoolIndex:
             PoolPair with available pool addresses, or None
         """
         pair = f"{token_a.upper()}/{token_b.upper()}"
+        
+        # Check if inputs are Mints (simple length check)
+        if len(token_a) > 15:
+            sym_a = self._resolve_symbol(token_a)
+            if sym_a: token_a = sym_a
+        
+        if len(token_b) > 15:
+            sym_b = self._resolve_symbol(token_b)
+            if sym_b: token_b = sym_b
+            
+        pair = f"{token_a.upper()}/{token_b.upper()}"
         reverse_pair = f"{token_b.upper()}/{token_a.upper()}"
         
         # Check cache
@@ -127,6 +138,19 @@ class PoolIndex:
             return None
         
         return self.get_pools(tokens[0], tokens[1])
+    
+    def _resolve_symbol(self, mint: str) -> Optional[str]:
+        """Resolve mint to symbol via Registry DB."""
+        try:
+            if db_manager:
+                with db_manager.cursor() as c:
+                    c.execute("SELECT symbol FROM pool_registry WHERE mint = ?", (mint,))
+                    row = c.fetchone()
+                    if row:
+                        return row['symbol']
+        except:
+            pass
+        return None
     
     def _discover_pools(self, token_a: str, token_b: str) -> Optional[PoolPair]:
         """Discover pools from Meteora, Orca, and Raydium CLMM."""
