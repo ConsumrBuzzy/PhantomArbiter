@@ -7,18 +7,27 @@ sys.path.append(os.getcwd())
 
 from src.arbiter.core.spread_detector import SpreadDetector
 from src.arbiter.arbiter import POD_OG_B, _build_pairs_from_pods
-from src.arbiter.core.feeds.jupiter_feed import JupiterFeed
-from src.arbiter.core.feeds.raydium_feed import RaydiumFeed
-# from src.arbiter.core.feeds.orchestrator_feed import OrchestratorFeed # Optional
+from src.shared.feeds.jupiter_feed import JupiterFeed
+from src.shared.feeds.raydium_feed import RaydiumFeed
+from src.shared.feeds.orca_feed import OrcaFeed
 
 def test_og_b():
-# ...
+    print("="*60)
+    print("🔍 PAIR TESTER: OG_B POD")
+    print("="*60)
+    
+    # 1. Build Pairs
+    pairs = _build_pairs_from_pods([POD_OG_B])
+    print(f"Generated {len(pairs)} pairs to scan:")
+    for i, p in enumerate(pairs):
+        print(f"  {i+1}. {p[0]} (Base: {p[1][:4]}... Quote: {p[2][:4]}...)")
+
     # 2. Initialize Detector
     print("\n[+] Initializing SpreadDetector with Feeds...")
     try:
-        feeds = [JupiterFeed(), RaydiumFeed()]
+        feeds = [JupiterFeed(), RaydiumFeed(), OrcaFeed()]
         detector = SpreadDetector(feeds=feeds)
-        print("    Detector initialized with Jupiter & Raydium.")
+        print("    Detector initialized with Jupiter, Raydium & Orca.")
     except Exception as e:
         print(f"    ❌ Failed to init detector: {e}")
         return
