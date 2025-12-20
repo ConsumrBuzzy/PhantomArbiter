@@ -65,51 +65,62 @@ HIGH_RISK_PAIRS = [
 ]
 
 # ═══════════════════════════════════════════════════════════════════
-# SMART PODS: Grouped by similarity for focused scanning
-# Each pod: 4-6 tokens with similar characteristics
+# SMART PODS: 3 tokens each = 6 pairs per pod for focused scanning
 # ═══════════════════════════════════════════════════════════════════
 
-# POD 1: DeFi Blue Chips (Deep liquidity, tight spreads, $100k+ pools)
-POD_DEFI = [
+# POD 1: DeFi Core (Deep liquidity DEX tokens)
+POD_DEFI_CORE = [
     ("JUP", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"),        # Jupiter
     ("RAY", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"),       # Raydium
     ("ORCA", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE"),       # Orca
-    ("JITO", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"),      # Jito
-    ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3"),      # Pyth Network
 ]
 
-# POD 2: Infrastructure (Utility tokens, medium liquidity)
-POD_INFRA = [
+# POD 2: DeFi Extended (Other DeFi protocols)
+POD_DEFI_EXT = [
+    ("JITO", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"),      # Jito
+    ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3"),      # Pyth Network
     ("W", "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ"),          # Wormhole
+]
+
+# POD 3: Infrastructure (Utility tokens)
+POD_INFRA = [
     ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof"),     # Render
     ("HNT", "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux"),        # Helium
 ]
 
-# POD 3: OG Memes (Established memes, good liquidity, 0.5-2% spreads)
-POD_OG_MEME = [
+# POD 4: OG Memes A (Top established memes)
+POD_OG_A = [
     ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),      # Bonk
     ("WIF", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),       # dogwifhat
     ("POPCAT", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"),    # Popcat
-    ("PENGU", "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv"),     # Pudgy Penguins
 ]
 
-# POD 4: Viral Memes (New viral tokens, medium liquidity, 1-3% spreads)
-POD_VIRAL = [
-    ("PNUT", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"),      # Peanut Squirrel
+# POD 5: OG Memes B (Other established memes)
+POD_OG_B = [
+    ("PENGU", "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv"),     # Pudgy Penguins
     ("MOODENG", "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY"),   # Moo Deng
     ("CHILLGUY", "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump"),  # TikTok viral
+]
+
+# POD 6: Viral/Political (News-driven tokens)
+POD_VIRAL = [
+    ("PNUT", "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump"),      # Peanut Squirrel
     ("TRUMP", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN"),     # Official Trump
 ]
 
-# POD 5: AI Narrative (AI-themed tokens, volatile, 2-5% spreads)
-POD_AI = [
+# POD 7: AI Narrative A (Top AI tokens)
+POD_AI_A = [
     ("GOAT", "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump"),      # Goatseus Maximus
     ("ACT", "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump"),       # AI Prophecy
     ("AI16Z", "4ptu2LhxRTERJNJWqnYZ681srxquMBumTHD3XQvDRTjt"),     # AI16Z
+]
+
+# POD 8: AI Narrative B (Other AI tokens)
+POD_AI_B = [
     ("FARTCOIN", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"), # Meteora volatility
 ]
 
-# POD 6: Pump Graduates (High volatility pump.fun tokens, thin liquidity, 2-5%+ spreads)
+# POD 9: Pump Graduates (High volatility, thin liquidity)
 POD_PUMP = [
     ("PIPPIN", "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump"),    # Pippin
     ("FWOG", "A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump"),      # Fwog
@@ -118,11 +129,14 @@ POD_PUMP = [
 
 # All pods for reference
 ALL_PODS = {
-    "DEFI": POD_DEFI,
+    "DEFI_CORE": POD_DEFI_CORE,
+    "DEFI_EXT": POD_DEFI_EXT,
     "INFRA": POD_INFRA,
-    "OG_MEME": POD_OG_MEME,
+    "OG_A": POD_OG_A,
+    "OG_B": POD_OG_B,
     "VIRAL": POD_VIRAL,
-    "AI": POD_AI,
+    "AI_A": POD_AI_A,
+    "AI_B": POD_AI_B,
     "PUMP": POD_PUMP,
 }
 
@@ -163,17 +177,20 @@ class PodManager:
     - Tracks priority per pod
     - Promotes/demotes based on results
     - Random check-ins on dormant pods
+    - Watch list for promising pairs (WARM status)
     """
     
     def __init__(self):
         self.pods = ALL_PODS
         self.state = {}
+        self.watch_list = {}  # {pair_name: {"added": timestamp, "reason": "WARM"}}
         self._init_state()
         self._scan_count = 0
     
     def _init_state(self):
         priority = 1
-        for name in ["OG_MEME", "VIRAL", "AI", "DEFI", "PUMP", "INFRA"]:
+        # Priority order: OG memes first, then viral, AI, DeFi, pump, infra
+        for name in ["OG_A", "OG_B", "VIRAL", "AI_A", "AI_B", "PUMP", "DEFI_CORE", "DEFI_EXT", "INFRA"]:
             self.state[name] = {
                 "priority": priority,
                 "last_scan": 0,
@@ -182,6 +199,25 @@ class PodManager:
                 "cooldown_until": 0,
             }
             priority += 1
+    
+    def add_to_watch(self, pair_name: str, reason: str = "WARM"):
+        """Add a pair to watch list - gets included in every scan."""
+        import time
+        self.watch_list[pair_name] = {"added": time.time(), "reason": reason}
+    
+    def remove_from_watch(self, pair_name: str):
+        """Remove pair from watch list."""
+        if pair_name in self.watch_list:
+            del self.watch_list[pair_name]
+    
+    def get_watch_pairs(self) -> list:
+        """Get all watched pairs (for inclusion in every scan)."""
+        import time
+        # Auto-expire after 5 minutes of no action
+        expired = [p for p, v in self.watch_list.items() if time.time() - v["added"] > 300]
+        for p in expired:
+            del self.watch_list[p]
+        return list(self.watch_list.keys())
     
     def get_active_pods(self) -> list:
         """Get pods to scan this cycle (primary + optional random check-in)."""
@@ -806,8 +842,20 @@ class PhantomArbiter:
                     if self._smart_pods_enabled:
                         active_pod_names = pod_manager.get_active_pods()
                         scan_pairs = pod_manager.get_pairs_for_pods(active_pod_names)
+                        
+                        # Add watch pairs (always included)
+                        watch_pairs = pod_manager.get_watch_pairs()
+                        if watch_pairs:
+                            # Find tuples for watched pairs from all pods
+                            all_pod_pairs = _build_pairs_from_pods([p for p in ALL_PODS.values()])
+                            for wp in watch_pairs:
+                                for pair_tuple in all_pod_pairs:
+                                    if pair_tuple[0] == wp and pair_tuple not in scan_pairs:
+                                        scan_pairs.append(pair_tuple)
+                        
                         self.config.pairs = scan_pairs
-                        print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(scan_pairs)} pairs)")
+                        watch_str = f" +{len(watch_pairs)} watch" if watch_pairs else ""
+                        print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(scan_pairs)} pairs{watch_str})")
                     elif adaptive_mode and monitor:
                         self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
                     
