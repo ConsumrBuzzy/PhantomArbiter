@@ -265,7 +265,7 @@ class JupiterFeed(PriceSource):
     
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
         """
-        Batch fetch prices for multiple tokens.
+        Batch fetch prices for multiple tokens via SmartRouter (V2 API).
         
         Args:
             mints: List of token mint addresses
@@ -280,29 +280,34 @@ class JupiterFeed(PriceSource):
         vs_token = vs_token or self.USDC_MINT
         
         try:
-            ids = ",".join(mints[:30])  # Jupiter limit
-            url = f"https://price.jup.ag/v6/price?ids={ids}&vsToken={vs_token}"
-            resp = requests.get(url, timeout=5)
-            
-            if resp.status_code != 200:
-                return {}
-                
-            data = resp.json()
+            # Use SmartRouter's high-perf V2 endpoint with chunking
+            chunk_size = 30
             results = {}
             
-            for mint, info in data.get('data', {}).items():
-                price = float(info.get('price', 0.0))
-                if price > 0:
-                    results[mint] = price
-                    # Update cache
-                    cache_key = f"{mint}:{vs_token}"
-                    self._price_cache[cache_key] = {
-                        'price': price,
-                        'timestamp': time.time()
-                    }
+            for i in range(0, len(mints), chunk_size):
+                chunk = mints[i:i + chunk_size]
+                ids = ",".join(chunk)
+                
+                # SmartRouter.get_jupiter_price_v2 handles API keys and cooldowns
+                data = self.router.get_jupiter_price_v2(ids, vs_token=vs_token)
+                
+                if data:
+                    for mint, info in data.items():
+                        price = float(info.get('price', 0.0))
+                        if price > 0:
+                            results[mint] = price
+                            # Update local cache
+                            cache_key = f"{mint}:{vs_token}"
+                            self._price_cache[cache_key] = {
+                                'price': price,
+                                'timestamp': time.time()
+                            }
+                
+                if len(mints) > chunk_size:
+                    time.sleep(0.1)  # Small gap between chunks
                     
             return results
             
         except Exception as e:
-            Logger.debug(f"Jupiter batch price error: {e}")
+            Logger.debug(f"Jupiter batch fetch error: {e}")
             return {}

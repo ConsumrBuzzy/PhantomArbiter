@@ -195,6 +195,66 @@ class OrcaFeed(PriceSource):
             Logger.debug(f"DexScreener error: {e}")
             return None
 
+    def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
+        """
+        Batch fetch prices for multiple tokens via DexScreener.
+        
+        Args:
+            mints: List of token mint addresses
+            vs_token: Quote token (unused, for interface compatibility)
+            
+        Returns:
+            Dict of {mint: price}
+        """
+        if not mints:
+            return {}
+            
+        results = {}
+        
+        try:
+            # DexScreener supports up to 30 tokens per request
+            chunk_size = 30
+            
+            for i in range(0, len(mints), chunk_size):
+                chunk = mints[i:i + chunk_size]
+                addresses = ",".join(chunk)
+                
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{addresses}"
+                resp = requests.get(url, timeout=10)
+                
+                if resp.status_code != 200:
+                    continue
+                    
+                data = resp.json()
+                pairs = data.get('pairs', [])
+                
+                # Group by base token and filter for Orca
+                for pair in pairs:
+                    if 'orca' not in pair.get('dexId', '').lower():
+                        continue
+                        
+                    base_mint = pair.get('baseToken', {}).get('address')
+                    price = float(pair.get('priceUsd', 0) or 0)
+                    
+                    if base_mint and price > 0:
+                        # Keep the highest liquidity price (first seen)
+                        if base_mint not in results:
+                            results[base_mint] = price
+                            # Update cache
+                            cache_key = f"{base_mint}:{self.USDC_MINT}"
+                            self._price_cache[cache_key] = {
+                                'price': price,
+                                'timestamp': time.time()
+                            }
+                
+                if len(mints) > chunk_size:
+                    time.sleep(0.1)  # Rate limit between chunks
+                    
+        except Exception as e:
+            Logger.debug(f"Orca batch fetch error: {e}")
+            
+        return results
+
 
 # ═══════════════════════════════════════════════════════════════════
 # TEST
