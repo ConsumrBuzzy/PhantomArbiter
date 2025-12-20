@@ -46,6 +46,8 @@ class SpotPrice:
     quote_mint: str
     price: float
     timestamp: float = field(default_factory=time.time)
+    source: str = "UNKNOWN"
+    liquidity_usd: float = 0.0
     
     @property
     def age_seconds(self) -> float:

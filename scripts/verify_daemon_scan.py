@@ -14,6 +14,21 @@ from src.shared.system.logging import Logger
 from src.shared.feeds.raydium_feed import RaydiumFeed
 from src.shared.feeds.meteora_feed import MeteoraFeed
 from src.shared.execution.pool_index import get_pool_index
+import logging
+
+# Configure logger to stdout
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+logger.handlers = [handler]
+
+# Also patch src.shared.system.logging.Logger if it's a wrapper
+from src.shared.system.logging import Logger as SysLogger
+SysLogger.info = logger.info
+SysLogger.debug = logger.debug
+SysLogger.warning = logger.warning
+SysLogger.error = logger.error
 
 def test():
     print("=" * 60)
@@ -27,7 +42,18 @@ def test():
     print("\nPre-warming Pool Index (Discovery)...")
     idx = get_pool_index()
     # Force discovery for SOL/USDC
-    idx.get_pools("SOL", "USDC")
+    pools = idx.get_pools("SOL", "USDC")
+    print(f"Pool Discovery Result: {pools}")
+    if pools:
+        print(f"  Meteora: {pools.meteora_pool}")
+        print(f"  Raydium: {pools.raydium_clmm_pool}")
+
+    # Inspect Raydium Bridge Cache
+    print("Bridge connection test:")
+    if ray._bridge:
+        print(f"  Bridge Loaded: {ray._bridge}")
+    else:
+        print("  Bridge Not Loaded (Lazy)")
     
     SOL_MINT = "So11111111111111111111111111111111111111112"
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
