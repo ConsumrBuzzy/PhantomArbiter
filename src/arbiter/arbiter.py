@@ -802,6 +802,14 @@ class PhantomArbiter:
         # Smart pod rotation
         self._smart_pods_enabled = smart_pods
         
+        # Load saved pod priorities (if available)
+        if smart_pods:
+            loaded = pod_manager.load_from_db()
+            if loaded:
+                print("   📂 Restored pod priorities from previous session")
+            else:
+                print("   🆕 Fresh pod priorities (no saved state)")
+        
         # WSS Integration handled by SignalCoordinator later
         
         print("\n" + "="*70)
