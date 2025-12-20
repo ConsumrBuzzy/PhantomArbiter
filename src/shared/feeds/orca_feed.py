@@ -228,9 +228,10 @@ class OrcaFeed(PriceSource):
                 data = resp.json()
                 pairs = data.get('pairs', [])
                 
-                # Group by base token and filter for Orca
+                # Group by base token and filter for Orca (DexScreener uses 'whirlpool' for Orca)
                 for pair in pairs:
-                    if 'orca' not in pair.get('dexId', '').lower():
+                    dex_id = pair.get('dexId', '').lower()
+                    if 'orca' not in dex_id and 'whirlpool' not in dex_id:
                         continue
                         
                     base_mint = pair.get('baseToken', {}).get('address')
