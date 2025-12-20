@@ -71,8 +71,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     arbiter_parser.add_argument(
         "--risk-tier", type=str, default="all",
-        choices=["all", "low", "mid", "high"],
-        help="Pair risk tier: all (default), low, mid, or high"
+        choices=["all", "low", "mid", "high", "trending"],
+        help="Pair risk tier: all (default), low, mid, high, or trending"
     )
     
     # ═══════════════════════════════════════════════════════════════
@@ -175,12 +175,13 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
             return
     
     # Select pairs based on risk tier
-    from src.arbiter.arbiter import LOW_RISK_PAIRS, MID_RISK_PAIRS, HIGH_RISK_PAIRS, CORE_PAIRS
+    from src.arbiter.arbiter import LOW_RISK_PAIRS, MID_RISK_PAIRS, HIGH_RISK_PAIRS, TRENDING_PAIRS, CORE_PAIRS
     tier_map = {
         "all": CORE_PAIRS,
         "low": LOW_RISK_PAIRS,
         "mid": MID_RISK_PAIRS,
         "high": HIGH_RISK_PAIRS,
+        "trending": TRENDING_PAIRS,
     }
     selected_pairs = tier_map.get(args.risk_tier, CORE_PAIRS)
     
