@@ -185,7 +185,18 @@ class SpreadDetector:
             sol_price=fee_est._sol_price_cache
         )
         
-        net_profit = gross_profit - fees.total_usd
+        # ML Slippage Prediction: adjust for expected slippage based on historical data
+        expected_slippage_pct = 0.0
+        try:
+            from src.shared.system.db_manager import db_manager
+            # Get token symbol from pair name (e.g., "SOL/USDC" -> "SOL")
+            token = pair_name.split('/')[0] if '/' in pair_name else pair_name
+            expected_slippage_pct = db_manager.get_expected_slippage(token, trade_size)
+        except Exception:
+            pass  # No data = assume no extra slippage
+        
+        slippage_cost = trade_size * (expected_slippage_pct / 100)
+        net_profit = gross_profit - fees.total_usd - slippage_cost
         
         return SpreadOpportunity(
             pair=pair_name,
