@@ -99,7 +99,8 @@ class ArbiterReporter:
         # ═══ TELEGRAM DASHBOARD ═══
         if self.telegram:
             tg_table = [
-                f"[{now}] SCAN{pod_str} | P/L: ${daily_profit:+.2f}",
+                f"[{now}] SCAN{pod_str}",
+                f"💰 ${balance:.2f} | ⛽ ${gas:.2f} | P/L: ${daily_profit:+.2f}",
                 f"{'Pair':<11} {'Spread':<7} {'Net':<8} {'St'}",
                 "-" * 33
             ]
