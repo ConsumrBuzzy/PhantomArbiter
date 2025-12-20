@@ -261,6 +261,36 @@ class RaydiumBridge:
             output_amount=float(result.get("outputAmount", 0)),
             error=result.get("error")
         )
+    
+    def discover_pool(
+        self,
+        token_a: str,
+        token_b: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Discover CLMM pool for a token pair.
+        
+        Args:
+            token_a: First token symbol (e.g., "SOL") or mint address
+            token_b: Second token symbol (e.g., "USDC") or mint address
+            
+        Returns:
+            Dict with poolId, tvl, volume24h, or None if not found
+        """
+        from config.settings import Settings
+        
+        # Resolve symbols to mints if needed
+        mint_a = token_a
+        mint_b = token_b
+        
+        # If token_a looks like a symbol (not 32+ chars), resolve it
+        if len(token_a) < 30:
+            mint_a = Settings.ASSETS.get(token_a.upper(), token_a)
+        if len(token_b) < 30:
+            mint_b = Settings.ASSETS.get(token_b.upper(), token_b)
+        
+        result = self._run_command("discover", mint_a, mint_b, timeout=15)
+        return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

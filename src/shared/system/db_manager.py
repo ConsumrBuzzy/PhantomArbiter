@@ -288,16 +288,27 @@ class DBManager:
             """)
             c.execute("CREATE INDEX IF NOT EXISTS idx_decay_pair ON spread_decay(pair)")
 
-            # Pool Index (Meteora + Orca pool discovery)
+            # Pool Index (Meteora + Orca + Raydium CLMM pool discovery)
             c.execute("""
             CREATE TABLE IF NOT EXISTS pool_index (
                 pair TEXT PRIMARY KEY,
                 meteora_pool TEXT,
                 orca_pool TEXT,
+                raydium_clmm_pool TEXT,
                 preferred_dex TEXT,
                 updated_at REAL
             )
             """)
+            
+            # Migration: Add raydium_clmm_pool column if missing
+            try:
+                c.execute("SELECT raydium_clmm_pool FROM pool_index LIMIT 1")
+            except:
+                try:
+                    c.execute("ALTER TABLE pool_index ADD COLUMN raydium_clmm_pool TEXT")
+                    Logger.info("📦 [DB] Migrated pool_index table: added raydium_clmm_pool column")
+                except:
+                    pass  # Column might already exist
             
             # Pool Executions (Performance tracking for smart routing)
             c.execute("""

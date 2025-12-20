@@ -60,6 +60,7 @@ class PoolPair:
     pair: str  # e.g., "SOL/USDC"
     meteora_pool: Optional[str] = None
     orca_pool: Optional[str] = None
+    raydium_clmm_pool: Optional[str] = None  # Raydium CLMM pool
     preferred_dex: Optional[str] = None  # Based on performance
     meteora_success_rate: float = 0.0
     orca_success_rate: float = 0.0
@@ -128,11 +129,12 @@ class PoolIndex:
         return self.get_pools(tokens[0], tokens[1])
     
     def _discover_pools(self, token_a: str, token_b: str) -> Optional[PoolPair]:
-        """Discover pools from Meteora and Orca."""
+        """Discover pools from Meteora, Orca, and Raydium CLMM."""
         pair_name = f"{token_a.upper()}/{token_b.upper()}"
         
         meteora_pool = None
         orca_pool = None
+        raydium_clmm_pool = None
         
         # Fetch Meteora pool
         try:
@@ -150,13 +152,24 @@ class PoolIndex:
         except Exception as e:
             Logger.debug(f"Orca lookup failed for {pair_name}: {e}")
         
-        if not meteora_pool and not orca_pool:
+        # Fetch Raydium CLMM pool
+        try:
+            from src.shared.execution.raydium_bridge import RaydiumBridge
+            bridge = RaydiumBridge()
+            result = bridge.discover_pool(token_a, token_b)
+            if result and result.get('success'):
+                raydium_clmm_pool = result.get('poolId')
+        except Exception as e:
+            Logger.debug(f"Raydium CLMM lookup failed for {pair_name}: {e}")
+        
+        if not meteora_pool and not orca_pool and not raydium_clmm_pool:
             return None
         
         pool_pair = PoolPair(
             pair=pair_name,
             meteora_pool=meteora_pool,
             orca_pool=orca_pool,
+            raydium_clmm_pool=raydium_clmm_pool,
         )
         
         # Cache
@@ -165,7 +178,7 @@ class PoolIndex:
         # Persist to DB
         self._save_pool_to_db(pool_pair)
         
-        Logger.debug(f"[POOL] Discovered {pair_name}: M={meteora_pool is not None}, O={orca_pool is not None}")
+        Logger.debug(f"[POOL] Discovered {pair_name}: M={meteora_pool is not None}, O={orca_pool is not None}, R={raydium_clmm_pool is not None}")
         return pool_pair
     
     def record_execution(
@@ -268,7 +281,7 @@ class PoolIndex:
             if db_manager:
                 with db_manager.cursor() as c:
                     c.execute("""
-                        SELECT pair, meteora_pool, orca_pool, preferred_dex
+                        SELECT pair, meteora_pool, orca_pool, raydium_clmm_pool, preferred_dex
                         FROM pool_index
                         WHERE updated_at > ?
                     """, (time.time() - 86400,))  # Last 24h
@@ -278,6 +291,7 @@ class PoolIndex:
                             pair=row['pair'],
                             meteora_pool=row['meteora_pool'],
                             orca_pool=row['orca_pool'],
+                            raydium_clmm_pool=row['raydium_clmm_pool'] if 'raydium_clmm_pool' in row.keys() else None,
                             preferred_dex=row['preferred_dex'],
                         )
                     
@@ -292,12 +306,13 @@ class PoolIndex:
                 with db_manager.cursor(commit=True) as c:
                     c.execute("""
                         INSERT OR REPLACE INTO pool_index 
-                        (pair, meteora_pool, orca_pool, preferred_dex, updated_at)
-                        VALUES (?, ?, ?, ?, ?)
+                        (pair, meteora_pool, orca_pool, raydium_clmm_pool, preferred_dex, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     """, (
                         pool_pair.pair,
                         pool_pair.meteora_pool,
                         pool_pair.orca_pool,
+                        pool_pair.raydium_clmm_pool,
                         pool_pair.preferred_dex,
                         time.time()
                     ))
