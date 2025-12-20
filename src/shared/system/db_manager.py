@@ -248,6 +248,31 @@ class DBManager:
             c.execute("CREATE INDEX IF NOT EXISTS idx_slippage_token ON slippage_history(token)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_slippage_timestamp ON slippage_history(timestamp)")
 
+            # Gas History (for gas price optimization)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS gas_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gas_cost_usd REAL,
+                gas_cost_sol REAL,
+                priority_fee REAL,
+                hour_utc INTEGER,
+                timestamp INTEGER NOT NULL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_gas_hour ON gas_history(hour_utc)")
+
+            # Cycle Timing (for scan optimization)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS cycle_timing (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pod_name TEXT,
+                pairs_scanned INTEGER,
+                duration_ms REAL,
+                timestamp INTEGER NOT NULL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_cycle_pod ON cycle_timing(pod_name)")
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
