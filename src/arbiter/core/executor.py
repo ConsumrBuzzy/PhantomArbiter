@@ -110,6 +110,61 @@ class ArbitrageExecutor:
             self._smart_router = SmartRouter()
         return self._smart_router
     
+    def _calculate_optimal_size(self, failed_size: float, failed_net: float, opportunity, real_slippage: float) -> float:
+        """
+        Analytically calculate the optimal trade size to maximize profit.
+        
+        Logic:
+        - Profit P(x) = Revenue(x) - Cost(x)
+        - Revenue(x) = x * (1 + spread)
+        - Cost(x) = x * (1 + impact(x)) + fees
+        
+        Simplified Model (Linear Impact):
+        - Impact(x) = k * x
+        - Net(x) = x * spread - x * (k * x) - fees
+        - Net(x) = x*spread - k*x^2 - fees
+        
+        To find max profit, derivative P'(x) = spread - 2kx = 0
+        => x_opt = spread / (2k)
+        
+        We derive 'k' from the failed quote:
+        - k = impact_pct / size
+        """
+        try:
+            # 1. Estimate Impact Coefficient (k)
+            # impact_pct is roughly proportional to size for small amounts
+            if failed_size <= 0: return 10.0
+            
+            # Using the realized slippage/impact from the failed quote
+            # If we don't have exact impact, we can infer it from the net vs expected
+            # failed_net = (Actual - Input) - Fees
+            # Expected Net (no slip) = Input * Spread - Fees
+            # Loss due to slip = Expected Net - Actual Net
+            
+            expected_net = failed_size * (opportunity.spread_pct / 100) - 0.01 # approx fee
+            slip_loss = expected_net - failed_net
+            
+            # slip_loss approx = k * size^2  => k = slip_loss / size^2
+            k = slip_loss / (failed_size ** 2)
+            
+            if k <= 0: return 10.0 # Should not happen if loss occurred
+            
+            # 2. Optimal Size: x = spread / (2k)
+            spread_decimal = opportunity.spread_pct / 100
+            opt_size = spread_decimal / (2 * k)
+            
+            # 3. Safety Bounds
+            # Don't exceed original size (liquidity might just end)
+            # Don't go below min size
+            opt_size = min(opt_size, failed_size * 0.9) # 90% of failed as cap
+            opt_size = max(opt_size, 10.0)
+            
+            return round(opt_size, 2)
+            
+        except Exception as e:
+            Logger.debug(f"Opt calculation failed: {e}")
+            return failed_size * 0.5 # Fallback to 50%
+            
     async def verify_liquidity(
         self, 
         opportunity, 
@@ -174,33 +229,19 @@ class ArbitrageExecutor:
                 return True, real_net, "✅ LIVE"
             
             # RETRY LOGIC (Smart Sizing / Adaptive Trade Pricing)
-            # User Request: "Moving only so much to profit where there's room"
-            # Instead of failing, we scale down to fit the available liquidity.
+            # Analytic Solver for Optimal Size
             
-            current_size = trade_size
-            min_safe_size = 10.0  # Don't go below $10 to ensure fees covered
+            # Calculate optimal size based on the loss we just observed
+            opt_size = self._calculate_optimal_size(trade_size, real_net, opportunity, 0)
             
-            # Try scaling down: 50% -> 25%
-            # We use a loop to avoid recursion depth and allow cleaner logic
-            scaling_factors = [0.5, 0.25] 
-            
-            for factor in scaling_factors:
-                next_size = trade_size * factor
-                
-                if next_size < min_safe_size:
-                    break
-                    
-                Logger.info(f"   📉 Liquidity Constraint: Scaling down to ${next_size:.2f}...")
-                
-                # Check DSM first to save RPC
-                passes, slip, _ = dsm.check_slippage_filter(opportunity.base_mint) # Re-check? (DSM is static per mint usually, but good practice)
-                
-                # Recursive call would be cleanest for the full quote check
-                is_valid, new_net, status = await self.verify_liquidity(opportunity, next_size)
-                
-                if is_valid:
-                    return True, new_net, f"⚠️ SCALED (${next_size:.0f})"
-            
+            if opt_size < trade_size and opt_size >= 10.0:
+                 Logger.info(f"   📉 Adapting Size: ${trade_size:.2f} -> ${opt_size:.2f} (Calculated Optimal)")
+                 
+                 # Verify optimal size
+                 is_valid, new_net, status = await self.verify_liquidity(opportunity, opt_size)
+                 if is_valid:
+                     return True, new_net, f"⚠️ SCALED (${opt_size:.0f})"
+
             return False, real_net, f"❌ LIQ (${real_net:+.2f})"
                 
         except Exception as e:
