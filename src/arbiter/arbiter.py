@@ -1263,9 +1263,9 @@ class PhantomArbiter:
                         match = re.search(r'\$(\d+)', best_opp.verification_status)
                         if match:
                             exec_size = float(match.group(1))
-                            # Skip if liquidity is too thin (< $40)
-                            if exec_size < 40:
-                                print(f"   ⏭️ Skipping {best_opp.pair} - liquidity too thin (${exec_size:.0f} < $40)")
+                            # Skip if liquidity is too thin (< $10)
+                            if exec_size < 10:
+                                print(f"   ⏭️ Skipping {best_opp.pair} - liquidity too thin (${exec_size:.0f} < $10)")
                                 continue
                     
                     result = await self.execute_trade(best_opp, trade_size=exec_size)
