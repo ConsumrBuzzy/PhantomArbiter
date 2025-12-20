@@ -59,7 +59,7 @@ class JitoAdapter:
     TIP_CACHE_TTL = 300  # 5 minutes
     REQUEST_TIMEOUT = 10  # seconds
     
-    def __init__(self, region: str = "mainnet"):
+    def __init__(self, region: str = "ny"):
         """
         Initialize Jito adapter.
         

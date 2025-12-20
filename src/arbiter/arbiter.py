@@ -95,7 +95,11 @@ def get_pair_threshold(pair: str, default: float = 0.12) -> float:
                 # Required threshold = enough to absorb average decay + safety margin
                 # If avg_delta is -0.10, we need at least +0.12 at scan time
                 required = abs(avg_delta) + 0.02  # 2 cent safety margin
-                return max(required, default)  # Never below baseline
+                
+                # Sanity Check: Cap at $0.50
+                # If we need >$0.50 buffer, the pair is too volatile for fast path
+                final = max(required, default)
+                return min(final, 0.50)
         
         return default
         
