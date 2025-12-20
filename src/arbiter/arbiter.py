@@ -975,7 +975,9 @@ class PhantomArbiter:
                                     print(f"   ⏭️ Pod skip: trying {active_pod_names[0]} instead")
                         
                         watch_str = f" +{len(watch_pairs)} watch" if watch_pairs else ""
-                        print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(scan_pairs)} pairs{watch_str})")
+                        print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(self.config.pairs)} pairs{watch_str})")
+                        if not self.config.pairs:
+                             print(f"   ⚠️ WARNING: All pairs in {active_pod_names} likely blacklisted too!")
                     elif adaptive_mode and monitor:
                         self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
                     
