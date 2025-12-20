@@ -446,9 +446,12 @@ class PhantomArbiter:
         except Exception as e:
             Logger.debug(f"Signal check error: {e}")
 
-    async def run(self, duration_minutes: int = 10, scan_interval: int = 5, smart_pods: bool = False) -> None:
+    async def run(self, duration_minutes: int = 10, scan_interval: int = 5, smart_pods: bool = False, landlord=None) -> None:
         """Main trading loop."""
         mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
+        
+        # Landlord strategy for yield farming
+        self._landlord = landlord
         
         # Adaptive mode when interval = 0
         adaptive_mode = scan_interval == 0
