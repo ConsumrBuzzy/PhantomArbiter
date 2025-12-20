@@ -693,6 +693,50 @@ class PhantomArbiter:
         if profitable_count > 0:
             print(f"   🎯 {profitable_count} profitable opportunit{'y' if profitable_count == 1 else 'ies'}!")
         
+        # SHADOW RECEIPT: Show detailed breakdown for top opportunity (even if not profitable)
+        if spreads:
+            try:
+                top_opp = spreads[0]
+                # Re-calculate costs to get exact breakdown
+                from src.arbiter.core.shadow_engine import get_shadow_engine
+                from src.shared.system.db_manager import db_manager
+                
+                # Get trade size used
+                trade_size = top_opp.max_size_usd
+                
+                # Get ML costs
+                decay_cost = 0.0
+                slippage_cost = 0.0
+                try:
+                    decay_v = db_manager.get_decay_velocity(top_opp.pair)
+                    if decay_v > 0:
+                        exec_window = db_manager.get_avg_cycle_time() / 1000 if db_manager.get_avg_cycle_time() > 0 else 3.0
+                        exec_window = min(exec_window, 10.0)
+                        
+                        # Apply dampening
+                        token_base = top_opp.pair.split('/')[0] if '/' in top_opp.pair else top_opp.pair
+                        ESTABLISHED = {'SOL', 'USDC', 'USDT', 'BONK', 'RAY', 'JUP', 'ORCA', 'WIF', 'JTO', 'PYTH'}
+                        decay_multiplier = 0.3 if token_base in ESTABLISHED else 1.0
+                        
+                        decay_cost = trade_size * (decay_v * exec_window / 100) * decay_multiplier
+                        
+                    token = top_opp.pair.split('/')[0] if '/' in top_opp.pair else top_opp.pair
+                    slippage_pct = db_manager.get_expected_slippage(token, trade_size)
+                    slippage_cost = trade_size * (slippage_pct / 100)
+                except:
+                    pass
+                
+                receipt = get_shadow_engine().get_receipt(
+                    gross_spread_usd=top_opp.gross_profit_usd,
+                    trade_size=trade_size,
+                    ml_decay_cost=decay_cost,
+                    ml_slippage_cost=slippage_cost
+                )
+                print(receipt.to_string())
+            except Exception as e:
+                # pass
+                print(f"Debug error: {e}")
+
         # Format for Telegram Dashboard (Code Block - SAFE MODE)
         # We wrap everything in a code block to avoid MarkdownV2 400 errors
         
