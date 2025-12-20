@@ -956,7 +956,9 @@ class PhantomArbiter:
                                 self._blacklist_cache = []
                                 self._blacklist_cache_ts = time.time()
                         
-                        blacklisted = self._blacklist_cache
+                        # Force-disable blacklist to recover OG_B
+                        # blacklisted = self._blacklist_cache
+                        blacklisted = [] 
                         if blacklisted:
                             before_count = len(self.config.pairs)
                             self.config.pairs = [p for p in self.config.pairs if p[0] not in blacklisted]
