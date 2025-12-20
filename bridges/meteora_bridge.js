@@ -24,9 +24,9 @@ var __toESM = (mod2, isNodeMode, target) => (target = mod2 != null ? __create(__
   mod2
 ));
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/common.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/common.js
 var require_common = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/common.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/common.js"(exports2) {
     "use strict";
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -2980,9 +2980,9 @@ var require_bn = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/hex.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/hex.js
 var require_hex = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/hex.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/hex.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.encode = encode;
@@ -3007,9 +3007,9 @@ var require_hex = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/utf8.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/utf8.js
 var require_utf8 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/utf8.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/utf8.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.decode = decode;
@@ -3084,9 +3084,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/node_modules/base-x/src/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/base-x/src/index.js
 var require_src = __commonJS({
-  "node_modules/@coral-xyz/anchor/node_modules/base-x/src/index.js"(exports2, module2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/base-x/src/index.js"(exports2, module2) {
     "use strict";
     var _Buffer = require_safe_buffer().Buffer;
     function base(ALPHABET) {
@@ -3219,18 +3219,18 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/node_modules/bs58/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/bs58/index.js
 var require_bs58 = __commonJS({
-  "node_modules/@coral-xyz/anchor/node_modules/bs58/index.js"(exports2, module2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/bs58/index.js"(exports2, module2) {
     var basex = require_src();
     var ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     module2.exports = basex(ALPHABET);
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/bs58.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/bs58.js
 var require_bs582 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/bs58.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/bs58.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod2) {
       return mod2 && mod2.__esModule ? mod2 : { "default": mod2 };
@@ -3248,9 +3248,9 @@ var require_bs582 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/base64.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/base64.js
 var require_base64 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/base64.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/base64.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.encode = encode;
@@ -3265,9 +3265,9 @@ var require_base64 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/index.js
 var require_bytes = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/bytes/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -5149,9 +5149,9 @@ var require_dist = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/idl.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/idl.js
 var require_idl = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/idl.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/idl.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -5250,9 +5250,9 @@ var require_idl = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/common.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/common.js
 var require_common2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/common.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/common.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseIdlErrors = parseIdlErrors;
@@ -6176,9 +6176,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/rpc.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/rpc.js
 var require_rpc = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/rpc.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/rpc.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.invoke = invoke;
@@ -6331,9 +6331,9 @@ var require_rpc = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/nodewallet.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/nodewallet.js
 var require_nodewallet = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/nodewallet.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/nodewallet.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var buffer_1 = require("buffer");
@@ -6379,9 +6379,9 @@ var require_nodewallet = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/provider.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/provider.js
 var require_provider = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/provider.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/provider.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AnchorProvider = void 0;
@@ -6735,9 +6735,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/features.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/features.js
 var require_features = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/features.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/features.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.set = set;
@@ -6756,9 +6756,9 @@ var require_features = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/error.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/error.js
 var require_error = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/error.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/error.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -7325,9 +7325,9 @@ var require_error = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/idl.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/idl.js
 var require_idl2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/idl.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/idl.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -7741,9 +7741,9 @@ var require_idl2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/instruction.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/instruction.js
 var require_instruction = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/instruction.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/instruction.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -7995,9 +7995,9 @@ var require_instruction = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/accounts.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/accounts.js
 var require_accounts = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/accounts.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/accounts.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod2) {
       return mod2 && mod2.__esModule ? mod2 : { "default": mod2 };
@@ -8097,9 +8097,9 @@ var require_accounts = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/event.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/event.js
 var require_event = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/event.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/event.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -8187,9 +8187,9 @@ var require_event = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/types.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/types.js
 var require_types = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/types.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/types.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BorshTypesCoder = void 0;
@@ -8229,9 +8229,9 @@ var require_types = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/index.js
 var require_borsh = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BorshCoder = exports2.BorshEventCoder = exports2.BorshAccountsCoder = exports2.BorshInstructionCoder = void 0;
@@ -8263,9 +8263,9 @@ var require_borsh = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/system/instruction.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/instruction.js
 var require_instruction2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/system/instruction.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/instruction.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -8518,9 +8518,9 @@ var require_instruction2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/system/accounts.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/accounts.js
 var require_accounts2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/system/accounts.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/accounts.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -8639,9 +8639,9 @@ var require_accounts2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/system/events.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/events.js
 var require_events = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/system/events.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/events.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SystemEventsCoder = void 0;
@@ -8656,9 +8656,9 @@ var require_events = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/system/types.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/types.js
 var require_types2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/system/types.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/types.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SystemTypesCoder = void 0;
@@ -8676,9 +8676,9 @@ var require_types2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/system/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/index.js
 var require_system = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/system/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/system/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SystemCoder = void 0;
@@ -8698,9 +8698,9 @@ var require_system = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/coder/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/index.js
 var require_coder = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/coder/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/coder/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -9739,9 +9739,9 @@ var require_sha256 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/sha256.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/sha256.js
 var require_sha2562 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/sha256.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/sha256.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.hash = hash;
@@ -9752,9 +9752,9 @@ var require_sha2562 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/pubkey.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/pubkey.js
 var require_pubkey = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/pubkey.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/pubkey.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.createWithSeedSync = createWithSeedSync;
@@ -9772,9 +9772,9 @@ var require_pubkey = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/token.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/token.js
 var require_token = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/token.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/token.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ASSOCIATED_PROGRAM_ID = exports2.TOKEN_PROGRAM_ID = void 0;
@@ -12831,9 +12831,9 @@ var require_node_ponyfill = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/registry.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/registry.js
 var require_registry = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/registry.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/registry.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -12920,9 +12920,9 @@ var require_registry = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/utils/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/index.js
 var require_utils3 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/utils/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/utils/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -17216,9 +17216,9 @@ var require_pako = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/event.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/event.js
 var require_event2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/event.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/event.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.EventParser = exports2.EventManager = void 0;
@@ -17403,9 +17403,9 @@ var require_event2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/context.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/context.js
 var require_context = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/context.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/context.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.splitArgsAndCtx = splitArgsAndCtx;
@@ -17424,9 +17424,9 @@ var require_context = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/instruction.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/instruction.js
 var require_instruction3 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/instruction.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/instruction.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -17526,9 +17526,9 @@ var require_instruction3 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/transaction.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/transaction.js
 var require_transaction = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/transaction.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/transaction.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var web3_js_1 = require("@solana/web3.js");
@@ -17555,9 +17555,9 @@ var require_transaction = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/rpc.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/rpc.js
 var require_rpc2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/rpc.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/rpc.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var context_js_1 = require_context();
@@ -17766,9 +17766,9 @@ var require_eventemitter3 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js
 var require_account = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -18030,9 +18030,9 @@ var require_account = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/simulate.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/simulate.js
 var require_simulate = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/simulate.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/simulate.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var context_js_1 = require_context();
@@ -18076,9 +18076,9 @@ var require_simulate = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/token-account-layout.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/token-account-layout.js
 var require_token_account_layout = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/token-account-layout.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/token-account-layout.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -18222,9 +18222,9 @@ var require_token_account_layout = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/accounts-resolver.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/accounts-resolver.js
 var require_accounts_resolver = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/accounts-resolver.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/accounts-resolver.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod2) {
       return mod2 && mod2.__esModule ? mod2 : { "default": mod2 };
@@ -18624,9 +18624,9 @@ var require_accounts_resolver = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/methods.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/methods.js
 var require_methods = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/methods.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/methods.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.MethodsBuilder = exports2.MethodsBuilderFactory = void 0;
@@ -18925,9 +18925,9 @@ var require_methods = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/views.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/views.js
 var require_views = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/views.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/views.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var idl_1 = require_idl2();
@@ -18960,9 +18960,9 @@ var require_views = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/index.js
 var require_namespace = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod2) {
       return mod2 && mod2.__esModule ? mod2 : { "default": mod2 };
@@ -19030,9 +19030,9 @@ var require_namespace = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/program/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/index.js
 var require_program = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/program/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/program/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -19189,9 +19189,9 @@ var require_program = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/native/system.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/native/system.js
 var require_system2 = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/native/system.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/native/system.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IDL = exports2.SYSTEM_PROGRAM_ID = void 0;
@@ -19588,9 +19588,9 @@ var require_system2 = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/native/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/native/index.js
 var require_native = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/native/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/native/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Native = void 0;
@@ -23349,9 +23349,9 @@ var require_toml = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/workspace.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/workspace.js
 var require_workspace = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/workspace.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/workspace.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -23439,9 +23439,9 @@ var require_workspace = __commonJS({
   }
 });
 
-// node_modules/@coral-xyz/anchor/dist/cjs/index.js
+// node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/index.js
 var require_cjs = __commonJS({
-  "node_modules/@coral-xyz/anchor/dist/cjs/index.js"(exports2) {
+  "node_modules/@meteora-ag/dlmm/node_modules/@coral-xyz/anchor/dist/cjs/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -25381,7 +25381,7 @@ var import_web321 = require("@solana/web3.js");
 // node_modules/@meteora-ag/dlmm/dist/index.mjs
 var import_anchor = __toESM(require_cjs(), 1);
 
-// node_modules/@solana/spl-token/lib/esm/constants.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/constants.js
 var import_web3 = require("@solana/web3.js");
 var TOKEN_PROGRAM_ID = new import_web3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 var TOKEN_2022_PROGRAM_ID = new import_web3.PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
@@ -26948,7 +26948,7 @@ var publicKey = (property) => {
   return publicKeyLayout;
 };
 
-// node_modules/@solana/spl-token/lib/esm/errors.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/errors.js
 var TokenError = class extends Error {
   constructor(message) {
     super(message);
@@ -27021,7 +27021,7 @@ var TokenTransferHookPubkeyDataTooSmall = class extends TokenError {
   }
 };
 
-// node_modules/@solana/spl-token/lib/esm/instructions/types.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/instructions/types.js
 var TokenInstruction;
 (function(TokenInstruction2) {
   TokenInstruction2[TokenInstruction2["InitializeMint"] = 0] = "InitializeMint";
@@ -27068,11 +27068,11 @@ var TokenInstruction;
   TokenInstruction2[TokenInstruction2["PausableExtension"] = 44] = "PausableExtension";
 })(TokenInstruction || (TokenInstruction = {}));
 
-// node_modules/@solana/spl-token/lib/esm/state/mint.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/state/mint.js
 var import_buffer_layout10 = __toESM(require_Layout2(), 1);
 var import_web38 = require("@solana/web3.js");
 
-// node_modules/@solana/spl-token/lib/esm/extensions/accountType.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/accountType.js
 var AccountType;
 (function(AccountType2) {
   AccountType2[AccountType2["Uninitialized"] = 0] = "Uninitialized";
@@ -27081,10 +27081,10 @@ var AccountType;
 })(AccountType || (AccountType = {}));
 var ACCOUNT_TYPE_SIZE = 1;
 
-// node_modules/@solana/spl-token/lib/esm/state/account.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/state/account.js
 var import_buffer_layout5 = __toESM(require_Layout2(), 1);
 
-// node_modules/@solana/spl-token/lib/esm/state/multisig.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/state/multisig.js
 var import_buffer_layout4 = __toESM(require_Layout2(), 1);
 var MultisigLayout = (0, import_buffer_layout4.struct)([
   (0, import_buffer_layout4.u8)("m"),
@@ -27104,7 +27104,7 @@ var MultisigLayout = (0, import_buffer_layout4.struct)([
 ]);
 var MULTISIG_SIZE = MultisigLayout.span;
 
-// node_modules/@solana/spl-token/lib/esm/state/account.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/state/account.js
 var AccountState;
 (function(AccountState2) {
   AccountState2[AccountState2["Uninitialized"] = 0] = "Uninitialized";
@@ -27161,7 +27161,7 @@ function unpackAccount(address, info, programId = TOKEN_PROGRAM_ID) {
   };
 }
 
-// node_modules/@solana/spl-token/lib/esm/instructions/internal.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/instructions/internal.js
 var import_web33 = require("@solana/web3.js");
 function addSigners(keys, ownerOrAuthority, multiSigners) {
   if (multiSigners.length) {
@@ -27179,7 +27179,7 @@ function addSigners(keys, ownerOrAuthority, multiSigners) {
   return keys;
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferFee/state.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferFee/state.js
 var import_buffer_layout6 = __toESM(require_Layout2(), 1);
 var MAX_FEE_BASIS_POINTS = 1e4;
 var ONE_IN_BASIS_POINTS = BigInt(MAX_FEE_BASIS_POINTS);
@@ -27223,11 +27223,11 @@ function getTransferFeeConfig(mint) {
   }
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferHook/instructions.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferHook/instructions.js
 var import_buffer_layout9 = __toESM(require_Layout2(), 1);
 var import_web37 = require("@solana/web3.js");
 
-// node_modules/@solana/spl-token/lib/esm/instructions/transferChecked.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/instructions/transferChecked.js
 var import_buffer_layout7 = __toESM(require_Layout2(), 1);
 var import_web34 = require("@solana/web3.js");
 var transferCheckedInstructionData = (0, import_buffer_layout7.struct)([
@@ -27250,11 +27250,11 @@ function createTransferCheckedInstruction(source, mint, destination, owner, amou
   return new import_web34.TransactionInstruction({ keys, programId, data });
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferHook/state.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferHook/state.js
 var import_buffer_layout8 = __toESM(require_Layout2(), 1);
 var import_web36 = require("@solana/web3.js");
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferHook/seeds.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferHook/seeds.js
 var DISCRIMINATOR_SPAN = 1;
 var LITERAL_LENGTH_SPAN = 1;
 var INSTRUCTION_ARG_OFFSET_SPAN = 1;
@@ -27354,7 +27354,7 @@ async function unpackSeeds(seeds, previousMetas, instructionData, connection) {
   return unpackedSeeds;
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferHook/pubkeyData.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferHook/pubkeyData.js
 var import_web35 = require("@solana/web3.js");
 async function unpackPubkeyData(keyDataConfig, previousMetas, instructionData, connection) {
   const [discriminator, ...rest] = keyDataConfig;
@@ -27396,7 +27396,7 @@ async function unpackPubkeyDataFromAccountData(remaining, previousMetas, connect
   return new import_web35.PublicKey(accountInfo.data.subarray(dataIndex, dataIndex + import_web35.PUBLIC_KEY_LENGTH));
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferHook/state.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferHook/state.js
 var TransferHookLayout = (0, import_buffer_layout8.struct)([publicKey("authority"), publicKey("programId")]);
 var TRANSFER_HOOK_SIZE = TransferHookLayout.span;
 function getTransferHook(mint) {
@@ -27462,7 +27462,7 @@ async function resolveExtraAccountMeta(connection, extraMeta, previousMetas, ins
   return { pubkey, isSigner: extraMeta.isSigner, isWritable: extraMeta.isWritable };
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/transferHook/instructions.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/transferHook/instructions.js
 var TransferHookInstruction;
 (function(TransferHookInstruction2) {
   TransferHookInstruction2[TransferHookInstruction2["Initialize"] = 0] = "Initialize";
@@ -27526,7 +27526,7 @@ async function addExtraAccountMetasForExecute(connection, instruction, programId
   instruction.keys.push({ pubkey: validateStatePubkey, isSigner: false, isWritable: false });
 }
 
-// node_modules/@solana/spl-token/lib/esm/extensions/extensionType.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/extensions/extensionType.js
 var ExtensionType;
 (function(ExtensionType2) {
   ExtensionType2[ExtensionType2["Uninitialized"] = 0] = "Uninitialized";
@@ -27574,7 +27574,7 @@ function getExtensionData(extension, tlvData) {
   return null;
 }
 
-// node_modules/@solana/spl-token/lib/esm/state/mint.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/state/mint.js
 var MintLayout = (0, import_buffer_layout10.struct)([
   (0, import_buffer_layout10.u32)("mintAuthorityOption"),
   publicKey("mintAuthority"),
@@ -27620,7 +27620,7 @@ function getAssociatedTokenAddressSync(mint, owner, allowOwnerOffCurve = false, 
   return address;
 }
 
-// node_modules/@solana/spl-token/lib/esm/instructions/closeAccount.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/instructions/closeAccount.js
 var import_buffer_layout11 = __toESM(require_Layout2(), 1);
 var import_web39 = require("@solana/web3.js");
 var closeAccountInstructionData = (0, import_buffer_layout11.struct)([(0, import_buffer_layout11.u8)("instruction")]);
@@ -27634,7 +27634,7 @@ function createCloseAccountInstruction(account, destination, authority, multiSig
   return new import_web39.TransactionInstruction({ keys, programId, data });
 }
 
-// node_modules/@solana/spl-token/lib/esm/instructions/associatedTokenAccount.js
+// node_modules/@meteora-ag/dlmm/node_modules/@solana/spl-token/lib/esm/instructions/associatedTokenAccount.js
 var import_web310 = require("@solana/web3.js");
 function createAssociatedTokenAccountIdempotentInstruction(payer, associatedToken, owner, mint, programId = TOKEN_PROGRAM_ID, associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID) {
   return buildAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint, Buffer.from([1]), programId, associatedTokenProgramId);
@@ -48693,9 +48693,9 @@ var src_default = DLMM;
 var import_bs58 = __toESM(require_bs583());
 var import_bn12 = __toESM(require_bn());
 var RPC_URL = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-async function getQuote(poolAddress, inputMint, amountIn) {
+async function getQuote(poolAddress, inputMint, amountIn, existingConnection) {
   try {
-    const connection = new import_web321.Connection(RPC_URL, "confirmed");
+    const connection = existingConnection || new import_web321.Connection(RPC_URL, "confirmed");
     const poolPubKey = new import_web321.PublicKey(poolAddress);
     const inputMintPubKey = new import_web321.PublicKey(inputMint);
     const dlmmPool = await src_default.create(connection, poolPubKey);
@@ -48728,9 +48728,9 @@ async function getQuote(poolAddress, inputMint, amountIn) {
     };
   }
 }
-async function getPrice(poolAddress) {
+async function getPrice(poolAddress, existingConnection) {
   try {
-    const connection = new import_web321.Connection(RPC_URL, "confirmed");
+    const connection = existingConnection || new import_web321.Connection(RPC_URL, "confirmed");
     const poolPubKey = new import_web321.PublicKey(poolAddress);
     const dlmmPool = await src_default.create(connection, poolPubKey);
     const activeBin = await dlmmPool.getActiveBin();
@@ -48759,9 +48759,9 @@ async function getPrice(poolAddress) {
     };
   }
 }
-async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privateKeyBase58) {
+async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privateKeyBase58, existingConnection) {
   try {
-    const connection = new import_web321.Connection(RPC_URL, "confirmed");
+    const connection = existingConnection || new import_web321.Connection(RPC_URL, "confirmed");
     const poolPubKey = new import_web321.PublicKey(poolAddress);
     const inputMintPubKey = new import_web321.PublicKey(inputMint);
     const secretKey = import_bs58.default.decode(privateKeyBase58);
@@ -48822,10 +48822,52 @@ async function executeSwap(poolAddress, inputMint, amountIn, slippageBps, privat
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
+  if (command === "daemon") {
+    const connection = new import_web321.Connection(RPC_URL, "confirmed");
+    console.error("DEBUG: Meteora Daemon Ready");
+    const readline = require("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false
+    });
+    rl.on("line", async (line) => {
+      if (!line.trim())
+        return;
+      try {
+        const cmd = JSON.parse(line);
+        let result2;
+        switch (cmd.command) {
+          case "quote":
+            result2 = await getQuote(cmd.pool, cmd.inputMint, cmd.amount, connection);
+            break;
+          case "price":
+            result2 = await getPrice(cmd.pool, connection);
+            break;
+          case "swap":
+            result2 = await executeSwap(
+              cmd.pool,
+              cmd.inputMint,
+              cmd.amount,
+              cmd.slippageBps || 100,
+              cmd.privateKey,
+              connection
+            );
+            break;
+          default:
+            result2 = { success: false, error: `Unknown command: ${cmd.command}` };
+        }
+        console.log(JSON.stringify(result2));
+      } catch (e) {
+        console.log(JSON.stringify({ success: false, error: e.message || String(e) }));
+      }
+    });
+    return;
+  }
   if (!command) {
     console.log(JSON.stringify({
       success: false,
-      error: "Usage: node meteora_bridge.js <quote|price|swap> [args...]"
+      error: "Usage: node meteora_bridge.js <quote|price|swap|daemon> [args...]"
     }));
     process.exit(1);
   }

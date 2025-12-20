@@ -58,10 +58,11 @@ interface PriceResult {
 async function getQuote(
     poolAddress: string,
     inputMint: string,
-    amountIn: string
+    amountIn: string,
+    existingConnection?: Connection
 ): Promise<QuoteResult> {
     try {
-        const connection = new Connection(RPC_URL, 'confirmed');
+        const connection = existingConnection || new Connection(RPC_URL, 'confirmed');
         const poolPubKey = new PublicKey(poolAddress);
         const inputMintPubKey = new PublicKey(inputMint);
 
@@ -107,9 +108,9 @@ async function getQuote(
 // ═══════════════════════════════════════════════════════════════════
 // PRICE: Get current pool price (for scanning)
 // ═══════════════════════════════════════════════════════════════════
-async function getPrice(poolAddress: string): Promise<PriceResult> {
+async function getPrice(poolAddress: string, existingConnection?: Connection): Promise<PriceResult> {
     try {
-        const connection = new Connection(RPC_URL, 'confirmed');
+        const connection = existingConnection || new Connection(RPC_URL, 'confirmed');
         const poolPubKey = new PublicKey(poolAddress);
 
         // Load DLMM pool
@@ -153,10 +154,11 @@ async function executeSwap(
     inputMint: string,
     amountIn: string,
     slippageBps: number,
-    privateKeyBase58: string
+    privateKeyBase58: string,
+    existingConnection?: Connection
 ): Promise<SwapResult> {
     try {
-        const connection = new Connection(RPC_URL, 'confirmed');
+        const connection = existingConnection || new Connection(RPC_URL, 'confirmed');
         const poolPubKey = new PublicKey(poolAddress);
         const inputMintPubKey = new PublicKey(inputMint);
 
@@ -241,10 +243,59 @@ async function main() {
     const args = process.argv.slice(2);
     const command = args[0];
 
+    // V95 DAEMON MODE
+    if (command === 'daemon') {
+        const connection = new Connection(RPC_URL, 'confirmed');
+        console.error("DEBUG: Meteora Daemon Ready");
+
+        const readline = require('readline');
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            terminal: false
+        });
+
+        rl.on('line', async (line: string) => {
+            if (!line.trim()) return;
+            try {
+                const cmd = JSON.parse(line);
+                let result: any;
+
+                switch (cmd.command) {
+                    case 'quote':
+                        // quote <pool_address> <input_mint> <amount>
+                        result = await getQuote(cmd.pool, cmd.inputMint, cmd.amount, connection);
+                        break;
+                    case 'price':
+                        // price <pool_address>
+                        result = await getPrice(cmd.pool, connection);
+                        break;
+                    case 'swap':
+                        // swap keys...
+                        result = await executeSwap(
+                            cmd.pool,
+                            cmd.inputMint,
+                            cmd.amount,
+                            cmd.slippageBps || 100,
+                            cmd.privateKey,
+                            connection
+                        );
+                        break;
+                    default:
+                        result = { success: false, error: `Unknown command: ${cmd.command}` };
+                }
+                console.log(JSON.stringify(result));
+            } catch (e: any) {
+                console.log(JSON.stringify({ success: false, error: e.message || String(e) }));
+            }
+        });
+        return;
+    }
+
     if (!command) {
         console.log(JSON.stringify({
             success: false,
-            error: "Usage: node meteora_bridge.js <quote|price|swap> [args...]"
+            error: "Usage: node meteora_bridge.js <quote|price|swap|daemon> [args...]"
         }));
         process.exit(1);
     }
