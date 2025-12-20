@@ -140,6 +140,8 @@ class MeteoraFeed(PriceSource):
                                 liquidity_usd=0, # Not provided by fast check
                                 timestamp=time.time()
                             )
+                    else:
+                        Logger.debug(f"[METEORA] Daemon price failed: {result.error if result else 'No result'}")
             except Exception as e:
                 Logger.debug(f"[METEORA] Daemon check failed: {e}")
             
