@@ -23,6 +23,7 @@ from src.shared.system.logging import Logger
 from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
 from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
+from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -287,11 +288,14 @@ class PhantomArbiter:
                 elif "LIQ" in status:
                      status = "❌ LIQ" # Shorten for table
                 
-            else:
-                # Use Scan data
+        else:
+                # Use Scan data + NearMissAnalyzer for nuanced status
                 net_profit = opp.net_profit_usd
                 spread_pct = opp.spread_pct
-                status = "✅ READY" if opp.is_profitable else "❌"
+                
+                # Calculate near-miss metrics for rich status display
+                metrics = NearMissAnalyzer.calculate_metrics(opp)
+                status = metrics.status_icon
             
             if opp.is_profitable:
                 profitable_count += 1
@@ -324,7 +328,15 @@ class PhantomArbiter:
                 elif "SCALED" in (verified.verification_status or ""):
                     status = "⚠️"
                 elif "LIQ" in (verified.verification_status or ""):
-                    status = "💧" 
+                    status = "💧"
+            else:
+                # Use NearMissAnalyzer for better status
+                metrics = NearMissAnalyzer.calculate_metrics(opp)
+                match metrics.status:
+                    case "VIABLE": status = "✅"
+                    case "NEAR_MISS": status = "⚡"
+                    case "WARM": status = "🔸"
+                    case _: status = "❌"
             
             tg_table.append(f"{opp.pair[:10]:<11} {spread:<7} {net:<8} {status}")
             
