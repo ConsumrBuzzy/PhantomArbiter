@@ -107,10 +107,11 @@ async def main():
             print(f"   🔄 High SOL detected. Swapping {surplus_sol:.4f} SOL surplus to USDC...")
             # Selling SOL (target_mint) to USDC
             result = swapper.execute_swap(
-                direction="SELL",
+                direction="SELL", 
                 amount_usd=surplus_usd,
                 reason="BALANCE_SOL",
-                target_mint="So11111111111111111111111111111111111111112"
+                target_mint="So11111111111111111111111111111111111111112",
+                override_atomic_amount=int(surplus_sol * 1_000_000_000)
             )
             if result and result.get('success'):
                 print(f"      ✅ Success: {result['signature'][:16]}...")
