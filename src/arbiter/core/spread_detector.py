@@ -333,8 +333,12 @@ class SpreadDetector:
             
             spread_pct = ((sell_price - buy_price) / buy_price) * 100
             
-            if spread_pct < 0.01:
+            if spread_pct <= 0:
                 continue
+            
+            # Show even tiny spreads so dashboard isn't blank
+            # if spread_pct < 0.01:
+            #     continue
             
             gross_profit = trade_size * (spread_pct / 100)
             fees = fee_est.estimate(
