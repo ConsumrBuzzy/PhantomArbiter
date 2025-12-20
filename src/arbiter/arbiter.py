@@ -25,6 +25,7 @@ from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 from src.speed.jito_adapter import JitoAdapter
+from src.arbiter.core.trade_engine import TradeEngine
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -155,6 +156,8 @@ class PhantomArbiter:
         """Initialize paper trading components."""
         mode = ExecutionMode.PAPER
         self._executor = ArbitrageExecutor(mode=mode)
+        # Initialize TradeEngine with executor only (no unified adapter for paper)
+        self.trade_engine = TradeEngine(executor=self._executor)
         Logger.info("📄 Paper mode initialized")
     
     def _setup_live_mode(self) -> None:
@@ -248,6 +251,13 @@ class PhantomArbiter:
             print(f"   ✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
             print(f"   💰 USDC: ${self.current_balance:.2f} | SOL (Gas): ${self.gas_balance:.2f}")
             Logger.info(f"✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
+            
+            # Initialize TradeEngine
+            self.trade_engine = TradeEngine(
+                executor=self._executor,
+                unified_adapter=self._unified_adapter,
+                use_unified=self.config.use_unified_engine and (self._unified_adapter is not None)
+            )
             
         except Exception as e:
             print(f"   ❌ LIVE MODE FAILED: {e}")
@@ -449,7 +459,7 @@ class PhantomArbiter:
             print(f"   🎯 {profitable_count} profitable opportunities!")
     
     async def execute_trade(self, opportunity: SpreadOpportunity, trade_size: float = None) -> Dict[str, Any]:
-        """Execute a trade using hybrid routing (Unified Engine or Jupiter)."""
+        """Execute a trade delegates to TradeEngine."""
         if trade_size is None:
             trade_size = min(
                 self.current_balance,
@@ -459,138 +469,47 @@ class PhantomArbiter:
         if trade_size < 1.0:
             return {"success": False, "error": "Insufficient balance"}
         
-        result = None
-        engine_used = "jupiter"
-        start_time = time.time()
-        
-        # ═══ HYBRID ROUTING: Try unified engine for Meteora/Orca ═══
-        if self._unified_adapter and self.config.use_unified_engine:
-            try:
-                from src.shared.execution.pool_index import get_pool_index
-                pool_index = get_pool_index()
-                pools = pool_index.get_pools_for_opportunity(opportunity)
-                
-                if pools and pool_index.can_use_unified_engine(opportunity):
-                    # Determine which pools to use
-                    buy_dex = opportunity.buy_dex.lower() if opportunity.buy_dex else ""
-                    sell_dex = opportunity.sell_dex.lower() if opportunity.sell_dex else ""
-                    
-                    buy_pool = pools.meteora_pool if buy_dex == "meteora" else pools.orca_pool
-                    sell_pool = pools.orca_pool if sell_dex == "orca" else pools.meteora_pool
-                    
-                    if buy_pool and sell_pool:
-                        # Convert trade_size USD to lamports (assume 6 decimal USDC)
-                        amount_lamports = int(trade_size * 1_000_000)
-                        
-                        Logger.info(f"[HYBRID] ⚡ Using unified engine: {buy_dex}→{sell_dex}")
-                        
-                        unified_result = await self._unified_adapter.execute_atomic_arb(
-                            buy_dex=buy_dex,
-                            buy_pool=buy_pool,
-                            sell_dex=sell_dex,
-                            sell_pool=sell_pool,
-                            input_mint=opportunity.quote_mint,  # USDC
-                            output_mint=opportunity.base_mint,  # Target token
-                            amount_in=amount_lamports,
-                            slippage_bps=100,
-                        )
-                        
-                        # Record performance
-                        latency_ms = int((time.time() - start_time) * 1000)
-                        pool_index.record_execution(
-                            pair=opportunity.pair,
-                            dex=buy_dex,
-                            success=unified_result.success,
-                            latency_ms=latency_ms,
-                            error=unified_result.error if not unified_result.success else None
-                        )
-                        
-                        if unified_result.success:
-                            # Decay congestion multiplier on success
-                            from src.arbiter.core.fee_estimator import get_fee_estimator
-                            get_fee_estimator().update_congestion_factor(is_congested=False)
-                            
-                            engine_used = "unified"
-                            result = type('Result', (), {
-                                'success': True,
-                                'signature': unified_result.signature,
-                                'error': None
-                            })()
-                        else:
-                            Logger.warning(f"[HYBRID] Unified failed: {unified_result.error}, falling back to Jupiter")
-                            
-                            # ═══ V83.0: REALITY CHECK LOOP (Auto-Calibration) ═══
-                            if unified_result.error and "Quote loss" in str(unified_result.error):
-                                try:
-                                    import re
-                                    # Extract loss amount (e.g. "Quote loss $-0.5668")
-                                    loss_match = re.search(r"Quote loss \$-?([\d\.]+)", str(unified_result.error))
-                                    if loss_match:
-                                        loss_amt = float(loss_match.group(1))
-                                        
-                                        # Log slippage for ML calibration
-                                        # Use symbol from pair (e.g. "SOL" from "SOL/USDC")
-                                        token_symbol = opportunity.pair.split('/')[0]
-                                        
-                                        from src.shared.system.db_manager import db_manager
-                                        db_manager.log_slippage(
-                                            token=token_symbol,
-                                            pair=opportunity.pair,
-                                            expected_out=trade_size,
-                                            actual_out=trade_size - loss_amt,
-                                            trade_size_usd=trade_size,
-                                            dex="UNIFIED"
-                                        )
-                                        Logger.info(f"[ML] 🧠 Auto-calibrated slippage logic for {opportunity.pair} (Loss: ${loss_amt:.4f})")
-                                        
-                                        # Update congestion factor if it looks like a congestion issue
-                                        # (Persistent failures often mean we aren't paying enough bribe to land fast)
-                                        from src.arbiter.core.fee_estimator import get_fee_estimator
-                                        get_fee_estimator().update_congestion_factor(is_congested=True)
-                                except Exception as e:
-                                    Logger.debug(f"[ML] Calibration failed: {e}")
-                            
-            except Exception as e:
-                Logger.debug(f"[HYBRID] Unified engine error: {e}, using Jupiter")
-        
-        # ═══ FALLBACK: Use Jupiter via ArbitrageExecutor ═══
-        if result is None:
-            result = await self._executor.execute_spatial_arb(opportunity, trade_size)
+        if not getattr(self, 'trade_engine', None):
+             Logger.error("❌ TradeEngine not initialized")
+             return {"success": False, "error": "No Engine"}
+
+        # Delegate execution to the engine
+        result = await self.trade_engine.execute(opportunity, trade_size)
         
         if result.success:
-            # Use opportunity's calculated net profit (includes accurate fees)
-            net_profit = opportunity.net_profit_usd * (trade_size / opportunity.max_size_usd)
-            
-            self.current_balance += net_profit
-            self.total_profit += net_profit
+            # Update Arbiter State
+            self.current_balance += result.net_profit
+            self.total_profit += result.net_profit
             self.total_trades += 1
             
-            # Record in tracker for accurate stats
+            # Record in tracker
             self.tracker.record_trade(
                 volume_usd=trade_size,
-                profit_usd=net_profit,
+                profit_usd=result.net_profit,
                 strategy="SPATIAL",
                 pair=opportunity.pair
             )
             
-            self.trades.append({
+            # Log successful trade
+            trade_record = {
                 "pair": opportunity.pair,
-                "profit": net_profit,
-                "fees": opportunity.estimated_fees_usd,
+                "profit": result.net_profit,
+                "fees": result.fees,
                 "timestamp": time.time(),
                 "mode": "LIVE" if self.config.live_mode else "PAPER",
-                "engine": engine_used
-            })
+                "engine": result.engine_used
+            }
+            self.trades.append(trade_record)
             
             return {
                 "success": True,
                 "trade": {
                     "pair": opportunity.pair,
-                    "net_profit": net_profit,
+                    "net_profit": result.net_profit,
                     "spread_pct": opportunity.spread_pct,
-                    "fees": opportunity.estimated_fees_usd,
+                    "fees": result.fees,
                     "mode": "LIVE" if self.config.live_mode else "PAPER",
-                    "engine": engine_used
+                    "engine": result.engine_used
                 },
                 "error": None
             }
