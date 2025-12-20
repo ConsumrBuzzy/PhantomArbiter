@@ -74,6 +74,10 @@ def create_parser() -> argparse.ArgumentParser:
         choices=["all", "low", "mid", "high", "trending"],
         help="Pair risk tier: all (default), low, mid, high, or trending"
     )
+    arbiter_parser.add_argument(
+        "--smart-pods", action="store_true",
+        help="Enable smart pod rotation (focus 1 pod per scan, auto-promote/demote)"
+    )
     
     # ═══════════════════════════════════════════════════════════════
     # SCAN SUBCOMMAND (Quick one-shot opportunity scan)
@@ -195,10 +199,13 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
         pairs=selected_pairs
     )
     
+    smart_pods_mode = getattr(args, 'smart_pods', False)
+    if smart_pods_mode:
+        print(f"   🔀 Smart Pod Rotation: ENABLED")
     print(f"   📊 Risk Tier: {args.risk_tier.upper()} ({len(selected_pairs)} pairs)")
     
     arbiter = PhantomArbiter(config)
-    await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval)
+    await arbiter.run(duration_minutes=args.duration, scan_interval=args.interval, smart_pods=smart_pods_mode)
 
 
 async def cmd_scan(args: argparse.Namespace) -> None:

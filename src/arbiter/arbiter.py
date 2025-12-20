@@ -138,8 +138,127 @@ def _build_pairs_from_pods(pods):
 # Default: All pods combined
 TRENDING_PAIRS = _build_pairs_from_pods([POD_DEFI, POD_INFRA, POD_OG_MEME, POD_VIRAL, POD_AI, POD_PUMP])
 
-# Combined default - all pairs for maximum opportunity scanning
-CORE_PAIRS = LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS + TRENDING_PAIRS
+# Deduplicate pairs to avoid scanning the same token twice
+def _dedupe_pairs(pairs):
+    seen = set()
+    result = []
+    for pair in pairs:
+        key = (pair[0], pair[1])  # (name, mint)
+        if key not in seen:
+            seen.add(key)
+            result.append(pair)
+    return result
+
+# Combined default - all pairs for maximum opportunity scanning (deduplicated)
+CORE_PAIRS = _dedupe_pairs(LOW_RISK_PAIRS + MID_RISK_PAIRS + HIGH_RISK_PAIRS + TRENDING_PAIRS)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# POD MANAGER: Smart rotation with priority + random check-ins
+# ═══════════════════════════════════════════════════════════════════
+
+class PodManager:
+    """
+    Manages smart pod rotation for efficient scanning.
+    - Tracks priority per pod
+    - Promotes/demotes based on results
+    - Random check-ins on dormant pods
+    """
+    
+    def __init__(self):
+        self.pods = ALL_PODS
+        self.state = {}
+        self._init_state()
+        self._scan_count = 0
+    
+    def _init_state(self):
+        priority = 1
+        for name in ["OG_MEME", "VIRAL", "AI", "DEFI", "PUMP", "INFRA"]:
+            self.state[name] = {
+                "priority": priority,
+                "last_scan": 0,
+                "success_count": 0,
+                "fail_count": 0,
+                "cooldown_until": 0,
+            }
+            priority += 1
+    
+    def get_active_pods(self) -> list:
+        """Get pods to scan this cycle (primary + optional random check-in)."""
+        import time
+        import random
+        
+        self._scan_count += 1
+        now = time.time()
+        
+        # Find primary pod (highest priority not on cooldown)
+        active = []
+        sorted_pods = sorted(self.state.items(), key=lambda x: x[1]["priority"])
+        
+        for name, state in sorted_pods:
+            if now > state["cooldown_until"]:
+                active.append(name)
+                state["last_scan"] = now
+                break
+        
+        # 20% chance: Random check-in on a different pod
+        if random.random() < 0.2 and len(self.state) > 1:
+            other_pods = [n for n in self.state.keys() if n not in active]
+            if other_pods:
+                checkin = random.choice(other_pods)
+                active.append(checkin)
+                self.state[checkin]["last_scan"] = now
+        
+        return active
+    
+    def get_pairs_for_pods(self, pod_names: list) -> list:
+        """Convert pod names to tradeable pairs."""
+        pairs = []
+        for name in pod_names:
+            if name in self.pods:
+                pairs.extend(_build_pairs_from_pods([self.pods[name]]))
+        return pairs
+    
+    def report_result(self, pod_name: str, found_opportunity: bool, executed: bool, success: bool):
+        """Update pod state based on scan/execution results."""
+        import time
+        
+        if pod_name not in self.state:
+            return
+        
+        state = self.state[pod_name]
+        
+        if found_opportunity:
+            # Promote for finding opportunities
+            state["priority"] = max(1, state["priority"] - 1)
+            
+            if executed:
+                if success:
+                    state["success_count"] += 1
+                    state["fail_count"] = 0
+                    state["priority"] = max(1, state["priority"] - 2)  # Strong boost
+                else:
+                    state["fail_count"] += 1
+                    
+                    # 3 failures = 5 minute cooldown
+                    if state["fail_count"] >= 3:
+                        state["cooldown_until"] = time.time() + 300
+                        state["priority"] = min(6, state["priority"] + 2)
+                        state["fail_count"] = 0
+        else:
+            # No opportunities - slight demotion
+            state["priority"] = min(6, state["priority"] + 0.5)
+    
+    def get_status(self) -> str:
+        """Get current pod status for logging."""
+        parts = []
+        for name, state in sorted(self.state.items(), key=lambda x: x[1]["priority"]):
+            cd = "🔴" if time.time() < state["cooldown_until"] else "🟢"
+            parts.append(f"{name}:{state['priority']:.0f}{cd}")
+        return " | ".join(parts)
+
+# Global instance
+pod_manager = PodManager()
 
 
 @dataclass
@@ -602,7 +721,7 @@ class PhantomArbiter:
         except Exception as e:
             Logger.debug(f"Signal check error: {e}")
 
-    async def run(self, duration_minutes: int = 10, scan_interval: int = 5) -> None:
+    async def run(self, duration_minutes: int = 10, scan_interval: int = 5, smart_pods: bool = False) -> None:
         """Main trading loop."""
         mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
         
@@ -611,6 +730,8 @@ class PhantomArbiter:
         monitor = AdaptiveScanner() if adaptive_mode else None
         current_interval = monitor.base_interval if adaptive_mode else scan_interval
         
+        # Smart pod rotation
+        self._smart_pods_enabled = smart_pods
         
         # WSS Integration handled by SignalCoordinator later
         
@@ -622,7 +743,8 @@ class PhantomArbiter:
         print(f"   Budget:     ${self.starting_balance:.2f} USDC | ${self.gas_balance:.2f} Gas")
         print(f"   Min Spread: {self.config.min_spread}% | Max Trade: ${self.config.max_trade:.2f}")
         scan_mode = "ADAPTIVE" if adaptive_mode else f"{scan_interval}s"
-        print(f"   Pairs:      {len(self.config.pairs)} | Duration: {duration_minutes} min | Scan: {scan_mode}")
+        pods_str = " | Pods: SMART" if smart_pods else ""
+        print(f"   Pairs:      {len(self.config.pairs)} | Duration: {duration_minutes} min | Scan: {scan_mode}{pods_str}")
         print("="*70)
         print("\n   Running... (Ctrl+C to stop)\n")
         
@@ -679,7 +801,14 @@ class PhantomArbiter:
                 
                 # Scan (prioritize hot pairs in adaptive mode)
                 try:
-                    if adaptive_mode and monitor:
+                    # Smart pod rotation: focus on 1-2 pods per scan
+                    active_pod_names = []
+                    if self._smart_pods_enabled:
+                        active_pod_names = pod_manager.get_active_pods()
+                        scan_pairs = pod_manager.get_pairs_for_pods(active_pod_names)
+                        self.config.pairs = scan_pairs
+                        print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(scan_pairs)} pairs)")
+                    elif adaptive_mode and monitor:
                         self.config.pairs = monitor.get_priority_pairs(self.config.pairs)
                     
                     # Calculate trade size for this iteration
