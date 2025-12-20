@@ -132,6 +132,7 @@ class MeteoraFeed(PriceSource):
                             Logger.debug(f"[METEORA] 🟢 Daemon price for {base_mint[:4]}: ${price}")
                             self._price_cache[cache_key] = (price, time.time())
                             return SpotPrice(
+                                dex="METEORA",
                                 base_mint=base_mint,
                                 quote_mint=quote_mint,
                                 price=price,
@@ -152,6 +153,7 @@ class MeteoraFeed(PriceSource):
                 self._price_cache[cache_key] = (price, time.time())
                 
                 return SpotPrice(
+                    dex="METEORA",
                     base_mint=base_mint,
                     quote_mint=quote_mint,
                     price=price,
