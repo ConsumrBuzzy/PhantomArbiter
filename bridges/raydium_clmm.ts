@@ -497,8 +497,19 @@ async function main() {
             break;
         }
 
+        case 'discover': {
+            const [, mintA, mintB] = args;
+            if (!mintA || !mintB) {
+                console.log(JSON.stringify({ success: false, error: 'Usage: discover <mint_a> <mint_b>' }));
+                process.exit(1);
+            }
+            const result = await discoverPool(mintA, mintB);
+            console.log(JSON.stringify(result));
+            break;
+        }
+
         default:
-            console.log(JSON.stringify({ success: false, error: `Unknown command: ${command}` }));
+            console.log(JSON.stringify({ success: false, error: `Unknown command: ${command}. Use: discover|price|quote|swap` }));
             process.exit(1);
     }
 }
