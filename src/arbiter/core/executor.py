@@ -377,9 +377,46 @@ class ArbitrageExecutor:
                         return self._error_result(f"Buy failed: {buy_result.error}", start_time)
                     legs.append(buy_result)
                     
+                    # Execute sell with retry on failure
                     sell_result = await self._execute_swap(sell_quote)
-                    legs.append(sell_result)
                     
+                    # ═══ BUG FIX: Handle sell failure after successful buy ═══
+                    if not sell_result.success:
+                        Logger.error(f"[EXEC] ❌ SELL FAILED after successful buy! Attempting emergency retry...")
+                        
+                        # Emergency retry with escalating slippage
+                        emergency_slippage_tiers = [100, 200, 500, 1000]  # 1% → 2% → 5% → 10%
+                        sell_success = False
+                        
+                        for retry_idx, slippage_bps in enumerate(emergency_slippage_tiers):
+                            Logger.warning(f"[EXEC] ⚠️ Emergency sell retry {retry_idx + 1}/{len(emergency_slippage_tiers)} @ {slippage_bps/100:.1f}% slippage")
+                            
+                            # Get fresh sell quote with higher slippage
+                            emergency_quote = router.get_jupiter_quote(
+                                token_mint, USDC, expected_tokens, slippage_bps=slippage_bps
+                            )
+                            if not emergency_quote:
+                                continue
+                            
+                            sell_result = await self._execute_swap(emergency_quote)
+                            if sell_result.success:
+                                Logger.info(f"[EXEC] ✅ Emergency sell succeeded on retry {retry_idx + 1}!")
+                                sell_success = True
+                                break
+                            
+                            await asyncio.sleep(0.5)  # Brief pause between retries
+                        
+                        if not sell_success:
+                            # Log stuck tokens for manual cleanup
+                            Logger.error(f"[EXEC] ❌ STUCK TOKENS: {expected_tokens} units of {token_mint[:8]}... - MANUAL CLEANUP REQUIRED!")
+                            Logger.error(f"[EXEC] 💡 Run: python scripts/manual_sweep.py to recover")
+                            return self._error_result(
+                                f"Sell failed after buy - STUCK {expected_tokens} tokens of {opportunity.pair}", 
+                                start_time, 
+                                legs
+                            )
+                    
+                    legs.append(sell_result)
                     result = None
                 
                 if result:
