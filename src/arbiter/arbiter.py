@@ -284,6 +284,36 @@ class PodManager:
         else:
             # No opportunities - slight demotion
             state["priority"] = min(6, state["priority"] + 0.5)
+        
+        # Auto-save after each update
+        self.save_to_db()
+    
+    def save_to_db(self):
+        """Persist current pod state to database."""
+        try:
+            from src.shared.system.db_manager import db_manager
+            for name, state in self.state.items():
+                db_manager.save_pod_state(name, state)
+        except Exception as e:
+            pass  # Silently fail - non-critical
+    
+    def load_from_db(self):
+        """Load pod state from database (restores priorities from previous session)."""
+        try:
+            from src.shared.system.db_manager import db_manager
+            saved = db_manager.load_all_pod_states()
+            if saved:
+                # Merge saved state with current state (keep new pods, restore known)
+                for name, saved_state in saved.items():
+                    if name in self.state:
+                        self.state[name]['priority'] = saved_state['priority']
+                        self.state[name]['success_count'] = saved_state['success_count']
+                        self.state[name]['fail_count'] = saved_state['fail_count']
+                        self.state[name]['best_spread'] = saved_state.get('best_spread', 0)
+                return True
+        except Exception as e:
+            pass
+        return False
     
     def get_status(self) -> str:
         """Get current pod status for logging."""
