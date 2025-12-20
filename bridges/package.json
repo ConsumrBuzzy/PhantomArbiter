@@ -4,16 +4,20 @@
     "description": "TypeScript bridges for Solana DEX integrations",
     "main": "execution_engine.js",
     "scripts": {
-        "build": "npx esbuild execution_engine.ts --bundle --platform=node --outfile=execution_engine.js --external:@solana/web3.js",
+        "build": "npx esbuild execution_engine.ts --bundle --platform=node --outfile=execution_engine.js --external:@solana/web3.js --external:@coral-xyz/anchor",
         "build:meteora": "npx esbuild meteora_dlmm.ts --bundle --platform=node --outfile=meteora_bridge.js --external:@solana/web3.js",
         "build:all": "npm run build && npm run build:meteora",
         "build:prod": "npx esbuild execution_engine.ts --bundle --platform=node --minify --outfile=execution_engine.js"
     },
     "dependencies": {
         "@meteora-ag/dlmm": "^1.0.0",
+        "@orca-so/whirlpools-sdk": "^0.13.0",
+        "@coral-xyz/anchor": "^0.29.0",
         "@solana/web3.js": "^1.87.0",
+        "@solana/spl-token": "^0.3.0",
         "bs58": "^5.0.0",
-        "bn.js": "^5.2.1"
+        "bn.js": "^5.2.1",
+        "decimal.js": "^10.4.0"
     },
     "devDependencies": {
         "esbuild": "^0.19.0",
