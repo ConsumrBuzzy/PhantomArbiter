@@ -115,11 +115,20 @@ class ArbiterConfig:
     full_wallet: bool = False
     pairs: List[tuple] = field(default_factory=lambda: CORE_PAIRS)
     # Fast-path threshold (Option A: Conservative baseline)
-    # Require +$0.05 at scan time to absorb typical decay
-    fast_path_threshold: float = 0.05  # Must show 5 cents PROFIT at scan
+    # Require +$0.12 at scan time to absorb typical ~$0.10 decay
+    fast_path_threshold: float = 0.12  # Must show 12 cents PROFIT at scan
 
 
-def get_pair_threshold(pair: str, default: float = 0.05) -> float:
+# Bootstrap defaults based on observed data (used until ML has enough samples)
+# These protect against wasted gas on pairs with known issues
+BOOTSTRAP_MIN_SPREADS = {
+    "PIPPIN": 2.0,   # Observed 1.2% → reverts with -$0.07 to -$0.14
+    "PNUT": 1.8,     # Observed 1.2% → reverts with -$0.13
+    "ACT": 2.5,      # High LIQ failure rate
+}
+
+
+def get_pair_threshold(pair: str, default: float = 0.12) -> float:
     """
     Get ML-informed fast-path threshold for a specific pair (Option B).
     
@@ -153,6 +162,15 @@ def get_pair_threshold(pair: str, default: float = 0.05) -> float:
         
     except Exception:
         return default
+
+
+def get_bootstrap_min_spread(pair: str) -> float:
+    """
+    Get bootstrap minimum spread for a pair based on observations.
+    Returns 0.0 if no bootstrap default (allows all spreads).
+    """
+    base_token = pair.split('/')[0]
+    return BOOTSTRAP_MIN_SPREADS.get(base_token, 0.0)
 
 
 class PhantomArbiter:
@@ -688,10 +706,15 @@ class PhantomArbiter:
                     if op.net_profit_usd < pair_threshold:
                         continue
                     
-                    # Check 2: Minimum spread requirement (spread-to-profit correlation)
-                    # Skip if spread is below the minimum that ever succeeded for this pair
-                    min_spread = db_manager.get_minimum_profitable_spread(op.pair, hours=24)
-                    if min_spread > 0 and op.spread_pct < min_spread * 0.9:  # 10% margin
+                    # Check 2: Minimum spread from success history (ML-learned)
+                    min_spread_ml = db_manager.get_minimum_profitable_spread(op.pair, hours=24)
+                    if min_spread_ml > 0 and op.spread_pct < min_spread_ml * 0.9:
+                        continue
+                    
+                    # Check 3: Bootstrap minimum spread (observed defaults)
+                    # Used until ML has enough data
+                    min_spread_bootstrap = get_bootstrap_min_spread(op.pair)
+                    if min_spread_bootstrap > 0 and op.spread_pct < min_spread_bootstrap:
                         continue
                     
                     fast_path_candidates.append(op)
