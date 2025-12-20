@@ -924,18 +924,34 @@ class PhantomArbiter:
                         self.config.pairs = scan_pairs
                         
                         # ML FILTER: Skip tokens with >80% LIQ failure rate
-                        try:
-                            from src.shared.system.db_manager import db_manager
-                            liq_rates = db_manager.get_liq_failure_rate(hours=2)
-                            blacklisted = [p for p, rate in liq_rates.items() if rate > 0.8]
-                            if blacklisted:
-                                before_count = len(self.config.pairs)
-                                self.config.pairs = [p for p in self.config.pairs if p[0] not in blacklisted]
-                                skip_count = before_count - len(self.config.pairs)
-                                if skip_count > 0:
-                                    print(f"   🚫 ML Skip: {skip_count} blacklisted pairs ({', '.join(blacklisted[:2])}...)")
-                        except Exception:
-                            pass  # Non-critical
+                        # Cache blacklist to avoid repeated DB queries (refresh every 5 min)
+                        if not hasattr(self, '_blacklist_cache') or time.time() - self._blacklist_cache_ts > 300:
+                            try:
+                                from src.shared.system.db_manager import db_manager
+                                liq_rates = db_manager.get_liq_failure_rate(hours=2)
+                                self._blacklist_cache = [p for p, rate in liq_rates.items() if rate > 0.8]
+                                self._blacklist_cache_ts = time.time()
+                            except Exception:
+                                self._blacklist_cache = []
+                                self._blacklist_cache_ts = time.time()
+                        
+                        blacklisted = self._blacklist_cache
+                        if blacklisted:
+                            before_count = len(self.config.pairs)
+                            self.config.pairs = [p for p in self.config.pairs if p[0] not in blacklisted]
+                            skip_count = before_count - len(self.config.pairs)
+                            if skip_count > 0:
+                                print(f"   🚫 ML Skip: {skip_count} blacklisted pairs ({', '.join(blacklisted[:2])}...)")
+                            
+                            # If ALL pairs blacklisted, try next pod
+                            if len(self.config.pairs) == 0 and len(active_pod_names) == 1:
+                                # Get next pod that's not this one
+                                alt_pods = [n for n in pod_manager.state.keys() if n != active_pod_names[0]]
+                                if alt_pods:
+                                    active_pod_names = [alt_pods[0]]
+                                    scan_pairs = pod_manager.get_pairs_for_pods(active_pod_names)
+                                    self.config.pairs = [p for p in scan_pairs if p[0] not in blacklisted]
+                                    print(f"   ⏭️ Pod skip: trying {active_pod_names[0]} instead")
                         
                         watch_str = f" +{len(watch_pairs)} watch" if watch_pairs else ""
                         print(f"   🔀 [POD] {', '.join(active_pod_names)} ({len(scan_pairs)} pairs{watch_str})")
