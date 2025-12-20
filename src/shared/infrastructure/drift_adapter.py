@@ -362,9 +362,17 @@ class DriftAdapter:
             if hasattr(user, 'get_margin_ratio'):
                 result["margin_ratio"] = user.get_margin_ratio()
             
-            # 4. Count open positions
-            positions = user.get_perp_positions()
-            result["positions"] = sum(1 for p in positions if p.base_asset_amount != 0)
+            # 4. Count open positions (method name varies by driftpy version)
+            try:
+                if hasattr(user, 'get_perp_positions'):
+                    positions = user.get_perp_positions()
+                elif hasattr(user, 'perp_positions'):
+                    positions = user.perp_positions
+                else:
+                    positions = []
+                result["positions"] = sum(1 for p in positions if getattr(p, 'base_asset_amount', 0) != 0)
+            except Exception:
+                result["positions"] = 0
             
             # 5. Determine readiness
             if result["collateral"] < 1.0:
