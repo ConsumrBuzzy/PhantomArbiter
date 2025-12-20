@@ -63,6 +63,8 @@ interface EngineResult {
     legs?: LegResult[];
     error?: string;
     computeUnitsUsed?: number;
+    simulationSuccess?: boolean;
+    simulationError?: string;
     timestamp: number;
 }
 
@@ -170,8 +172,9 @@ class ExecutionEngine {
 
     /**
      * Execute atomic multi-leg swap
+     * @param simulateOnly If true, simulate but don't send (seatbelt mode)
      */
-    async executeSwap(legs: SwapLeg[], privateKey: string, priorityFee?: number): Promise<EngineResult> {
+    async executeSwap(legs: SwapLeg[], privateKey: string, priorityFee?: number, simulateOnly: boolean = false): Promise<EngineResult> {
         const timestamp = Date.now();
 
         try {
@@ -240,7 +243,41 @@ class ExecutionEngine {
                 }
             }
 
-            // Sign and send
+            // Sign the transaction for simulation
+            tx.sign(this.wallet!);
+
+            // ═══ SIMULATION SEATBELT ═══
+            // Simulate before sending to prevent wasted gas
+            const simulation = await this.connection.simulateTransaction(tx);
+
+            if (simulation.value.err) {
+                const simError = JSON.stringify(simulation.value.err);
+                return {
+                    success: false,
+                    command: simulateOnly ? 'simulate' : 'swap',
+                    legs: legResults,
+                    simulationSuccess: false,
+                    simulationError: `Simulation failed: ${simError}`,
+                    computeUnitsUsed: simulation.value.unitsConsumed,
+                    error: `Transaction would fail: ${simError}`,
+                    timestamp,
+                };
+            }
+
+            // If simulation-only mode, return success without sending
+            if (simulateOnly) {
+                return {
+                    success: true,
+                    command: 'simulate',
+                    legs: legResults,
+                    simulationSuccess: true,
+                    computeUnitsUsed: simulation.value.unitsConsumed,
+                    timestamp,
+                };
+            }
+
+            // ═══ LIVE EXECUTION ═══
+            // Simulation passed - safe to send
             const signature = await sendAndConfirmTransaction(
                 this.connection,
                 tx,
@@ -253,6 +290,8 @@ class ExecutionEngine {
                 command: 'swap',
                 signature,
                 legs: legResults,
+                simulationSuccess: true,
+                computeUnitsUsed: simulation.value.unitsConsumed,
                 timestamp,
             };
 
