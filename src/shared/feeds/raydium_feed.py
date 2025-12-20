@@ -155,12 +155,12 @@ class RaydiumFeed(PriceSource):
                 # Just call get_price, it handles daemon communication.
                 result = bridge.get_price(pools.raydium_clmm_pool)
                 
-                if result and result.get('success'):
+                if result and result.success:
                     # Determine price direction
-                    token_a = result.get('tokenA')
-                    token_b = result.get('tokenB')
-                    price_a_to_b = float(result.get('priceAtoB', 0))
-                    price_b_to_a = float(result.get('priceBtoA', 0))
+                    token_a = result.token_a
+                    token_b = result.token_b
+                    price_a_to_b = float(result.price_a_to_b)
+                    price_b_to_a = float(result.price_b_to_a)
                     
                     price = 0.0
                     if base_mint == token_a:
