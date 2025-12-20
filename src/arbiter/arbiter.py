@@ -745,6 +745,18 @@ class PhantomArbiter:
                     if time.time() - last_trade_time.get(op.pair, 0) < cooldown:
                         continue
                     
+                    # A. Optimistic Unified Path (New)
+                    # If Unified Engine is active and Dexes are compatible, we trust atomic revert
+                    # This bypasses verification latency for "Scan to Act" speed
+                    if self.trade_engine.use_unified:
+                        if op.buy_dex in ["METEORA", "ORCA"] and op.sell_dex in ["METEORA", "ORCA"]:
+                             # Low threshold for atomic speed
+                             if op.net_profit_usd > 0.02: 
+                                 op.verification_status = "✨ OPTIMISTIC" 
+                                 fast_path_candidates.append(op)
+                                 continue
+
+                    # B. Standard ML Fast Path
                     # Check 1: Net profit threshold (per-pair ML)
                     pair_threshold = get_pair_threshold(op.pair, self.config.fast_path_threshold)
                     if op.net_profit_usd < pair_threshold:
@@ -761,6 +773,7 @@ class PhantomArbiter:
                     if min_spread_bootstrap > 0 and op.spread_pct < min_spread_bootstrap:
                         continue
                     
+                    op.verification_status = "⚡ FAST ML"
                     fast_path_candidates.append(op)
                 
                 if fast_path_candidates:
