@@ -623,11 +623,32 @@ class PhantomArbiter:
                     print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
                     
                     # Execute immediately - atomic revert protects us
+                    fast_start = time.time()
                     result = await self.execute_trade(best_fast, trade_size=trade_size)
+                    fast_latency_ms = (time.time() - fast_start) * 1000
+                    
+                    # Log for ML training data
+                    from src.shared.system.db_manager import db_manager
                     
                     if result.get("success"):
                         trade = result["trade"]
                         last_trade_time[best_fast.pair] = time.time()
+                        
+                        # Log successful fast-path
+                        db_manager.log_fast_path({
+                            'pair': best_fast.pair,
+                            'scan_profit_usd': best_fast.net_profit_usd,
+                            'execution_profit_usd': trade.get('net_profit', 0),
+                            'profit_delta': trade.get('net_profit', 0) - best_fast.net_profit_usd,
+                            'spread_pct': best_fast.spread_pct,
+                            'trade_size_usd': trade_size,
+                            'gas_cost_usd': 0.02,  # Estimate
+                            'latency_ms': fast_latency_ms,
+                            'success': True,
+                            'revert_reason': None,
+                            'buy_dex': best_fast.buy_dex,
+                            'sell_dex': best_fast.sell_dex,
+                        })
                         
                         emoji = "💰" if trade["net_profit"] > 0 else "📉"
                         print(f"   [{now}] {emoji} FAST #{self.total_trades}: {trade['pair']}")
@@ -635,7 +656,32 @@ class PhantomArbiter:
                         print(f"            Balance: ${self.current_balance:.4f}")
                         print()
                     else:
-                        print(f"   [{now}] ❌ FAST REVERTED: {result.get('error', 'atomic revert')}")
+                        revert_reason = result.get('error', 'atomic revert')
+                        
+                        # Extract execution profit from revert message if available
+                        exec_profit = 0.0
+                        import re
+                        match = re.search(r'\$([+-]?\d+\.?\d*)', revert_reason)
+                        if match:
+                            exec_profit = float(match.group(1))
+                        
+                        # Log reverted fast-path for ML
+                        db_manager.log_fast_path({
+                            'pair': best_fast.pair,
+                            'scan_profit_usd': best_fast.net_profit_usd,
+                            'execution_profit_usd': exec_profit,
+                            'profit_delta': exec_profit - best_fast.net_profit_usd,
+                            'spread_pct': best_fast.spread_pct,
+                            'trade_size_usd': trade_size,
+                            'gas_cost_usd': 0.02,
+                            'latency_ms': fast_latency_ms,
+                            'success': False,
+                            'revert_reason': revert_reason,
+                            'buy_dex': best_fast.buy_dex,
+                            'sell_dex': best_fast.sell_dex,
+                        })
+                        
+                        print(f"   [{now}] ❌ FAST REVERTED: {revert_reason}")
                     
                     continue  # Skip normal execution path
                 
