@@ -102,12 +102,18 @@ class PoolIndex:
         """
         pair = f"{token_a.upper()}/{token_b.upper()}"
         
-        # Check if inputs are Mints (simple length check)
+        # Mints/Symbols tracking
+        mint_a = None
+        mint_b = None
+        
+        # Check if inputs are Mints
         if len(token_a) > 15:
+            mint_a = token_a
             sym_a = self._resolve_symbol(token_a)
             if sym_a: token_a = sym_a
-        
+            
         if len(token_b) > 15:
+            mint_b = token_b
             sym_b = self._resolve_symbol(token_b)
             if sym_b: token_b = sym_b
             
@@ -121,7 +127,7 @@ class PoolIndex:
             return self._pool_cache[reverse_pair]
         
         # Fetch fresh
-        return self._discover_pools(token_a, token_b)
+        return self._discover_pools(token_a, token_b, mint_a, mint_b)
     
     def get_pools_for_opportunity(self, opportunity) -> Optional[PoolPair]:
         """
@@ -139,26 +145,30 @@ class PoolIndex:
         
         return self.get_pools(tokens[0], tokens[1])
     
-    def _resolve_symbol(self, mint: str) -> Optional[str]:
-        """Resolve mint to symbol via Registry DB."""
+    def _resolve_mint(self, symbol: str) -> Optional[str]:
+        """Resolve symbol to mint via Registry DB (reverse lookup)."""
         try:
             if db_manager:
                 with db_manager.cursor() as c:
-                    c.execute("SELECT symbol FROM pool_registry WHERE mint = ?", (mint,))
+                    c.execute("SELECT mint FROM pool_registry WHERE symbol = ?", (symbol,))
                     row = c.fetchone()
                     if row:
-                        return row['symbol']
+                        return row['mint']
         except:
             pass
         return None
     
-    def _discover_pools(self, token_a: str, token_b: str) -> Optional[PoolPair]:
+    def _discover_pools(self, token_a: str, token_b: str, mint_a: str = None, mint_b: str = None) -> Optional[PoolPair]:
         """Discover pools from Meteora, Orca, and Raydium CLMM."""
         pair_name = f"{token_a.upper()}/{token_b.upper()}"
         
         meteora_pool = None
         orca_pool = None
         raydium_clmm_pool = None
+        
+        # Try to resolve mints if missing (needed for Raydium discovery)
+        if not mint_a: mint_a = self._resolve_mint(token_a)
+        if not mint_b: mint_b = self._resolve_mint(token_b)
         
         # Fetch Meteora pool
         try:
@@ -176,15 +186,16 @@ class PoolIndex:
         except Exception as e:
             Logger.debug(f"Orca lookup failed for {pair_name}: {e}")
         
-        # Fetch Raydium CLMM pool
-        try:
-            from src.shared.execution.raydium_bridge import RaydiumBridge
-            bridge = RaydiumBridge()
-            result = bridge.discover_pool(token_a, token_b)
-            if result and result.get('success'):
-                raydium_clmm_pool = result.get('poolId')
-        except Exception as e:
-            Logger.debug(f"Raydium CLMM lookup failed for {pair_name}: {e}")
+        # Fetch Raydium CLMM pool (Requires Mints)
+        if mint_a and mint_b:
+            try:
+                from src.shared.execution.raydium_bridge import RaydiumBridge
+                bridge = RaydiumBridge()
+                result = bridge.discover_pool(mint_a, mint_b)
+                if result and result.get('success'):
+                    raydium_clmm_pool = result.get('poolId')
+            except Exception as e:
+                Logger.debug(f"Raydium CLMM lookup failed for {pair_name}: {e}")
         
         if not meteora_pool and not orca_pool and not raydium_clmm_pool:
             return None
