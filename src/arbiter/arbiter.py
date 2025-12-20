@@ -94,9 +94,23 @@ _HEAVY_TOKENS = [
     ("GIGA", "8v8GSr4p7Gz8xw6nF22m1LSfSgY7T2nBv2nK3y7f3z6A"),      # Gigachad
 ]
 
+# Deep Liquidity Tier (Established tokens with $100k+ pools)
+_DEEP_LIQUIDITY = [
+    ("JUP", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"),        # Jupiter
+    ("RAY", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"),       # Raydium
+    ("ORCA", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE"),       # Orca
+    ("JITO", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"),      # Jito
+    ("PYTH", "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3"),      # Pyth Network
+    ("W", "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ"),          # Wormhole
+    ("RENDER", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof"),     # Render
+    ("HNT", "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux"),        # Helium
+    ("BONK", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"),      # Bonk (deep pools)
+    ("WIF", "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"),       # dogwifhat
+]
+
 # Build TRENDING_PAIRS with BOTH USDC and SOL quote currencies
 TRENDING_PAIRS = []
-for symbol, mint in _AI_TOKENS + _MEME_TOKENS + _HEAVY_TOKENS:
+for symbol, mint in _AI_TOKENS + _MEME_TOKENS + _HEAVY_TOKENS + _DEEP_LIQUIDITY:
     TRENDING_PAIRS.append((f"{symbol}/USDC", mint, USDC_MINT))
     TRENDING_PAIRS.append((f"{symbol}/SOL", mint, SOL_MINT))
 
