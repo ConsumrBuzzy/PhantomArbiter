@@ -16,7 +16,7 @@ import {
     Keypair,
     VersionedTransaction
 } from '@solana/web3.js';
-import { Raydium, TxVersion, parseTokenAccountResp } from '@raydium-io/raydium-sdk-v2';
+import { Raydium, TxVersion, parseTokenAccountResp, PoolUtils } from '@raydium-io/raydium-sdk-v2';
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import bs58 from 'bs58';
 import BN from 'bn.js';
@@ -308,12 +308,13 @@ async function getQuote(
         // Convert amount
         const amountInBN = new BN(new Decimal(amountIn).mul(10 ** inputDecimals).floor().toString());
 
-        // Compute output using SDK
-        const swapResult = raydium.clmm ? await raydium.clmm.computeAmountOutFormat({
-            poolInfo: info,
-            tickArrayCache: rpcResult.tickData,
+        // Compute output using SDK - PoolUtils is a static utility class
+        const clmmPoolInfo = rpcResult.computePoolInfo;
+        const swapResult = clmmPoolInfo ? await PoolUtils.computeAmountOutFormat({
+            poolInfo: clmmPoolInfo,
+            tickArrayCache: rpcResult.tickData[poolAddress] || rpcResult.tickData,
             amountIn: amountInBN,
-            tokenOut: new PublicKey(outputMint),
+            tokenOut: isAtoB ? info.mintB : info.mintA,
             slippage: 0.005,
             epochInfo: await connection.getEpochInfo()
         }) : null;
@@ -351,7 +352,7 @@ async function getQuote(
             inputAmount: amountIn,
             outputAmount: new Decimal(swapResult.amountOut.amount.toString())
                 .div(10 ** outputDecimals).toString(),
-            priceImpact: swapResult.priceImpact?.toNumber() || 0
+            priceImpact: swapResult.priceImpact ? Number(swapResult.priceImpact.toDecimal()) : 0
         };
 
     } catch (error: any) {
