@@ -1034,8 +1034,9 @@ class PhantomArbiter:
                         
                 except Exception as e:
                     import traceback
-                    traceback.print_exc()
-                    Logger.error(f"Scan error: {e}")
+                    import sys
+                    print(f"\n🛑 CRITICAL SCAN ERROR: {e}")
+                    traceback.print_exc(file=sys.stdout)
                     opportunities = []
                 
                 # Execute best opportunity not on cooldown
