@@ -1,0 +1,20 @@
+{
+    "name": "phantom-arbiter-bridges",
+    "version": "1.0.0",
+    "description": "TypeScript bridges for Solana DEX integrations",
+    "main": "meteora_bridge.js",
+    "scripts": {
+        "build": "npx esbuild meteora_dlmm.ts --bundle --platform=node --outfile=meteora_bridge.js --external:@solana/web3.js",
+        "build:prod": "npx esbuild meteora_dlmm.ts --bundle --platform=node --minify --outfile=meteora_bridge.js"
+    },
+    "dependencies": {
+        "@meteora-ag/dlmm": "^1.0.0",
+        "@solana/web3.js": "^1.87.0",
+        "bs58": "^5.0.0"
+    },
+    "devDependencies": {
+        "esbuild": "^0.19.0",
+        "typescript": "^5.0.0",
+        "@types/node": "^20.0.0"
+    }
+}
