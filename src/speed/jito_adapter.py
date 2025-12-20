@@ -76,14 +76,14 @@ class JitoAdapter:
         self._bundles_submitted = 0
         self._bundles_landed = 0
     
-    def _rpc_call(self, method: str, params: list = None, max_retries: int = 3) -> Optional[Dict]:
+    def _rpc_call(self, method: str, params: list = None, max_retries: int = 1) -> Optional[Dict]:
         """
         Make a JSON-RPC call to the Block Engine with retry logic.
         
         Args:
             method: RPC method name
             params: Optional parameters
-            max_retries: Maximum retry attempts for rate limiting
+            max_retries: Maximum retry attempts for rate limiting (Default: 1 for speed)
             
         Returns:
             Response dict or None on error

@@ -370,9 +370,10 @@ class ArbitrageExecutor:
                     Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
                     result = await self._execute_bundled_swaps(buy_quote, sell_quote)
                 else:
-                    Logger.warning(f"[EXEC] ⚠️ Jito {jito_status} - using sequential (flux risk!)")
-                    # Fallback to sequential
-                    buy_result = await self._execute_swap(buy_quote)
+                    Logger.error(f"[EXEC] 🛑 Jito {jito_status} (Rate Limit?) - Aborting spatial arb to prevent stuck tokens")
+                    return self._error_result(f"Jito Unavailable ({jito_status}) - Safe Abort", start_time)
+                    # DISABLED SEQUENTIAL FALLBACK due to high stuck-token risk
+                    # buy_result = await self._execute_swap(buy_quote)
                     if not buy_result.success:
                         return self._error_result(f"Buy failed: {buy_result.error}", start_time)
                     legs.append(buy_result)
