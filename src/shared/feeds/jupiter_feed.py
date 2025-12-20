@@ -280,7 +280,8 @@ class JupiterFeed(PriceSource):
         vs_token = vs_token or self.USDC_MINT
         
         try:
-            # Use SmartRouter's high-perf V2 endpoint with chunking
+            # V13.0: Use SmartRouter's high-perf V2 endpoint
+            # We chunk even if SmartRouter doesn't, just to be safe with URL lengths
             chunk_size = 30
             results = {}
             
@@ -309,5 +310,5 @@ class JupiterFeed(PriceSource):
             return results
             
         except Exception as e:
-            Logger.debug(f"Jupiter batch fetch error: {e}")
+            Logger.debug(f"Jupiter batch price error: {e}")
             return {}

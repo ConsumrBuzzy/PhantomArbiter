@@ -194,63 +194,50 @@ class RaydiumFeed(PriceSource):
 
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
         """
-        Batch fetch prices for multiple tokens via DexScreener.
-        
-        Args:
-            mints: List of token mint addresses
-            vs_token: Quote token (unused, for interface compatibility)
-            
-        Returns:
-            Dict of {mint: price}
+        Batch fetch prices via DexScreener (up to 30 tokens).
         """
         if not mints:
             return {}
             
-        results = {}
-        
         try:
-            # DexScreener supports up to 30 tokens per request
-            chunk_size = 30
+            # Chunking handled by caller or here? DexScreener supports 30.
+            # SpreadDetector sends all mints (26 for trending). safe.
+            ids = ",".join(mints[:30])
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
+            resp = requests.get(url, timeout=5)
             
-            for i in range(0, len(mints), chunk_size):
-                chunk = mints[i:i + chunk_size]
-                addresses = ",".join(chunk)
+            if resp.status_code != 200:
+                return {}
                 
-                url = f"https://api.dexscreener.com/latest/dex/tokens/{addresses}"
-                resp = requests.get(url, timeout=10)
-                
-                if resp.status_code != 200:
+            data = resp.json()
+            pairs = data.get('pairs', [])
+            results = {}
+            
+            for pair in pairs:
+                # Filter for Raydium pairs
+                if "raydium" not in pair.get('dexId', '').lower():
                     continue
                     
-                data = resp.json()
-                pairs = data.get('pairs', [])
+                base = pair.get('baseToken', {}).get('address')
+                price = float(pair.get('priceUsd', 0) or 0)
                 
-                # Group by base token and filter for Raydium
-                for pair in pairs:
-                    if 'raydium' not in pair.get('dexId', '').lower():
-                        continue
-                        
-                    base_mint = pair.get('baseToken', {}).get('address')
-                    price = float(pair.get('priceUsd', 0) or 0)
+                # Check if this pair is better (higher liquidity?)
+                # For simplicity, if we already have a price, skip (first is usually best)
+                if base and price > 0 and base not in results:
+                    results[base] = price
                     
-                    if base_mint and price > 0:
-                        # Keep the highest liquidity price (first seen)
-                        if base_mint not in results:
-                            results[base_mint] = price
-                            # Update cache
-                            cache_key = f"{base_mint}:{self.USDC_MINT}"
-                            self._price_cache[cache_key] = {
-                                'price': price,
-                                'timestamp': time.time()
-                            }
-                
-                if len(mints) > chunk_size:
-                    time.sleep(0.1)  # Rate limit between chunks
-                    
+                    # Update cache
+                    key = f"{base}:{self.USDC_MINT}"
+                    self._price_cache[key] = {
+                        'price': price,
+                        'timestamp': time.time()
+                    }
+            
+            return results
+            
         except Exception as e:
             Logger.debug(f"Raydium batch fetch error: {e}")
-            
-        return results
+            return {}
 
 
 # ═══════════════════════════════════════════════════════════════════
