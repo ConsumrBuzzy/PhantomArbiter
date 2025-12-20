@@ -14,6 +14,8 @@ from src.shared.system.logging import Logger
 from config.settings import Settings
 
 load_dotenv()
+Settings.ENABLE_TRADING = True # Force trading for cleanup
+Settings.SILENT_MODE = False   # Show swap progress
 
 async def get_price(mint):
     """Fetch price from Jupiter."""
