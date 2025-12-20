@@ -11,20 +11,21 @@
         "build:prod": "npx esbuild execution_engine.ts --bundle --platform=node --minify --outfile=execution_engine.js"
     },
     "dependencies": {
-        "@raydium-io/raydium-sdk-v2": "^0.2.31-alpha",
+        "@coral-xyz/anchor": "^0.29.0",
         "@meteora-ag/dlmm": "^1.0.0",
         "@orca-so/whirlpools-sdk": "^0.13.0",
-        "@coral-xyz/anchor": "^0.29.0",
-        "@solana/web3.js": "^1.87.0",
+        "@raydium-io/raydium-sdk": "^1.3.1-beta.58",
+        "@raydium-io/raydium-sdk-v2": "^0.2.31-alpha",
         "@solana/spl-token": "^0.3.0",
-        "bs58": "^5.0.0",
+        "@solana/web3.js": "^1.87.0",
         "bn.js": "^5.2.1",
+        "bs58": "^5.0.0",
         "decimal.js": "^10.4.0"
     },
     "devDependencies": {
-        "esbuild": "^0.19.0",
-        "typescript": "^5.0.0",
+        "@types/bn.js": "^5.1.0",
         "@types/node": "^20.0.0",
-        "@types/bn.js": "^5.1.0"
+        "esbuild": "^0.19.0",
+        "typescript": "^5.0.0"
     }
 }

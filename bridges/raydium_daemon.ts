@@ -21,13 +21,17 @@ import {
     TxVersion,
     parseTokenAccountResp,
     PoolUtils,
+} from '@raydium-io/raydium-sdk-v2';
+// V1 SDK for Standard AMM (V4)
+import {
     Liquidity,
     LiquidityPoolKeys,
     LiquidityStateV4,
     Percent,
     Token,
     TokenAmount
-} from '@raydium-io/raydium-sdk-v2';
+} from '@raydium-io/raydium-sdk';
+
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import bs58 from 'bs58';
 import BN from 'bn.js';
