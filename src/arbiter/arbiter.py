@@ -979,6 +979,23 @@ class PhantomArbiter:
                         except Exception:
                             pass  # Non-critical
                     
+                    # Log spread decay for ML learning (compare to previous scan)
+                    if hasattr(self, '_last_spreads') and all_spreads:
+                        try:
+                            from src.shared.system.db_manager import db_manager
+                            current_time = time.time()
+                            for opp in all_spreads:
+                                if opp.pair in self._last_spreads:
+                                    prev_spread, prev_time = self._last_spreads[opp.pair]
+                                    time_delta = current_time - prev_time
+                                    if time_delta > 0 and time_delta < 120:  # Only log if < 2 min apart
+                                        db_manager.log_spread_decay(opp.pair, prev_spread, opp.spread_pct, time_delta)
+                        except Exception:
+                            pass
+                    
+                    # Store current spreads for next comparison
+                    self._last_spreads = {opp.pair: (opp.spread_pct, time.time()) for opp in all_spreads} if all_spreads else {}
+                    
                     # Update adaptive interval based on results (no redundant RPC call)
                     if adaptive_mode and monitor:
                         current_interval = monitor.update(all_spreads)
