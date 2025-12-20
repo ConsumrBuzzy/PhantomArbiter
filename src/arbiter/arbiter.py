@@ -595,6 +595,10 @@ class PhantomArbiter:
         skipped_count = 0
         if scanner:
             pairs_to_scan = scanner.filter_pairs(self.config.pairs)
+            # Fallback: if scanner removes EVERYTHING, just scan original pairs
+            # This prevents blank dashboard updates
+            if not pairs_to_scan:
+                pairs_to_scan = self.config.pairs
             skipped_count = len(self.config.pairs) - len(pairs_to_scan)
         
         spreads = detector.scan_all_pairs(pairs_to_scan, trade_size=trade_size)
