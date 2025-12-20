@@ -277,6 +277,17 @@ class PodManager:
                 pairs.extend(_build_pairs_from_pods([self.pods[name]]))
         return pairs
     
+    def get_pods_for_pair(self, pair_name: str) -> List[str]:
+        """Find all pods that contain the given pair/symbol."""
+        symbol = pair_name.split('/')[0]
+        found = []
+        for pod_name, tokens in self.pods.items():
+            for t_symbol, _ in tokens:
+                if t_symbol == symbol:
+                    found.append(pod_name)
+                    break
+        return found
+
     def penalize_pod(self, pod_name: str, duration_sec: int = 120):
         """Penalize a pod for severe execution failures (e.g. quote loss)."""
         import time
