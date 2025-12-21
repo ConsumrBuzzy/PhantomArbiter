@@ -360,13 +360,16 @@ class DBManager:
             )
             """)
 
-            # Target Wallets (V116: DeepScout Alpha Watchlist)
+            # Target Wallets (V116-V117: DeepScout Alpha Watchlist)
             c.execute("""
             CREATE TABLE IF NOT EXISTS target_wallets (
                 address TEXT PRIMARY KEY,
                 tags TEXT,
                 last_seen REAL,
-                success_rate REAL
+                success_count INTEGER DEFAULT 0,
+                total_trades INTEGER DEFAULT 0,
+                total_pnl_usd REAL DEFAULT 0,
+                updated_at REAL
             )
             """)
 
@@ -877,6 +880,18 @@ class DBManager:
             c.execute("SELECT multiplier FROM tip_state WHERE pair = ?", (pair,))
             row = c.fetchone()
             return row[0] if row else 0.20
+
+    def update_wallet_performance(self, address: str, pnl: float, success: bool):
+        """V117: Record success/failure for an alpha wallet signal."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+            UPDATE target_wallets SET 
+                success_count = success_count + ?,
+                total_trades = total_trades + 1,
+                total_pnl_usd = total_pnl_usd + ?,
+                updated_at = ?
+            WHERE address = ?
+            """, (1 if success else 0, pnl, time.time(), address))
 
     # --- Alpha Wallet Management (V116) ---
     
