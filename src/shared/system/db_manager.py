@@ -259,6 +259,23 @@ class DBManager:
             c.execute("CREATE INDEX IF NOT EXISTS idx_slippage_token ON slippage_history(token)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_slippage_timestamp ON slippage_history(timestamp)")
 
+            # Spread History (V115: for triangular reconstruction & analytics)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS spread_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                pair TEXT NOT NULL,
+                spread_pct REAL,
+                net_profit_usd REAL,
+                buy_dex TEXT,
+                sell_dex TEXT,
+                buy_price REAL,
+                sell_price REAL
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_spread_ts ON spread_history(timestamp)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_spread_pair ON spread_history(pair)")
+
             # Gas History (for gas price optimization)
             c.execute("""
             CREATE TABLE IF NOT EXISTS gas_history (
@@ -1097,6 +1114,24 @@ class DBManager:
             return float(row['avg_time']) if row and row['avg_time'] else 0.0
 
     # --- Spread Decay Learning ---
+    
+    def log_spread(self, spread_data: dict):
+        """Log a spread opportunity for historical analysis."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT INTO spread_history 
+                (timestamp, pair, spread_pct, net_profit_usd, buy_dex, sell_dex, buy_price, sell_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                spread_data.get('timestamp', time.time()),
+                spread_data.get('pair'),
+                spread_data.get('spread_pct', 0),
+                spread_data.get('net_profit_usd', 0),
+                spread_data.get('buy_dex', 'UNKNOWN'),
+                spread_data.get('sell_dex', 'UNKNOWN'),
+                spread_data.get('buy_price', 0),
+                spread_data.get('sell_price', 0)
+            ))
     
     def log_spread_decay(self, pair: str, initial_spread: float, final_spread: float, time_delta_sec: float):
         """Log spread decay between consecutive scans for ML learning."""
