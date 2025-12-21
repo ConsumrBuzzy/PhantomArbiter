@@ -128,7 +128,8 @@ class SignalCoordinator:
                         
                         if signal and signal.metadata and signal.metadata.get('type') == "FLASH_WARM":
                             if self.on_flash_warm:
-                                self.on_flash_warm(p_name)
+                                wallet = signal.metadata.get('wallet')
+                                self.on_flash_warm(p_name, wallet)
                 except:
                     pass
             return on_log

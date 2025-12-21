@@ -473,7 +473,8 @@ class DBManager:
                 trade_data.get('slippage_usd', 0),
                 trade_data.get('fees_usd', 0),
                 trade_data.get('liquidity_usd', 0),
-                trade_data.get('is_volatile', False)
+                trade_data.get('is_volatile', False),
+                trade_data.get('trigger_wallet')
             ))
 
     def get_win_rate(self, limit=20) -> float:
