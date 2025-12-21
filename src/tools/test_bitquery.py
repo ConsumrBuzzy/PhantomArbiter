@@ -17,15 +17,15 @@ if not api_key:
     print("❌ BITQUERY_API_KEY missing in .env")
     sys.exit(1)
 
-REST_URL = "https://graphql.bitquery.io"
+REST_URL = "https://streaming.bitquery.io/graphql"
 QUERY = """
 query {
-  Solana {
-    DEXTrades(limit: {count: 1}) {
-      Trade {
-        Buy {
-          Currency {
-            Symbol
+  solana {
+    dexTrades(limit: {count: 1}) {
+      trade {
+        buy {
+          currency {
+            symbol
           }
         }
       }
