@@ -114,6 +114,16 @@ class DBManager:
                 except:
                     pass  # Column might already exist
             
+            # V117: Migration - Add trigger_wallet column
+            try:
+                c.execute("SELECT trigger_wallet FROM trades LIMIT 1")
+            except:
+                try:
+                    c.execute("ALTER TABLE trades ADD COLUMN trigger_wallet TEXT")
+                    Logger.info("📦 [DB] Migrated trades table: added trigger_wallet column")
+                except:
+                    pass
+            
             # Now safe to create index on engine_name
             c.execute("CREATE INDEX IF NOT EXISTS idx_trades_engine ON trades(engine_name)")
             
@@ -906,7 +916,9 @@ class DBManager:
             row = c.fetchone()
             return row[0] if row else 0.20
 
-    def update_wallet_performance(self, address: str, pnl: float, success: bool):
+    # --- Wallet Performance Optimization ---
+    
+    def update_wallet_performance(self, address: str, is_win: bool, pnl_usd: float):
         """V117: Record success/failure for an alpha wallet signal."""
         with self.cursor(commit=True) as c:
             c.execute("""
@@ -916,7 +928,7 @@ class DBManager:
                 total_pnl_usd = total_pnl_usd + ?,
                 updated_at = ?
             WHERE address = ?
-            """, (1 if success else 0, pnl, time.time(), address))
+            """, (1 if is_win else 0, pnl_usd, time.time(), address))
 
     # --- Alpha Wallet Management (V116) ---
     
