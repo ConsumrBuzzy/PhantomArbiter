@@ -286,7 +286,35 @@ class PhantomArbiter:
                 pairs_to_scan = self.config.pairs
             skipped_count = len(self.config.pairs) - len(pairs_to_scan)
         
-        spreads = detector.scan_all_pairs(pairs_to_scan, trade_size=trade_size)
+        # V115: Auto-Inject Bridge Pairs for Triangular Arbitrage (Smart Flop)
+        # If we are scanning X/USDC, we MUST also scan X/SOL to see the triangle.
+        # This respects the Pods/Scanner logic: we only add bridges for ACTIVE tokens.
+        final_pairs = list(pairs_to_scan)
+        SOL_MINT = "So11111111111111111111111111111111111111112"
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        
+        # Ensure we scan SOL/USDC (Anchor)
+        if ("SOL/USDC", SOL_MINT, USDC_MINT) not in final_pairs:
+             final_pairs.append(("SOL/USDC", SOL_MINT, USDC_MINT))
+             
+        for p_name, base, quote in pairs_to_scan:
+            if quote == USDC_MINT and base != SOL_MINT:
+                # Add corresponding Bridge Pair (X/SOL)
+                bridge_pair = (f"{p_name.split('/')[0]}/SOL", base, SOL_MINT)
+                if bridge_pair not in final_pairs:
+                    final_pairs.append(bridge_pair)
+        
+        spreads = detector.scan_all_pairs(final_pairs, trade_size=trade_size)
+        
+        # V115: Update Triangular Graph & Check for Cycles
+        if self._triangular_scanner:
+            try:
+                self._triangular_scanner.update_graph(detector)
+                cycles = self._triangular_scanner.find_cycles(amount_in=trade_size)
+                # If we find actual profitable cycles, we can add them to opportunities?
+                # For now, just logging (Watch Mode)
+            except Exception as e:
+                Logger.debug(f"Triangular scan error: {e}")
         
         # Filter profitable using SpreadOpportunity's own calculations
         profitable = [opp for opp in spreads if opp.is_profitable]
