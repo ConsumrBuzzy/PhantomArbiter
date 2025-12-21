@@ -1,85 +1,143 @@
 """
-Wallet Cleaner - Sell all non-USDC tokens back to USDC
+Direct Wallet Cleaner - Uses Jupiter API directly
 """
 import asyncio
 import os
 import sys
+import base64
+import requests
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from src.shared.execution.wallet import WalletManager
-from src.shared.execution.swapper import JupiterSwapper
-from config.settings import Settings
+from solders.keypair import Keypair
+from solders.transaction import VersionedTransaction
 
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
+# Use proper Jupiter endpoints
+JUPITER_API_KEY = os.getenv("JUPITER_API_KEY", "")
+JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"
+JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
+
+def get_keypair():
+    pk = os.getenv("SOLANA_PRIVATE_KEY")
+    if not pk:
+        return None
+    return Keypair.from_base58_string(pk)
+
+def get_quote(input_mint, output_mint, amount, slippage=100):
+    headers = {}
+    if JUPITER_API_KEY:
+        headers["x-api-key"] = JUPITER_API_KEY
+    
+    resp = requests.get(JUPITER_QUOTE_URL, params={
+        "inputMint": input_mint,
+        "outputMint": output_mint,
+        "amount": str(amount),
+        "slippageBps": slippage
+    }, headers=headers, timeout=10)
+    
+    if resp.status_code == 200:
+        return resp.json()
+    print(f"   Quote error ({resp.status_code}): {resp.text[:100]}")
+    return None
+
+def get_swap_tx(quote, user_pubkey):
+    headers = {"Content-Type": "application/json"}
+    if JUPITER_API_KEY:
+        headers["x-api-key"] = JUPITER_API_KEY
+    
+    resp = requests.post(JUPITER_SWAP_URL, json={
+        "quoteResponse": quote,
+        "userPublicKey": user_pubkey,
+        "wrapAndUnwrapSol": True,
+        "dynamicComputeUnitLimit": True,
+        "prioritizationFeeLamports": 100000
+    }, headers=headers, timeout=10)
+    
+    if resp.status_code == 200:
+        return resp.json()
+    print(f"   Swap error ({resp.status_code}): {resp.text[:100]}")
+    return None
+
+def send_tx(signed_tx_b64, rpc_url):
+    resp = requests.post(rpc_url, json={
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "sendTransaction",
+        "params": [signed_tx_b64, {"encoding": "base64", "skipPreflight": False}]
+    }, timeout=10)
+    
+    if resp.status_code == 200:
+        result = resp.json()
+        if "error" in result:
+            print(f"   RPC error: {result['error']}")
+            return None
+        return result.get("result")
+    print(f"   RPC error ({resp.status_code}): {resp.text[:100]}")
+    return None
+
 def main():
     print("=" * 50)
-    print("🧹 WALLET CLEANER")
+    print("🧹 DIRECT WALLET CLEANER")
     print("=" * 50)
     
-    # Enable live trading
-    Settings.ENABLE_TRADING = True
-    
-    wallet = WalletManager()
-    if not wallet.keypair:
+    keypair = get_keypair()
+    if not keypair:
         print("❌ No wallet key loaded!")
         return
     
-    print(f"✅ Wallet: {str(wallet.get_public_key())[:16]}...")
+    pubkey = str(keypair.pubkey())
+    print(f"✅ Wallet: {pubkey[:16]}...")
+    print(f"🔑 Jupiter API Key: {'SET' if JUPITER_API_KEY else 'MISSING'}")
     
-    # Get all token accounts
-    tokens = wallet.get_all_token_accounts()
-    print(f"📦 Found {len(tokens)} token accounts")
+    rpc_url = os.getenv("HELIUS_RPC_URL") or "https://api.mainnet-beta.solana.com"
+    print(f"🌐 RPC: {rpc_url[:30]}...")
     
-    # Filter to non-USDC with balance
-    to_clean = []
-    for mint, balance in tokens.items():
-        if mint == USDC_MINT:
-            print(f"   💵 USDC: ${balance / 1e6:.2f}")
+    # JUP tokens to clean (473 JUP with 6 decimals)
+    tokens_to_clean = [
+        ("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", 473254072, "JUP"),
+    ]
+    
+    for mint, amount, symbol in tokens_to_clean:
+        print(f"\n🔄 Selling {symbol} ({amount / 1e6:.2f} tokens)...")
+        
+        # Get quote
+        quote = get_quote(mint, USDC_MINT, amount, slippage=150)
+        if not quote:
+            print(f"   ❌ No quote for {symbol}")
             continue
-        if balance > 0:
-            # Try to get symbol
-            symbol = "?"
-            for k, v in getattr(Settings, 'ASSETS', {}).items():
-                if v == mint:
-                    symbol = k
-                    break
-            to_clean.append((mint, balance, symbol))
-            print(f"   🪙 {symbol}: {balance} ({mint[:12]}...)")
-    
-    if not to_clean:
-        print("\n✨ Wallet is clean! No tokens to sell.")
-        return
-    
-    print(f"\n🗑️ {len(to_clean)} tokens to clean")
-    confirm = input("Continue? (y/n): ").strip().lower()
-    
-    if confirm != 'y':
-        print("Aborted.")
-        return
-    
-    swapper = JupiterSwapper(wallet)
-    
-    for mint, balance, symbol in to_clean:
-        print(f"\n🔄 Selling {symbol}...")
+        
+        out_amount = int(quote.get('outAmount', 0)) / 1e6
+        print(f"   📊 Quote: {amount/1e6:.2f} {symbol} → ${out_amount:.2f} USDC")
+        
+        # Get swap tx
+        swap_data = get_swap_tx(quote, pubkey)
+        if not swap_data or 'swapTransaction' not in swap_data:
+            print(f"   ❌ No swap tx for {symbol}")
+            continue
+        
+        # Sign and send
         try:
-            result = swapper.execute_swap(
-                direction="SELL",
-                amount_usd=0,  # 0 = sell all
-                reason="CLEAN",
-                target_mint=mint,
-                priority_fee=100000
-            )
-            if result and result.get('success'):
-                print(f"   ✅ Sold {symbol}")
+            tx_bytes = base64.b64decode(swap_data['swapTransaction'])
+            tx = VersionedTransaction.from_bytes(tx_bytes)
+            signed_tx = VersionedTransaction(tx.message, [keypair])
+            signed_b64 = base64.b64encode(bytes(signed_tx)).decode()
+            
+            sig = send_tx(signed_b64, rpc_url)
+            if sig:
+                print(f"   ✅ Sent: {sig[:32]}...")
+                print(f"   🔗 https://solscan.io/tx/{sig}")
             else:
-                print(f"   ❌ Failed to sell {symbol}: {result.get('error') if result else 'Unknown'}")
+                print(f"   ❌ Send failed")
         except Exception as e:
             print(f"   ❌ Error: {e}")
+        
+        time.sleep(2)
     
     print("\n✅ Cleanup complete!")
 
