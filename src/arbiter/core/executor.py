@@ -455,7 +455,7 @@ class ArbitrageExecutor:
         from solders.instruction import Instruction, AccountMeta
         
         try:
-            Logger.info("[EXEC] Building atomic bundle (V130: 2-tx embedded tip)...")
+            Logger.info("[EXEC] Building atomic bundle (V131: parallel tx + embedded tip)...")
             
             # Get tip account first (needed for sell tx)
             tip_account = await self.jito.get_random_tip_account()
@@ -465,14 +465,35 @@ class ArbitrageExecutor:
             
             Logger.info(f"[EXEC] 💰 Tip account: {tip_account[:16]}...")
             
-            # ═══ BUY TX: Standard Jupiter transaction ═══
-            buy_tx_data = self._get_smart_router().get_swap_transaction({
+            # ═══ V131: PARALLEL TX FETCHING ═══
+            # Fire both swap tx requests concurrently (~150-300ms savings)
+            router = self._get_smart_router()
+            
+            buy_payload = {
                 "quoteResponse": buy_quote,
                 "userPublicKey": str(self.wallet.get_public_key()),
                 "wrapAndUnwrapSol": True,
-            })
+            }
+            sell_payload = {
+                "quoteResponse": sell_quote,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True,
+            }
             
-            if not buy_tx_data or 'swapTransaction' not in buy_tx_data:
+            # Parallel fetch in thread pool
+            tx_start = time.time()
+            buy_tx_data, sell_tx_fallback = await asyncio.gather(
+                asyncio.to_thread(router.get_swap_transaction, buy_payload),
+                asyncio.to_thread(router.get_swap_transaction, sell_payload),
+                return_exceptions=True
+            )
+            tx_time_ms = (time.time() - tx_start) * 1000
+            Logger.debug(f"[EXEC] ⚡ Parallel tx fetch: {tx_time_ms:.0f}ms")
+            
+            # Handle exceptions from gather
+            if isinstance(buy_tx_data, Exception) or not buy_tx_data:
+                return {"success": False, "error": "Failed to get buy tx", "legs": []}
+            if 'swapTransaction' not in buy_tx_data:
                 return {"success": False, "error": "Failed to get buy tx", "legs": []}
             
             buy_raw = base64.b64decode(buy_tx_data["swapTransaction"])
