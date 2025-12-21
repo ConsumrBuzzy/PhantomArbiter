@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from src.shared.system.logging import Logger
-from src.shared.infrastructure.settings import Settings
+from config.settings import Settings
 from src.arbiter.core.pod_engine import pod_manager, USDC_MINT, SOL_MINT
 from src.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_spread
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner

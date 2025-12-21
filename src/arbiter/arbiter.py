@@ -496,6 +496,10 @@ class PhantomArbiter:
     @property
     def starting_balance(self):
         return self.tracker.starting_balance
+        
+    @starting_balance.setter
+    def starting_balance(self, value):
+        self.tracker.starting_balance = value
 
     @property
     def trades(self):
