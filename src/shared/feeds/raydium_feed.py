@@ -229,7 +229,8 @@ class RaydiumFeed(PriceSource):
         """
         try:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
-            resp = requests.get(url, timeout=5)
+            # V126: persistent session
+            resp = self.session.get(url, timeout=5)
             
             if resp.status_code != 200:
                 return None
@@ -330,7 +331,8 @@ class RaydiumFeed(PriceSource):
                     chunk = really_missing[i:i+30]
                     ids = ",".join(chunk)
                     url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
-                    resp = requests.get(url, timeout=5)
+                    # V126: persistent session
+                    resp = self.session.get(url, timeout=5)
                     
                     if resp.status_code == 200:
                         data = resp.json()
@@ -363,7 +365,8 @@ class RaydiumFeed(PriceSource):
         """
         try:
             url = f"{self.PRICE_API}?tokens={mint}"
-            resp = requests.get(url, timeout=5)
+            # V126: persistent session
+            resp = self.session.get(url, timeout=5)
             
             if resp.status_code != 200:
                 return None
