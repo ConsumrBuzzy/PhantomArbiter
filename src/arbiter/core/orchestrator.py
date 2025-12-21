@@ -96,6 +96,42 @@ class ArbitrageOrchestrator:
         self._spread_detector = SpreadDetector(feeds=self._feeds)
         self._triangular_scanner = TriangularScanner(feeds=self._feeds)
         Logger.info("🔍 Spread detector & Triangular scanner ready")
+        
+    def _get_monitored_pairs(self) -> List[tuple]:
+        """
+        Get pairs to monitor, including Bridge pairs for Triangular Arb.
+        Returns: List of (pair_name, base_mint, quote_mint)
+        """
+        from src.shared.system.db_manager import DBManager
+        
+        # Standard Mints
+        USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        SOL = "So11111111111111111111111111111111111111112"
+        
+        db = DBManager()
+        active_tokens = db.get_active_tokens()
+        
+        pairs = []
+        
+        # 1. Add SOL/USDC (The King Pair)
+        pairs.append(("SOL/USDC", SOL, USDC))
+        
+        # 2. Add pairings for all watchlist tokens
+        for token in active_tokens:
+            symbol = token['symbol']
+            mint = token['mint']
+            
+            if mint in [USDC, SOL]: 
+                continue
+                
+            # PRIMARY: Token/USDC
+            pairs.append((f"{symbol}/USDC", mint, USDC))
+            
+            # BRIDGE: Token/SOL (Critical for Triangular Arb)
+            # This creates the "Triangle" edges: USDC -> SOL -> Token -> USDC
+            pairs.append((f"{symbol}/SOL", mint, SOL))
+            
+        return pairs
 
     async def _tick(self):
         """Single tick of the arbitrage loop."""
