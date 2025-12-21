@@ -209,6 +209,9 @@ class ArbitrageExecutor:
             if not buy_quote:
                 return False, 0.0, "No Buy Liquidity"
                 
+            # Attach to opportunity for execution
+            opportunity.buy_quote = buy_quote
+            
             expected_tokens = int(buy_quote.get('outAmount', 0))
             
             # 2. Get sell quote
@@ -217,6 +220,9 @@ class ArbitrageExecutor:
             )
             if not sell_quote:
                 return False, 0.0, "No Sell Liquidity"
+                
+            # Attach to opportunity for execution
+            opportunity.sell_quote = sell_quote
                 
             expected_usdc_back = int(sell_quote.get('outAmount', 0))
             
