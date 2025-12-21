@@ -256,8 +256,8 @@ class SpreadDetector:
         from src.arbiter.core.fee_estimator import get_fee_estimator
         fee_est = get_fee_estimator()
         
-        # Update estimator's SOL price cache
-        fee_est._sol_price_cache = self._get_sol_price()
+        # V131: Use cached SOL price (async _get_sol_price not available in sync context)
+        fee_est._sol_price_cache = self._sol_price_cache
         fee_est._sol_price_ts = time.time()
         
         fees = fee_est.estimate(
