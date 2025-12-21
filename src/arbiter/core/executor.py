@@ -416,8 +416,23 @@ class ArbitrageExecutor:
                             Logger.error(f"[EXEC] Sequential fallback exception: {e}")
                             return self._error_result(f"Fallback exception: {e}", start_time)
                 else:
-                    Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Aborting trade to prevent stuck tokens")
-                    return self._error_result(f"Jito {jito_status} - Aborted", start_time)
+                    # V131: Jito OFFLINE - Try sequential fallback instead of aborting
+                    Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Attempting sequential fallback...")
+                    print(f"   ⚠️ Jito {jito_status} - Attempting sequential RPC fallback...")
+                    
+                    try:
+                        fallback_result = await self._execute_sequential_fallback(buy_quote, sell_quote, rpc)
+                        if fallback_result and fallback_result.get("success"):
+                            Logger.info("[EXEC] ✅ Sequential fallback succeeded (Jito was offline)!")
+                            print("   ✅ Sequential fallback SUCCEEDED!")
+                            legs = fallback_result.get('legs', [])
+                        else:
+                            fb_error = fallback_result.get('error', 'Unknown') if fallback_result else 'Failed'
+                            Logger.error(f"[EXEC] Sequential fallback failed: {fb_error}")
+                            return self._error_result(f"Fallback failed: {fb_error}", start_time)
+                    except Exception as e:
+                        Logger.error(f"[EXEC] Sequential fallback exception: {e}")
+                        return self._error_result(f"Fallback exception: {e}", start_time)
             else:
                 # DRY RUN
                 Logger.info(f"[EXEC] DRY RUN - would execute {opportunity.pair} arb")
