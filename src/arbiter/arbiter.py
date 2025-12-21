@@ -454,8 +454,7 @@ class PhantomArbiter:
 
     async def run(self, duration_minutes: int = 10, scan_interval: int = 5, smart_pods: bool = False, landlord=None) -> None:
         """Main trading loop."""
-        try:
-            mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
+        mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
         
         # Landlord strategy for yield farming
         self._landlord = landlord
