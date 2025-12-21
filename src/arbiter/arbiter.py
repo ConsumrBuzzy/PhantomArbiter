@@ -698,13 +698,15 @@ class PhantomArbiter:
                             # V92.1: Fix Starvation - Ensure at least 2 rotating pairs
                             # even if watchers consume the whole batch budget.
                             
-                            target_limit = self._batch_size
+                            # V107: Allow candidate pool to be larger than batch_size
+                            # The AdaptiveScanner will perform the final batch selection.
+                            target_limit = max(20, self._batch_size * 2) 
                             slots_active = len(final_pairs)
                             slots_remaining = target_limit - slots_active
                             
-                            # Force at least 2 rotating pairs to keep discovery alive
-                            if slots_remaining < 2:
-                                slots_remaining = 2
+                            # Force at least some rotating pairs
+                            if slots_remaining < 5:
+                                slots_remaining = 5
                                 
                             added_rotating = 0
                             for i, (p, score) in enumerate(ranked_pairs):

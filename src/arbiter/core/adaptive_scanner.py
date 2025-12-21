@@ -215,16 +215,34 @@ class AdaptiveScanner:
             
         # Separate into Priority and Rotating groups
         sorted_scannable = sorted(scannable, key=get_priority)
-        prio_group = [p for p in sorted_scannable if get_priority(p) < 0]
-        rotate_group = [p for p in sorted_scannable if get_priority(p) >= 0]
+        
+        # V107: Diversity Guard - Only allow 1 variant of a token per batch 
+        # unless it is high priority (Warming/Watcher < 0)
+        seen_tokens = set()
+        final_candidates = []
+        
+        for p in sorted_scannable:
+            token = p[0].split('/')[0] if '/' in p[0] else p[0]
+            pri = get_priority(p)
+            
+            # If not priority, and we've already seen this token in this batch, skip
+            if pri >= 0 and token in seen_tokens:
+                continue
+            
+            final_candidates.append(p)
+            seen_tokens.add(token)
+            
+        # Separate into final groups
+        prio_group = [p for p in final_candidates if get_priority(p) < 0]
+        rotate_group = [p for p in final_candidates if get_priority(p) >= 0]
         
         # V106: Fairness Reserve (60/40 Split)
-        # Assuming we handle up to 20 pairs for safety, though batch might be smaller
-        limit = len(scannable)
+        # Assuming we handle up to 5-8 units for the RPC batch
+        limit = 5 # Default RPC batch limit
         prio_limit = max(1, int(limit * 0.6)) if rotate_group else limit
         
         final = prio_group[:prio_limit]
-        final.extend(rotate_group)
+        final.extend(rotate_group[:(limit - len(final))])
         
         return final
     
