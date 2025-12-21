@@ -98,9 +98,12 @@ def main():
     rpc_url = os.getenv("HELIUS_RPC_URL") or "https://api.mainnet-beta.solana.com"
     print(f"🌐 RPC: {rpc_url[:30]}...")
     
-    # JUP tokens to clean (473 JUP with 6 decimals)
+    # All tokens to clean (from wallet scan)
     tokens_to_clean = [
-        ("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", 473254072, "JUP"),
+        # ("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", 473254072, "JUP"),  # Already cleaned
+        ("E7d9wpesUUzVc4s7B9wpQnbf4xQeJeqEhD4Sh3Q39k6Z", 12000000, "E7d9"),  # 12 tokens (assuming 6 decimals)
+        ("TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6", 2205, "TNSR"),  # 0.002 (9 decimals)
+        ("6YUoZeiMfNhpDxbj9D3rMrDkP5H9wDEJv5fkCLfYfFCk", 10000000, "6YUo"),  # 10 tokens (assuming 6 decimals)
     ]
     
     for mint, amount, symbol in tokens_to_clean:
