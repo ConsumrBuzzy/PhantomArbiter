@@ -85,17 +85,17 @@ class JitoAdapter:
                 response = await self.client.post(self.api_url, json=payload)
                 
                 if response.status_code == 200:
-                        return response.json()
-                    elif response.status_code == 429:
-                        Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url}")
-                        self._rotate_endpoint()
-                        # Use asyncio.sleep for non-blocking wait
-                        await asyncio.sleep(0.2)
-                        continue
-                    else:
-                        Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
-                        self._rotate_endpoint()
-                        continue
+                    return response.json()
+                elif response.status_code == 429:
+                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url}")
+                    self._rotate_endpoint()
+                    # Use asyncio.sleep for non-blocking wait
+                    await asyncio.sleep(0.2)
+                    continue
+                else:
+                    Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
+                    self._rotate_endpoint()
+                    continue
                         
             except Exception as e:
                 Logger.debug(f"   ⚠️ [JITO] RPC Error: {e}")
