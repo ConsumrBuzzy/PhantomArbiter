@@ -183,9 +183,10 @@ class RaydiumFeed(PriceSource):
                             timestamp=timestamp
                         )
         except Exception as e:
-            Logger.debug(f"[RAYDIUM] Daemon check failed: {e}")
+            Logger.warning(f"⚠️ [RAYDIUM] Daemon Fail for {base_mint[:4]}: {e}. API Fallback triggered.")
         
         # 2. Try DexScreener (Fallback)
+        # Logger.debug(f"[RAYDIUM] Using Slow API for {base_mint[:4]}") # Too spammy if 50 pairs
         price = self._fetch_dexscreener_price(base_mint, "raydium")
         
         # 3. Try Raydium V2 API (Last Resort)
@@ -313,52 +314,7 @@ class RaydiumFeed(PriceSource):
             Logger.debug(f"Raydium API error: {e}")
             return None
 
-    def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
-        """
-        Batch fetch prices via DexScreener (up to 30 tokens).
-        """
-        if not mints:
-            return {}
-            
-        try:
-            # Chunking handled by caller or here? DexScreener supports 30.
-            # SpreadDetector sends all mints (26 for trending). safe.
-            ids = ",".join(mints[:30])
-            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
-            resp = requests.get(url, timeout=5)
-            
-            if resp.status_code != 200:
-                return {}
-                
-            data = resp.json()
-            pairs = data.get('pairs', [])
-            results = {}
-            
-            for pair in pairs:
-                # Filter for Raydium pairs
-                if "raydium" not in pair.get('dexId', '').lower():
-                    continue
-                    
-                base = pair.get('baseToken', {}).get('address')
-                price = float(pair.get('priceUsd', 0) or 0)
-                
-                # Check if this pair is better (higher liquidity?)
-                # For simplicity, if we already have a price, skip (first is usually best)
-                if base and price > 0 and base not in results:
-                    results[base] = price
-                    
-                    # Update cache
-                    key = f"{base}:{self.USDC_MINT}"
-                    self._price_cache[key] = {
-                        'price': price,
-                        'timestamp': time.time()
-                    }
-            
-            return results
-            
-        except Exception as e:
-            Logger.debug(f"Raydium batch fetch error: {e}")
-            return {}
+
 
 
 # ═══════════════════════════════════════════════════════════════════
