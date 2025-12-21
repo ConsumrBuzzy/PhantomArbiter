@@ -273,7 +273,7 @@ class UnifiedEngineAdapter:
             # Simulate first (seatbelt)
             if simulate_first:
                 Logger.info("[UNIFIED] 🧪 Running simulation...")
-                sim_result = self._bridge.simulate(legs, self._private_key)
+                sim_result = self._bridge.simulate(legs, self._private_key, rpc_url=rpc_url)
                 
                 if not sim_result.simulation_success:
                     Logger.warning(f"[UNIFIED] ❌ Simulation failed: {sim_result.simulation_error}")
@@ -291,6 +291,7 @@ class UnifiedEngineAdapter:
                 legs=legs,
                 private_key=self._private_key,
                 jito_tip_lamports=jito_tip_lamports,
+                rpc_url=rpc_url,
             )
             
             execution_time = int((time.time() - start_time) * 1000)
