@@ -741,6 +741,23 @@ class ArbitrageExecutor:
             
             # ═══ STEP 2: Execute Sell ═══
             print("   [2/2] Executing SELL...")
+            
+            # V131: Refresh sell quote with fresh blockhash
+            # The original sell_quote may have stale blockhash after waiting
+            expected_tokens = int(buy_quote.get('outAmount', 0))
+            output_mint = sell_quote.get('outputMint', '')  # Should be USDC
+            input_mint = buy_quote.get('outputMint', '')    # The token we bought
+            
+            fresh_sell_quote = router.get_jupiter_quote(
+                input_mint, output_mint, expected_tokens, slippage_bps=100  # Wider slippage for safety
+            )
+            
+            if fresh_sell_quote:
+                Logger.debug(f"[EXEC] Using fresh sell quote (blockhash refreshed)")
+                sell_quote = fresh_sell_quote
+            else:
+                Logger.warning("[EXEC] Could not refresh sell quote, using original")
+            
             sell_tx_data = router.get_swap_transaction({
                 "quoteResponse": sell_quote,
                 "userPublicKey": str(self.wallet.get_public_key()),
