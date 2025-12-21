@@ -782,6 +782,17 @@ class DBManager:
                 'avg_delta': avg_delta
             }
 
+    def get_route_latency(self, buy_dex: str, sell_dex: str) -> float:
+        """V111: Get average success latency for a specific DEX route."""
+        with self.cursor() as c:
+            c.execute("""
+            SELECT AVG(latency_ms) as avg_lat
+            FROM fast_path_attempts
+            WHERE buy_dex = ? AND sell_dex = ? AND success = 1
+            """, (buy_dex, sell_dex))
+            row = c.fetchone()
+            return row[0] if row and row[0] else 0.0
+
     def get_inclusion_stats(self, pair: str, limit: int = 20) -> dict:
         """
         V110: Get inclusion rate and success metrics for a pair.

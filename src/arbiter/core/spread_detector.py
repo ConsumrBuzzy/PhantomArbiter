@@ -275,8 +275,15 @@ class SpreadDetector:
             from src.shared.system.db_manager import db_manager
             decay_velocity = db_manager.get_decay_velocity(pair_name)  # %/sec
             if decay_velocity > 0:
-                # Use learned cycle time (ms -> sec), fallback to 3s
-                exec_window = db_manager.get_avg_cycle_time() / 1000 if db_manager.get_avg_cycle_time() > 0 else 3.0
+                # V111: Route-specific latency fingerprint
+                route_lat = db_manager.get_route_latency(buy_dex, sell_dex)
+                
+                # Use learned route latency if available, fallback to pod cycle time
+                if route_lat > 0:
+                    exec_window = route_lat / 1000
+                else:
+                    exec_window = db_manager.get_avg_cycle_time() / 1000 if db_manager.get_avg_cycle_time() > 0 else 3.0
+                
                 exec_window = min(exec_window, 10.0)  # Cap at 10s
                 
                 # Dampen penalty for established tokens (trust them more)
