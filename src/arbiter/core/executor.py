@@ -252,40 +252,84 @@ class ArbitrageExecutor:
     async def execute_spatial_arb(
         self,
         opportunity,
-        trade_size: float = None
+        trade_size: float = None,
+        rpc: Any = None
     ) -> ArbitrageExecution:
         """
         Execute spatial arbitrage (cross-DEX spread).
-        
-        In PAPER mode: Fully simulated based on opportunity data
-        In LIVE mode: Uses real Jupiter quotes and execution
+        V128.1: Optional RPC for simulation.
         """
-        trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
         start_time = time.time()
         
-        # V120: Minimum net profit filter (dynamic based on spread)
-        # High-spread trades (>=1.5%) use skip-quote and only need to be positive
-        # Lower-spread trades need $0.15 buffer for decay protection
-        SKIP_QUOTE_THRESHOLD = 0.015  # 1.5%
-        scan_spread_pct = getattr(opportunity, 'spread_pct', 0)
-        scan_net_profit = getattr(opportunity, 'net_profit_usd', None)
-        
-        if scan_net_profit is not None:
-            if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
-                # High spread - needs at least $0.015 to cover dust/slippage/tips
-                MIN_SKIP_QUOTE_PROFIT = 0.015
-                if scan_net_profit < MIN_SKIP_QUOTE_PROFIT:
-                    Logger.info(f"[EXEC] ⏭️ Skip-quote trade too thin: Net ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}")
-                    return self._error_result(f"Skip-quote trade too thin: ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}", start_time)
-            else:
-                # Lower spread - needs buffer for decay
-                MIN_NET_PROFIT_USD = 0.15
-                if scan_net_profit < MIN_NET_PROFIT_USD:
-                    Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}")
-                    return self._error_result(f"Net too thin: ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
-        
         try:
-            legs = []
+            # ═══ ATOMIC BUNDLE PATH (Jito) ═══
+            if self.jito:
+                result = await self._execute_bundled_swaps(opportunity.buy_quote, opportunity.sell_quote, rpc=rpc)
+                
+                if result and result.get("success"):
+                    legs = result.get('legs', [])
+                    total_input = trade_size # Assuming trade_size is the initial input
+                    total_output = legs[-1].output_amount if legs else trade_size
+                    gross_profit = total_output - total_input
+                    total_fees = sum(leg.fee_usd for leg in legs)
+                    net_profit = gross_profit - total_fees
+                    execution_time = int((time.time() - start_time) * 1000)
+                    
+                    self.total_trades += 1
+                    if net_profit > 0:
+                        self.successful_trades += 1
+                    self.total_profit += net_profit
+                    self.total_fees += total_fees
+                    
+                    Logger.info(
+                        f"[EXEC] ✅ Spatial arb complete (Jito Bundle)!\n"
+                        f"   Input: ${total_input:.2f}\n"
+                        f"   Output: ${total_output:.2f}\n"
+                        f"   Gross: ${gross_profit:+.2f}\n"
+                        f"   Fees: ${total_fees:.2f}\n"
+                        f"   Net: ${net_profit:+.2f}"
+                    )
+                    
+                    return ArbitrageExecution(
+                        success=True,
+                        strategy="SPATIAL",
+                        legs=legs,
+                        total_input=total_input,
+                        total_output=total_output,
+                        gross_profit=gross_profit,
+                        fees=total_fees,
+                        net_profit=net_profit,
+                        execution_time_ms=execution_time,
+                        timestamp=time.time()
+                    )
+                else:
+                    # If Jito bundle failed, log and return error. No fallback to sequential.
+                    error_msg = result.get('error', 'Jito bundle failed') if result else 'Jito bundle execution failed'
+                    Logger.error(f"[EXEC] Jito bundle failed: {error_msg}")
+                    return self._error_result(error_msg, start_time, result.get('legs', []))
+
+            # V120: Minimum net profit filter (dynamic based on spread)
+            # High-spread trades (>=1.5%) use skip-quote and only need to be positive
+            # Lower-spread trades need $0.15 buffer for decay protection
+            SKIP_QUOTE_THRESHOLD = 0.015  # 1.5%
+            scan_spread_pct = getattr(opportunity, 'spread_pct', 0)
+            scan_net_profit = getattr(opportunity, 'net_profit_usd', None)
+            
+            if scan_net_profit is not None:
+                if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
+                    # High spread - needs at least $0.015 to cover dust/slippage/tips
+                    MIN_SKIP_QUOTE_PROFIT = 0.015
+                    if scan_net_profit < MIN_SKIP_QUOTE_PROFIT:
+                        Logger.info(f"[EXEC] ⏭️ Skip-quote trade too thin: Net ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}")
+                        return self._error_result(f"Skip-quote trade too thin: ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}", start_time)
+                else:
+                    # Lower spread - needs buffer for decay
+                    MIN_NET_PROFIT_USD = 0.15
+                    if scan_net_profit < MIN_NET_PROFIT_USD:
+                        Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}")
+                        return self._error_result(f"Net too thin: ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
+            
+            legs = [] # Initialize legs for non-Jito paths
             
             if self.mode == ExecutionMode.PAPER:
                 # ═══ PAPER MODE: Real-Quote Execution ═══
@@ -485,9 +529,10 @@ class ArbitrageExecutor:
             Logger.error(f"[EXEC] Spatial arb error: {e}")
             return self._error_result(str(e), start_time)
     
-    async def _execute_bundled_swaps(self, buy_quote: Dict, sell_quote: Dict) -> Dict:
+    async def _execute_bundled_swaps(self, buy_quote: Dict, sell_quote: Dict, rpc: Any = None) -> Dict:
         """
         Execute both swap legs as an atomic Jito bundle.
+        V128.1: Optional RPC for simulation.
         
         Both transactions succeed or both fail - no partial execution.
         Prevents price flux between buy and sell legs.
@@ -528,8 +573,8 @@ class ArbitrageExecutor:
             buy_raw = base64.b64decode(buy_tx_data["swapTransaction"])
             sell_raw = base64.b64decode(sell_tx_data["swapTransaction"])
             
-            buy_tx = VersionedTransaction.from_bytes(buy_raw)
-            sell_tx = VersionedTransaction.from_bytes(sell_raw)
+            buy_tx = VersionedTransaction(buy_raw)
+            sell_tx = VersionedTransaction(sell_raw)
             
             signed_buy = VersionedTransaction(buy_tx.message, [self.wallet.keypair])
             signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
@@ -584,21 +629,11 @@ class ArbitrageExecutor:
             tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
             tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
             
-            # V123: PRE-FLIGHT SIMULATION
-            # Simulate bundle first to catch 'Invalid' errors early
+            # V123/V128: Hardened Submission
+            # Simulation is handled internally by submit_bundle(simulate=True, rpc=rpc)
             tx_bundle = [buy_b58, sell_b58, tip_b58]
-            Logger.info("[EXEC] �️ Simulating bundle execution...")
-            sim_result = await self.jito.simulate_bundle(tx_bundle)
-            
-            if not sim_result.get("success"):
-                err_msg = sim_result.get("error", "Unknown simulation error")
-                Logger.warning(f"[EXEC] 🛑 Simulation Failed: {err_msg} - Aborting bundle")
-                return {"success": False, "error": f"Simulation failed: {err_msg}", "legs": [], "should_fallback": False}
-            
-            Logger.info("[EXEC] ✅ Simulation passed! Submitting bundle...")
-            
-            # Submit bundle with tip tx included
-            bundle_id = await self.jito.submit_bundle(tx_bundle)
+            Logger.info(f"[EXEC] 🚀 Submitting bundle (V128.1 Simulation on {getattr(rpc, 'name', 'Jito')})...")
+            bundle_id = await self.jito.submit_bundle(tx_bundle, simulate=True, rpc=rpc)
             
             if not bundle_id:
                 Logger.warning("[EXEC] ⚠️ Jito submission failed - Triggering fallback")
@@ -720,9 +755,10 @@ class ArbitrageExecutor:
                 execution_time_ms=int((time.time() - start) * 1000)
             )
     
-    async def execute_triangular_arb(self, opportunity, dry_run: bool = True) -> Optional[Dict]:
+    async def execute_triangular_arb(self, opportunity, dry_run: bool = True, rpc: Any = None) -> Optional[Dict]:
         """
         V120: Execute a triangular arbitrage trade (3 hops).
+        V128.1: Optional RPC for simulation.
         Path: A -> B -> C -> A
         """
         start_time = time.time()
@@ -865,7 +901,9 @@ class ArbitrageExecutor:
             ]
             
             # 8. Submit Bundle
-            bundle_id = await self.jito.submit_bundle(signed_txs)
+            # V128.1: Simulation handled internally
+            Logger.info(f"🚀 [JITO] Triangular Bundle (V128.1 Simulation on {getattr(rpc, 'name', 'Jito')})...")
+            bundle_id = await self.jito.submit_bundle(signed_txs, simulate=True, rpc=rpc)
             
             if bundle_id:
                 Logger.info(f"🚀 [JITO] Triangular Bundle Submitted: {bundle_id[:8]}...")
