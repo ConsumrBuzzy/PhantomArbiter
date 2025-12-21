@@ -645,7 +645,8 @@ class ArbitrageExecutor:
             bundle_id = self.jito.submit_bundle([buy_b58, sell_b58, tip_b58])
             
             if not bundle_id:
-                return {"success": False, "error": "Jito bundle submission failed", "legs": []}
+                Logger.warning("[EXEC] ⚠️ Jito submission failed - Triggering fallback")
+                return {"success": False, "error": "Jito bundle submission failed", "legs": [], "should_fallback": True}
             
             Logger.info(f"[EXEC] ✅ Bundle submitted: {bundle_id[:16]}...")
             
