@@ -118,8 +118,9 @@ class TelegramManager:
         
         while self.running:
             try:
-                # Initialize or re-init bot
-                self.loop.run_until_complete(self.application.initialize())
+                # Initialize bot only if needed
+                if not self.application.initialized:
+                    self.loop.run_until_complete(self.application.initialize())
                 
                 print(f"   ✅ Telegram Manager READY (Polling...)")
                 self.application.run_polling(
@@ -131,7 +132,8 @@ class TelegramManager:
                 if not self.running:
                     break
                     
-                Logger.error(f"❌ [TG] Loop Error: {e}")
+                # Specific handling for NetworkError to avoid excessive noise
+                Logger.error(f"❌ [TG] Connection Error: {e}")
                 print(f"   ⚠️ [TG] Connection lost. Retrying in {backoff}s...")
                 import time
                 time.sleep(backoff)
