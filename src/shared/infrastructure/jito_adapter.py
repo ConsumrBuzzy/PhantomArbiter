@@ -141,6 +141,8 @@ class JitoAdapter:
         if simulate:
             sim = await self.simulate_bundle(serialized_transactions, rpc=rpc)
             if not sim["success"]:
+                # V131: Print directly to ensure visibility
+                print(f"   ❌ [JITO] Simulation FAILED: {sim.get('error', 'Unknown')}")
                 Logger.warning(f"   ❌ [JITO] Submission Aborted: Simulation failed ({sim.get('error')})")
                 return None
 
