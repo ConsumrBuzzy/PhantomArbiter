@@ -212,6 +212,7 @@ class ExecutionBridge:
         legs: List[SwapLeg],
         private_key: str,
         priority_fee: Optional[int] = None,
+        rpc_url: Optional[str] = None,
     ) -> ExecutionResult:
         """
         Simulate a multi-leg swap without executing (seatbelt check).
@@ -253,6 +254,7 @@ class ExecutionBridge:
         private_key: str,
         priority_fee: Optional[int] = None,
         jito_tip_lamports: int = 0,
+        rpc_url: Optional[str] = None,
     ) -> ExecutionResult:
         """
         Execute atomic multi-leg swap.

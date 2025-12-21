@@ -67,6 +67,7 @@ interface EngineCommand {
     jitoTipLamports?: number;  // Tip amount for Jito bundles (default: 10000)
     priorityFee?: number;  // In microlamports per CU
     simulateOnly?: boolean; // If true, simulate but don't send
+    rpcUrl?: string;        // V128.4: Dynamic RPC for simulation/submission
 }
 
 interface EngineResult {
@@ -132,6 +133,15 @@ class ExecutionEngine {
 
     constructor() {
         this.connection = new Connection(RPC_URL, 'confirmed');
+    }
+
+    /**
+     * Update connection if a custom RPC URL is provided
+     */
+    public setConnection(rpcUrl?: string): void {
+        if (rpcUrl && rpcUrl !== this.connection.rpcEndpoint) {
+            this.connection = new Connection(rpcUrl, 'confirmed');
+        }
     }
 
     /**
@@ -686,10 +696,12 @@ async function main() {
 
                 switch (cmd.command) {
                     case 'health':
+                        engine.setConnection(cmd.rpcUrl);
                         result = await engine.healthCheck();
                         break;
 
                     case 'quote':
+                        engine.setConnection(cmd.rpcUrl);
                         if (!cmd.legs || cmd.legs.length === 0) {
                             result = { success: false, command: 'quote', error: 'No legs provided', timestamp };
                         } else {
@@ -698,6 +710,7 @@ async function main() {
                         break;
 
                     case 'simulate':
+                        engine.setConnection(cmd.rpcUrl);
                         if (!cmd.privateKey) {
                             result = { success: false, command: 'simulate', error: 'No private key provided', timestamp };
                         } else if (!cmd.legs || cmd.legs.length === 0) {
@@ -714,6 +727,7 @@ async function main() {
                         break;
 
                     case 'swap':
+                        engine.setConnection(cmd.rpcUrl);
                         if (!cmd.privateKey) {
                             result = { success: false, command: 'swap', error: 'No private key provided', timestamp };
                         } else if (!cmd.legs || cmd.legs.length === 0) {
