@@ -103,20 +103,6 @@ class SpreadDetector:
         self.feeds = {f.get_name(): f for f in feeds} if feeds else {}
         self.default_trade_size = 100.0  # USD
         
-        # V125: Persistent ThreadPool for zero-overhead polling
-        from concurrent.futures import ThreadPoolExecutor
-        self.executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="SpreadScanner")
-        
-    def shutdown(self):
-        """Cleanup persistent resources."""
-        if self.executor:
-            self.executor.shutdown(wait=False)
-        # V125 cleanup: Feeds already initialized above
-        if feeds:
-            # Re-sync in case duplicates were passed
-            for feed in feeds:
-                self.feeds[feed.get_name()] = feed
-                
         # Configuration
         self.min_spread_pct = getattr(Settings, 'MIN_SPREAD_PCT', 0.1)
         self.default_trade_size = getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 100.0)
@@ -128,6 +114,12 @@ class SpreadDetector:
         # Cache
         self._price_cache: Dict[str, Dict[str, float]] = {}
         self._last_scan = 0.0
+        
+    async def shutdown(self):
+        """Cleanup async resources."""
+        for feed in self.feeds.values():
+            if hasattr(feed, 'close'):
+                await feed.close()
         
     def add_feed(self, feed) -> None:
         """Add a price feed source."""
@@ -332,24 +324,11 @@ class SpreadDetector:
             timestamp=time.time()
         )
     
-    def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
+    async def scan_all_pairs(self, pairs: List[Tuple[str, str, str]], trade_size: float = None) -> List[SpreadOpportunity]:
         """
-        Scan multiple pairs for opportunities using SHARED batch price fetch.
-        
-        Uses src/core/data.batch_fetch_jupiter_prices which has:
-        - Circuit breaker for Jupiter API
-        - DexScreener fallback
-        - Chunking for large batches
-        
-        Args:
-            pairs: List of (pair_name, base_mint, quote_mint) tuples
-            trade_size: USD value to test (affects slippage/fees)
-            
-        Returns:
-            List of SpreadOpportunity sorted by spread_pct descending
+        Scan multiple pairs for opportunities using ASYNC batch fetching.
         """
-        import time
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import asyncio
         
         trade_size = trade_size or self.default_trade_size
         opportunities = []
@@ -365,45 +344,48 @@ class SpreadDetector:
         # Parallel fetch from ALL feeds
         feed_prices: Dict[str, Dict[str, float]] = {}
         
-        def fetch_from_feed(feed_item):
+        async def fetch_from_feed(feed_item):
             feed_name, feed = feed_item
             try:
                 if hasattr(feed, 'get_multiple_prices'):
-                    return feed_name, feed.get_multiple_prices(all_mints)
+                    # Check if method is async
+                    if asyncio.iscoroutinefunction(feed.get_multiple_prices):
+                        res = await feed.get_multiple_prices(all_mints)
+                    else:
+                        res = feed.get_multiple_prices(all_mints)
+                    return feed_name, res
                 else:
                     # Fallback: parallel individual fetches
                     prices = {}
+                    # If feed is async, use gather for mints too
+                    tasks = []
                     for mint in all_mints:
-                        try:
-                            spot = feed.get_spot_price(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-                            if spot and spot.price > 0:
-                                prices[mint] = spot.price
-                        except:
-                            pass
+                        # Assumption: By V127 all feeds should be async or we wrap them
+                        # For now, simplistic sync wrapper if needed
+                        spot = await feed.get_spot_price(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+                        if spot and spot.price > 0:
+                            prices[mint] = spot.price
                     return feed_name, prices
-            except Exception:
+            except Exception as e:
+                # print(f"DEBUG: Feed {feed_name} err: {e}")
                 return feed_name, {}
         
         
-        # V125: Reuse persistent executor (Zero Overhead)
-        # Fetch from all feeds in parallel (3 feeds = 3 threads)
-        futures = [self.executor.submit(fetch_from_feed, item) for item in self.feeds.items()]
         
-        try:
-            for future in as_completed(futures, timeout=8):  # V91.0: Reduced to 8s for speed
-                try:
-                    feed_name, prices = future.result()
-                    if prices:
-                        feed_prices[feed_name] = prices
-                except Exception as e:
-                    import traceback
-                    print(f"DEBUG: Feed {future} failed: {e}")
-                    # traceback.print_exc()
-                    pass
-        except TimeoutError:
-            # V88.0: Graceful handling - continue with feeds we have
-            from src.shared.system.logging import Logger
-            Logger.debug(f"[SCAN] Some feeds timed out, continuing with {len(feed_prices)} feeds")
+        # V127: AsyncIO Parallel Fetch (True Parallelism)
+        # Fetch from all feeds via asyncio.gather on the event loop
+        tasks = [fetch_from_feed(item) for item in self.feeds.items()]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for result in results:
+            if isinstance(result, Exception):
+                continue
+            if not result:
+                continue
+            
+            feed_name, prices = result
+            if prices:
+                feed_prices[feed_name] = prices
         
         if len(feed_prices) < 2:
             # Need at least 2 feeds for spread comparison
