@@ -191,6 +191,7 @@ class RaydiumBridge:
             error=result.get("error")
         )
     
+    
     def get_price(self, pool_address: str) -> RaydiumPriceResult:
         """
         Get current price via Daemon.
@@ -222,6 +223,36 @@ class RaydiumBridge:
             liquidity=result.get("liquidity", "0"),
             error=result.get("error")
         )
+
+    def get_batch_prices(self, pools: list) -> Dict[str, float]:
+        """
+        Get prices for multiple pools in one batch.
+        
+        Args:
+            pools: List of dicts, e.g. [{'id': 'addr', 'type': 'standard'}]
+            
+        Returns:
+            Dict mapping pool_address -> price
+        """
+        # Limit batch size to avoid hanging
+        BATCH_LIMIT = 50
+        results = {}
+        
+        for i in range(0, len(pools), BATCH_LIMIT):
+            batch = pools[i:i+BATCH_LIMIT]
+            resp = self._send_command({
+                "cmd": "batch_prices",
+                "pools": batch
+            }, timeout=60)
+            
+            if resp and resp.get("success"):
+                batch_prices = resp.get("prices", {})
+                results.update(batch_prices)
+            else:
+                Logger.warning(f"[RAYDIUM] Batch price fetch failed for chunk {i}")
+                
+        return results
+
     
     def execute_swap(
         self,
