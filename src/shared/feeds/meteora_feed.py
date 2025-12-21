@@ -225,38 +225,42 @@ class MeteoraFeed(PriceSource):
     
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> Dict[str, float]:
         """
-        Batch fetch prices via DexScreener (up to 30 tokens).
-        V99: Fixed to use true batch endpoint instead of serial loop.
+        Batch fetch prices via DexScreener (chunked by 30).
         """
         if not mints:
             return {}
         
         prices = {}
+        chunk_size = 30
+        
         try:
-            # Chunk first 30
-            chunk = mints[:30]
-            ids = ",".join(chunk)
-            # Use specific batch endpoint
-            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
-            resp = requests.get(url, timeout=5)
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                pairs = data.get('pairs', [])
+            for i in range(0, len(mints), chunk_size):
+                chunk = mints[i : i + chunk_size]
+                ids = ",".join(chunk)
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
                 
-                for pair in pairs:
-                    # Filter for Meteora
-                    if "meteora" not in pair.get('dexId', '').lower():
-                        continue
+                try:
+                    resp = requests.get(url, timeout=5)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        pairs = data.get('pairs', [])
                         
-                    base = pair.get('baseToken', {}).get('address')
-                    price = float(pair.get('priceUsd', 0) or 0)
+                        for pair in pairs:
+                            # Filter for Meteora
+                            if "meteora" not in pair.get('dexId', '').lower():
+                                continue
+                                
+                            base = pair.get('baseToken', {}).get('address')
+                            price = float(pair.get('priceUsd', 0) or 0)
+                            
+                            # Store if in current chunk (valid mapping) or just opportunistically
+                            if base and price > 0 and base not in prices:
+                                prices[base] = price
+                                # Cache
+                                self._price_cache[f"{base}_{self.USDC_MINT}"] = (price, time.time())
+                except Exception as e:
+                    Logger.debug(f"[METEORA] Batch chunk failed: {e}")
                     
-                    if base in chunk and base not in prices and price > 0:
-                        prices[base] = price
-                        # Cache
-                        self._price_cache[f"{base}_{self.USDC_MINT}"] = (price, time.time())
-                        
         except Exception as e:
             Logger.debug(f"[METEORA] Batch fetch error: {e}")
             

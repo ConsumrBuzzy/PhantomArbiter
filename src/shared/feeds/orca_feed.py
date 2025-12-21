@@ -242,46 +242,50 @@ class OrcaFeed(PriceSource):
 
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
         """
-        Batch fetch prices via DexScreener (up to 30 tokens).
+        Batch fetch prices via DexScreener (chunked by 30).
         """
         if not mints:
             return {}
             
+        prices = {}
+        chunk_size = 30
+        
         try:
-            ids = ",".join(mints[:30])
-            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
-            resp = requests.get(url, timeout=5)
-            
-            if resp.status_code != 200:
-                return {}
+            for i in range(0, len(mints), chunk_size):
+                chunk = mints[i : i + chunk_size]
+                ids = ",".join(chunk)
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
                 
-            data = resp.json()
-            pairs = data.get('pairs', [])
-            results = {}
-            
-            for pair in pairs:
-                # Filter for Orca pairs
-                if "orca" not in pair.get('dexId', '').lower():
-                    continue
-                    
-                base = pair.get('baseToken', {}).get('address')
-                price = float(pair.get('priceUsd', 0) or 0)
-                
-                if base and price > 0 and base not in results:
-                    results[base] = price
-                    
-                    # Update cache
-                    key = f"{base}:{self.USDC_MINT}"
-                    self._price_cache[key] = {
-                        'price': price,
-                        'timestamp': time.time()
-                    }
-            
-            return results
+                try:
+                    resp = requests.get(url, timeout=5)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        pairs = data.get('pairs', [])
+                        
+                        for pair in pairs:
+                            # Filter for Orca pairs
+                            if "orca" not in pair.get('dexId', '').lower():
+                                continue
+                                
+                            base = pair.get('baseToken', {}).get('address')
+                            price = float(pair.get('priceUsd', 0) or 0)
+                            
+                            if base and price > 0 and base not in prices:
+                                prices[base] = price
+                                
+                                # Update cache
+                                key = f"{base}:{self.USDC_MINT}"
+                                self._price_cache[key] = {
+                                    'price': price,
+                                    'timestamp': time.time()
+                                }
+                except Exception as e:
+                    Logger.debug(f"[ORCA] Batch chunk failed: {e}")
             
         except Exception as e:
             Logger.debug(f"Orca batch fetch error: {e}")
-            return {}
+            
+        return prices
 
 
 # ═══════════════════════════════════════════════════════════════════
