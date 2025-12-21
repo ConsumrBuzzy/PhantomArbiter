@@ -65,7 +65,7 @@ class CommandProcessor:
                 # "CMD_SET_SIZE:50.0"
                 try:
                     amount = float(cmd_type.split(":")[1])
-                    from src.core.capital_manager import get_capital_manager
+                    from src.shared.system.capital_manager import get_capital_manager
                     cm = get_capital_manager()
                     cm.update_config(size=amount)
                     send_telegram(f"📉 Position Size Updated: ${amount:.2f}", source="BROKER", priority="HIGH")
@@ -75,7 +75,7 @@ class CommandProcessor:
             elif cmd_type.startswith("CMD_SET_BUDGET"):
                 try:
                     amount = float(cmd_type.split(":")[1])
-                    from src.core.capital_manager import get_capital_manager
+                    from src.shared.system.capital_manager import get_capital_manager
                     cm = get_capital_manager()
                     cm.update_config(budget=amount)
                     send_telegram(f"💰 Risk Budget Updated: ${amount:.2f}", source="BROKER", priority="HIGH")
@@ -222,7 +222,7 @@ class CommandProcessor:
         try:
             price = float(parts[1])
             qty = float(parts[2])
-            from src.core.capital_manager import get_capital_manager
+            from src.shared.system.capital_manager import get_capital_manager
             get_capital_manager().update_jlp_state(price, qty)
             send_telegram(f"🏠 JLP Set: {qty} @ ${price}", source="BROKER", priority="HIGH")
         except:
@@ -230,7 +230,7 @@ class CommandProcessor:
 
     def _handle_jlp_status(self):
         try:
-            from src.core.capital_manager import get_capital_manager
+            from src.shared.system.capital_manager import get_capital_manager
             from src.core.market_aggregator import MarketAggregator
             cm = get_capital_manager()
             state = cm.get_jlp_state()

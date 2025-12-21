@@ -5,7 +5,7 @@ Central logic for generating the "Broker Status" report.
 Used by CommandProcessor (On-Demand) and ReportingService (Scheduled Heartbeat).
 """
 
-from src.core.capital_manager import get_capital_manager
+from src.shared.system.capital_manager import get_capital_manager
 from src.analysis.market_snap import MarketSnapshot
 
 class StatusGenerator:

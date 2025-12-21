@@ -10,7 +10,7 @@ from src.system.comms_daemon import send_telegram
 # Imports for loop
 from src.discovery.launchpad_monitor import get_launchpad_monitor, LaunchEvent, MigrationEvent
 from src.discovery.migration_sniffer import get_migration_sniffer, MigrationOpportunity, SnipeConfidence
-from src.core.capital_manager import get_capital_manager
+from src.shared.system.capital_manager import get_capital_manager
 from src.system.telegram_templates import DiscoveryTemplates
 
 SHUTDOWN_EVENT = asyncio.Event()

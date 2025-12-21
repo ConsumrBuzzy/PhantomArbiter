@@ -251,7 +251,7 @@ class PerformanceReporter:
             
             # Max Drawdown from CapitalManager
             try:
-                from src.core.capital_manager import get_capital_manager
+                from src.shared.system.capital_manager import get_capital_manager
                 cm = get_capital_manager()
                 # Get from engine stats if available
                 for engine_name in cm.state.get("engines", {}):

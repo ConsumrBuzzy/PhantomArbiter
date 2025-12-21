@@ -7,7 +7,7 @@ from src.system.comms_daemon import send_telegram
 
 # Imports for loop
 from src.liquidity.liquidity_manager import get_liquidity_manager, MarketRegime
-from src.core.capital_manager import get_capital_manager
+from src.shared.system.capital_manager import get_capital_manager
 
 SHUTDOWN_EVENT = asyncio.Event()
 

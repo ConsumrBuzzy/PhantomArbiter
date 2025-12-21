@@ -51,7 +51,7 @@ from src.engine.trading_core import TradingCore
 from src.engine.decision_engine import DecisionEngine
 from src.strategy.keltner_logic import KeltnerLogic
 from src.strategy.vwap_logic import VwapLogic
-from src.core.capital_manager import get_capital_manager
+from src.shared.system.capital_manager import get_capital_manager
 
 class DataBroker:
     """

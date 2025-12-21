@@ -29,7 +29,7 @@ from src.core.global_state import GlobalState
 from src.execution.paper_wallet import PaperWallet
 
 # V40.0: Centralized Capital Management
-from src.core.capital_manager import get_capital_manager
+from src.shared.system.capital_manager import get_capital_manager
 
 # V48.0: Extracted Trade Executor
 from src.engine.trade_executor import TradeExecutor
@@ -756,7 +756,7 @@ class TradingCore:
         Returns:
             Position size in USD
         """
-        from src.core.capital_manager import get_capital_manager
+        from src.shared.system.capital_manager import get_capital_manager
         
         try:
             cm = get_capital_manager()

@@ -63,7 +63,7 @@ class MerchantEnsemble(BaseStrategy):
         weight_whale = self.WEIGHT_WHALE
         
         try:
-            from src.core.capital_manager import get_capital_manager
+            from src.shared.system.capital_manager import get_capital_manager
             cm = get_capital_manager()
             pnl_24h = cm.get_session_pnl()  # Get 24h PnL
             

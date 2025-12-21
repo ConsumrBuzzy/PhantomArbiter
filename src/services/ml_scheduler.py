@@ -3,7 +3,7 @@ import asyncio
 from src.system.logging import Logger
 from config.settings import Settings
 from src.utils.boot_utils import BootTimer
-from src.core.capital_manager import get_capital_manager
+from src.shared.system.capital_manager import get_capital_manager
 
 SHUTDOWN_EVENT = asyncio.Event()
 

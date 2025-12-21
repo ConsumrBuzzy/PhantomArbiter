@@ -215,7 +215,7 @@ class DashboardService:
         
         # === Paper Trading (V78.0: With Heartbeat data) ===
         try:
-            from src.core.capital_manager import get_capital_manager
+            from src.shared.system.capital_manager import get_capital_manager
             from config.settings import Settings
             cm = get_capital_manager()
             
