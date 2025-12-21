@@ -178,10 +178,7 @@ class TriangularScanner:
             route_pairs=[f"Pair1", f"Pair2", f"Pair3"], # Placeholder
             directions=["BUY", "BUY", "BUY"], # Placeholder
             start_amount=amount_in,
-            directions=["BUY", "BUY", "BUY"], # Placeholder
-            start_amount=amount_in,
             expected_end_amount=realized_end_amount,
-            gross_profit_usd=gross_profit,
             gross_profit_usd=gross_profit,
             net_profit_usd=net_profit,
             roi_pct=(net_profit / amount_in) * 100
