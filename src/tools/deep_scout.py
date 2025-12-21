@@ -19,8 +19,6 @@ from config.settings import Settings
 Settings.SILENT_MODE = False
 Logger.set_silent(False)
 
-print(f"DEBUG: DeepScout loaded. Silent Mode: {Settings.SILENT_MODE}")
-
 class DeepScout:
     """
     V116: DeepScout Large-Scale Data Harvester
