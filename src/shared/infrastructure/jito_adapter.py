@@ -70,16 +70,17 @@ class JitoAdapter:
         self.api_url = self._endpoints[self._current_endpoint_idx]
         Logger.info(f"   🔄 [JITO] Rotating endpoint to: {self.api_url.split('//')[1].split('.')[0]}...")
 
-    async def _rpc_call(self, method: str, params: list = None, max_retries: int = 10) -> Optional[Dict]:
-        if time.time() < self._rate_limited_until:
+    async def _rpc_call(self, method: str, params: list = None, max_retries: int = 10, rpc_url: str = None) -> Optional[Dict]:
+        if time.time() < self._rate_limited_until and not rpc_url:
             return None
             
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
+        url = rpc_url or self.api_url
         
         # V128: Use persistent client
         for attempt in range(max_retries):
             try:
-                response = await self.client.post(self.api_url, json=payload)
+                response = await self.client.post(url, json=payload)
                 
                 if response.status_code == 200:
                     return response.json()
@@ -156,10 +157,12 @@ class JitoAdapter:
             return None
         return None
 
-    async def simulate_bundle(self, serialized_transactions: List[str]) -> Dict:
+    async def simulate_bundle(self, serialized_transactions: List[str], rpc: Any = None) -> Dict:
         """
         V128 Hardening: Uses skipSigVerify and replaceRecentBlockhash 
         to prevent 'RPC failed' when the blockhash is slightly stale.
+        
+        V128.1: Optionally uses a specific RPC provider for simulation.
         """
         simulation_config = {
             "encodedTransactions": serialized_transactions,
@@ -167,7 +170,9 @@ class JitoAdapter:
             "replaceRecentBlockhash": True  # Uses Jito's current bank hash
         }
         
-        response = await self._rpc_call("simulateBundle", [simulation_config])
+        rpc_url = rpc.url if hasattr(rpc, 'url') else rpc if isinstance(rpc, str) else None
+        
+        response = await self._rpc_call("simulateBundle", [simulation_config], rpc_url=rpc_url)
         if response and "result" in response:
             value = response["result"].get("value", {})
             summary = value.get("summary")

@@ -49,6 +49,7 @@ class RPCProvider:
     latest_slot: int = 0
     last_latency_ms: float = 0.0
     is_leading: bool = False
+    is_elite: bool = False  # V128.1: Helius/Alchemy prioritized for simulation
     
     # Backoff configuration
     base_backoff_seconds: float = 1.0
@@ -132,7 +133,8 @@ class RPCBalancer:
             self.providers.append(RPCProvider(
                 name="Helius",
                 url=f"https://mainnet.helius-rpc.com/?api-key={helius_key}",
-                weight=1.5  # Higher weight - preferred
+                weight=1.5,
+                is_elite=True  # V128.1
             ))
         
         # Alchemy
@@ -141,7 +143,8 @@ class RPCBalancer:
             self.providers.append(RPCProvider(
                 name="Alchemy",
                 url=alchemy_url,
-                weight=1.0
+                weight=1.0,
+                is_elite=True  # V128.1
             ))
         
         # QuickNode
@@ -150,7 +153,8 @@ class RPCBalancer:
             self.providers.append(RPCProvider(
                 name="QuickNode",
                 url=quicknode_url,
-                weight=1.0
+                weight=1.0,
+                is_elite=True  # V128.1
             ))
         
         # Chainstack (25 RPS - high capacity)
@@ -159,7 +163,8 @@ class RPCBalancer:
             self.providers.append(RPCProvider(
                 name="Chainstack",
                 url=chainstack_url,
-                weight=1.5  # Higher weight due to 25 RPS
+                weight=1.5,
+                is_elite=True  # V128.1
             ))
         
         # Public fallback (always added, but low weight)
@@ -208,6 +213,27 @@ class RPCBalancer:
                 return provider
         
         return available[-1]  # Fallback
+        
+    def get_winner(self) -> Optional[RPCProvider]:
+        """Get the current leading provider."""
+        return next((p for p in self.providers if p.is_leading), self._select_provider())
+
+    def get_secondary_leader(self, exclude: str = "public") -> RPCProvider:
+        """
+        V128.1: Returns the best available elite provider.
+        If the current winner is public, this shifts to a trusted source.
+        """
+        available = self._get_available_providers()
+        
+        # Filter by elite status and exclusion
+        elite = [p for p in available if p.is_elite and exclude.lower() not in p.name.lower()]
+        
+        if elite:
+            # Pick best elite by latency
+            return min(elite, key=lambda p: p.last_latency_ms if p.last_latency_ms > 0 else 999)
+            
+        # Absolute fallback if no elite available
+        return self._select_provider()
     
     def call(
         self,
