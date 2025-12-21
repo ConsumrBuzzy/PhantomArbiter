@@ -720,7 +720,7 @@ class ArbitrageExecutor:
                 execution_time_ms=int((time.time() - start) * 1000)
             )
     
-    async def execute_triangular_arb(self, opportunity) -> Optional[Dict]:
+    async def execute_triangular_arb(self, opportunity, dry_run: bool = True) -> Optional[Dict]:
         """
         V120: Execute a triangular arbitrage trade (3 hops).
         Path: A -> B -> C -> A
@@ -728,21 +728,32 @@ class ArbitrageExecutor:
         start_time = time.time()
         
         # 1. Validation
-        if not self.jito:
+        if not self.jito and not dry_run:
             Logger.error("[EXEC] ❌ Triangular Arb requires Jito (Atomic Bundle)")
             return None
             
-        Logger.info(f"[EXEC] 📐 Executing Triangular Arb: {' -> '.join(opportunity.route_tokens)}")
+        Logger.info(f"[EXEC] 📐 {'Observing' if dry_run else 'Executing'} Triangular: {' -> '.join(opportunity.route_tokens)}")
         
         try:
-            # 2. Get Quotes for all 3 legs
+            # 2. Decimal Mapping (USDC vs SOL vs Others)
+            def get_dec(mint):
+                if mint == Settings.USDC_MINT: return 6
+                if mint == "So11111111111111111111111111111111111111112": return 9
+                # Fallback to wallet info or 9
+                info = self.wallet.get_token_info(mint) if self.wallet else None
+                return int(info.get('decimals', 9)) if info else 9
+
+            d1 = get_dec(opportunity.route_tokens[0])
+            d2 = get_dec(opportunity.route_tokens[1])
+            d3 = get_dec(opportunity.route_tokens[2])
+
+            # 3. Get Quotes for all 3 legs
             # Leg 1: A -> B
             quote1 = await self.swapper.get_quote(
-                input_mint=opportunity.route_tokens[0], # e.g. USDC (Mint address) or Symbol? need to ensure Mint.
-                output_mint=opportunity.route_tokens[1], # e.g. SOL
-                amount_in_lamports=int(opportunity.start_amount * 10**6), # assuming USDC 6 decimals for now... risky assumption!
-                # TODO: We need decimal map or fetch mint info. For now assuming USDC/SOL standard.
-                slippage_bps=50 # 0.5% per leg to be safe
+                input_mint=opportunity.route_tokens[0],
+                output_mint=opportunity.route_tokens[1],
+                amount=int(opportunity.start_amount * 10**d1),
+                slippage=50
             )
             
             if not quote1: return None
@@ -751,8 +762,8 @@ class ArbitrageExecutor:
             quote2 = await self.swapper.get_quote(
                 input_mint=opportunity.route_tokens[1],
                 output_mint=opportunity.route_tokens[2],
-                amount_in_lamports=int(quote1['outAmount']),
-                slippage_bps=50
+                amount=int(quote1['outAmount']),
+                slippage=50
             )
             
             if not quote2: return None
@@ -761,64 +772,100 @@ class ArbitrageExecutor:
             quote3 = await self.swapper.get_quote(
                 input_mint=opportunity.route_tokens[2],
                 output_mint=opportunity.route_tokens[0],
-                amount_in_lamports=int(quote2['outAmount']),
-                slippage_bps=50
+                amount=int(quote2['outAmount']),
+                slippage=50
             ) 
             
             if not quote3: return None
             
-            # 3. Verify Final Output
-            final_out = int(quote3['outAmount']) / 10**6 
+            # 4. Verify Final Output
+            final_out = int(quote3['outAmount']) / 10**d1
             start_in = opportunity.start_amount
             
             estimated_profit = final_out - start_in
-            Logger.info(f"[EXEC] 📐 Live Quote Profit: ${estimated_profit:.4f}")
+            Logger.info(f"[EXEC] 📐 REAL Profit: ${estimated_profit:.4f} (Scan was ${opportunity.net_profit_usd:.4f})")
             
+            if dry_run:
+                return {"success": True, "real_profit": estimated_profit}
+
             if estimated_profit <= 0.05: # Minimal hurdle
                 Logger.warning(f"[EXEC] ❌ Quote slippage ate profit: ${estimated_profit:.4f}")
                 return None
                 
-            # 4. Build Transactions (3 Swaps)
-            # We need raw transactions from Jupiter
-            tx1 = await self.swapper.get_swap_transaction(quote1)
-            tx2 = await self.swapper.get_swap_transaction(quote2)
-            tx3 = await self.swapper.get_swap_transaction(quote3)
+            # 5. Build Transactions (3 Swaps)
+            # Both router and swapper can build txs
+            from src.shared.system.smart_router import SmartRouter
+            router = SmartRouter()
             
-            if not (tx1 and tx2 and tx3):
+            tx1_data = router.get_swap_transaction({
+                "quoteResponse": quote1,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True
+            })
+            tx2_data = router.get_swap_transaction({
+                "quoteResponse": quote2,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True
+            })
+            tx3_data = router.get_swap_transaction({
+                "quoteResponse": quote3,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True
+            })
+            
+            if not (tx1_data and tx2_data and tx3_data):
                 Logger.warning("[EXEC] ❌ Failed to build swap transactions")
                 return None
                 
-            # 5. Build Tip Transaction
-            tip_account = self.jito.get_random_tip_account()
-            tip_lamports = 1000000 # 0.001 SOL (~$0.15) aggressive tip for complex arb
-            tip_tx = self.jito.create_tip_transaction(
-                payer=self.wallet.pubkey(),
-                tip_account=tip_account,
-                lamports=tip_lamports,
-                latest_blockhash=tx1.recent_blockhash # Reuse BH
+            # 6. Build Jito Tip Transaction (Reuse blockhash 1)
+            import base64
+            from solders.transaction import VersionedTransaction
+            
+            buy_tx = VersionedTransaction.from_bytes(base64.b64decode(tx1_data["swapTransaction"]))
+            recent_blockhash = buy_tx.message.recent_blockhash
+            
+            tip_account = await self.jito.get_random_tip_account()
+            tip_lamports = 1000000 # 0.001 SOL (~$0.15) aggressive tip
+            
+            from solders.system_program import TransferParams, transfer
+            from solders.message import MessageV0
+            from solders.pubkey import Pubkey
+            
+            tip_ix = transfer(TransferParams(
+                from_pubkey=self.wallet.get_public_key(),
+                to_pubkey=Pubkey.from_string(tip_account),
+                lamports=tip_lamports
+            ))
+            
+            tip_msg = MessageV0.try_compile(
+                payer=self.wallet.get_public_key(),
+                instructions=[tip_ix],
+                address_lookup_table_accounts=[],
+                recent_blockhash=recent_blockhash
             )
+            tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
             
-            # 6. Sign All
-            # Using wallet to sign 4 transactions
-            # Note: Jito needs base58 encoded SIGNED transactions
-            # Adapter expects list of b58 strings
-            
-            # This part requires the wallet to sign the transaction objects and return b58
-            # The current self.wallet.sign_transaction returns signature? 
-            # Or does it sign in place? 
-            # Let's assume standard solana-py transaction object flow.
-            # actually swapper.get_swap_transaction returns a VersionedTransaction object usually
-            
-            # For now, placeholder for signing logic:
+            # 7. Sign and Serialize
+            import base58
+            def sign_b58(tx_data_or_obj):
+                if isinstance(tx_data_or_obj, dict):
+                    raw = base64.b64decode(tx_data_or_obj["swapTransaction"])
+                    tx = VersionedTransaction.from_bytes(raw)
+                else:
+                    tx = tx_data_or_obj
+                
+                signed = VersionedTransaction(tx.message, [self.wallet.keypair])
+                return base58.b58encode(bytes(signed)).decode()
+
             signed_txs = [
-                self.wallet.sign_and_serialize(tx1),
-                self.wallet.sign_and_serialize(tx2),
-                self.wallet.sign_and_serialize(tx3),
-                self.wallet.sign_and_serialize(tip_tx)
+                sign_b58(tx1_data),
+                sign_b58(tx2_data),
+                sign_b58(tx3_data),
+                base58.b58encode(bytes(tip_tx)).decode()
             ]
             
-            # 7. Submit Bundle
-            bundle_id = self.jito.submit_bundle(signed_txs)
+            # 8. Submit Bundle
+            bundle_id = await self.jito.submit_bundle(signed_txs)
             
             if bundle_id:
                 Logger.info(f"🚀 [JITO] Triangular Bundle Submitted: {bundle_id[:8]}...")

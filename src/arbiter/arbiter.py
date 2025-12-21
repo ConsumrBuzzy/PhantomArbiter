@@ -311,8 +311,13 @@ class PhantomArbiter:
             try:
                 self._triangular_scanner.update_graph(detector, self.config.pairs)
                 cycles = self._triangular_scanner.find_cycles(amount_in=trade_size)
-                # If we find actual profitable cycles, we can add them to opportunities?
-                # For now, just logging (Watch Mode)
+                
+                # V120: Reality Check for top candidates (Observation Mode)
+                if cycles:
+                    top_cycles = sorted(cycles, key=lambda x: x.net_profit_usd, reverse=True)[:2]
+                    for cycle in top_cycles:
+                        # Call executor in dry_run mode to fetch live quotes
+                        await self.executor.execute_triangular_arb(cycle, dry_run=True)
             except Exception as e:
                 Logger.debug(f"Triangular scan error: {e}")
         
