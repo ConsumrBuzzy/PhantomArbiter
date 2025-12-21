@@ -71,7 +71,7 @@ class PriceSource(ABC):
         pass
     
     @abstractmethod
-    def get_quote(
+    async def get_quote(
         self, 
         input_mint: str, 
         output_mint: str, 
@@ -91,7 +91,7 @@ class PriceSource(ABC):
         pass
     
     @abstractmethod
-    def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
+    async def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
         Get current spot price for a pair.
         
@@ -104,6 +104,10 @@ class PriceSource(ABC):
         Returns:
             SpotPrice object or None if unavailable
         """
+        pass
+    
+    async def close(self):
+        """Cleanup async resources (e.g. HTTP clients)."""
         pass
     
     def get_fee_pct(self) -> float:
