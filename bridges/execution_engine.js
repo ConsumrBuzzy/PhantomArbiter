@@ -60625,6 +60625,14 @@ var ExecutionEngine = class {
     this.connection = new import_web321.Connection(RPC_URL, "confirmed");
   }
   /**
+   * Update connection if a custom RPC URL is provided
+   */
+  setConnection(rpcUrl) {
+    if (rpcUrl && rpcUrl !== this.connection.rpcEndpoint) {
+      this.connection = new import_web321.Connection(rpcUrl, "confirmed");
+    }
+  }
+  /**
    * Initialize wallet from private key
    */
   setWallet(privateKey) {
@@ -61067,9 +61075,11 @@ async function main() {
         let result2;
         switch (cmd2.command) {
           case "health":
+            engine.setConnection(cmd2.rpcUrl);
             result2 = await engine.healthCheck();
             break;
           case "quote":
+            engine.setConnection(cmd2.rpcUrl);
             if (!cmd2.legs || cmd2.legs.length === 0) {
               result2 = { success: false, command: "quote", error: "No legs provided", timestamp };
             } else {
@@ -61077,6 +61087,7 @@ async function main() {
             }
             break;
           case "simulate":
+            engine.setConnection(cmd2.rpcUrl);
             if (!cmd2.privateKey) {
               result2 = { success: false, command: "simulate", error: "No private key provided", timestamp };
             } else if (!cmd2.legs || cmd2.legs.length === 0) {
@@ -61093,6 +61104,7 @@ async function main() {
             }
             break;
           case "swap":
+            engine.setConnection(cmd2.rpcUrl);
             if (!cmd2.privateKey) {
               result2 = { success: false, command: "swap", error: "No private key provided", timestamp };
             } else if (!cmd2.legs || cmd2.legs.length === 0) {
