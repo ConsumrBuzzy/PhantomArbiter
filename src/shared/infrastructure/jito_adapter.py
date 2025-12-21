@@ -41,7 +41,7 @@ class JitoAdapter:
     }
     
     TIP_CACHE_TTL = 300
-    REQUEST_TIMEOUT = 5
+    REQUEST_TIMEOUT = 10
     RATE_LIMIT_COOLDOWN = 5
     
     def __init__(self, region: str = "ny"):
@@ -56,7 +56,6 @@ class JitoAdapter:
         self._tip_accounts = []
         self._tip_accounts_fetched = 0
         self._bundles_submitted = 0
-        self._bundles_landed = 0
         self._bundles_landed = 0
         self._rate_limited_until = 0
         
