@@ -179,8 +179,14 @@ class AdaptiveScanner:
         def get_priority(pair_tuple: tuple) -> int:
             pair_name = pair_tuple[0]
             metrics = self.pair_metrics.get(pair_name)
+            
             if not metrics:
-                return 4  # Unknown - lowest priority
+                return 0  # Unknown = Top Priority (Must Discover!)
+            
+            # Starvation Guard: If not scanned in >60s, force high priority
+            if now - metrics.last_scan_time > 60:
+                return 0
+                
             return status_priority.get(metrics.last_status, 3)
         
         return sorted(scannable, key=get_priority)

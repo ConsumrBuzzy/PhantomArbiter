@@ -217,13 +217,15 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
         print(f"   🔀 Smart Pod Rotation: ENABLED")
     print(f"   📊 Risk Tier: {args.risk_tier.upper()} ({len(selected_pairs)} pairs)")
     
-    # Pool discovery on startup
-    if getattr(args, 'pool_scan', False):
-        print(f"   🔍 Running pool discovery...")
+    # Pool discovery on startup (Force by default to ensure Daemons work)
+    # Only skip if --no-pool-scan is passed? User didn't ask for that flag.
+    # We'll just run it unless user explicitly passed --quick-start
+    if not getattr(args, 'quick_start', False):
+        print(f"   🔍 Pre-warming Pool Index (Required for Daemons)...")
         from src.shared.execution.pool_scanner import PoolScanner
         scanner = PoolScanner()
         count = await scanner.discover_all()
-        print(f"   ✅ Discovered {count} Meteora/Orca pools")
+        print(f"   ✅ Discovered {count} pools. Daemons Ready.")
     
     # Landlord (Drift hedging) initialization
     landlord = None
