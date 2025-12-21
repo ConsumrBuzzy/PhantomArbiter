@@ -235,6 +235,10 @@ class JitoAdapter:
             bundle_id = response.get("result")
             if bundle_id:
                 print(f"   🚀 [JITO] Bundle submitted: {bundle_id[:16]}...")
+                # V120: Post-trade cooldown to prevent rate limit hammering
+                # Set a 10s cooldown after successful bundle to let Jito recover
+                self._rate_limited_until = time.time() + 10
+                print(f"   ⏳ [JITO] Post-trade cooldown: 10s")
                 return bundle_id
                 
             error = response.get("error", {})
@@ -258,6 +262,51 @@ class JitoAdapter:
         if response and isinstance(response, dict):
             return response.get("result")
         return None
+    
+    def wait_for_confirmation(self, bundle_id: str, timeout: float = 30.0) -> bool:
+        """
+        V120: Wait for bundle to be confirmed on-chain.
+        
+        Polls bundle status until confirmed or timeout.
+        
+        Args:
+            bundle_id: UUID from submit_bundle()
+            timeout: Max seconds to wait
+            
+        Returns:
+            True if bundle landed, False if not confirmed
+        """
+        start = time.time()
+        poll_interval = 2.0
+        
+        while time.time() - start < timeout:
+            try:
+                status = self.get_bundle_status(bundle_id)
+                
+                if status:
+                    # Check for landed status
+                    values = status.get("value", [])
+                    if values:
+                        bundle_status = values[0] if isinstance(values, list) else values
+                        state = bundle_status.get("status", "")
+                        
+                        if state == "Landed":
+                            self._bundles_landed += 1
+                            print(f"   ✅ [JITO] Bundle LANDED: {bundle_id[:16]}...")
+                            return True
+                        elif state in ("Invalid", "Failed"):
+                            print(f"   ❌ [JITO] Bundle FAILED: {state}")
+                            return False
+                        else:
+                            print(f"   ⏳ [JITO] Bundle status: {state}")
+                
+            except Exception as e:
+                print(f"   ⚠️ [JITO] Status check error: {e}")
+            
+            time.sleep(poll_interval)
+        
+        print(f"   ⚠️ [JITO] Bundle confirmation timeout ({timeout}s)")
+        return False
 
 
 # ═══════════════════════════════════════════════════════════════════
