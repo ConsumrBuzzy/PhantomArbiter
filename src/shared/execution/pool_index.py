@@ -60,7 +60,8 @@ class PoolPair:
     pair: str  # e.g., "SOL/USDC"
     meteora_pool: Optional[str] = None
     orca_pool: Optional[str] = None
-    raydium_clmm_pool: Optional[str] = None  # Raydium CLMM pool
+    raydium_clmm_pool: Optional[str] = None  # Raydium CLMM pool (V3)
+    raydium_standard_pool: Optional[str] = None  # Raydium Standard AMM (V4)
     preferred_dex: Optional[str] = None  # Based on performance
     meteora_success_rate: float = 0.0
     orca_success_rate: float = 0.0
@@ -178,6 +179,7 @@ class PoolIndex:
         meteora_pool = None
         orca_pool = None
         raydium_clmm_pool = None
+        raydium_standard_pool = None
         
         # Try to resolve mints if missing (needed for Raydium discovery)
         if not mint_a: mint_a = self._resolve_mint(token_a)
@@ -206,11 +208,21 @@ class PoolIndex:
                 bridge = RaydiumBridge()
                 result = bridge.discover_pool(mint_a, mint_b)
                 if result and result.get('success'):
-                    raydium_clmm_pool = result.get('poolId')
+                    pool_type = result.get('type', 'unknown')
+                    pool_id = result.get('poolId')
+                    
+                    if pool_type == 'clmm':
+                        raydium_clmm_pool = pool_id
+                    elif pool_type == 'standard':
+                        raydium_standard_pool = pool_id
+                    else:
+                        # Fallback heuristic: assume CLMM if unknown? Or standard?
+                        # Let's check programId if available, or just try to assign
+                        pass
             except Exception as e:
                 Logger.debug(f"Raydium CLMM lookup failed for {pair_name}: {e}")
         
-        if not meteora_pool and not orca_pool and not raydium_clmm_pool:
+        if not meteora_pool and not orca_pool and not raydium_clmm_pool and not raydium_standard_pool:
             return None
         
         pool_pair = PoolPair(
@@ -218,6 +230,7 @@ class PoolIndex:
             meteora_pool=meteora_pool,
             orca_pool=orca_pool,
             raydium_clmm_pool=raydium_clmm_pool,
+            raydium_standard_pool=raydium_standard_pool,
         )
         
         # Cache
@@ -226,7 +239,7 @@ class PoolIndex:
         # Persist to DB
         self._save_pool_to_db(pool_pair)
         
-        Logger.debug(f"[POOL] Discovered {pair_name}: M={meteora_pool is not None}, O={orca_pool is not None}, R={raydium_clmm_pool is not None}")
+        Logger.debug(f"[POOL] Discovered {pair_name}: M={meteora_pool is not None}, O={orca_pool is not None}, R={raydium_clmm_pool or raydium_standard_pool is not None}")
         return pool_pair
     
     def record_execution(
@@ -340,6 +353,7 @@ class PoolIndex:
                             meteora_pool=row['meteora_pool'],
                             orca_pool=row['orca_pool'],
                             raydium_clmm_pool=row['raydium_clmm_pool'] if 'raydium_clmm_pool' in row.keys() else None,
+                            raydium_standard_pool=row['raydium_standard_pool'] if 'raydium_standard_pool' in row.keys() else None,
                             preferred_dex=row['preferred_dex'],
                         )
                     
@@ -354,13 +368,14 @@ class PoolIndex:
                 with db_manager.cursor(commit=True) as c:
                     c.execute("""
                         INSERT OR REPLACE INTO pool_index 
-                        (pair, meteora_pool, orca_pool, raydium_clmm_pool, preferred_dex, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        (pair, meteora_pool, orca_pool, raydium_clmm_pool, raydium_standard_pool, preferred_dex, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
                         pool_pair.pair,
                         pool_pair.meteora_pool,
                         pool_pair.orca_pool,
                         pool_pair.raydium_clmm_pool,
+                        pool_pair.raydium_standard_pool,
                         pool_pair.preferred_dex,
                         time.time()
                     ))
@@ -371,7 +386,7 @@ class PoolIndex:
         """Get index statistics."""
         meteora_count = sum(1 for p in self._pool_cache.values() if p.meteora_pool)
         orca_count = sum(1 for p in self._pool_cache.values() if p.orca_pool)
-        raydium_count = sum(1 for p in self._pool_cache.values() if p.raydium_clmm_pool)
+        raydium_count = sum(1 for p in self._pool_cache.values() if p.raydium_clmm_pool or p.raydium_standard_pool)
         both_count = sum(1 for p in self._pool_cache.values() if p.meteora_pool and p.orca_pool)
         
         return {
@@ -401,12 +416,12 @@ class PoolIndex:
         buy_ok = (
             (buy_dex == "meteora" and pools.meteora_pool) or 
             (buy_dex == "orca" and pools.orca_pool) or
-            (buy_dex == "raydium" and pools.raydium_clmm_pool)
+            (buy_dex == "raydium" and (pools.raydium_clmm_pool or pools.raydium_standard_pool))
         )
         sell_ok = (
             (sell_dex == "meteora" and pools.meteora_pool) or 
             (sell_dex == "orca" and pools.orca_pool) or
-            (sell_dex == "raydium" and pools.raydium_clmm_pool)
+            (sell_dex == "raydium" and (pools.raydium_clmm_pool or pools.raydium_standard_pool))
         )
         
         return buy_ok or sell_ok
