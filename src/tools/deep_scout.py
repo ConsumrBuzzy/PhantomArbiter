@@ -55,6 +55,26 @@ class DeepScout:
                 
         Logger.info(f"✅ [SCOUT] Registered {count} pools across target assets.")
 
+    def harvest_global_trending(self, min_vol=50000):
+        """V117: Find high-volume pools across the entire network."""
+        Logger.info(f"🌐 [SCOUT] Scanning global network for volume spikes (>${min_vol})...")
+        try:
+            url = "https://api.dexscreener.com/latest/dex/search?q=solana"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                mints = []
+                for p in data.get("pairs", [])[:500]: # Deep scan top 500
+                    vol = float(p.get("volume", {}).get("h24", 0) or 0)
+                    if vol >= min_vol:
+                        mint = p.get("baseToken", {}).get("address")
+                        if mint: mints.append(mint)
+                
+                if mints:
+                    self.harvest_pools(list(set(mints)))
+        except Exception as e:
+            Logger.debug(f"Global harvest failed: {e}")
+
     def harvest_alpha(self, token_mint: str):
         """Scrape Recent Profitable Wallets (Smart Money)."""
         Logger.info(f"🕵️ [SCOUT] Scouting Alpha Wallets for {token_mint[:8]}...")
@@ -78,14 +98,16 @@ class DeepScout:
             self.harvest_alpha(t)
         
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="DeepScout V116")
-    parser.add_argument("--mode", choices=["pools", "alpha", "full"], default="full")
+    parser = argparse.ArgumentParser(description="DeepScout V117")
+    parser.add_argument("--mode", choices=["pools", "alpha", "full", "global"], default="full")
     parser.add_argument("--token", help="Specific token mint for targeted scouting")
     args = parser.parse_args()
     
     scout = DeepScout()
     if args.mode == "full":
         scout.run_full_sync()
+    elif args.mode == "global":
+        scout.harvest_global_trending()
     elif args.mode == "pools":
         targets = [args.token] if args.token else list(Settings.ASSETS.values())
         scout.harvest_pools(targets)
