@@ -584,9 +584,24 @@ class ArbitrageExecutor:
             tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
             tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
             
+            tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
+            tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
+            
+            # V123: PRE-FLIGHT SIMULATION
+            # Simulate bundle first to catch 'Invalid' errors early
+            tx_bundle = [buy_b58, sell_b58, tip_b58]
+            Logger.info("[EXEC] �️ Simulating bundle execution...")
+            sim_result = self.jito.simulate_bundle(tx_bundle)
+            
+            if not sim_result.get("success"):
+                err_msg = sim_result.get("error", "Unknown simulation error")
+                Logger.warning(f"[EXEC] 🛑 Simulation Failed: {err_msg} - Aborting bundle")
+                return {"success": False, "error": f"Simulation failed: {err_msg}", "legs": [], "should_fallback": False}
+            
+            Logger.info("[EXEC] ✅ Simulation passed! Submitting bundle...")
+            
             # Submit bundle with tip tx included
-            Logger.info("[EXEC] 🚀 Submitting Jito bundle (buy + sell + tip)...")
-            bundle_id = self.jito.submit_bundle([buy_b58, sell_b58, tip_b58])
+            bundle_id = self.jito.submit_bundle(tx_bundle)
             
             if not bundle_id:
                 Logger.warning("[EXEC] ⚠️ Jito submission failed - Triggering fallback")
