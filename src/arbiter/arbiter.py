@@ -24,6 +24,7 @@ from src.shared.system.logging import Logger
 from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
 from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
+from src.arbiter.core.triangular_scanner import TriangularScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 from src.shared.infrastructure.jito_adapter import JitoAdapter
 from src.arbiter.core.trade_engine import TradeEngine
@@ -97,6 +98,7 @@ class PhantomArbiter:
         
         # Components (lazy-loaded)
         self._detector: Optional[SpreadDetector] = None
+        self._triangular_scanner: Optional[TriangularScanner] = None
         self._executor: Optional[ArbitrageExecutor] = None
         
         # Telegram Manager
