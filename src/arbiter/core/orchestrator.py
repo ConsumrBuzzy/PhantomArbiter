@@ -112,8 +112,8 @@ class ArbitrageOrchestrator:
             if cycles:
                 for cyc in cycles:
                     Logger.info(f"📐 [V115] TRIANGULAR ARB: {' -> '.join(cyc.route_tokens)} | Net: ${cyc.net_profit_usd:.2f}")
-                    # Execution Logic (Skeleton):
-                    # await self._executor.execute_triangular_arb(cyc)
+                    # Execution Logic (Live):
+                    await self._executor.execute_triangular_arb(cyc)
         except Exception as e:
             # Don't let new scanner crash the main loop
             Logger.debug(f"Triangular scan error: {e}")
