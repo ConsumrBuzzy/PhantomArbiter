@@ -157,7 +157,18 @@ class TradeEngine:
         
         # ═══ FALLBACK: Use Jupiter via ArbitrageExecutor ═══
         if result is None:
-            result = await self.executor.execute_spatial_arb(opportunity, trade_size)
+            # 🗳️ V128.1: Elite Vote Gatekeeper
+            # Ensure we don't use PublicRPC for Jito simulations
+            from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
+            balancer = get_rpc_balancer()
+            rpc_winner = balancer.get_winner()
+            
+            simulation_rpc = rpc_winner
+            if rpc_winner and "public" in rpc_winner.name.lower():
+                simulation_rpc = balancer.get_secondary_leader(exclude="public")
+                Logger.info(f" 🗳️ [V128.1] PublicRPC won latency, but shifting simulation to {simulation_rpc.name}")
+            
+            result = await self.executor.execute_spatial_arb(opportunity, trade_size, rpc=simulation_rpc)
         
         # Process Final Result
         if result.success:
