@@ -3,7 +3,11 @@ import os
 import sys
 import requests
 import time
+import urllib3
 from typing import List, Dict
+
+# Suppress insecure request warnings for CLI environment
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Add project root to path so 'src' can be imported
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -13,6 +17,9 @@ from config.settings import Settings
 
 # Force disable silent mode for CLI tool feedback
 Settings.SILENT_MODE = False
+Logger.set_silent(False)
+
+print(f"DEBUG: DeepScout loaded. Silent Mode: {Settings.SILENT_MODE}")
 
 class DeepScout:
     """
@@ -34,8 +41,8 @@ class DeepScout:
         count = 0
         for mint in token_mints:
             try:
-                # DexScreener is faster for pool discovery than Jupiter indexing
-                resp = requests.get(f"{self.dexscreener_url}{mint}", timeout=10)
+                # V117.3: Added explicit timeout and SSL ignore for problematic environments
+                resp = requests.get(f"{self.dexscreener_url}{mint}", timeout=15, verify=False)
                 if resp.status_code == 200:
                     data = resp.json()
                     pairs = data.get("pairs", [])
@@ -66,7 +73,8 @@ class DeepScout:
         Logger.info(f"🌐 [SCOUT] Scanning global network for volume spikes (>${min_vol})...")
         try:
             url = "https://api.dexscreener.com/latest/dex/search?q=solana"
-            resp = requests.get(url, timeout=10)
+            Logger.info(f"📡 [SCOUT] Connecting to {url}...")
+            resp = requests.get(url, timeout=15, verify=False)
             if resp.status_code == 200:
                 data = resp.json()
                 mints = []

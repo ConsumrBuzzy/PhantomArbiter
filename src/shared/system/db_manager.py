@@ -373,6 +373,19 @@ class DBManager:
             )
             """)
 
+            # Migration: V117 Add columns to target_wallets if they exist from V116
+            try:
+                c.execute("SELECT success_count FROM target_wallets LIMIT 1")
+            except:
+                try:
+                    c.execute("ALTER TABLE target_wallets ADD COLUMN success_count INTEGER DEFAULT 0")
+                    c.execute("ALTER TABLE target_wallets ADD COLUMN total_trades INTEGER DEFAULT 0")
+                    c.execute("ALTER TABLE target_wallets ADD COLUMN total_pnl_usd REAL DEFAULT 0")
+                    c.execute("ALTER TABLE target_wallets ADD COLUMN updated_at REAL")
+                    Logger.info("📦 [DB] Migrated target_wallets table: added performance tracking columns")
+                except:
+                    pass
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
