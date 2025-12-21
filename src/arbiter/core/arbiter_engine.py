@@ -132,6 +132,7 @@ class ArbiterEngine:
                 verified_opps = await self._verify_top_candidates(opportunities, trade_size, last_trade_time, cooldown)
                 
                 # 5. DASHBOARD
+                stats = self.tracker.get_stats()
                 self.arbiter.reporter.print_dashboard(
                     spreads=all_spreads,
                     verified_opps=verified_opps,
@@ -139,8 +140,16 @@ class ArbiterEngine:
                     balance=self.tracker.current_balance,
                     gas=self.tracker.gas_balance,
                     daily_profit=self.tracker.total_profit,
-                    total_trades=self.tracker.total_trades
+                    total_trades=self.tracker.total_trades,
+                    volume=self.tracker.tracker.daily_volume,
+                    turnover=self.tracker.tracker.turnover_ratio
                 )
+
+                # Update Pod Manager state for rotation
+                found_opp = len(opportunities) > 0
+                for pod in active_pod_names:
+                    # Logic: If pod was scanned and no top-tier opps found, penalize slightly to rotate
+                    pod_manager.report_result(pod, found_opp, executed=False, success=False)
 
                 # 6. EXECUTION PATHS (Fast vs Normal)
                 executed_this_cycle = await self._process_executions(opportunities, verified_opps, trade_size, last_trade_time, cooldown)
@@ -303,6 +312,10 @@ class ArbiterEngine:
                     'success': True
                 })
                 
+                # Report success to pod manager
+                for pod in pod_manager.get_pods_for_pair(best_fast.pair):
+                    pod_manager.report_result(pod, True, executed=True, success=True)
+                
                 print(DashboardFormatter.format_trade_announcement(trade, self.tracker.current_balance))
                 return True
             else:
@@ -336,6 +349,10 @@ class ArbiterEngine:
                     trade_size=exec_size
                 )
                 last_trade_time[best.pair] = time.time()
+                # Report success to pod manager
+                for pod in pod_manager.get_pods_for_pair(best.pair):
+                    pod_manager.report_result(pod, True, executed=True, success=True)
+                    
                 print(DashboardFormatter.format_trade_announcement(trade, self.tracker.current_balance))
                 return True
             else:

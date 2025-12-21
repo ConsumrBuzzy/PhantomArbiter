@@ -30,6 +30,8 @@ class ArbiterReporter:
                         gas: float,
                         daily_profit: float,
                         total_trades: int = 0,
+                        volume: float = 0,
+                        turnover: float = 0,
                         verified_opps: List[SpreadOpportunity] = None, 
                         pod_names: List[str] = None):
         """Print the market dashboard."""
@@ -41,7 +43,9 @@ class ArbiterReporter:
             gas=gas, 
             daily_profit=daily_profit,
             pod_names=pod_names,
-            trades=total_trades
+            trades=total_trades,
+            volume=volume,
+            turnover=turnover
         ))
         
         # Merge verified status for rows
