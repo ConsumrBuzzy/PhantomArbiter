@@ -131,14 +131,15 @@ class JitoAdapter:
             Logger.debug("[JITO] is_available() -> False (No tip accounts)")
         return len(accounts) > 0
 
-    async def submit_bundle(self, serialized_transactions: List[str], simulate: bool = True) -> Optional[str]:
+    async def submit_bundle(self, serialized_transactions: List[str], simulate: bool = True, rpc: Any = None) -> Optional[str]:
         """
         V128: Mandatory simulation check before burning the rate-limit.
+        V128.1: Pass simulation RPC.
         """
         if not serialized_transactions: return None
         
         if simulate:
-            sim = await self.simulate_bundle(serialized_transactions)
+            sim = await self.simulate_bundle(serialized_transactions, rpc=rpc)
             if not sim["success"]:
                 Logger.warning(f"   ❌ [JITO] Submission Aborted: Simulation failed ({sim.get('error')})")
                 return None
