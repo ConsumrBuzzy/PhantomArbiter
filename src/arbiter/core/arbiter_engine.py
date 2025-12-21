@@ -138,7 +138,8 @@ class ArbiterEngine:
                     pod_names=active_pod_names,
                     balance=self.tracker.current_balance,
                     gas=self.tracker.gas_balance,
-                    daily_profit=self.tracker.total_profit
+                    daily_profit=self.tracker.total_profit,
+                    total_trades=self.tracker.total_trades
                 )
 
                 # 6. EXECUTION PATHS (Fast vs Normal)

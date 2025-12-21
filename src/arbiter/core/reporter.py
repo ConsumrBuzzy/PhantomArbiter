@@ -35,7 +35,13 @@ class ArbiterReporter:
         from src.arbiter.ui.dashboard_formatter import DashboardFormatter
         
         # 1. Terminal Output
-        print(DashboardFormatter.format_terminal_header(balance, gas, daily_profit))
+        print(DashboardFormatter.format_terminal_header(
+            balance=balance, 
+            gas=gas, 
+            daily_profit=daily_profit,
+            pod_names=pod_names,
+            trades=getattr(self, 'total_trades', 0) # Fallback if not injected
+        ))
         
         # Merge verified status for rows
         verified_map = {op.pair: op for op in (verified_opps or [])}
