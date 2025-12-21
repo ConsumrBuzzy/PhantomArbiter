@@ -106,6 +106,10 @@ class AdaptiveScanner:
         self.pair_metrics: Dict[str, PairMetrics] = {}
         self.warming_until: Dict[str, float] = {} # V102: pair -> unix timestamp
 
+        # V120: 1-hour blacklist for consistently low-spread pairs
+        self.blacklisted_until: Dict[str, float] = {}  # pair -> unix timestamp
+        self.BLACKLIST_DURATION = 3600  # 1 hour
+        self.BLACKLIST_THRESHOLD_PCT = 0.4  # Blacklist pairs with avg spread < 0.4%
         
         # Learning-based promotion/demotion
         self.promoted_pairs: set = set()   # High-variance pairs → scan faster
