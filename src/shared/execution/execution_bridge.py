@@ -237,6 +237,9 @@ class ExecutionBridge:
         
         if priority_fee is not None:
             command["priorityFee"] = priority_fee
+            
+        if rpc_url:
+            command["rpcUrl"] = rpc_url
         
         data = self._run_engine(command)
         result = self._parse_result(data)
