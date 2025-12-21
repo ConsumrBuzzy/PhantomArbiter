@@ -37,6 +37,10 @@ class DeepScout:
         
         USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         SOL = "So11111111111111111111111111111111111111112"
+        USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        
+        # All common quote addresses
+        CITADEL_TOKENS = {USDC, SOL, USDT}
         
         count = 0
         for mint in token_mints:
@@ -50,25 +54,34 @@ class DeepScout:
                         if p.get("chainId") == "solana":
                             # Register pool in DB
                             # V116 Note: This uses the existing registry schema
-                            dex = p.get("dexId", "").upper()
+                            # V117.4: Robust DEX Mapping
+                            # DexScreener uses IDs like 'raydium-clmm' or 'meteora-dlmm'
+                            raw_dex = p.get("dexId", "").lower()
+                            mapped_dex = None
+                            if "raydium" in raw_dex: mapped_dex = "RAYDIUM"
+                            elif "orca" in raw_dex: mapped_dex = "ORCA"
+                            elif "meteora" in raw_dex: mapped_dex = "METEORA"
+                            elif "jupiter" in raw_dex: mapped_dex = "JUPITER"
+                            
                             pool_addr = p.get("pairAddress")
                             quote_token = p.get("quoteToken", {}).get("address")
                             
-                            # Only care about USDC/SOL routes for now
-                            if quote_token in [USDC, SOL]:
+                            # Only care about major DEXs and stable/SOL routes
+                            if mapped_dex and quote_token in CITADEL_TOKENS:
                                 db_manager.register_pool(
                                     mint=mint,
-                                    dex=dex,
+                                    dex=mapped_dex,
                                     symbol=p.get("baseToken", {}).get("symbol", "UNK")
                                 )
                                 count += 1
+                                Logger.debug(f"[SCOUT] Linked {mint[:8]} to {mapped_dex} pool {pool_addr[:8]}")
                 time.sleep(0.5) # Rate limit protection
             except Exception as e:
                 Logger.debug(f"Failed to harvest pools for {mint}: {e}")
                 
         Logger.info(f"✅ [SCOUT] Registered {count} pools across target assets.")
 
-    def harvest_global_trending(self, min_vol=50000):
+    def harvest_global_trending(self, min_vol=10000):
         """V117: Find high-volume pools across the entire network."""
         Logger.info(f"🌐 [SCOUT] Scanning global network for volume spikes (>${min_vol})...")
         try:
@@ -84,7 +97,10 @@ class DeepScout:
                     vol = float(p.get("volume", {}).get("h24", 0) or 0)
                     if vol >= min_vol:
                         mint = p.get("baseToken", {}).get("address")
-                        if mint: mints.append(mint)
+                        symbol = p.get("baseToken", {}).get("symbol", "UNK")
+                        if mint: 
+                            mints.append(mint)
+                            Logger.debug(f"[SCOUT] Target Found: {symbol} (Vol: ${vol:,.0f})")
                 
                 if mints:
                     self.harvest_pools(list(set(mints)))
