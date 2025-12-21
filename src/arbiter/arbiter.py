@@ -251,6 +251,8 @@ class PhantomArbiter:
                 OrcaFeed(use_on_chain=False),
                 MeteoraFeed(),  # NEW: Meteora DLMM pools
             ])
+            # Shared feeds for triangular scanner
+            self._triangular_scanner = TriangularScanner(feeds=self._detector.feeds)
         return self._detector
     
     async def scan_opportunities(
