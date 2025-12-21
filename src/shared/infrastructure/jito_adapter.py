@@ -71,12 +71,10 @@ class JitoAdapter:
         self.api_url = self._endpoints[self._current_endpoint_idx]
         Logger.info(f"   🔄 [JITO] Rotating endpoint to: {self.api_url.split('//')[1].split('.')[0]}...")
 
-    async def _rpc_call(self, method: str, params: list = None, max_retries: int = 5) -> Optional[Dict]:
+    async def _rpc_call(self, method: str, params: list = None, max_retries: int = 10) -> Optional[Dict]:
         if time.time() < self._rate_limited_until:
             return None
             
-        payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
-        
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         
         # V128: Use persistent client
@@ -89,21 +87,21 @@ class JitoAdapter:
                 elif response.status_code == 429:
                     Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url}")
                     self._rotate_endpoint()
-                    # Use asyncio.sleep for non-blocking wait
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(1.0) # Jitter for failover
                     continue
                 else:
                     Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
                     self._rotate_endpoint()
+                    await asyncio.sleep(0.5)
                     continue
                         
             except Exception as e:
-                Logger.debug(f"   ⚠️ [JITO] RPC Error: {e}")
+                Logger.debug(f"   ⚠️ [JITO] RPC Error on {self.api_url}: {e}")
                 self._rotate_endpoint()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1.0)
         
         self._rate_limited_until = time.time() + self.RATE_LIMIT_COOLDOWN
-        Logger.warning(f"   ❌ [JITO] All regions failed. Cooldown {self.RATE_LIMIT_COOLDOWN}s")
+        Logger.warning(f"   ❌ [JITO] All regions failed for method '{method}'. Cooldown {self.RATE_LIMIT_COOLDOWN}s")
         return None
 
     async def get_tip_accounts(self, force_refresh: bool = False) -> List[str]:
@@ -133,11 +131,18 @@ class JitoAdapter:
             Logger.debug("[JITO] is_available() -> False (No tip accounts)")
         return len(accounts) > 0
 
-    async def submit_bundle(self, serialized_transactions: List[str]) -> Optional[str]:
+    async def submit_bundle(self, serialized_transactions: List[str], simulate: bool = True) -> Optional[str]:
+        """
+        V128: Mandatory simulation check before burning the rate-limit.
+        """
         if not serialized_transactions: return None
         
-        # Note: Tip account logic handled by caller consuming get_random_tip_account
-        
+        if simulate:
+            sim = await self.simulate_bundle(serialized_transactions)
+            if not sim["success"]:
+                Logger.warning(f"   ❌ [JITO] Submission Aborted: Simulation failed ({sim.get('error')})")
+                return None
+
         response = await self._rpc_call("sendBundle", [serialized_transactions])
         self._bundles_submitted += 1
         
@@ -153,17 +158,36 @@ class JitoAdapter:
         return None
 
     async def simulate_bundle(self, serialized_transactions: List[str]) -> Dict:
-        # V123 Safety: Simulate before send
-        response = await self._rpc_call("simulateBundle", [{"encodedTransactions": serialized_transactions}])
-        if response and isinstance(response, dict):
-            result = response.get("result", {}).get("value", {})
-            err = result.get("err")
-            logs = result.get("logs", [])
-            if err:
-                Logger.warning(f"   🛑 [JITO] Simulation Failed: {err}")
-                return {"success": False, "error": str(err), "logs": logs}
-            return {"success": True, "error": None, "logs": logs}
-        return {"success": False, "error": "RPC failed", "logs": []}
+        """
+        V128 Hardening: Uses skipSigVerify and replaceRecentBlockhash 
+        to prevent 'RPC failed' when the blockhash is slightly stale.
+        """
+        simulation_config = {
+            "encodedTransactions": serialized_transactions,
+            "skipSigVerify": True,          # Prevents failure if sigs aren't propagated
+            "replaceRecentBlockhash": True  # Uses Jito's current bank hash
+        }
+        
+        response = await self._rpc_call("simulateBundle", [simulation_config])
+        if response and "result" in response:
+            value = response["result"].get("value", {})
+            summary = value.get("summary")
+            
+            # Jito 2025 Summary check
+            if summary == "succeeded":
+                return {"success": True, "unitsConsumed": value.get("unitsConsumed"), "logs": value.get("logs", [])}
+            
+            # Handle specific failure cases
+            failed_reason = value.get("summary", {}).get("failed", "Unknown")
+            # Also check for standard err if summary is missing
+            err = value.get("err")
+            if err and not failed_reason:
+                failed_reason = err
+
+            Logger.warning(f"   🛑 [JITO] Simulation Rejected: {failed_reason}")
+            return {"success": False, "error": str(failed_reason), "logs": value.get("logs", [])}
+            
+        return {"success": False, "error": "RPC failed - Potential 429 or Block Engine Lag", "logs": []}
 
     async def get_bundle_status(self, bundle_id: str) -> Optional[Dict]:
         response = await self._rpc_call("getInflightBundleStatuses", [[bundle_id]])
