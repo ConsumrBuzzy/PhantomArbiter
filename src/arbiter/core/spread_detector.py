@@ -42,6 +42,10 @@ class SpreadOpportunity:
     verification_status: Optional[str] = None
     trigger_wallet: Optional[str] = None
     
+    # V128.7: Standardized Quote Storage (Prevents AttributeError)
+    buy_quote: Optional[Dict] = None
+    sell_quote: Optional[Dict] = None
+    
     def calculate_optimal_size(self, impact_factor: float, min_size: float = 10.0, max_size: float = 1000.0) -> float:
         """
         Calculate optimal trade size using calculus.
