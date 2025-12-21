@@ -29,6 +29,7 @@ class ArbiterReporter:
                         balance: float,
                         gas: float,
                         daily_profit: float,
+                        total_trades: int = 0,
                         verified_opps: List[SpreadOpportunity] = None, 
                         pod_names: List[str] = None):
         """Print the market dashboard."""
@@ -40,7 +41,7 @@ class ArbiterReporter:
             gas=gas, 
             daily_profit=daily_profit,
             pod_names=pod_names,
-            trades=getattr(self, 'total_trades', 0) # Fallback if not injected
+            trades=total_trades
         ))
         
         # Merge verified status for rows
