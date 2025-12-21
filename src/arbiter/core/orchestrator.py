@@ -129,8 +129,11 @@ class ArbitrageOrchestrator:
             
             # BRIDGE: Token/SOL (Critical for Triangular Arb)
             # This creates the "Triangle" edges: USDC -> SOL -> Token -> USDC
+            # BRIDGE: Token/SOL (Critical for Triangular Arb)
+            # This creates the "Triangle" edges: USDC -> SOL -> Token -> USDC
             pairs.append((f"{symbol}/SOL", mint, SOL))
             
+        Logger.info(f"📊 Monitored Pairs: {len(pairs)} (Includes Bridges)")
         return pairs
 
     async def _tick(self):
