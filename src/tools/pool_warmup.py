@@ -91,10 +91,59 @@ def update_pool_registry(symbol: str, mint: str, routes: Dict[str, bool]):
 def warm_token(router: SmartRouter, symbol: str, mint: str) -> bool:
     """Warm a single token's pool routes."""
     routes = check_route(router, mint, symbol)
-    if routes["jupiter"]:
+    
+    # Fallback: If Jupiter fails, try DexScreener to verify token exists
+    if not routes["jupiter"]:
+        routes = check_dexscreener(mint, symbol)
+    
+    if routes["jupiter"] or routes.get("dexscreener"):
         update_pool_registry(symbol, mint, routes)
         return True
     return False
+
+
+def check_dexscreener(token_mint: str, symbol: str) -> Dict[str, bool]:
+    """Fallback: Check DexScreener for token info."""
+    import requests
+    
+    routes = {
+        "jupiter": False,
+        "raydium": False,
+        "orca": False,
+        "meteora": False,
+        "dexscreener": False
+    }
+    
+    try:
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{token_mint}"
+        resp = requests.get(url, timeout=10)
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            pairs = data.get("pairs", [])
+            
+            if pairs:
+                routes["dexscreener"] = True
+                
+                # Check which DEXes the token has pairs on
+                for pair in pairs:
+                    dex_id = pair.get("dexId", "").lower()
+                    
+                    if "raydium" in dex_id:
+                        routes["raydium"] = True
+                    elif "orca" in dex_id:
+                        routes["orca"] = True
+                    elif "meteora" in dex_id:
+                        routes["meteora"] = True
+                
+                print(f"  🔄 {symbol}: DexScreener fallback - Raydium:{routes['raydium']} Orca:{routes['orca']} Meteora:{routes['meteora']}")
+            else:
+                print(f"  ❌ {symbol}: No pairs on DexScreener")
+                
+    except Exception as e:
+        print(f"  ❌ {symbol}: DexScreener error - {e}")
+    
+    return routes
 
 
 def warm_all_watchlist():
