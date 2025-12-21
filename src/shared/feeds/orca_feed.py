@@ -41,6 +41,9 @@ class OrcaFeed(PriceSource):
         self._price_cache: Dict[str, dict] = {}
         self._cache_ttl = 3.0  # 3 second cache
         
+        # V126: Persistent HTTP Session
+        self.session = requests.Session()
+        
         # Lazy-load on-chain adapter and bridge
         self._orca_adapter = None
         self._bridge = None
@@ -213,7 +216,8 @@ class OrcaFeed(PriceSource):
         
         try:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
-            resp = requests.get(url, timeout=5)
+            # V126: Use persistent session
+            resp = self.session.get(url, timeout=5)
             
             if resp.status_code != 200:
                 return None
@@ -257,7 +261,8 @@ class OrcaFeed(PriceSource):
                 url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
                 
                 try:
-                    resp = requests.get(url, timeout=5)
+                    # V126: Use persistent session
+                    resp = self.session.get(url, timeout=5)
                     if resp.status_code == 200:
                         data = resp.json()
                         pairs = data.get('pairs', [])

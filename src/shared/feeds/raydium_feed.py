@@ -42,6 +42,8 @@ class RaydiumFeed(PriceSource):
     def __init__(self):
         self._price_cache: Dict[str, dict] = {}
         self._cache_ttl = 3.0  # 3 second cache
+        # V126: Persistent HTTP Session
+        self.session = requests.Session()
         self._pairs_cache: Optional[Dict] = None
         self._pairs_cache_time = 0.0
         self._bridge = None  # Lazy-loaded RaydiumBridge
