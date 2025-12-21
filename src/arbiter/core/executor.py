@@ -385,20 +385,23 @@ class ArbitrageExecutor:
                 # Spreads >1.5% have enough buffer to absorb decay - execute immediately
                 # Spreads 1.0-1.5% verify with quote (borderline, needs confirmation)
                 # Spreads <1.0% already rejected by scanner
-                SKIP_QUOTE_THRESHOLD = 0.015  # 1.5%
-                scan_spread_pct = opportunity.spread_pct if hasattr(opportunity, 'spread_pct') else 0
+                # V124: Jito Safety Floor ($0.15)
+                # We need a strict profit buffer to justify the risk of Jito failure/tips.
+                # Winning $0.02 is not worth the risk of an "Invalid" bundle or 429 lockout.
+                MIN_NET_PROFIT = 0.15
                 
                 if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
                     # Large spread - trust the scan, skip quote verification
                     Logger.info(f"[EXEC] 🚀 FAST PATH: Spread {scan_spread_pct*100:.2f}% >= 1.5%, skipping quote verification")
-                    # Still check for catastrophic loss (>50% of trade size)
                     if projected_profit_usd < -(trade_size * 0.5):
                         Logger.warning(f"[EXEC] ✋ Catastrophic loss detected: ${projected_profit_usd:.4f}")
                         return self._error_result(f"Catastrophic loss ${projected_profit_usd:.4f}", start_time)
-                elif projected_profit_usd <= 0:
-                    # Borderline spread - quote shows loss, abort
-                    Logger.warning(f"[EXEC] ✋ Phantom Arb Detected! Quote shows loss: ${projected_profit_usd:.4f}")
-                    return self._error_result(f"Phantom Arb: Quote loss ${projected_profit_usd:.4f}", start_time)
+                        
+                elif projected_profit_usd < MIN_NET_PROFIT:
+                    # Borderline spread - quote shows insufficient profit
+                    reason = "Loss" if projected_profit_usd <= 0 else "Low Yield"
+                    Logger.warning(f"[EXEC] ✋ {reason}: ${projected_profit_usd:.4f} < ${MIN_NET_PROFIT} floor")
+                    return self._error_result(f"Liquidity Floor: ${projected_profit_usd:.4f} < ${MIN_NET_PROFIT}", start_time)
                 
                 Logger.info(f"[EXEC] ✅ Quote verified: ${projected_profit_usd:+.4f} projected profit")
 
