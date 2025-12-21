@@ -20,12 +20,12 @@ if not api_key:
 REST_URL = "https://streaming.bitquery.io/graphql"
 QUERY = """
 query {
-  solana {
-    dexTrades(limit: {count: 1}) {
-      trade {
-        buy {
-          currency {
-            symbol
+  Solana {
+    DEXTrades(limit: {count: 1}) {
+      Trade {
+        Buy {
+          Currency {
+            Symbol
           }
         }
       }
