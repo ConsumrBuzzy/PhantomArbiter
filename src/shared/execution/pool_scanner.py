@@ -145,6 +145,35 @@ class PoolScanner:
                         self._save_to_db(pool)
                 except Exception as e:
                     Logger.debug(f"[SCANNER] Orca {pair_name}: {e}")
+                
+                # Try Raydium (CLMM + Standard) (V98)
+                try:
+                    from src.shared.execution.raydium_bridge import RaydiumBridge
+                    # Lazy init bridge if not exists?
+                    bridge = RaydiumBridge()
+                    res = bridge.discover_pool(mint, quote_mint)
+                    
+                    if res and res.get('success'):
+                        pool_id = res.get('poolId')
+                        pool_type = res.get('type')
+                        
+                        # We map it to "raydium_clmm" or "raydium_standard" dex
+                        # DiscoveredPool only has 'dex' string. We can use that.
+                        dex_name = "raydium_clmm" if pool_type == 'clmm' else "raydium_standard"
+                        
+                        pool = DiscoveredPool(
+                            pair=pair_name,
+                            dex=dex_name,
+                            pool_address=pool_id,
+                            base_mint=mint,
+                            quote_mint=quote_mint,
+                            liquidity=res.get('tvl', 0)
+                        )
+                        self._discovered[f"{pair_name}_{dex_name}"] = pool
+                        new_count += 1
+                        self._save_to_db(pool)
+                except Exception as e:
+                    Logger.debug(f"[SCANNER] Raydium {pair_name}: {e}")
         
         self._last_scan = time.time()
         Logger.info(f"[SCANNER] ✅ Discovered {new_count} pools")
