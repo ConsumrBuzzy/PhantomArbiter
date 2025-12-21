@@ -246,6 +246,17 @@ class AdaptiveScanner:
         
         return final
     
+    def flash_warm(self, pair: str, duration: int = 30) -> None:
+        """
+        V109: Force a pair into high-priority scan mode instantly.
+        Triggered by Whale Probes or external signals.
+        """
+        now = time.time()
+        self.warming_until[pair] = now + duration
+        # Also mark as active to wake up the main loop if needed
+        self.activity_detected[pair] = now
+        Logger.info(f"🔥 [SCAN] FLASH WARM: {pair} for {duration}s")
+        
     def update_pair(self, opp: SpreadOpportunity) -> None:
         """
         Update pair metrics after scanning.

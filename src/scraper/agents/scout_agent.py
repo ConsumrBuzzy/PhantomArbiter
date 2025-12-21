@@ -2,13 +2,14 @@
 import asyncio
 import time
 from typing import Dict, Optional, List
-from src.agents.base_agent import BaseAgent, AgentSignal
-from src.infrastructure.rpc_balancer import get_rpc_balancer
-from src.system.logging import Logger
+from src.scraper.agents.base_agent import BaseAgent, AgentSignal
+from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
+from src.shared.system.logging import Logger
 import os
 import json
 from config.settings import Settings
 from src.core.shared_cache import SharedPriceCache
+from src.scraper.agents.probe_analytic import ProbeAnalytic
 
 class ScoutAgent(BaseAgent):
     """
@@ -46,6 +47,9 @@ class ScoutAgent(BaseAgent):
         self.momentum_threshold = 0.02  # 2% move in window = signal
         self.pre_pump_signals: Dict[str, float] = {}  # {symbol: last_signal_time}
         self.signal_cooldown = 60  # Don't spam same token within 60s
+        
+        # V100: Probe Detection
+        self.probe_detector = ProbeAnalytic()
         
         Logger.info(f"[{self.name}] Agent Initialized (Watchlist: {len(self.watchlist)})")
 
@@ -112,17 +116,26 @@ class ScoutAgent(BaseAgent):
                     metadata={"momentum": momentum, "strategy": "MOMENTUM"}
                 )
         
-        # Classic OFI (if we have order book data)
-        ofi_score = self.calculate_ofi(market_data)
-        
-        if ofi_score > 5000:
-             return self._create_signal(
-                 symbol=symbol,
-                 action="BUY",
-                 confidence=0.8,
-                 reason=f"High Order Flow Imbalance (OFI: {ofi_score:.0f})",
-                 metadata={"ofi": ofi_score, "strategy": "MICROSTRUCTURE"}
-             )
+        # V100: Whale Probe Detection
+        # Check if the market data includes signer/signer-value (parsed from logs)
+        if 'signer' in market_data and 'usd_value' in market_data:
+            probe_status = self.probe_detector.analyze_tx(
+                market_data['signer'], 
+                market_data['usd_value']
+            )
+            
+            if probe_status == "PROBE_DETECTED":
+                return self._create_signal(
+                    symbol=symbol,
+                    action="ALERT",
+                    confidence=0.95,
+                    reason=f"WHALE_PROBE: Laddered buys detected on {symbol}",
+                    metadata={
+                        "strategy": "PROBE",
+                        "wallet": market_data['signer'],
+                        "type": "FLASH_WARM"
+                    }
+                )
              
         return None
     
