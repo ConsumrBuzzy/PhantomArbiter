@@ -159,6 +159,7 @@ class TriangularScanner:
         """Construct opportunity object with full fee calculation."""
         # Theoretical Gross (Spot Price)
         theoretical_end_amount = amount_in * p1 * p2 * p3
+        gross_profit = theoretical_end_amount - amount_in
         
         # 1. Apply Compound Slippage
         # (1 - s)^3 ~ 1 - 3s for small s
