@@ -309,7 +309,6 @@ class DBManager:
                     c.execute("ALTER TABLE pool_index ADD COLUMN raydium_clmm_pool TEXT")
                     Logger.info("📦 [DB] Migrated pool_index table: added raydium_clmm_pool column")
                 except:
-                except:
                     pass  # Column might already exist
             
             # Migration: Add raydium_standard_pool column if missing (V98)
