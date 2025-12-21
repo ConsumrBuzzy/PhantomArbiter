@@ -733,13 +733,17 @@ class ArbitrageExecutor:
             })
             
             if not sell_tx_data or 'swapTransaction' not in sell_tx_data:
-                Logger.error("[EXEC] ⚠️ SELL FAILED - Tokens may be stuck!")
-                return {"success": False, "error": "Failed to get sell tx (tokens stuck)", "legs": legs}
+                Logger.error("[EXEC] ⚠️ SELL FAILED - Triggering stuck token recovery!")
+                print("   ⚠️ SELL FAILED - Triggering stuck token guard...")
+                self._trigger_stuck_token_recovery(buy_quote.get('outputMint', ''))
+                return {"success": False, "error": "Failed to get sell tx (recovery triggered)", "legs": legs}
             
             sell_sig = await self._submit_standard_tx(sell_tx_data['swapTransaction'], rpc)
             if not sell_sig:
-                Logger.error("[EXEC] ⚠️ SELL SUBMISSION FAILED - Tokens may be stuck!")
-                return {"success": False, "error": "Sell tx submission failed (tokens stuck)", "legs": legs}
+                Logger.error("[EXEC] ⚠️ SELL SUBMISSION FAILED - Triggering stuck token recovery!")
+                print("   ⚠️ SELL SUBMISSION FAILED - Triggering stuck token guard...")
+                self._trigger_stuck_token_recovery(buy_quote.get('outputMint', ''))
+                return {"success": False, "error": "Sell tx submission failed (recovery triggered)", "legs": legs}
             
             print(f"   ✅ Sell submitted: {sell_sig[:16]}...")
             Logger.info(f"[EXEC] Sell submitted: {sell_sig[:16]}...")
@@ -760,6 +764,19 @@ class ArbitrageExecutor:
         except Exception as e:
             Logger.error(f"[EXEC] Sequential fallback error: {e}")
             return {"success": False, "error": str(e), "legs": legs}
+    
+    def _trigger_stuck_token_recovery(self, mint: str):
+        """V131: Trigger stuck token guard for immediate recovery."""
+        try:
+            if self.stuck_token_guard:
+                Logger.info(f"[EXEC] 🔄 Triggering stuck token recovery for {mint[:8]}...")
+                # Run check immediately (synchronous)
+                stuck_count = self.stuck_token_guard.run_check()
+                Logger.info(f"[EXEC] Stuck token check complete: {stuck_count} tokens processed")
+            else:
+                Logger.warning("[EXEC] No stuck token guard available - manual recovery may be needed")
+        except Exception as e:
+            Logger.error(f"[EXEC] Stuck token recovery error: {e}")
     
     async def _submit_standard_tx(self, b64_tx: str, rpc: Any = None) -> Optional[str]:
         """Submit a transaction via standard RPC (non-Jito)."""
