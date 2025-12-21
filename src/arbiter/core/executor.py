@@ -464,7 +464,10 @@ class ArbitrageExecutor:
                             # V120: Trigger active recovery
                             if self.stuck_token_guard:
                                 Logger.info("[EXEC] ⚕️ Triggering active recovery...")
-                                self.stuck_token_guard.attempt_recovery()
+                                Logger.info("[EXEC] ⚕️ Triggering active recovery...")
+                                stuck_list = self.stuck_token_guard.check_wallet()
+                                if stuck_list:
+                                    self.stuck_token_guard.attempt_recovery(stuck_list)
                             
                             return self._error_result(
                                 f"Sell failed after buy - STUCK {expected_tokens} tokens of {opportunity.pair}", 

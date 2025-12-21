@@ -134,6 +134,11 @@ class TriangularScanner:
                             # Calculate Cycle Rate
                             gross_rate = price1 * price2 * price3
                             
+                            # Log candidates to show activity (User Request)
+                            if gross_rate > 1.005:
+                                from src.shared.system.logging import Logger
+                                Logger.info(f"📐 [SCAN] Candidate: {start_node}->{mid_node}->{end_node} | Gross: {gross_rate:.4f}x")
+
                             # Check basic profitability (> 1.0 + fees)
                             # 3 swaps = ~0.9% fees (conservative)
                             if gross_rate > 1.015:
