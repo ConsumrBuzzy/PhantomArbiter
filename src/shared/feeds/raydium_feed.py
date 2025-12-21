@@ -8,7 +8,10 @@ We read pool reserves directly for accurate pricing.
 """
 
 import time
+import time
 import requests
+import httpx
+import asyncio
 from typing import Optional, Dict, List
 
 from config.settings import Settings
@@ -42,12 +45,17 @@ class RaydiumFeed(PriceSource):
     def __init__(self):
         self._price_cache: Dict[str, dict] = {}
         self._cache_ttl = 3.0  # 3 second cache
-        # V126: Persistent HTTP Session
-        self.session = requests.Session()
+        self._price_cache: Dict[str, dict] = {}
+        self._cache_ttl = 3.0  # 3 second cache
+        # V127: Async Client
+        self.session = httpx.AsyncClient()
         self._pairs_cache: Optional[Dict] = None
         self._pairs_cache_time = 0.0
         self._bridge = None  # Lazy-loaded RaydiumBridge
         self.use_live_quotes = True  # Set False to save API credits
+
+    async def close(self):
+        await self.session.aclose()
         
     def _get_bridge(self):
         """Lazy-load RaydiumBridge to avoid circular imports."""
@@ -63,7 +71,7 @@ class RaydiumFeed(PriceSource):
         """Raydium standard pool fee."""
         return 0.25  # 0.25% fee
     
-    def get_quote(
+    async def get_quote(
         self, 
         input_mint: str, 
         output_mint: str, 
@@ -78,7 +86,8 @@ class RaydiumFeed(PriceSource):
         if self.use_live_quotes:
             try:
                 bridge = self._get_bridge()
-                result = bridge.fetch_api_quote(input_mint, output_mint, amount)
+                # V127: Calls async version of bridge method
+                result = await bridge.fetch_api_quote(input_mint, output_mint, amount)
                 
                 if result and result.get("success"):
                     output_amount = result.get("outputAmount", 0)
@@ -100,7 +109,7 @@ class RaydiumFeed(PriceSource):
                 Logger.debug(f"[RAYDIUM] Trade API quote failed: {e}")
         
         # Path 2: Fallback to spot price estimation
-        spot = self.get_spot_price(output_mint, input_mint)
+        spot = await self.get_spot_price(output_mint, input_mint)
         if not spot or spot.price <= 0:
             return None
             
@@ -126,7 +135,7 @@ class RaydiumFeed(PriceSource):
             timestamp=time.time()
         )
     
-    def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
+    async def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
         Get spot price from Raydium via Daemon (fast) or DexScreener (fallback).
         """
@@ -160,7 +169,8 @@ class RaydiumFeed(PriceSource):
                 
                 # Check if bridge is actually daemonized/ready? 
                 # Just call get_price, it handles daemon communication.
-                result = bridge.get_price(pool_address)
+                # V127: Daemon is blocking IPC, wrap in thread
+                result = await asyncio.to_thread(bridge.get_price, pool_address)
                 
                 if result and result.success:
                     # Determine price direction
@@ -193,12 +203,13 @@ class RaydiumFeed(PriceSource):
             Logger.warning(f"⚠️ [RAYDIUM] Daemon Fail for {base_mint[:4]}: {e}. API Fallback triggered.")
         
         # 2. Try DexScreener (Fallback)
+        # 2. Try DexScreener (Fallback)
         # Logger.debug(f"[RAYDIUM] Using Slow API for {base_mint[:4]}") # Too spammy if 50 pairs
-        price = self._fetch_dexscreener_price(base_mint, "raydium")
+        price = await self._fetch_dexscreener_price(base_mint, "raydium")
         
         # 3. Try Raydium V2 API (Last Resort)
         if not price or price <= 0:
-            price = self._fetch_raydium_api_price(base_mint)
+            price = await self._fetch_raydium_api_price(base_mint)
             if price:
                 Logger.info(f"   Using Raydium API fallback for {base_mint[:4]}...")
 
@@ -219,7 +230,7 @@ class RaydiumFeed(PriceSource):
         
         return None
     
-    def _fetch_dexscreener_price(self, mint: str, dex_filter: str = None) -> Optional[float]:
+    async def _fetch_dexscreener_price(self, mint: str, dex_filter: str = None) -> Optional[float]:
         """
         Fetch price from DexScreener API.
         
@@ -228,9 +239,10 @@ class RaydiumFeed(PriceSource):
             dex_filter: Optional filter for specific DEX (e.g., "raydium")
         """
         try:
+        try:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
-            # V126: persistent session
-            resp = self.session.get(url, timeout=5)
+            # V127: persistent session async
+            resp = await self.session.get(url, timeout=5)
             
             if resp.status_code != 200:
                 return None
@@ -256,7 +268,7 @@ class RaydiumFeed(PriceSource):
             Logger.debug(f"DexScreener error: {e}")
             return None
 
-    def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
+    async def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
         """
         Batch fetch prices via Daemon (Fast + Fresh) with DexScreener fallback.
         V99: Restored speed by batching Standard AMM pools.
@@ -301,7 +313,8 @@ class RaydiumFeed(PriceSource):
         if daemon_batch:
             try:
                 bridge = self._get_bridge()
-                batch_prices = bridge.get_batch_prices(daemon_batch)
+                # V127: Wrap blocking daemon batch
+                batch_prices = await asyncio.to_thread(bridge.get_batch_prices, daemon_batch)
                 
                 for pool_id, price in batch_prices.items():
                     if pool_id in mint_to_pool:
@@ -332,7 +345,7 @@ class RaydiumFeed(PriceSource):
                     ids = ",".join(chunk)
                     url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
                     # V126: persistent session
-                    resp = self.session.get(url, timeout=5)
+                    resp = await self.session.get(url, timeout=5)
                     
                     if resp.status_code == 200:
                         data = resp.json()
@@ -357,7 +370,7 @@ class RaydiumFeed(PriceSource):
 
 
     
-    def _fetch_raydium_api_price(self, mint: str) -> Optional[float]:
+    async def _fetch_raydium_api_price(self, mint: str) -> Optional[float]:
         """
         Fetch price directly from Raydium API.
         
@@ -366,7 +379,7 @@ class RaydiumFeed(PriceSource):
         try:
             url = f"{self.PRICE_API}?tokens={mint}"
             # V126: persistent session
-            resp = self.session.get(url, timeout=5)
+            resp = await self.session.get(url, timeout=5)
             
             if resp.status_code != 200:
                 return None

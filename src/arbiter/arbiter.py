@@ -304,7 +304,7 @@ class PhantomArbiter:
                 if bridge_pair not in final_pairs:
                     final_pairs.append(bridge_pair)
         
-        spreads = detector.scan_all_pairs(final_pairs, trade_size=trade_size)
+        spreads = await detector.scan_all_pairs(final_pairs, trade_size=trade_size)
         
         # V115: Update Triangular Graph & Check for Cycles
         if self._triangular_scanner:

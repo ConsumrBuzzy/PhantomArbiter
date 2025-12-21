@@ -356,7 +356,7 @@ class RaydiumBridge:
             Logger.error(f"[RAYDIUM] Discover error: {e}")
             return None
     
-    def fetch_api_quote(
+    async def fetch_api_quote(
         self,
         input_mint: str,
         output_mint: str,
@@ -403,7 +403,9 @@ class RaydiumBridge:
                 f"&txVersion=V0"
             )
             
-            resp = httpx.get(url, timeout=10.0)
+            # V127: Use async client
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, timeout=10.0)
             
             if resp.status_code != 200:
                 Logger.debug(f"[RAYDIUM] Trade API error: {resp.status_code}")
