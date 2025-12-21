@@ -166,8 +166,7 @@ class ArbiterEngine:
                 # ═══ V131: Scan Metrics Logging for ML ═══
                 try:
                     from src.shared.system.db_manager import db_manager
-                    from datetime import datetime
-                    
+                    # Note: datetime already imported at top of file                    
                     # Log scan metrics for learning
                     db_manager.log_cycle(
                         pod_name=",".join(active_pod_names),
