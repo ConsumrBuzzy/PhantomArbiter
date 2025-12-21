@@ -5,12 +5,15 @@ Primary DEX aggregator for Solana - routes through multiple AMMs.
 
 Uses Jupiter v3 Price API with API key authentication.
 Falls back to DexScreener if API unavailable.
+
+V131: Async batch price fetching for non-blocking scans.
 """
 
 import os
 import time
-import requests
-from typing import Optional
+import asyncio
+import httpx
+from typing import Optional, Dict
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
@@ -263,9 +266,12 @@ class JupiterFeed(PriceSource):
             Logger.debug(f"DexScreener error: {e}")
             return None
     
-    def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
+    async def get_multiple_prices(self, mints: list, vs_token: str = None) -> Dict[str, float]:
         """
-        Batch fetch prices for multiple tokens via SmartRouter (V2 API).
+        V131: Async batch fetch prices for multiple tokens.
+        
+        Uses httpx.AsyncClient to avoid blocking the event loop.
+        This allows parallel fetching with other async feeds.
         
         Args:
             mints: List of token mint addresses
@@ -278,37 +284,54 @@ class JupiterFeed(PriceSource):
             return {}
             
         vs_token = vs_token or self.USDC_MINT
+        results = {}
         
         try:
-            # V13.0: Use SmartRouter's high-perf V2 endpoint
-            # We chunk even if SmartRouter doesn't, just to be safe with URL lengths
-            chunk_size = 30
-            results = {}
-            
-            for i in range(0, len(mints), chunk_size):
-                chunk = mints[i:i + chunk_size]
-                ids = ",".join(chunk)
+            # V131: Use async httpx client
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Chunk to respect URL length limits
+                chunk_size = 30
                 
-                # SmartRouter.get_jupiter_price_v2 handles API keys and cooldowns
-                data = self.router.get_jupiter_price_v2(ids, vs_token=vs_token)
-                
-                if data:
-                    for mint, info in data.items():
-                        price = float(info.get('price', 0.0))
-                        if price > 0:
-                            results[mint] = price
-                            # Update local cache
-                            cache_key = f"{mint}:{vs_token}"
-                            self._price_cache[cache_key] = {
-                                'price': price,
-                                'timestamp': time.time()
-                            }
-                
-                if len(mints) > chunk_size:
-                    time.sleep(0.1)  # Small gap between chunks
+                for i in range(0, len(mints), chunk_size):
+                    chunk = mints[i:i + chunk_size]
+                    ids = ",".join(chunk)
                     
+                    url = "https://api.jup.ag/price/v2"
+                    params = {"ids": ids, "vsToken": vs_token}
+                    headers = {}
+                    
+                    if self.api_key:
+                        headers["x-api-key"] = self.api_key
+                    
+                    try:
+                        resp = await client.get(url, params=params, headers=headers)
+                        
+                        if resp.status_code == 429:
+                            Logger.debug("Jupiter rate limited in async fetch")
+                            await asyncio.sleep(0.5)
+                            continue
+                            
+                        if resp.status_code == 200:
+                            data = resp.json().get("data", {})
+                            for mint, info in data.items():
+                                price = float(info.get('price', 0.0))
+                                if price > 0:
+                                    results[mint] = price
+                                    # Update local cache
+                                    cache_key = f"{mint}:{vs_token}"
+                                    self._price_cache[cache_key] = {
+                                        'price': price,
+                                        'timestamp': time.time()
+                                    }
+                    except Exception as e:
+                        Logger.debug(f"Chunk fetch error: {e}")
+                        
+                    # Small delay between chunks to avoid rate limits
+                    if len(mints) > chunk_size and i + chunk_size < len(mints):
+                        await asyncio.sleep(0.05)
+                        
             return results
             
         except Exception as e:
-            Logger.debug(f"Jupiter batch price error: {e}")
+            Logger.debug(f"Jupiter async batch error: {e}")
             return {}

@@ -42,6 +42,13 @@ class SmartRouter:
         self.current_rpc_index = 0
         self.jupiter_cooldown_until = 0
         
+        # V131: Persistent HTTP session with connection pooling
+        # Reuses TCP connections for ~50-100ms savings per request
+        self._session = requests.Session()
+        self._session.headers.update({"Content-Type": "application/json"})
+        if self.jupiter_api_key:
+            self._session.headers.update({"x-api-key": self.jupiter_api_key})
+        
         Logger.info(f"🌐 SmartRouter initialized with {len(self.endpoints)} RPC endpoints.")
         if self.jupiter_api_key:
              Logger.info("   🔑 Jupiter API Key loaded")
@@ -160,7 +167,7 @@ class SmartRouter:
         for i in range(retries):
             endpoint = self.get_rpc_url()
             try:
-                resp = requests.post(endpoint, json=payload, headers=headers, timeout=5)
+                resp = self._session.post(endpoint, json=payload, timeout=5)
                 if resp.status_code == 429:
                     Logger.warning(f"⚠️ RPC 429 (Rate Limit) on {endpoint}")
                     self.rotate_rpc()
@@ -191,11 +198,7 @@ class SmartRouter:
                 "slippageBps": slippage_bps
             }
             
-            headers = {}
-            if self.jupiter_api_key:
-                headers["x-api-key"] = self.jupiter_api_key
-
-            resp = requests.get(url, params=params, headers=headers, timeout=10)
+            resp = self._session.get(url, params=params, timeout=10)
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(15)  # 15s cooldown
@@ -223,11 +226,7 @@ class SmartRouter:
             url = "https://api.jup.ag/price/v2"
             params = {"ids": ids, "vsToken": vs_token}
             
-            headers = {}
-            if self.jupiter_api_key:
-                headers["x-api-key"] = self.jupiter_api_key
-            
-            resp = requests.get(url, params=params, headers=headers, timeout=5)
+            resp = self._session.get(url, params=params, timeout=5)
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(5)
@@ -253,11 +252,7 @@ class SmartRouter:
             
             url = f"{self.jupiter_url}/swap"
             
-            headers = {}
-            if self.jupiter_api_key:
-                headers["x-api-key"] = self.jupiter_api_key
-                
-            resp = requests.post(url, json=payload, headers=headers, timeout=15)
+            resp = self._session.post(url, json=payload, timeout=15)
             
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(15)
