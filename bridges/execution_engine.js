@@ -60617,6 +60617,7 @@ var JITO_TIP_ACCOUNTS = [
   "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL",
   "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT"
 ];
+var JITO_BLOCK_ENGINE_URL = "https://mainnet.block-engine.jito.wtf/api/v1/bundles";
 var ExecutionEngine = class {
   connection;
   wallet;
@@ -60656,6 +60657,28 @@ var ExecutionEngine = class {
       toPubkey: randomTipAccount,
       lamports
     });
+  }
+  /**
+   * Send transaction bundle via Jito Block Engine
+   * Ensures all-or-nothing execution and sandwich protection
+   */
+  async sendJitoBundle(txs) {
+    const serializedTxs = txs.map((tx) => import_bs58.default.encode(tx.serialize()));
+    const response = await fetch(JITO_BLOCK_ENGINE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "sendBundle",
+        params: [serializedTxs]
+      })
+    });
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(`Jito bundle failed: ${JSON.stringify(result.error)}`);
+    }
+    return result.result;
   }
   /**
    * Send transaction via Helius Sender endpoint
@@ -60880,8 +60903,28 @@ var ExecutionEngine = class {
         };
       }
       let signature;
-      if (HELIUS_SENDER_URL) {
-        signature = await this.sendViaHelius(tx);
+      const messageV0 = new import_web321.TransactionMessage({
+        payerKey: this.wallet.publicKey,
+        recentBlockhash: blockhash,
+        instructions: tx.instructions
+      }).compileToV0Message();
+      const versionedTx = new import_web321.VersionedTransaction(messageV0);
+      versionedTx.sign([this.wallet]);
+      if (jitoTipLamports > 0) {
+        signature = await this.sendJitoBundle([versionedTx]);
+        const confirmed = await this.confirmTransaction(signature);
+        if (!confirmed) {
+          return {
+            success: false,
+            command: "swap",
+            signature,
+            legs: legResults,
+            error: "Jito Bundle not confirmed - likely expired or landed after height",
+            timestamp
+          };
+        }
+      } else if (HELIUS_SENDER_URL) {
+        signature = await this.sendViaHelius(versionedTx);
         const confirmed = await this.confirmTransaction(signature);
         if (!confirmed) {
           return {
@@ -60894,12 +60937,20 @@ var ExecutionEngine = class {
           };
         }
       } else {
-        signature = await (0, import_web321.sendAndConfirmTransaction)(
-          this.connection,
-          tx,
-          [this.wallet],
-          { commitment: "confirmed", maxRetries: 3 }
-        );
+        signature = await this.connection.sendTransaction(versionedTx, {
+          skipPreflight: true,
+          maxRetries: 2
+        });
+        const confirmed = await this.confirmTransaction(signature);
+        if (!confirmed) {
+          return {
+            success: false,
+            command: "swap",
+            signature,
+            error: "Standard RPC send failed to confirm",
+            timestamp
+          };
+        }
       }
       return {
         success: true,

@@ -163,7 +163,7 @@ class UnifiedEngineAdapter:
         jito_tip_lamports: Optional[int] = None,
         pre_check: bool = False,
         use_dynamic_fee: bool = True,
-        priority_tier: str = "h",
+        priority_tier: str = "vh", # Default to Very High for arbs
     ) -> AtomicArbResult:
         """
         Execute an atomic arbitrage trade.
@@ -258,10 +258,16 @@ class UnifiedEngineAdapter:
             
             # Calculate Jito tip if not provided
             if jito_tip_lamports is None:
-                # Assume 0.5% profit for tip calculation
-                estimated_profit = int(amount_in * 0.005)
-                strategy = calculate_arb_strategy(amount_in, amount_in + estimated_profit)
-                jito_tip_lamports = strategy["jito_tip_lamports"]
+                # V105: Dynamic Jito Tip (Targeting Priority Inclusion)
+                # Minimum 10k lamports (~$0.002) for protection
+                # Scaled to 20% of expected profit if profit > $0.10
+                estimated_profit_usd = (amount_in / 1_000_000) * (opportunity.spread_pct / 100)
+                
+                if estimated_profit_usd > 0.10:
+                    tip_usd = min(0.05, estimated_profit_usd * 0.20) # Max 5 cents for $30 trades
+                    jito_tip_lamports = int((tip_usd / 200) * 1e9) # Assumes SOL=$200
+                
+                jito_tip_lamports = max(jito_tip_lamports or 10000, 10000)
             
             # Simulate first (seatbelt)
             if simulate_first:
