@@ -184,17 +184,22 @@ class PoolScanner:
         try:
             if db_manager:
                 with db_manager.cursor(commit=True) as c:
-                    c.execute("""
-                        INSERT OR REPLACE INTO pool_index 
-                        (pair, meteora_pool, orca_pool, preferred_dex, updated_at)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (
-                        pool.pair,
-                        pool.pool_address if pool.dex == "meteora" else None,
-                        pool.pool_address if pool.dex == "orca" else None,
-                        pool.dex,
-                        time.time()
-                    ))
+                    # V98: Safe UPSERT to avoid nuking other DEX columns
+                    dex_col = None
+                    if pool.dex == "meteora": dex_col = "meteora_pool"
+                    elif pool.dex == "orca": dex_col = "orca_pool"
+                    elif pool.dex == "raydium_clmm": dex_col = "raydium_clmm_pool"
+                    elif pool.dex == "raydium_standard": dex_col = "raydium_standard_pool"
+                    
+                    if dex_col:
+                        query = f"""
+                            INSERT INTO pool_index (pair, {dex_col}, updated_at)
+                            VALUES (?, ?, ?)
+                            ON CONFLICT(pair) DO UPDATE SET
+                                {dex_col}=excluded.{dex_col},
+                                updated_at=excluded.updated_at
+                        """
+                        c.execute(query, (pool.pair, pool.pool_address, time.time()))
         except Exception as e:
             Logger.debug(f"[SCANNER] DB save error: {e}")
     
