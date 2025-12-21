@@ -9,7 +9,7 @@ from src.system.priority_queue import priority_queue
 from src.strategy.watcher import Watcher
 from src.tools.asset_manager import AssetManager
 from src.strategy.portfolio import PortfolioManager
-from src.core.validator import TokenValidator
+from src.shared.infrastructure.validator import TokenValidator
 from src.utils.notifications import get_notifier
 from src.core.shared_cache import SharedPriceCache
 from src.system.logging import Logger

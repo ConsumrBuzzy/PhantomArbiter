@@ -7,7 +7,7 @@ import argparse
 import json
 import os
 from config.settings import Settings
-from src.core.validator import TokenValidator
+from src.shared.infrastructure.validator import TokenValidator
 from src.strategy.portfolio import PortfolioManager
 from src.execution.wallet import WalletManager
 

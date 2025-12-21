@@ -966,7 +966,7 @@ class DataBroker:
     
     def _validate_tokens(self):
         """V7.3: Run safety validation on all tokens and cache results."""
-        from src.core.validator import TokenValidator
+        from src.shared.infrastructure.validator import TokenValidator
         
         symbols = list(self.watched_mints.values())
         # print(f"\n🛡️ V7.3: Validating safety for {len(symbols)} tokens...")

@@ -7,7 +7,7 @@ Fetches trending Solana tokens from DexScreener for automated scouting.
 import requests
 import time
 from config.settings import Settings
-from src.core.validator import TokenValidator
+from src.shared.infrastructure.validator import TokenValidator
 
 
 class TokenDiscovery:

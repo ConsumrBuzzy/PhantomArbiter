@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from src.strategy.watcher import Watcher
     from src.execution.paper_wallet import PaperWallet
     from src.shared.system.capital_manager import CapitalManager
-    from src.core.validator import TokenValidator
+    from src.shared.infrastructure.validator import TokenValidator
     from src.core.prices.pyth_adapter import PythAdapter, PythPrice
     from src.speed.jito_adapter import JitoAdapter
 

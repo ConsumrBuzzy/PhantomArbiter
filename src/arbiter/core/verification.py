@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Tuple
 from src.arbiter.core.spread_detector import SpreadOpportunity
 from src.arbiter.core.executor import ArbitrageExecutor
 from src.shared.system.data_source_manager import DataSourceManager
-from src.core.validator import TokenValidator
+from src.shared.infrastructure.validator import TokenValidator
 from src.shared.system.logging import Logger
 
 class OpportunityVerifier:
