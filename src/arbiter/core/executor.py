@@ -415,56 +415,23 @@ class ArbitrageExecutor:
                         jito_status = "FALLBACK" # Force into else block logic
                         result = None
 
-                if jito_status != "READY" or (jito_status == "FALLBACK"):
-                    if jito_status != "FALLBACK":
-                        # Only log this if we haven't already logged the fallback reason
-                        Logger.warning(f"[EXEC] 🔄 Jito {jito_status} (Rate Limit?) - Falling back to sequential execution")
+                if jito_status != "READY":
+                    Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Aborting trade to prevent stuck tokens (Atomic or Nothing)")
+                    return self._error_result(f"Jito {jito_status} - Aborted", start_time)
                     
-                    # Execute buy leg
-                    buy_result = await self._execute_swap(buy_quote)
-                    if not buy_result.success:
-                        return self._error_result(f"Buy failed: {buy_result.error}", start_time)
-                    
-                    legs.append(buy_result)
-                    Logger.info(f"   ✅ [EXEC] Sequential Buy Success: {buy_result.signature[:16]}...")
-                    
-                    # Execute sell leg with emergency retries
-                    sell_result = await self._execute_swap(sell_quote)
-                    
-                    if not sell_result.success:
-                        Logger.error(f"[EXEC] ❌ SELL FAILED after successful buy! Attempting emergency retry...")
-                        
-                        # Emergency retry with escalating slippage
-                        emergency_slippage_tiers = [100, 200, 500, 1000]  # 1% → 2% → 5% → 10%
-                        sell_success = False
-                        
-                        for retry_idx, slippage_bps in enumerate(emergency_slippage_tiers):
-                            Logger.warning(f"[EXEC] ⚠️ Emergency sell retry {retry_idx + 1}/{len(emergency_slippage_tiers)} @ {slippage_bps/100:.1f}% slippage")
-                            
-                            # Get fresh sell quote with higher slippage
-                            emergency_quote = router.get_jupiter_quote(
-                                token_mint, USDC, expected_tokens, slippage_bps=slippage_bps
-                            )
-                            if not emergency_quote:
-                                await asyncio.sleep(1.0)
-                                continue
-                            
-                            sell_result = await self._execute_swap(emergency_quote)
-                            if sell_result.success:
-                                Logger.info(f"[EXEC] ✅ Emergency sell succeeded on retry {retry_idx + 1}!")
-                                sell_success = True
-                                break
-                            
-                            await asyncio.sleep(0.5)
-                        
+                # NOTE: Sequential Fallback removed for safety.
+                # If Jito fails, we do NOT want to execute risky sequential legs.
+                
+                return self._error_result("Trade logic finished without execution path", start_time)
+
                         if not sell_success:
                             # Log stuck tokens - StuckTokenGuard will handle auto-recovery
                             Logger.error(f"[EXEC] ❌ STUCK TOKENS: {expected_tokens} units of {token_mint[:8]}... - STUCK TOKEN GUARD will recover.")
                             
                             # V120: Trigger active recovery
                             if self.stuck_token_guard:
-                                Logger.info("[EXEC] ⚕️ Triggering active recovery...")
-                                Logger.info("[EXEC] ⚕️ Triggering active recovery...")
+                                Logger.info("[EXEC] ⚕️ Triggering active recovery (Waiting 5s for RPC indexing)...")
+                                await asyncio.sleep(5.0) # Wait for RPC to update balance
                                 stuck_list = self.stuck_token_guard.check_wallet()
                                 if stuck_list:
                                     self.stuck_token_guard.attempt_recovery(stuck_list)
