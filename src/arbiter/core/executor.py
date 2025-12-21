@@ -86,13 +86,15 @@ class ArbitrageExecutor:
         swapper=None,
         drift_adapter=None,
         jito_adapter=None,
-        mode: ExecutionMode = ExecutionMode.PAPER
+        mode: ExecutionMode = ExecutionMode.PAPER,
+        stuck_token_guard=None
     ):
         self.wallet = wallet
         self.swapper = swapper
         self.drift = drift_adapter
         self.jito = jito_adapter
         self.mode = mode
+        self.stuck_token_guard = stuck_token_guard
         
         # Lazy-load dependencies
         self._smart_router = None
@@ -449,6 +451,12 @@ class ArbitrageExecutor:
                         if not sell_success:
                             # Log stuck tokens - StuckTokenGuard will handle auto-recovery
                             Logger.error(f"[EXEC] ❌ STUCK TOKENS: {expected_tokens} units of {token_mint[:8]}... - STUCK TOKEN GUARD will recover.")
+                            
+                            # V120: Trigger active recovery
+                            if self.stuck_token_guard:
+                                Logger.info("[EXEC] ⚕️ Triggering active recovery...")
+                                self.stuck_token_guard.attempt_recovery()
+                            
                             return self._error_result(
                                 f"Sell failed after buy - STUCK {expected_tokens} tokens of {opportunity.pair}", 
                                 start_time, 

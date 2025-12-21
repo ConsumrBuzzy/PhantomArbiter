@@ -148,11 +148,17 @@ class PhantomArbiter:
             
             self._swapper = JupiterSwapper(self._wallet)
             self._jito = JitoAdapter()
+            
+            # V120: Initialize StuckTokenGuard for safety net
+            from src.arbiter.core.stuck_token_guard import StuckTokenGuard
+            self._stuck_guard = StuckTokenGuard()
+            
             self._executor = ArbitrageExecutor(
                 wallet=self._wallet,
                 swapper=self._swapper,
                 jito_adapter=self._jito,
-                mode=ExecutionMode.LIVE
+                mode=ExecutionMode.LIVE,
+                stuck_token_guard=self._stuck_guard
             )
             self._connected = True
             
