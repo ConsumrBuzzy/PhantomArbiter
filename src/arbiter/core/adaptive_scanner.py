@@ -174,61 +174,59 @@ class AdaptiveScanner:
     def filter_pairs(self, all_pairs: List[tuple], now: float = None) -> List[tuple]:
         """
         Filter pairs list to only those that should be scanned now.
-        
-        Returns pairs sorted by priority (NEAR_MISS/VIABLE first) so 
-        hot targets get semaphore access before stale pairs.
-        
-        Args:
-            all_pairs: List of (pair_name, base_mint, quote_mint) tuples
-            
-        Returns:
-            Filtered and priority-sorted list of pairs to scan this cycle
+        V106: Implements Fairness Reserve (Warming/Watcher cap) to ensure rotation.
         """
         now = now or time.time()
         
-        # Filter to pairs not in skip cooldown
+        # Filter to scannable pairs
         scannable = [p for p in all_pairs if self.should_scan_pair(p[0], now)]
-        
-        # Priority order: VIABLE > NEAR_MISS > WARM > FAR > unknown
-        status_priority = {"VIABLE": 0, "NEAR_MISS": 1, "WARM": 2, "FAR": 3}
         
         from config.settings import Settings
         
-        def get_priority(pair_tuple: tuple) -> int:
+        def get_priority(pair_tuple: tuple) -> float:
             pair_name = pair_tuple[0]
             
-            # V102: Sticky Warming Pairs = Highest Priority
-            if now < self.warming_until.get(pair_name, 0):
-                return -2 # Higher than static watchers
+            # V106: Continuous score to allow interleaving within tiers
+            # Lowest score = highest priority
             
-            # V101: Watcher Pairs = High Priority
+            # 1. Sticky Warming Pairs (-200 Base)
+            if now < self.warming_until.get(pair_name, 0):
+                # Subtract scan time to ensure warming pairs rotate among themselves
+                last_scan = self.pair_metrics.get(pair_name).last_scan_time if pair_name in self.pair_metrics else 0
+                return -200 + (last_scan % 100)
+            
+            # 2. Watcher Pairs (-100 Base)
             if pair_name in Settings.WATCHER_PAIRS:
-                return -1 
+                return -100
                 
             metrics = self.pair_metrics.get(pair_name)
             
-            # Starvation Guard: If not scanned in >60s, force high priority
+            # 3. Starvation Guard (Priority 0)
             if not metrics or (now - metrics.last_scan_time > 60):
                 return 0
             
-            # Pod-based Priority
-            # Extract base symbol (e.g. "SOL" from "SOL/USDC")
+            # 4. Normal Pod Priority (1-10)
             base_symbol = pair_name.split('/')[0] if '/' in pair_name else pair_name
             meta = Settings.ASSET_METADATA.get(base_symbol, {})
             category = meta.get('category', 'WATCH')
             pod_priority = Settings.POD_PRIORITIES.get(category, 5)
             
-            # Combine with status priority
-            # If status is VIABLE, we definitely want it (0)
-            # Otherwise we use the pod priority to rotate
-            status_p = status_priority.get(metrics.last_status, 3)
+            return float(pod_priority) + 1.0
             
-            if status_p <= 1: # VIABLE or NEAR_MISS
-                return status_p
-                
-            return pod_priority + 2 # Offset to keep VIABLE/NEAR_MISS at top
+        # Separate into Priority and Rotating groups
+        sorted_scannable = sorted(scannable, key=get_priority)
+        prio_group = [p for p in sorted_scannable if get_priority(p) < 0]
+        rotate_group = [p for p in sorted_scannable if get_priority(p) >= 0]
         
-        return sorted(scannable, key=get_priority)
+        # V106: Fairness Reserve (60/40 Split)
+        # Assuming we handle up to 20 pairs for safety, though batch might be smaller
+        limit = len(scannable)
+        prio_limit = max(1, int(limit * 0.6)) if rotate_group else limit
+        
+        final = prio_group[:prio_limit]
+        final.extend(rotate_group)
+        
+        return final
     
     def update_pair(self, opp: SpreadOpportunity) -> None:
         """
@@ -260,14 +258,19 @@ class AdaptiveScanner:
         from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
         metrics.last_status = NearMissAnalyzer.classify_status(opp.net_profit_usd)
         
-        # V102: Automatic Warming Trigger
-        # If spread is hot, volatility is high, OR status is Actionable (NEAR/READY)
+        # V106: Refined Warming Trigger
+        # If status is Actionable (NEAR/READY) or high volatility spike
+        # Avoid warming high-spread pairs that are structurally unprofitable (FAR)
         is_actionable = metrics.last_status in ("VIABLE", "NEAR_MISS")
+        is_promising = metrics.last_status in ("VIABLE", "NEAR_MISS", "WARM")
         
-        if (opp.spread_pct >= self.SPREAD_THRESHOLD or 
-            metrics.spread_variance >= self.WARM_VOLATILITY_THRESHOLD or
-            is_actionable):
+        if (is_promising and opp.spread_pct >= self.SPREAD_THRESHOLD) or \
+           (metrics.spread_variance >= self.WARM_VOLATILITY_THRESHOLD) or \
+           (is_actionable):
              self.warming_until[opp.pair] = now + self.WARM_DURATION_SECONDS
+        else:
+             # Cool down if no longer promising
+             self.warming_until[opp.pair] = 0
 
         
         # Determine skip interval based on spread, variance, AND learned data
