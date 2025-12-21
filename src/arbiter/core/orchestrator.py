@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.arbiter.monitoring.live_dashboard import LiveDashboard, SpreadInfo
+from src.arbiter.core.stuck_token_guard import StuckTokenGuard
 
 
 @dataclass
@@ -58,6 +59,11 @@ class ArbitrageOrchestrator:
         self.last_tick = 0.0
         self.last_telegram_status = 0.0
         self.telegram_status_interval = 300.0  # 5 minutes
+        
+        # V120: Stuck token guard
+        self._stuck_token_guard = StuckTokenGuard()
+        self._last_stuck_check = 0.0
+        self._stuck_check_interval = 60.0  # Check every 60 seconds
     
     def _init_telegram(self):
         """Initialize Telegram alerts."""
@@ -200,6 +206,16 @@ class ArbitrageOrchestrator:
                 
                 # Render dashboard
                 self.dashboard.render(clear=True)
+                
+                # V120: Periodic stuck token check
+                if time.time() - self._last_stuck_check >= self._stuck_check_interval:
+                    try:
+                        stuck_count = self._stuck_token_guard.run_check()
+                        if stuck_count > 0:
+                            Logger.warning(f"[ORCH] 🚨 {stuck_count} stuck token(s) detected!")
+                    except Exception as e:
+                        Logger.debug(f"[ORCH] Stuck token check error: {e}")
+                    self._last_stuck_check = time.time()
                 
                 # Wait for next tick
                 await asyncio.sleep(self.config.tick_interval)
