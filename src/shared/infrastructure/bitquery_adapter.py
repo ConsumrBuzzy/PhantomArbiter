@@ -106,6 +106,7 @@ class BitqueryAdapter:
             List of wallet addresses (up to 100)
         """
         if not self.api_key:
+            Logger.warning("⚠️ [BITQUERY] API Key is missing. Check your .env file.")
             return []
             
         try:
@@ -122,10 +123,15 @@ class BitqueryAdapter:
             resp = requests.post(self.REST_URL, json=payload, headers=headers, timeout=15)
             
             if resp.status_code != 200:
-                Logger.debug(f"[BITQUERY] REST Query failed: {resp.status_code}")
+                Logger.debug(f"[BITQUERY] REST Query failed: {resp.status_code} - {resp.text}")
                 return []
             
             result = resp.json()
+            # Handle potential GraphQL errors in 200 response
+            if "errors" in result:
+                Logger.debug(f"[BITQUERY] GraphQL Errors: {result['errors']}")
+                return []
+                
             trades = result.get("data", {}).get("Solana", {}).get("DEXTrades", [])
             
             wallets = []
@@ -135,12 +141,12 @@ class BitqueryAdapter:
                     wallets.append(owner)
             
             if wallets:
-                Logger.debug(f"[BITQUERY] Found {len(wallets)} early buyers for {mint[:8]}")
+                Logger.info(f"🏹 [BITQUERY] Found {len(wallets)} early buyers for {mint[:8]}")
             
             return wallets
             
         except Exception as e:
-            Logger.debug(f"[BITQUERY] REST Error: {e}")
+            Logger.error(f"[BITQUERY] REST Error: {e}")
             return []
     
     # ═══════════════════════════════════════════════════════════════════
