@@ -510,6 +510,23 @@ class SpreadDetector:
                 timestamp=time.time()
             ))
         
+        # ═══ V131: Liquidity Blocklist Filter ═══
+        # Filter out pairs with >80% LIQ failure rate (temporary block)
+        try:
+            from src.shared.system.db_manager import db_manager
+            liq_rates = db_manager.get_liq_failure_rate(hours=2)
+            if liq_rates:
+                blocked = [pair for pair, rate in liq_rates.items() if rate > 0.8]
+                if blocked:
+                    original_count = len(opportunities)
+                    opportunities = [o for o in opportunities if o.pair not in blocked]
+                    filtered = original_count - len(opportunities)
+                    if filtered > 0:
+                        from src.shared.system.logging import Logger
+                        Logger.debug(f"[ML] Filtered {filtered} pairs with high LIQ failure")
+        except Exception as e:
+            pass  # Silent fail for ML filtering
+        
         return sorted(opportunities, key=lambda x: x.spread_pct, reverse=True)
     
     def get_price_matrix(self) -> Dict[str, Dict[str, float]]:

@@ -122,7 +122,21 @@ class ArbiterEngine:
                         current_interval = monitor.update(all_spreads)
                     
                     # Store for decay tracking
-                    self._last_spreads = {opp.pair: (opp.spread_pct, time.time()) for opp in all_spreads} if all_spreads else {}
+                    current_spreads = {opp.pair: (opp.spread_pct, time.time()) for opp in all_spreads} if all_spreads else {}
+                    
+                    # ═══ V131: ML Spread Decay Logging ═══
+                    try:
+                        from src.shared.system.db_manager import db_manager
+                        for pair, (spread, ts) in current_spreads.items():
+                            if pair in self._last_spreads:
+                                prev_spread, prev_ts = self._last_spreads[pair]
+                                time_delta = ts - prev_ts
+                                if time_delta > 0 and prev_spread > 0.1:  # Only log meaningful spreads
+                                    db_manager.log_spread_decay(pair, prev_spread, spread, time_delta)
+                    except Exception as e:
+                        pass  # Silent fail for ML logging
+                    
+                    self._last_spreads = current_spreads
 
                 except Exception as e:
                     Logger.error(f"Scan error: {e}")

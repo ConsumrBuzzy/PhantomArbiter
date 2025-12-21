@@ -601,6 +601,27 @@ class ArbitrageExecutor:
                 Logger.warning(f"[EXEC] ⚠️ Jito bundle failed (Invalid/Dropped).")
                 return {"success": False, "error": "Jito bundle failed verification", "legs": [], "should_fallback": True}
             
+            # ═══ V131: ML Data Capture - Log slippage for training ═══
+            try:
+                from src.shared.system.db_manager import db_manager
+                
+                # Buy leg slippage (actual = what we got, expected = quote)
+                buy_expected = int(buy_quote.get('outAmount', 0))
+                # TODO: Get actual from on-chain tx when we have tx parser
+                # For now, log expected as baseline (0% slippage assumed for confirmed)
+                if buy_expected > 0:
+                    db_manager.log_slippage(
+                        token=buy_quote.get('outputMint', '')[:8],
+                        pair=f"{buy_quote.get('outputMint', '')[:4]}/USDC",
+                        expected_out=buy_expected,
+                        actual_out=buy_expected,  # Placeholder until tx parser
+                        trade_size_usd=int(buy_quote.get('inAmount', 0)) / 1e6,
+                        dex="JUPITER"
+                    )
+                    Logger.debug("[ML] Logged buy slippage data")
+            except Exception as e:
+                Logger.debug(f"[ML] Slippage logging failed: {e}")
+            
             # Create result legs
             legs = [
                 TradeResult(
