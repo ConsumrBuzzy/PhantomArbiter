@@ -269,6 +269,7 @@ class ExecutionBridge:
             private_key: Base58-encoded wallet private key
             priority_fee: Priority fee in microlamports per CU (default: 50,000)
             jito_tip_lamports: Tip for Jito bundles (0 = no tip, 10000+ recommended)
+            rpc_url: Optional custom RPC URL
             
         Returns:
             ExecutionResult with transaction signature
@@ -284,6 +285,9 @@ class ExecutionBridge:
         
         if priority_fee is not None:
             command["priorityFee"] = priority_fee
+            
+        if rpc_url:
+            command["rpcUrl"] = rpc_url
         
         data = self._run_engine(command)
         result = self._parse_result(data)
