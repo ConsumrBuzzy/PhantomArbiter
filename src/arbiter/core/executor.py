@@ -423,28 +423,6 @@ class ArbitrageExecutor:
                 # If Jito fails, we do NOT want to execute risky sequential legs.
                 
                 return self._error_result("Trade logic finished without execution path", start_time)
-
-                        if not sell_success:
-                            # Log stuck tokens - StuckTokenGuard will handle auto-recovery
-                            Logger.error(f"[EXEC] ❌ STUCK TOKENS: {expected_tokens} units of {token_mint[:8]}... - STUCK TOKEN GUARD will recover.")
-                            
-                            # V120: Trigger active recovery
-                            if self.stuck_token_guard:
-                                Logger.info("[EXEC] ⚕️ Triggering active recovery (Waiting 5s for RPC indexing)...")
-                                await asyncio.sleep(5.0) # Wait for RPC to update balance
-                                stuck_list = self.stuck_token_guard.check_wallet()
-                                if stuck_list:
-                                    self.stuck_token_guard.attempt_recovery(stuck_list)
-                            
-                            return self._error_result(
-                                f"Sell failed after buy - STUCK {expected_tokens} tokens of {opportunity.pair}", 
-                                start_time, 
-                                legs
-                            )
-                    
-                    legs.append(sell_result)
-                    Logger.info(f"   ✅ [EXEC] Sequential Sell Success: {sell_result.signature[:16]}...")
-                    result = {"success": True, "legs": legs}
                 
                 if result:
                     # Bundled execution succeeded
