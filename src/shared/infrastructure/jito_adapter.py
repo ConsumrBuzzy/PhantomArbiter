@@ -182,16 +182,27 @@ class JitoAdapter:
             if summary == "succeeded":
                 return {"success": True, "unitsConsumed": value.get("unitsConsumed"), "logs": value.get("logs", [])}
             
-            # Handle specific failure cases
-            failed_reason = value.get("summary", {}).get("failed", "Unknown")
-            # Also check for standard err if summary is missing
+            # V131-FIX: Handle different summary formats
+            failed_reason = "Unknown"
+            if isinstance(summary, dict):
+                # Dict format: {"failed": {"InstructionError": [...]}}
+                failed_reason = str(summary.get("failed", "Unknown"))
+            elif isinstance(summary, str):
+                # String format: "failed" or specific error
+                failed_reason = summary
+            
+            # Also check for standard err if summary is missing or generic
             err = value.get("err")
-            if err and not failed_reason:
-                failed_reason = err
-
+            if err:
+                failed_reason = f"{failed_reason} | err: {err}"
+            
+            # Log full response for debugging
             Logger.warning(f"   🛑 [JITO] Simulation Rejected: {failed_reason}")
+            Logger.debug(f"   [JITO] Full sim response: {value}")
             return {"success": False, "error": str(failed_reason), "logs": value.get("logs", [])}
             
+        # No response or no result
+        Logger.warning(f"   🛑 [JITO] Simulation RPC failed: {response}")
         return {"success": False, "error": "RPC failed - Potential 429 or Block Engine Lag", "logs": []}
 
     async def get_bundle_status(self, bundle_id: str) -> Optional[Dict]:
