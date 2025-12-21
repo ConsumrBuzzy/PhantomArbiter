@@ -439,9 +439,23 @@ class PhantomArbiter:
         except Exception as e:
             Logger.debug(f"Signal check error: {e}")
 
+    async def stop(self):
+        """Clean shutdown of all components."""
+        Logger.info("[ARB] 🛑 Shutting down Arbiter components...")
+        self._connected = False
+        
+        if hasattr(self, '_detector') and self._detector:
+            await self._detector.shutdown()
+            
+        if hasattr(self, '_jito') and self._jito:
+            await self._jito.close()
+            
+        Logger.info("[ARB] ✅ Shutdown complete.")
+
     async def run(self, duration_minutes: int = 10, scan_interval: int = 5, smart_pods: bool = False, landlord=None) -> None:
         """Main trading loop."""
-        mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
+        try:
+            mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
         
         # Landlord strategy for yield farming
         self._landlord = landlord
@@ -1146,6 +1160,7 @@ class PhantomArbiter:
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("\n   Stopping...")
         finally:
+            await self.stop()
             if 'coordinator' in locals() and coordinator:
                 await coordinator.stop()
         
