@@ -164,9 +164,11 @@ class UnifiedEngineAdapter:
         pre_check: bool = False,
         use_dynamic_fee: bool = True,
         priority_tier: str = "vh", # Default to Very High for arbs
+        rpc: Any = None,           # V128.4: Dynamic RPC for simulation/submission
     ) -> AtomicArbResult:
         """
         Execute an atomic arbitrage trade.
+        V128.4: Pass simulation/submission RPC.
         
         BOTH legs execute in a SINGLE transaction:
         - If either leg fails (slippage, liquidity), the ENTIRE tx reverts
@@ -184,11 +186,14 @@ class UnifiedEngineAdapter:
             slippage_bps: Slippage tolerance in basis points
             simulate_first: Run simulation before live execution
             jito_tip_lamports: Jito tip (auto-calculated if None)
+            rpc: Optional RPC provider or URL
             
         Returns:
             AtomicArbResult with execution details
         """
         start_time = time.time()
+        
+        rpc_url = rpc.url if hasattr(rpc, 'url') else rpc if isinstance(rpc, str) else None
         
         if not self._private_key:
             return AtomicArbResult(
