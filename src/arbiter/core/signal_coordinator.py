@@ -110,11 +110,20 @@ class SignalCoordinator:
                     signer = self._extract_signer_from_logs(logs_str)
                     
                     if usd_val > 0 and signer:
+                        # V117: Competitive Tip Scouting
+                        JITO_TIP_ACCOUNTS = [
+                            "96g9s9yUfQUY1PnTV997yTfMtoETo3c9L46Mv7W2X6fB",
+                            "HFqU5x63VTqyUaba8hpXp9M7K3nE9q4XhiAByfBvA9xBy",
+                            "ADa67vEEpCH93Y7Tsu64U2P55SAdU8eA1V375vA7P9SS"
+                        ]
+                        is_competitive = any(acc in logs_str for acc in JITO_TIP_ACCOUNTS)
+                        
                         signal = self.scout.on_tick({
                             "symbol": p_name.split('/')[0],
-                            "price": 1.0, # Placeholder
+                            "price": 1.0, 
                             "signer": signer,
-                            "usd_value": usd_val
+                            "usd_value": usd_val,
+                            "is_competitive": is_competitive
                         })
                         
                         if signal and signal.metadata and signal.metadata.get('type') == "FLASH_WARM":

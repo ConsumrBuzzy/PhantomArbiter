@@ -119,6 +119,19 @@ class ScoutAgent(BaseAgent):
         # V100: Whale Probe Detection
         # Check if the market data includes signer/signer-value (parsed from logs)
         if 'signer' in market_data and 'usd_value' in market_data:
+            # V117: Competitive Tip Signal
+            if market_data.get('is_competitive'):
+                return self._create_signal(
+                    symbol=symbol,
+                    action="ALERT",
+                    confidence=0.98,
+                    reason=f"COMPETITIVE_ACTIVITY: Bot tipping detected on {symbol}",
+                    metadata={
+                        "strategy": "TIP_WATCH",
+                        "type": "FLASH_WARM"
+                    }
+                )
+            
             probe_status = self.probe_detector.analyze_tx(
                 market_data['signer'], 
                 market_data['usd_value']
@@ -129,7 +142,7 @@ class ScoutAgent(BaseAgent):
                     symbol=symbol,
                     action="ALERT",
                     confidence=0.95,
-                    reason=f"WHALE_PROBE: Laddered buys detected on {symbol}",
+                    reason=f"WHALE_PROBE: Alpha activity detected on {symbol}",
                     metadata={
                         "strategy": "PROBE",
                         "wallet": market_data['signer'],
