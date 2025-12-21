@@ -157,8 +157,13 @@ class AdaptiveScanner:
         
         Returns False if pair is in skip cooldown.
         V102: Warming pairs ALWAYS bypass cooldown (Sticky Watchers).
+        V120: Blacklisted pairs are skipped until expiry.
         """
         now = now or time.time()
+        
+        # V120: Check blacklist first - skip blacklisted pairs
+        if now < self.blacklisted_until.get(pair, 0):
+            return False
         
         # V102: Automated Warming logic
         if now < self.warming_until.get(pair, 0):
