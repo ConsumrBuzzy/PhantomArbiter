@@ -455,12 +455,27 @@ class PhantomArbiter:
         if not self._engine:
             self._engine = ArbiterEngine(self, self.tracker)
             
-        await self._engine.run(
-            duration_minutes=duration_minutes,
-            scan_interval=scan_interval,
-            smart_pods=smart_pods,
-            landlord=landlord
-        )
+        try:
+            await self._engine.run(
+                duration_minutes=duration_minutes,
+                scan_interval=scan_interval,
+                smart_pods=smart_pods,
+                landlord=landlord
+            )
+        finally:
+            await self.stop()
+
+    async def stop(self):
+        """Clean shutdown of all components."""
+        Logger.info("🛑 Shutting down PhantomArbiter...")
+        if self.telegram:
+            self.telegram.stop()
+        
+        # Close other persistent connections if any
+        if hasattr(self, '_jito') and self._jito:
+            await self._jito.close()
+            
+        print("   ✅ Shutdown complete. Goodbye!")
 
     @property
     def current_balance(self):

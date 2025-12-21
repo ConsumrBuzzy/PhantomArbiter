@@ -72,20 +72,28 @@ class TelegramManager:
 
     def stop(self):
         """Clean shutdown of the bot."""
-        if not self.enabled or not self.application:
+        if not self.enabled:
             return
             
         Logger.info("📡 [TG] Manager Stopping...")
-        self.running = False # Signal the _run_async_loop to stop
+        self.running = False
+        
         try:
-            if self.loop and self.application:
-                # Stop polling first
-                asyncio.run_coroutine_threadsafe(self.application.stop(), self.loop)
-                asyncio.run_coroutine_threadsafe(self.application.shutdown(), self.loop)
+            if self.loop and self.loop.is_running() and self.application:
+                # Schedule stop within the loop
+                future_stop = asyncio.run_coroutine_threadsafe(self.application.stop(), self.loop)
+                future_shutdown = asyncio.run_coroutine_threadsafe(self.application.shutdown(), self.loop)
                 
-                # Give it a moment to stop
-                import time
-                time.sleep(1)
+                # Wait for them to complete or timeout
+                try:
+                    future_stop.result(timeout=2)
+                    future_shutdown.result(timeout=2)
+                except:
+                    pass
+            
+            if self.thread and self.thread.is_alive():
+                # Don't join forever, but give it a moment
+                self.thread.join(timeout=2)
                 
             self.thread = None
             Logger.info("📡 [TG] Manager Stopped.")
@@ -103,15 +111,16 @@ class TelegramManager:
         # Register Command Handlers
         self._register_commands()
         
-        # Run Polling (Blocking for this thread) with self-healing loop
         # Suppress httpx logs
         logging.getLogger("httpx").setLevel(logging.WARNING)
         
-        import time
         backoff = 5
         
         while self.running:
             try:
+                # Initialize or re-init bot
+                self.loop.run_until_complete(self.application.initialize())
+                
                 print(f"   ✅ Telegram Manager READY (Polling...)")
                 self.application.run_polling(
                     stop_signals=None, 
@@ -124,18 +133,29 @@ class TelegramManager:
                     
                 Logger.error(f"❌ [TG] Loop Error: {e}")
                 print(f"   ⚠️ [TG] Connection lost. Retrying in {backoff}s...")
+                import time
                 time.sleep(backoff)
-                
-                # Exponential backoff up to 60s
                 backoff = min(backoff * 2, 60)
+            finally:
+                if not self.running:
+                    break
+
+        # Final cleanup for the loop
+        try:
+            if self.application:
+                self.loop.run_until_complete(self.application.shutdown())
+            
+            # Cancel all pending tasks
+            pending = asyncio.all_tasks(self.loop)
+            for task in pending:
+                task.cancel()
+            
+            if pending:
+                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
                 
-                # Re-initialize application if needed
-                try:
-                    # In some cases we might need to recreate the application
-                    # but usually run_polling can just be restarted.
-                    pass
-                except:
-                    pass
+            self.loop.close()
+        except Exception as e:
+            Logger.debug(f"[TG] Cleanup error: {e}")
 
     def _register_commands(self):
         """Register command handlers."""
