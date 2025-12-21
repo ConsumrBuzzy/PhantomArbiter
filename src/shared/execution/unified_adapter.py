@@ -258,16 +258,12 @@ class UnifiedEngineAdapter:
             
             # Calculate Jito tip if not provided
             if jito_tip_lamports is None:
-                # V105: Dynamic Jito Tip (Targeting Priority Inclusion)
-                # Minimum 10k lamports (~$0.002) for protection
-                # Scaled to 20% of expected profit if profit > $0.10
+                # V110: Competitive Jito Tip Learning (Auction Sniper)
                 estimated_profit_usd = (amount_in / 1_000_000) * (opportunity.spread_pct / 100)
                 
-                if estimated_profit_usd > 0.10:
-                    tip_usd = min(0.05, estimated_profit_usd * 0.20) # Max 5 cents for $30 trades
-                    jito_tip_lamports = int((tip_usd / 200) * 1e9) # Assumes SOL=$200
-                
-                jito_tip_lamports = max(jito_tip_lamports or 10000, 10000)
+                from src.shared.execution.tip_optimizer import get_tip_optimizer
+                optimizer = get_tip_optimizer()
+                jito_tip_lamports = optimizer.get_optimized_tip(opportunity.pair, estimated_profit_usd)
             
             # Simulate first (seatbelt)
             if simulate_first:

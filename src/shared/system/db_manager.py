@@ -351,6 +351,15 @@ class DBManager:
             """)
             c.execute("CREATE INDEX IF NOT EXISTS idx_registry_symbol ON pool_registry(symbol)")
 
+            # Tip Multipliers (V110: Progressively learned Jito tip levels)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS tip_state (
+                pair TEXT PRIMARY KEY,
+                multiplier REAL DEFAULT 0.20,
+                updated_at REAL
+            )
+            """)
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
@@ -772,6 +781,54 @@ class DBManager:
                 'avg_spread': avg_spread,
                 'avg_delta': avg_delta
             }
+
+    def get_inclusion_stats(self, pair: str, limit: int = 20) -> dict:
+        """
+        V110: Get inclusion rate and success metrics for a pair.
+        Used by TipOptimizer to adjust Jito tips.
+        """
+        with self.cursor() as c:
+            # Extract base pair for broader learning (e.g. PIPPIN/USDC -> PIPPIN)
+            token = pair.split('/')[0] if '/' in pair else pair
+            
+            c.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN revert_reason LIKE '%Expired%' OR revert_reason LIKE '%Dropped%' THEN 1 ELSE 0 END) as miss_count
+            FROM fast_path_attempts
+            WHERE pair LIKE ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """, (f"{token}%", limit))
+            
+            row = c.fetchone()
+            if not row or not row['total']:
+                return {'inclusion_rate': 1.0, 'total': 0, 'success_rate': 0.0}
+                
+            total = row['total']
+            misses = row['miss_count'] or 0
+            
+            return {
+                'inclusion_rate': (total - misses) / total if total > 0 else 1.0,
+                'success_rate': (row['success_count'] or 0) / total,
+                'total': total
+            }
+
+    def save_tip_multiplier(self, pair: str, multiplier: float):
+        """Persist learned tip multiplier for a pair."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+            INSERT OR REPLACE INTO tip_state (pair, multiplier, updated_at)
+            VALUES (?, ?, ?)
+            """, (pair, multiplier, time.time()))
+
+    def get_tip_multiplier(self, pair: str) -> float:
+        """Retrieve learned tip multiplier, default 0.20."""
+        with self.cursor() as c:
+            c.execute("SELECT multiplier FROM tip_state WHERE pair = ?", (pair,))
+            row = c.fetchone()
+            return row[0] if row else 0.20
 
     # --- Pod State (Smart Rotation Persistence) ---
     
