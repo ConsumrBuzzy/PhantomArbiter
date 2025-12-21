@@ -407,18 +407,19 @@ class ArbitrageExecutor:
                     Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
                     result = await self._execute_bundled_swaps(buy_quote, sell_quote)
                 else:
-                    Logger.error(f"[EXEC] 🛑 Jito {jito_status} (Rate Limit?) - Aborting spatial arb to prevent stuck tokens")
-                    return self._error_result(f"Jito Unavailable ({jito_status}) - Safe Abort", start_time)
-                    # DISABLED SEQUENTIAL FALLBACK due to high stuck-token risk
-                    # buy_result = await self._execute_swap(buy_quote)
+                    Logger.warning(f"[EXEC] 🔄 Jito {jito_status} (Rate Limit?) - Falling back to sequential execution")
+                    
+                    # Execute buy leg
+                    buy_result = await self._execute_swap(buy_quote)
                     if not buy_result.success:
                         return self._error_result(f"Buy failed: {buy_result.error}", start_time)
-                    legs.append(buy_result)
                     
-                    # Execute sell with retry on failure
+                    legs.append(buy_result)
+                    Logger.info(f"   ✅ [EXEC] Sequential Buy Success: {buy_result.signature[:16]}...")
+                    
+                    # Execute sell leg with emergency retries
                     sell_result = await self._execute_swap(sell_quote)
                     
-                    # ═══ BUG FIX: Handle sell failure after successful buy ═══
                     if not sell_result.success:
                         Logger.error(f"[EXEC] ❌ SELL FAILED after successful buy! Attempting emergency retry...")
                         
@@ -434,6 +435,7 @@ class ArbitrageExecutor:
                                 token_mint, USDC, expected_tokens, slippage_bps=slippage_bps
                             )
                             if not emergency_quote:
+                                await asyncio.sleep(1.0)
                                 continue
                             
                             sell_result = await self._execute_swap(emergency_quote)
@@ -442,12 +444,11 @@ class ArbitrageExecutor:
                                 sell_success = True
                                 break
                             
-                            await asyncio.sleep(0.5)  # Brief pause between retries
+                            await asyncio.sleep(0.5)
                         
                         if not sell_success:
-                            # Log stuck tokens for manual cleanup
-                            Logger.error(f"[EXEC] ❌ STUCK TOKENS: {expected_tokens} units of {token_mint[:8]}... - MANUAL CLEANUP REQUIRED!")
-                            Logger.error(f"[EXEC] 💡 Run: python scripts/manual_sweep.py to recover")
+                            # Log stuck tokens - StuckTokenGuard will handle auto-recovery
+                            Logger.error(f"[EXEC] ❌ STUCK TOKENS: {expected_tokens} units of {token_mint[:8]}... - STUCK TOKEN GUARD will recover.")
                             return self._error_result(
                                 f"Sell failed after buy - STUCK {expected_tokens} tokens of {opportunity.pair}", 
                                 start_time, 
@@ -455,7 +456,8 @@ class ArbitrageExecutor:
                             )
                     
                     legs.append(sell_result)
-                    result = None
+                    Logger.info(f"   ✅ [EXEC] Sequential Sell Success: {sell_result.signature[:16]}...")
+                    result = {"success": True, "legs": legs}
                 
                 if result:
                     # Bundled execution succeeded

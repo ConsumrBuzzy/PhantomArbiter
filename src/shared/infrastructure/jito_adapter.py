@@ -236,9 +236,9 @@ class JitoAdapter:
             if bundle_id:
                 print(f"   🚀 [JITO] Bundle submitted: {bundle_id[:16]}...")
                 # V120: Post-trade cooldown to prevent rate limit hammering
-                # Set a 10s cooldown after successful bundle to let Jito recover
-                self._rate_limited_until = time.time() + 10
-                print(f"   ⏳ [JITO] Post-trade cooldown: 10s")
+                # Set a 3s cooldown after successful bundle to let Jito recover (Reduced from 10s)
+                self._rate_limited_until = time.time() + 3
+                print(f"   ⏳ [JITO] Post-trade cooldown: 3s")
                 return bundle_id
                 
             error = response.get("error", {})
