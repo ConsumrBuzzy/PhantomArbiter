@@ -13,7 +13,7 @@ import time
 from typing import Dict, Optional, Any
 from dataclasses import dataclass, asdict
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from config.settings import Settings
 
 @dataclass

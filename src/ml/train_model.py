@@ -14,7 +14,7 @@ from sklearn.metrics import classification_report, accuracy_score
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.ml.feature_generator import FeatureGenerator
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models")
 os.makedirs(MODELS_DIR, exist_ok=True)

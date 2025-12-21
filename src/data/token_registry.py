@@ -13,7 +13,7 @@ import time
 import requests
 from typing import Dict, Optional, Tuple
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 try:
     import httpx

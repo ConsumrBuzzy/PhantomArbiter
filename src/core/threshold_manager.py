@@ -11,7 +11,7 @@ Adjusts thresholds based on:
 """
 
 from typing import Dict, Optional
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.core.shared_cache import SharedPriceCache
 
 class ThresholdManager:

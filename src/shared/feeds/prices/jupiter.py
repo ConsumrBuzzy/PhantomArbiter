@@ -1,7 +1,7 @@
 import requests
 import time
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from .base import PriceProvider
 
 class JupiterProvider(PriceProvider):

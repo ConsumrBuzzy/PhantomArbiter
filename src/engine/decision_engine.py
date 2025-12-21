@@ -12,7 +12,7 @@ from src.strategy.watcher import Watcher
 from src.system.priority_queue import priority_queue
 from src.strategy.risk import PositionSizer, TrailingStopManager
 from src.strategy.metrics import Metrics
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class DecisionEngine(BaseStrategy):
     """

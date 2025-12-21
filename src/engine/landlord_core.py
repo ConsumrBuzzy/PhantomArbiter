@@ -29,7 +29,7 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 class LandlordState(Enum):

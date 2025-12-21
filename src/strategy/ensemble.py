@@ -3,7 +3,7 @@ from src.engine.decision_engine import DecisionEngine
 from src.strategy.keltner_logic import KeltnerLogic
 from src.strategy.vwap_logic import VwapLogic
 from src.strategy.base_strategy import BaseStrategy
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.agents.base_agent import AgentSignal
 from typing import Optional, List
 import numpy as np

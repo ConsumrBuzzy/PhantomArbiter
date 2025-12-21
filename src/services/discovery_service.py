@@ -2,7 +2,7 @@
 import asyncio
 import time
 from collections import defaultdict
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from config.settings import Settings
 from src.utils.boot_utils import BootTimer
 from src.system.comms_daemon import send_telegram

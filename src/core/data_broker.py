@@ -18,7 +18,7 @@ import signal
 import sys
 import threading
 import signal
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

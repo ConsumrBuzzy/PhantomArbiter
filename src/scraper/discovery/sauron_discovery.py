@@ -5,7 +5,7 @@ import ssl
 import websockets
 import os
 from typing import Dict, Optional, List, Callable
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from config.settings import Settings
 
 class SauronDiscovery:

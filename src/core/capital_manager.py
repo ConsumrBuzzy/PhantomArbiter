@@ -17,7 +17,7 @@ import time
 import random
 from typing import Dict, Any, Optional, Tuple, List, ClassVar
 from dataclasses import dataclass, field, asdict
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 # Type aliases for clarity

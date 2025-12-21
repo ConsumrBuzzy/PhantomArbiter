@@ -9,7 +9,7 @@ Check 2: Profitability (StrategyValidator) - Historical backtest
 
 from src.tools.rugcheck import RugCheck
 from src.core.strategy_validator import StrategyValidator
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class Gatekeeper:
     """

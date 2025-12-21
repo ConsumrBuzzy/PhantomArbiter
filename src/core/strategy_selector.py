@@ -13,7 +13,7 @@ Selection Criteria (Priority Order):
 
 import sqlite3
 import os
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "trading_journal.db")
 

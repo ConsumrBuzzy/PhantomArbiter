@@ -20,7 +20,7 @@ import os
 import threading
 from typing import List, Tuple, Any
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 # ═══════════════════════════════════════════════════════════════════════════

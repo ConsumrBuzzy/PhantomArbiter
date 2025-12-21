@@ -1,6 +1,6 @@
 
 import asyncio
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.analysis.performance_reporter import get_performance_reporter
 
 SHUTDOWN_EVENT = asyncio.Event()

@@ -10,7 +10,7 @@ import time
 from src.strategy.base_strategy import BaseStrategy
 from src.strategy.watcher import Watcher
 from src.strategy.risk import PositionSizer
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.strategy.signals import TechnicalAnalysis as TA
 
 class KeltnerLogic(BaseStrategy):

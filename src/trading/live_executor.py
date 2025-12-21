@@ -37,7 +37,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from config.settings import Settings
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 # Token mints

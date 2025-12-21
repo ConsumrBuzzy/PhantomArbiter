@@ -1,7 +1,7 @@
 import requests
 from typing import Dict, Optional, List, Any
 from dataclasses import dataclass, asdict
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from .base import PriceProvider
 
 

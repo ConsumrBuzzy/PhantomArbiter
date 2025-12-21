@@ -19,7 +19,7 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.liquidity.orca_adapter import get_orca_adapter, KNOWN_POOLS
 from src.liquidity.types import WhirlpoolState
 

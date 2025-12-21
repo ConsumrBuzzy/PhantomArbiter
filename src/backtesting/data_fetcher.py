@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 from datetime import datetime
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class DexDataFetcher:
     """

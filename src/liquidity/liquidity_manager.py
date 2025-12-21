@@ -25,7 +25,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.liquidity.orca_adapter import get_orca_adapter, SOL_MINT, USDC_MINT
 from src.liquidity.types import WhirlpoolState, PositionState, LiquidityParams
 from config.settings import Settings

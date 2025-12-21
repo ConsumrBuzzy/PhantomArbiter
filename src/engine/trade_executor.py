@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 from config.settings import Settings
 from src.system.priority_queue import priority_queue
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 if TYPE_CHECKING:
     from src.strategy.watcher import Watcher

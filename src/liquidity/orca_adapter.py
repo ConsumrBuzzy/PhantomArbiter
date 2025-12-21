@@ -17,7 +17,7 @@ import base64
 from typing import Optional, Dict, Any, Tuple, List
 from dataclasses import asdict
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.infrastructure.rpc_balancer import RPCBalancer
 from src.liquidity.types import (
     WhirlpoolState, 

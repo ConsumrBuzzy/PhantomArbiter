@@ -1,6 +1,6 @@
 
 import time
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class BootTimer:
     _start = 0

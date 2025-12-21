@@ -1,5 +1,5 @@
 import time
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from .jupiter import JupiterProvider
 from .dexscreener import DexScreenerProvider
 

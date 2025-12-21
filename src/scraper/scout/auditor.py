@@ -10,7 +10,7 @@ import json
 import os
 from src.core.strategy_validator import StrategyValidator
 from src.core.shared_cache import SharedPriceCache
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from config.settings import Settings
 from config.thresholds import (
     AUDIT_INTERVAL_HOURS, 

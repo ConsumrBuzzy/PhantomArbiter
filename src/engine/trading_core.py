@@ -12,7 +12,7 @@ from src.strategy.portfolio import PortfolioManager
 from src.shared.infrastructure.validator import TokenValidator
 from src.utils.notifications import get_notifier
 from src.core.shared_cache import SharedPriceCache
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 # V10.2 Delegates
@@ -727,7 +727,7 @@ class TradingCore:
         min_conf = getattr(Settings, 'LIVE_MIN_CONFIDENCE', 0.85) if is_live else getattr(Settings, 'PAPER_MIN_CONFIDENCE', 0.45)
         
         if action == "BUY" and confidence < min_conf:
-            from src.system.logging import Logger
+            from src.shared.system.logging import Logger
             Logger.debug(f"🛑 REJECTED: Low Confidence {confidence:.2f} < {min_conf:.2f} (Paper: {'OFF' if is_live else 'ON'})")
             return
             

@@ -6,7 +6,7 @@ import json
 from typing import Dict, Optional, Set, List
 from src.agents.base_agent import BaseAgent, AgentSignal
 from src.infrastructure.rpc_balancer import get_rpc_balancer
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 class WhaleWatcherAgent(BaseAgent):
     """

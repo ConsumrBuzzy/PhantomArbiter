@@ -10,7 +10,7 @@ import time
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from src.core.shared_cache import SharedPriceCache
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 @dataclass

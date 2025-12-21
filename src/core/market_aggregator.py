@@ -16,7 +16,7 @@ Usage:
 import asyncio
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.analysis.regime_detector import RegimeDetector, MarketRegime
 
 @dataclass

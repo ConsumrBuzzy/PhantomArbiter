@@ -34,7 +34,7 @@ from typing import Optional, Dict, Any, List, Callable, Awaitable
 from dataclasses import dataclass, field
 from enum import Enum
 
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from src.discovery.launchpad_monitor import (
     get_launchpad_monitor,
     MigrationEvent,

@@ -3,7 +3,7 @@ import json
 import os
 from src.scout.scraper import TokenScraper
 from src.scout.gatekeeper import Gatekeeper
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 from config.thresholds import HUNTER_INTERVAL_SECONDS, MAX_SCOUTS_PER_HUNT, SCOUT_EXPIRY_HOURS
 
 class ScoutManager:
