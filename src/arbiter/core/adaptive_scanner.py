@@ -261,9 +261,14 @@ class AdaptiveScanner:
         metrics.last_status = NearMissAnalyzer.classify_status(opp.net_profit_usd)
         
         # V102: Automatic Warming Trigger
-        # If spread is hot or volatility is high, keep it warm for 5 minutes
-        if opp.spread_pct >= self.SPREAD_THRESHOLD or metrics.spread_variance >= self.WARM_VOLATILITY_THRESHOLD:
+        # If spread is hot, volatility is high, OR status is Actionable (NEAR/READY)
+        is_actionable = metrics.last_status in ("VIABLE", "NEAR_MISS")
+        
+        if (opp.spread_pct >= self.SPREAD_THRESHOLD or 
+            metrics.spread_variance >= self.WARM_VOLATILITY_THRESHOLD or
+            is_actionable):
              self.warming_until[opp.pair] = now + self.WARM_DURATION_SECONDS
+
         
         # Determine skip interval based on spread, variance, AND learned data
         skip_seconds = self._calculate_skip_interval(opp.pair, opp.spread_pct, metrics.spread_variance)
