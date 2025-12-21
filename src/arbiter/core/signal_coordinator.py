@@ -31,9 +31,17 @@ class SignalCoordinator:
     Orchestrates real-time and polled signals to trigger Arbiter scans.
     """
     
-    def __init__(self, config: CoordinatorConfig, on_activity: Callable[[str], None]):
+    def __init__(self, 
+                 config: CoordinatorConfig, 
+                 on_activity: Callable[[str], None],
+                 on_flash_warm: Optional[Callable[[str], None]] = None):
         self.config = config
         self.on_activity = on_activity  # Callback(symbol)
+        self.on_flash_warm = on_flash_warm # Callback(symbol)
+        
+        # V100: Predictor Layer
+        from src.scraper.agents.scout_agent import ScoutAgent
+        self.scout = ScoutAgent()
         
         self.wss = None
         self.running = False
@@ -91,19 +99,53 @@ class SignalCoordinator:
             async def on_log(result):
                 # Trigger callback
                 if self.on_activity:
-                     # This might run in WSS loop, so simple non-blocking call
-                     # If on_activity is sync, just call. If async, create task.
-                     # AdaptiveScanner.trigger_activity is sync (just sets var).
                      self.on_activity(p_name)
-                     
-                     # We assume the caller handles the 'wake event' setting if needed,
-                     # or we can accept an Event object.
-                     # Better: Arbiter passes a lambda that sets event too.
+                
+                # V100: Sauron Probe Detection
+                # Simplified: Estimate USD value from log string if possible
+                # e.g. "Instruction: Swap ... 1000000000" (1 SOL)
+                try:
+                    logs_str = " ".join(result.get('logs', []))
+                    usd_val = self._estimate_usd_from_logs(logs_str, p_name)
+                    signer = self._extract_signer_from_logs(logs_str)
+                    
+                    if usd_val > 0 and signer:
+                        signal = self.scout.on_tick({
+                            "symbol": p_name.split('/')[0],
+                            "price": 1.0, # Placeholder
+                            "signer": signer,
+                            "usd_value": usd_val
+                        })
+                        
+                        if signal and signal.metadata and signal.metadata.get('type') == "FLASH_WARM":
+                            if self.on_flash_warm:
+                                self.on_flash_warm(p_name)
+                except:
+                    pass
             return on_log
 
         callback = await make_callback()
         await self.wss.subscribe_logs([base_mint], callback)
         self.monitored_mints.add(base_mint)
+
+    def _estimate_usd_from_logs(self, logs: str, pair: str) -> float:
+        """Roughly estimate USD value of a swap from logs for probe detection."""
+        import re
+        # Look for large numbers in 'Swap' or 'Transfer' logs
+        amounts = re.findall(r'(\d{7,})', logs) # 1,000,000+ (0.001 SOL or 1 USDC)
+        if not amounts: return 0.0
+        
+        largest = float(max(amounts))
+        # Heuristic: If it looks like 1,000,000,000 -> 1 SOL ($100)
+        # If it's USDC (6 decimals) -> 1,000,000 is $1
+        return largest / 1e7 # Very rough normalization
+        
+    def _extract_signer_from_logs(self, logs: str) -> Optional[str]:
+        """Extract a wallet address from logs if present."""
+        import re
+        # Typical Solana address
+        matches = re.findall(r'([1-9A-HJ-NP-Za-km-z]{32,44})', logs)
+        return matches[0] if matches else None
 
     def poll_signals(self) -> List[tuple]:
         """
