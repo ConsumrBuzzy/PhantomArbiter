@@ -100,7 +100,7 @@ class SpreadDetector:
     
     def __init__(self, feeds: List = None):
         """Initialize with list of price feeds."""
-        self.feeds = {f.name: f for f in feeds} if feeds else {}
+        self.feeds = {f.get_name(): f for f in feeds} if feeds else {}
         self.default_trade_size = 100.0  # USD
         
         # V125: Persistent ThreadPool for zero-overhead polling
