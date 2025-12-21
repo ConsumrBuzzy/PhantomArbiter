@@ -174,10 +174,37 @@ class ExecutionEngine {
     }
 
     /**
+     * Send transaction bundle via Jito Block Engine
+     * Ensures all-or-nothing execution and sandwich protection
+     */
+    private async sendJitoBundle(txs: VersionedTransaction[]): Promise<string> {
+        const serializedTxs = txs.map(tx => bs58.encode(tx.serialize()));
+
+        const response = await fetch(JITO_BLOCK_ENGINE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'sendBundle',
+                params: [serializedTxs]
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(`Jito bundle failed: ${JSON.stringify(result.error)}`);
+        }
+
+        return result.result; // This is the bundle ID
+    }
+
+    /**
      * Send transaction via Helius Sender endpoint
      * Free 15 TPS, auto-routes to fastest validator
      */
-    private async sendViaHelius(tx: Transaction): Promise<string> {
+    private async sendViaHelius(tx: Transaction | VersionedTransaction): Promise<string> {
         if (!HELIUS_SENDER_URL) {
             throw new Error('HELIUS_API_KEY not configured');
         }
@@ -461,12 +488,37 @@ class ExecutionEngine {
 
             // ═══ LIVE EXECUTION ═══
             // Simulation passed - safe to send
-            // Prefer Helius Sender (free 15 TPS) over standard RPC
             let signature: string;
 
-            if (HELIUS_SENDER_URL) {
+            // 1. Convert to VersionedTransaction for Jito/Modern Sending
+            const messageV0 = new TransactionMessage({
+                payerKey: this.wallet!.publicKey,
+                recentBlockhash: blockhash,
+                instructions: tx.instructions,
+            }).compileToV0Message();
+            const versionedTx = new VersionedTransaction(messageV0);
+            versionedTx.sign([this.wallet!]);
+
+            if (jitoTipLamports > 0) {
+                // Use Jito Bundle for guaranteed atomicity and speed
+                // Note: We currently send as a single-transaction bundle for simplicity
+                signature = await this.sendJitoBundle([versionedTx]);
+
+                // Bundle ID is used for confirmation tracking
+                const confirmed = await this.confirmTransaction(signature);
+                if (!confirmed) {
+                    return {
+                        success: false,
+                        command: 'swap',
+                        signature,
+                        legs: legResults,
+                        error: 'Jito Bundle not confirmed - likely expired or landed after height',
+                        timestamp,
+                    };
+                }
+            } else if (HELIUS_SENDER_URL) {
                 // Use Helius for faster, rate-limit-free sending
-                signature = await this.sendViaHelius(tx);
+                signature = await this.sendViaHelius(versionedTx);
                 // Wait for confirmation
                 const confirmed = await this.confirmTransaction(signature);
                 if (!confirmed) {
@@ -481,12 +533,20 @@ class ExecutionEngine {
                 }
             } else {
                 // Fallback to standard RPC
-                signature = await sendAndConfirmTransaction(
-                    this.connection,
-                    tx,
-                    [this.wallet!],
-                    { commitment: 'confirmed', maxRetries: 3 }
-                );
+                signature = await this.connection.sendTransaction(versionedTx, {
+                    skipPreflight: true,
+                    maxRetries: 2
+                });
+                const confirmed = await this.confirmTransaction(signature);
+                if (!confirmed) {
+                    return {
+                        success: false,
+                        command: 'swap',
+                        signature,
+                        error: 'Standard RPC send failed to confirm',
+                        timestamp,
+                    };
+                }
             }
 
             return {
