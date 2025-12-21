@@ -270,10 +270,11 @@ class ArbitrageExecutor:
         
         if scan_net_profit is not None:
             if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
-                # High spread - just needs to be positive
-                if scan_net_profit <= 0:
-                    Logger.info(f"[EXEC] ⏭️ Skip-quote trade not profitable: Net ${scan_net_profit:.3f}")
-                    return self._error_result(f"Skip-quote trade not profitable: ${scan_net_profit:.3f}", start_time)
+                # High spread - needs at least $0.02 to cover dust/slippage/tips
+                MIN_SKIP_QUOTE_PROFIT = 0.02
+                if scan_net_profit < MIN_SKIP_QUOTE_PROFIT:
+                    Logger.info(f"[EXEC] ⏭️ Skip-quote trade too thin: Net ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}")
+                    return self._error_result(f"Skip-quote trade too thin: ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}", start_time)
             else:
                 # Lower spread - needs buffer for decay
                 MIN_NET_PROFIT_USD = 0.15
@@ -629,31 +630,35 @@ class ArbitrageExecutor:
             
             Logger.info(f"[EXEC] ✅ Bundle submitted: {bundle_id[:16]}...")
             
+            # V120: Wait for bundle landing confirmation
+            # This ensures we only count successful trades and can detect failed bundles early.
+            is_confirmed = self.jito.wait_for_confirmation(bundle_id)
+            
             # Create result legs
             legs = [
                 TradeResult(
-                    success=True, trade_type="BUY",
+                    success=is_confirmed, trade_type="BUY",
                     input_token=buy_quote.get('inputMint', ''),
                     output_token=buy_quote.get('outputMint', ''),
                     input_amount=int(buy_quote.get('inAmount', 0)) / 1e6,
                     output_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
                     price=0, fee_usd=0.01,
-                    signature=bundle_id, error=None,
+                    signature=bundle_id, error=None if is_confirmed else "Bundle failed to land",
                     timestamp=time.time(), execution_time_ms=0
                 ),
                 TradeResult(
-                    success=True, trade_type="SELL",
+                    success=is_confirmed, trade_type="SELL",
                     input_token=sell_quote.get('inputMint', ''),
                     output_token=sell_quote.get('outputMint', ''),
                     input_amount=int(sell_quote.get('inAmount', 0)) / 1e9,
                     output_amount=int(sell_quote.get('outAmount', 0)) / 1e6,
                     price=0, fee_usd=0.01,
-                    signature=bundle_id, error=None,
+                    signature=bundle_id, error=None if is_confirmed else "Bundle failed to land",
                     timestamp=time.time(), execution_time_ms=0
                 )
             ]
             
-            return {"success": True, "bundle_id": bundle_id, "legs": legs}
+            return {"success": is_confirmed, "bundle_id": bundle_id, "legs": legs}
             
         except Exception as e:
             Logger.error(f"[EXEC] Bundle execution failed: {e}")
