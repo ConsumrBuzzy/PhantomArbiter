@@ -272,8 +272,8 @@ class ArbitrageExecutor:
         
         if scan_net_profit is not None:
             if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
-                # High spread - needs at least $0.02 to cover dust/slippage/tips
-                MIN_SKIP_QUOTE_PROFIT = 0.02
+                # High spread - needs at least $0.015 to cover dust/slippage/tips
+                MIN_SKIP_QUOTE_PROFIT = 0.015
                 if scan_net_profit < MIN_SKIP_QUOTE_PROFIT:
                     Logger.info(f"[EXEC] ⏭️ Skip-quote trade too thin: Net ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}")
                     return self._error_result(f"Skip-quote trade too thin: ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}", start_time)
@@ -408,8 +408,17 @@ class ArbitrageExecutor:
                 if jito_status == "READY":
                     Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
                     result = await self._execute_bundled_swaps(buy_quote, sell_quote)
-                else:
-                    Logger.warning(f"[EXEC] 🔄 Jito {jito_status} (Rate Limit?) - Falling back to sequential execution")
+                    
+                    # Check for fallback trigger (Invalid Bundle)
+                    if result and not result.get("success") and result.get("should_fallback"):
+                        Logger.warning("[EXEC] 🔄 Jito Bundle Invalid - Falling back to sequential execution immediately")
+                        jito_status = "FALLBACK" # Force into else block logic
+                        result = None
+
+                if jito_status != "READY" or (jito_status == "FALLBACK"):
+                    if jito_status != "FALLBACK":
+                        # Only log this if we haven't already logged the fallback reason
+                        Logger.warning(f"[EXEC] 🔄 Jito {jito_status} (Rate Limit?) - Falling back to sequential execution")
                     
                     # Execute buy leg
                     buy_result = await self._execute_swap(buy_quote)
@@ -643,6 +652,13 @@ class ArbitrageExecutor:
             # V120: Wait for bundle landing confirmation
             # This ensures we only count successful trades and can detect failed bundles early.
             is_confirmed = self.jito.wait_for_confirmation(bundle_id)
+            
+            if not is_confirmed:
+                # Bundle failed (Invalid/Dropped) - Return failure to trigger sequential fallback?
+                # Actually, sequential fallback logic is currently only for "Jito Unavailable".
+                # To be robust: If bundle fails, we could try sequential execution if price is still good.
+                Logger.warning(f"[EXEC] ⚠️ Jito bundle failed (Invalid/Dropped).")
+                return {"success": False, "error": "Jito bundle failed verification", "legs": [], "should_fallback": True}
             
             # Create result legs
             legs = [
