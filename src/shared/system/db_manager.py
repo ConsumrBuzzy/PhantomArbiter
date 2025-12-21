@@ -295,6 +295,7 @@ class DBManager:
                 meteora_pool TEXT,
                 orca_pool TEXT,
                 raydium_clmm_pool TEXT,
+                raydium_standard_pool TEXT,
                 preferred_dex TEXT,
                 updated_at REAL
             )
@@ -307,6 +308,17 @@ class DBManager:
                 try:
                     c.execute("ALTER TABLE pool_index ADD COLUMN raydium_clmm_pool TEXT")
                     Logger.info("📦 [DB] Migrated pool_index table: added raydium_clmm_pool column")
+                except:
+                except:
+                    pass  # Column might already exist
+            
+            # Migration: Add raydium_standard_pool column if missing (V98)
+            try:
+                c.execute("SELECT raydium_standard_pool FROM pool_index LIMIT 1")
+            except:
+                try:
+                    c.execute("ALTER TABLE pool_index ADD COLUMN raydium_standard_pool TEXT")
+                    Logger.info("📦 [DB] Migrated pool_index table: added raydium_standard_pool column")
                 except:
                     pass  # Column might already exist
             

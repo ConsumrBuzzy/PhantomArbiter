@@ -148,12 +148,17 @@ class RaydiumFeed(PriceSource):
             # Only checking CLMM pools for now (Daemon requirement)
             pools = pool_index.get_pools(base_mint, quote_mint)
             
-            if pools and pools.raydium_clmm_pool:
+            # Check both CLMM and Standard pools (V98)
+            pool_address = None
+            if pools:
+                pool_address = pools.raydium_clmm_pool or pools.raydium_standard_pool
+            
+            if pool_address:
                 bridge = self._get_bridge()
                 
                 # Check if bridge is actually daemonized/ready? 
                 # Just call get_price, it handles daemon communication.
-                result = bridge.get_price(pools.raydium_clmm_pool)
+                result = bridge.get_price(pool_address)
                 
                 if result and result.success:
                     # Determine price direction
