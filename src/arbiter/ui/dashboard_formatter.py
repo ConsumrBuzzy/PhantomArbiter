@@ -15,11 +15,14 @@ class DashboardFormatter:
     """
     
     @staticmethod
-    def format_terminal_header(balance: float, gas: float, daily_profit: float) -> str:
+    def format_terminal_header(balance: float, gas: float, daily_profit: float, pod_names: List[str] = None, trades: int = 0) -> str:
         """Create the terminal dashboard header."""
         now = datetime.now().strftime("%H:%M:%S")
+        pod_str = f" | Pods: {','.join(pod_names)}" if pod_names else ""
+        
         lines = [
-            f"\n   [{now}] MARKET SCAN | Bal: ${balance:.2f} | Gas: ${gas:.2f} | Day P/L: ${daily_profit:+.2f}",
+            f"\n   [{now}] MARKET SCAN{pod_str}",
+            f"   💰 Bal: ${balance:.2f} | ⛽ Gas: ${gas:.2f} | 📈 P/L: ${daily_profit:+.2f} | 🔄 Trades: {trades}",
             f"   {'Pair':<12} {'Buy':<8} {'Sell':<8} {'Spread':<8} {'Net':<10} {'Status'}",
             "   " + "-"*75
         ]
