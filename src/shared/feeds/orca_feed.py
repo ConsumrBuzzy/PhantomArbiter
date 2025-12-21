@@ -9,6 +9,7 @@ We leverage the existing OrcaAdapter for pool state reading.
 
 import time
 import requests
+import httpx
 from typing import Optional, Dict
 
 from config.settings import Settings
@@ -41,8 +42,8 @@ class OrcaFeed(PriceSource):
         self._price_cache: Dict[str, dict] = {}
         self._cache_ttl = 3.0  # 3 second cache
         
-        # V126: Persistent HTTP Session
-        self.session = requests.Session()
+        # V127: Async Client
+        self.session = httpx.AsyncClient()
         
         # Lazy-load on-chain adapter and bridge
         self._orca_adapter = None
@@ -75,7 +76,7 @@ class OrcaFeed(PriceSource):
         """Orca typical fee tier."""
         return 0.30  # 0.30% for standard pools
     
-    def get_quote(
+    async def get_quote(
         self, 
         input_mint: str, 
         output_mint: str, 
@@ -86,7 +87,7 @@ class OrcaFeed(PriceSource):
         
         Uses spot price with slippage estimation.
         """
-        spot = self.get_spot_price(output_mint, input_mint)
+        spot = await self.get_spot_price(output_mint, input_mint)
         if not spot or spot.price <= 0:
             return None
             
@@ -111,7 +112,7 @@ class OrcaFeed(PriceSource):
             timestamp=time.time()
         )
     
-    def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
+    async def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
         Get spot price from Orca.
         
@@ -170,7 +171,7 @@ class OrcaFeed(PriceSource):
         
         # Fallback to DexScreener
         if not price:
-            price = self._fetch_dexscreener_price(base_mint, "orca")
+            price = await self._fetch_dexscreener_price(base_mint, "orca")
         
         if price and price > 0:
             timestamp = time.time()
@@ -204,7 +205,7 @@ class OrcaFeed(PriceSource):
         
         return None
     
-    def _fetch_dexscreener_price(self, mint: str, dex_filter: str = None) -> Optional[float]:
+    async def _fetch_dexscreener_price(self, mint: str, dex_filter: str = None) -> Optional[float]:
         """
         Fetch price from DexScreener API.
         
@@ -216,8 +217,8 @@ class OrcaFeed(PriceSource):
         
         try:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
-            # V126: Use persistent session
-            resp = self.session.get(url, timeout=5)
+            # V127: Async
+            resp = await self.session.get(url, timeout=5)
             
             if resp.status_code != 200:
                 return None
@@ -244,7 +245,7 @@ class OrcaFeed(PriceSource):
             Logger.debug(f"DexScreener error: {e}")
             return None
 
-    def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
+    async def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
         """
         Batch fetch prices via DexScreener (chunked by 30).
         """
@@ -261,8 +262,8 @@ class OrcaFeed(PriceSource):
                 url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
                 
                 try:
-                    # V126: Use persistent session
-                    resp = self.session.get(url, timeout=5)
+                    # V127: Async
+                    resp = await self.session.get(url, timeout=5)
                     if resp.status_code == 200:
                         data = resp.json()
                         pairs = data.get('pairs', [])

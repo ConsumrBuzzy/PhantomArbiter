@@ -10,7 +10,7 @@ Uses DexScreener API filtered for Meteora pools.
 """
 
 import time
-import requests
+import httpx
 from typing import Optional, Dict
 
 from config.settings import Settings
@@ -39,8 +39,11 @@ class MeteoraFeed(PriceSource):
         self._price_cache: Dict[str, tuple] = {}  # mint -> (price, timestamp)
         self._cache_ttl = 5.0  # 5 second cache
         self._bridge = None
-        # V126: Persistent HTTP Session (Keep-Alive)
-        self.session = requests.Session()
+        # V127: Async Client
+        self.client = httpx.AsyncClient()
+
+    async def close(self):
+        await self.client.aclose()
 
     def _get_bridge(self):
         """Lazy-load MeteoraBridge."""
@@ -56,7 +59,7 @@ class MeteoraFeed(PriceSource):
         """Meteora dynamic fee (base estimate)."""
         return self.BASE_FEE_PCT
     
-    def get_quote(
+    async def get_quote(
         self, 
         input_mint: str, 
         output_mint: str, 
@@ -67,7 +70,7 @@ class MeteoraFeed(PriceSource):
         
         Uses spot price with slippage estimation.
         """
-        spot = self.get_spot_price(output_mint, input_mint)
+        spot = await self.get_spot_price(output_mint, input_mint) # Await async call
         if not spot or spot.price <= 0:
             return None
         
@@ -91,7 +94,7 @@ class MeteoraFeed(PriceSource):
             timestamp=time.time()
         )
     
-    def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
+    async def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
         Get spot price from Meteora via DexScreener.
         
@@ -151,7 +154,7 @@ class MeteoraFeed(PriceSource):
                 Logger.debug(f"[METEORA] Daemon check failed: {e}")
             
             # 2. Fetch from DexScreener (Fallback)
-            result = self._fetch_dexscreener_price(base_mint, dex_filter="meteora")
+            result = await self._fetch_dexscreener_price(base_mint, dex_filter="meteora")
             
             if result:
                 price, liquidity = result
@@ -175,7 +178,7 @@ class MeteoraFeed(PriceSource):
             Logger.debug(f"[METEORA] Price fetch error: {e}")
             return None
     
-    def _fetch_dexscreener_price(self, mint: str, dex_filter: str = None) -> Optional[tuple]:
+    async def _fetch_dexscreener_price(self, mint: str, dex_filter: str = None) -> Optional[tuple]:
         """
         Fetch price from DexScreener API.
         
@@ -188,8 +191,8 @@ class MeteoraFeed(PriceSource):
         """
         try:
             url = f"{self.DEXSCREENER_API}/{mint}"
-            # V126: Use persistent session
-            response = self.session.get(url, timeout=5.0)
+            # V127: Async httpx
+            response = await self.client.get(url, timeout=5.0)
             
             if response.status_code != 200:
                 return None
@@ -226,7 +229,7 @@ class MeteoraFeed(PriceSource):
             Logger.debug(f"[METEORA] DexScreener error: {e}")
             return None
     
-    def get_multiple_prices(self, mints: list, vs_token: str = None) -> Dict[str, float]:
+    async def get_multiple_prices(self, mints: list, vs_token: str = None) -> Dict[str, float]:
         """
         Batch fetch prices via DexScreener (chunked by 30).
         """
@@ -243,8 +246,8 @@ class MeteoraFeed(PriceSource):
                 url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
                 
                 try:
-                    # V126: Use persistent session
-                    resp = self.session.get(url, timeout=5)
+                    # V127: Async httpx
+                    resp = await self.client.get(url, timeout=5)
                     if resp.status_code == 200:
                         data = resp.json()
                         pairs = data.get('pairs', [])
