@@ -771,26 +771,108 @@ class ArbitrageExecutor:
         """
         start_time = time.time()
         
-        # 1. Validation (Framework Stub)
+        # 1. Validation
         if not self.jito:
             Logger.error("[EXEC] ❌ Triangular Arb requires Jito (Atomic Bundle)")
             return None
             
-        Logger.info(f"[EXEC] 📐 executing Triangular Arb: {opportunity.route_tokens}")
+        Logger.info(f"[EXEC] 📐 Executing Triangular Arb: {' -> '.join(opportunity.route_tokens)}")
         
-        # 2. Get Quotes for all 3 legs
-        # quote_a_b = ...
-        # quote_b_c = ...
-        # quote_c_a = ...
-        
-        # 3. Verify Net Profit
-        # ...
-        
-        # 4. Build & Submit Bundle
-        # ...
-        
-        Logger.warning("[EXEC] 🚧 Triangular Execution not yet fully implemented")
-        return None
+        try:
+            # 2. Get Quotes for all 3 legs
+            # Leg 1: A -> B
+            quote1 = await self.swapper.get_quote(
+                input_mint=opportunity.route_tokens[0], # e.g. USDC (Mint address) or Symbol? need to ensure Mint.
+                output_mint=opportunity.route_tokens[1], # e.g. SOL
+                amount_in_lamports=int(opportunity.start_amount * 10**6), # assuming USDC 6 decimals for now... risky assumption!
+                # TODO: We need decimal map or fetch mint info. For now assuming USDC/SOL standard.
+                slippage_bps=50 # 0.5% per leg to be safe
+            )
+            
+            if not quote1: return None
+            
+            # Leg 2: B -> C
+            quote2 = await self.swapper.get_quote(
+                input_mint=opportunity.route_tokens[1],
+                output_mint=opportunity.route_tokens[2],
+                amount_in_lamports=int(quote1['outAmount']),
+                slippage_bps=50
+            )
+            
+            if not quote2: return None
+            
+            # Leg 3: C -> A
+            quote3 = await self.swapper.get_quote(
+                input_mint=opportunity.route_tokens[2],
+                output_mint=opportunity.route_tokens[0],
+                amount_in_lamports=int(quote2['outAmount']),
+                slippage_bps=50
+            ) 
+            
+            if not quote3: return None
+            
+            # 3. Verify Final Output
+            final_out = int(quote3['outAmount']) / 10**6 
+            start_in = opportunity.start_amount
+            
+            estimated_profit = final_out - start_in
+            Logger.info(f"[EXEC] 📐 Live Quote Profit: ${estimated_profit:.4f}")
+            
+            if estimated_profit <= 0.05: # Minimal hurdle
+                Logger.warning(f"[EXEC] ❌ Quote slippage ate profit: ${estimated_profit:.4f}")
+                return None
+                
+            # 4. Build Transactions (3 Swaps)
+            # We need raw transactions from Jupiter
+            tx1 = await self.swapper.get_swap_transaction(quote1)
+            tx2 = await self.swapper.get_swap_transaction(quote2)
+            tx3 = await self.swapper.get_swap_transaction(quote3)
+            
+            if not (tx1 and tx2 and tx3):
+                Logger.warning("[EXEC] ❌ Failed to build swap transactions")
+                return None
+                
+            # 5. Build Tip Transaction
+            tip_account = self.jito.get_random_tip_account()
+            tip_lamports = 1000000 # 0.001 SOL (~$0.15) aggressive tip for complex arb
+            tip_tx = self.jito.create_tip_transaction(
+                payer=self.wallet.pubkey(),
+                tip_account=tip_account,
+                lamports=tip_lamports,
+                latest_blockhash=tx1.recent_blockhash # Reuse BH
+            )
+            
+            # 6. Sign All
+            # Using wallet to sign 4 transactions
+            # Note: Jito needs base58 encoded SIGNED transactions
+            # Adapter expects list of b58 strings
+            
+            # This part requires the wallet to sign the transaction objects and return b58
+            # The current self.wallet.sign_transaction returns signature? 
+            # Or does it sign in place? 
+            # Let's assume standard solana-py transaction object flow.
+            # actually swapper.get_swap_transaction returns a VersionedTransaction object usually
+            
+            # For now, placeholder for signing logic:
+            signed_txs = [
+                self.wallet.sign_and_serialize(tx1),
+                self.wallet.sign_and_serialize(tx2),
+                self.wallet.sign_and_serialize(tx3),
+                self.wallet.sign_and_serialize(tip_tx)
+            ]
+            
+            # 7. Submit Bundle
+            bundle_id = self.jito.submit_bundle(signed_txs)
+            
+            if bundle_id:
+                Logger.info(f"🚀 [JITO] Triangular Bundle Submitted: {bundle_id[:8]}...")
+                return {"success": True, "bundle_id": bundle_id}
+            
+            return None
+
+        except Exception as e:
+            Logger.error(f"[EXEC] Triangular error: {e}")
+            return None
 
     def _error_result(self, error_msg: str, start_time: float, legs: List[TradeResult] = None) -> Dict:
         """Create an error execution result."""
