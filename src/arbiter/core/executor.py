@@ -406,7 +406,7 @@ class ArbitrageExecutor:
                 Logger.info(f"[EXEC] ✅ Quote verified: ${projected_profit_usd:+.4f} projected profit")
 
                 # 3. Execute atomically via Jito bundle (or sequential fallback)
-                jito_status = "READY" if self.jito and self.jito.is_available() else ("MISSING" if not self.jito else "OFFLINE")
+                jito_status = "READY" if self.jito and await self.jito.is_available() else ("MISSING" if not self.jito else "OFFLINE")
                 
                 if jito_status == "READY":
                     Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
@@ -552,7 +552,7 @@ class ArbitrageExecutor:
             import base58
             
             # Get random tip account from Jito
-            tip_account = self.jito.get_random_tip_account()
+            tip_account = await self.jito.get_random_tip_account()
             if not tip_account:
                 Logger.warning("[EXEC] No Jito tip account available, falling back to sequential")
                 # Return None to trigger sequential fallback
@@ -604,7 +604,7 @@ class ArbitrageExecutor:
             Logger.info("[EXEC] ✅ Simulation passed! Submitting bundle...")
             
             # Submit bundle with tip tx included
-            bundle_id = self.jito.submit_bundle(tx_bundle)
+            bundle_id = await self.jito.submit_bundle(tx_bundle)
             
             if not bundle_id:
                 Logger.warning("[EXEC] ⚠️ Jito submission failed - Triggering fallback")
@@ -614,7 +614,7 @@ class ArbitrageExecutor:
             
             # V120: Wait for bundle landing confirmation
             # This ensures we only count successful trades and can detect failed bundles early.
-            is_confirmed = self.jito.wait_for_confirmation(bundle_id)
+            is_confirmed = await self.jito.wait_for_confirmation(bundle_id)
             
             if not is_confirmed:
                 # Bundle failed (Invalid/Dropped) - Return failure to trigger sequential fallback?
