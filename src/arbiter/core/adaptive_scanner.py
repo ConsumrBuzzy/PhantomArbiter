@@ -310,6 +310,13 @@ class AdaptiveScanner:
              # Cool down if no longer promising
              self.warming_until[opp.pair] = 0
 
+        # V120: Auto-blacklist pairs with consistently low spreads
+        # If spread is below threshold and has been scanned 10+ times, blacklist for 1 hour
+        if opp.spread_pct < self.BLACKLIST_THRESHOLD_PCT and metrics.scan_count >= 10:
+            # Check if average spread is consistently low (use variance as proxy)
+            if metrics.spread_variance < 0.2:  # Low variance = consistently low
+                self.blacklisted_until[opp.pair] = now + self.BLACKLIST_DURATION
+                print(f"   🚫 [SCAN] Blacklisting {opp.pair} for 1hr (avg spread too low)")
         
         # Determine skip interval based on spread, variance, AND learned data
         skip_seconds = self._calculate_skip_interval(opp.pair, opp.spread_pct, metrics.spread_variance)
