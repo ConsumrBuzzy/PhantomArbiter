@@ -309,7 +309,7 @@ class PhantomArbiter:
         # V115: Update Triangular Graph & Check for Cycles
         if self._triangular_scanner:
             try:
-                self._triangular_scanner.update_graph(detector)
+                self._triangular_scanner.update_graph(detector, self.config.pairs)
                 cycles = self._triangular_scanner.find_cycles(amount_in=trade_size)
                 # If we find actual profitable cycles, we can add them to opportunities?
                 # For now, just logging (Watch Mode)

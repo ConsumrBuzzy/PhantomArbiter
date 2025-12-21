@@ -134,16 +134,21 @@ class TriangularScanner:
                             if gross_rate > 1.005: 
                                 opp = self._build_opportunity(start_node, mid_node, end_node, price1, price2, price3, amount_in)
                                 
+                                # Use symbols for logging
+                                s1 = self.mint_to_symbol.get(start_node, start_node[:4])
+                                s2 = self.mint_to_symbol.get(mid_node, mid_node[:4])
+                                s3 = self.mint_to_symbol.get(end_node, end_node[:4])
+
                                 # Log if it meets the user's "observation threshold" of $0.05
                                 if opp.net_profit_usd > 0.05:
                                     from src.shared.system.logging import Logger
-                                    Logger.info(f"📐 [SCAN] Opportunity: {start_node}->{mid_node}->{end_node} | Gross: {gross_rate:.4f}x | Net: ${opp.net_profit_usd:.2f}")
+                                    Logger.info(f"📐 [SCAN] Opportunity: {s1}->{s2}->{s3} | Gross: {gross_rate:.4f}x | Net: ${opp.net_profit_usd:.2f}")
                                     opportunities.append(opp)
                                     
                                 # Still log "near misses" / raw candidates if high gross but low net
                                 elif gross_rate > 1.01:
                                     from src.shared.system.logging import Logger
-                                    Logger.info(f"📐 [SCAN] Candidate: {start_node}->{mid_node}->{end_node} | Gross: {gross_rate:.4f}x (Net ${opp.net_profit_usd:.2f})")
+                                    Logger.info(f"📐 [SCAN] Candidate: {s1}->{s2}->{s3} | Gross: {gross_rate:.4f}x (Net ${opp.net_profit_usd:.2f})")
                                     
         return opportunities
 

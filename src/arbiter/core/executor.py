@@ -421,17 +421,14 @@ class ArbitrageExecutor:
                 if jito_status != "READY":
                     Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Aborting trade to prevent stuck tokens (Atomic or Nothing)")
                     return self._error_result(f"Jito {jito_status} - Aborted", start_time)
-                    
-                # NOTE: Sequential Fallback removed for safety.
-                # If Jito fails, we do NOT want to execute risky sequential legs.
-                
-                return self._error_result("Trade logic finished without execution path", start_time)
                 
                 if result:
                     # Bundled execution succeeded
                     legs = result.get('legs', [])
                     if not result.get('success'):
                         return self._error_result(result.get('error', 'Bundle failed'), start_time, legs)
+                else:
+                    return self._error_result("Trade logic finished without execution path (No result)", start_time)
                 
                 # Track actual slippage and log to DB
                 if legs and len(legs) >= 2:
