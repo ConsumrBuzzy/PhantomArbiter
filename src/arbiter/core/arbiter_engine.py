@@ -161,6 +161,32 @@ class ArbiterEngine:
 
                 # Update Pod Manager state for rotation
                 found_opp = len(opportunities) > 0
+                profitable_count = len([o for o in opportunities if o.net_profit_usd > 0])
+                
+                # ═══ V131: Scan Metrics Logging for ML ═══
+                try:
+                    from src.shared.system.db_manager import db_manager
+                    from datetime import datetime
+                    
+                    # Log scan metrics for learning
+                    db_manager.log_cycle(
+                        pod_name=",".join(active_pod_names),
+                        pairs_scanned=len(self.config.pairs),
+                        duration_ms=self._last_duration
+                    )
+                    
+                    # Log opportunity frequency by hour (time-of-day learning)
+                    if profitable_count > 0:
+                        db_manager.log_spread({
+                            "pair": "SCAN_SUMMARY",
+                            "spread_pct": profitable_count,  # Repurpose as count
+                            "net_estimate": sum(o.net_profit_usd for o in opportunities if o.net_profit_usd > 0),
+                            "timestamp": int(time.time()),
+                            "hour": datetime.now().hour
+                        })
+                except Exception as e:
+                    pass  # Silent fail for ML logging
+                
                 for pod in active_pod_names:
                     # Logic: If pod was scanned and no top-tier opps found, penalize slightly to rotate
                     pod_manager.report_result(pod, found_opp, executed=False, success=False)
