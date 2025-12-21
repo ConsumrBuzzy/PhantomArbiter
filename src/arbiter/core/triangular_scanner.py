@@ -37,7 +37,9 @@ class TriangularScanner:
         self.feeds = feeds or []
         # Standard fee estimation per leg (0.3% taker + network fee)
         self.ASSUMED_LEG_FEE_PCT = 0.003
+        self.ASSUMED_SLIPPAGE_PCT = 0.001  # 0.1% impact per leg (conservative spot estimate)
         self.GAS_COST_PER_LEG_USD = 0.0005 * 180 
+        self.JITO_TIP_USD = 0.01  # Fixed "bribe" estimate 
         
         # Bridge assets to simplify the graph
         # Using Symbols to match the keys from update_graph (which parses pair names like "SOL/USDC")
@@ -144,13 +146,22 @@ class TriangularScanner:
 
     def _build_opportunity(self, t1, t2, t3, p1, p2, p3, amount_in) -> TriangularOpportunity:
         """Construct opportunity object with full fee calculation."""
-        # Gross
-        end_amount = amount_in * p1 * p2 * p3
-        gross_profit = end_amount - amount_in
+        # Theoretical Gross (Spot Price)
+        theoretical_end_amount = amount_in * p1 * p2 * p3
         
-        # Fees (approx)
-        total_fees = (amount_in * 3 * self.ASSUMED_LEG_FEE_PCT) + (3 * self.GAS_COST_PER_LEG_USD)
-        net_profit = gross_profit - total_fees
+        # 1. Apply Compound Slippage
+        # (1 - s)^3 ~ 1 - 3s for small s
+        slippage_factor = (1 - self.ASSUMED_SLIPPAGE_PCT) ** 3
+        realized_end_amount = theoretical_end_amount * slippage_factor
+        
+        # 2. Subtract Fees (Exchange + Gas + Jito Tip)
+        # Exchange fees are taken from input/output usually, simplified here as USD deduction
+        exchange_fees = amount_in * 3 * self.ASSUMED_LEG_FEE_PCT
+        gas_fees = 3 * self.GAS_COST_PER_LEG_USD
+        
+        total_costs = exchange_fees + gas_fees + self.JITO_TIP_USD
+        
+        net_profit = realized_end_amount - amount_in - total_costs
         
         return TriangularOpportunity(
             route_tokens=[t1, t2, t3],
