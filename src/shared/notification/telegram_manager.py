@@ -137,8 +137,7 @@ class TelegramManager:
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 60)
             finally:
-                if not self.running:
-                    break
+                pass
 
         # Final cleanup for the loop
         try:

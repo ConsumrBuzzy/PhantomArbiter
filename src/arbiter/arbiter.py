@@ -489,6 +489,10 @@ class PhantomArbiter:
     def gas_balance(self):
         return self.tracker.gas_balance
         
+    @gas_balance.setter
+    def gas_balance(self, value):
+        self.tracker.gas_balance = value
+        
     @property
     def total_trades(self):
         return self.tracker.total_trades
