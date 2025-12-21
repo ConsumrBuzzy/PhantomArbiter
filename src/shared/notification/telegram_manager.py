@@ -34,6 +34,7 @@ CMD_SET_BUDGET = "SET_BUDGET"
 class TelegramManager:
     """
     Unified manager for Telegram interactions.
+    V131: Supports TELEGRAM_SIMPLE_MODE for basic requests-based fallback.
     """
     
     def __init__(self, command_queue: Optional[queue.Queue] = None):
@@ -44,17 +45,22 @@ class TelegramManager:
         self.enabled = bool(self.token and self.chat_id)
         self.running = False
         
+        # V131: Simple mode uses requests instead of async bot
+        self.simple_mode = os.getenv("TELEGRAM_SIMPLE_MODE", "true").lower() == "true"
+        
         # Dashboard State
         self.dashboard_message_id: Optional[int] = None
         self.last_dashboard_content: str = ""
         
-        # Async Loop for Bot
+        # Async Loop for Bot (not used in simple mode)
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.application = None
         self.thread: Optional[threading.Thread] = None
         
         if not self.enabled:
             Logger.warning("⚠️ TG Manager: No Token. Telegram disabled.")
+        elif self.simple_mode:
+            Logger.info("📡 [TG] Simple Mode: Enabled (requests-based)")
 
     def start(self):
         """Start the async bot thread."""
