@@ -42,61 +42,53 @@ class TriangularScanner:
         self.JITO_TIP_USD = 0.01  # Fixed "bribe" estimate 
         
         # Bridge assets to simplify the graph
-        # Using Symbols to match the keys from update_graph (which parses pair names like "SOL/USDC")
-        self.ANCHORS = ["USDC", "SOL"] 
-        self.adj = {} # Graph: token_a -> {token_b: price}
+        self.USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        self.SOL_MINT = "So11111111111111111111111111111111111111112"
+        self.ANCHORS = [self.USDC_MINT, self.SOL_MINT] 
         
-    def update_graph(self, spread_detector) -> None:
+        self.adj = {} # Graph: mint_a -> {mint_b: price}
+        self.mint_to_symbol = {
+            self.USDC_MINT: "USDC",
+            self.SOL_MINT: "SOL"
+        }
+        
+    def update_graph(self, spread_detector, pairs_config: List[Tuple[str, str, str]]) -> None:
         """
-        Build adjacency matrix from spread detector's price cache.
-        Input: spread_detector._price_cache = {"SOL/USDC": {"Orca": 100.0, "Raydium": 101.0}}
-        Output: self.adj["SOL"]["USDC"] = 101.0 (Best Sell Price for SOL? No, best rate)
-        
-        For Arbitrage A -> B:
-        - If we trade A -> B, we are selling A and buying B.
-        - Rate = Output Amount of B per 1 unit of A.
-        
-        If Pair is "A/B" (Price of A in terms of B):
-        - A -> B (Sell A): Rate = Price (We want Highest Price to get most B)
-        - B -> A (Buy A): Rate = 1/Price (We want Lowest Price to pay least B)
+        Build adjacency matrix using Mint addresses for nodes.
+        pairs_config: [(symbol_pair, base_mint, quote_mint), ...]
         """
-        # Clear graph
         self.adj = {}
         
+        # Build symbol -> mint map for scanner and reverse for logging
+        for pair_name, base, quote in pairs_config:
+            symbols = pair_name.split('/')
+            self.mint_to_symbol[base] = symbols[0]
+            self.mint_to_symbol[quote] = symbols[1]
+
         if not hasattr(spread_detector, '_price_cache'):
             return
 
         cache = spread_detector._price_cache
         
-        for pair_name, prices in cache.items():
-            if "/" not in pair_name:
-                continue
-                
-            base, quote = pair_name.split("/")
-            # Use mints if available, but for now we rely on symbols as keys in this graph
-            # In a real system, we'd map symbols to mints.
-            
-            # Find Best Bid (Highest Price) and Best Ask (Lowest Price) across DEXs
+        for pair_name, base_mint, quote_mint in pairs_config:
+            # Look up prices in detector's cache by the symbol pair name
+            prices = cache.get(pair_name)
             if not prices:
                 continue
                 
-            best_bid = max(prices.values()) # Sell A -> B (get most B)
-            best_ask = min(prices.values()) # Buy A <- B (pay least B)
+            best_bid = max(prices.values()) # Sell Base -> Quote (Rate = Price)
+            best_ask = min(prices.values()) # Buy Base <- Quote (Rate = 1/Price)
             
             if best_bid <= 0 or best_ask <= 0:
                 continue
             
             # 1. Edge BASE -> QUOTE (Selling Base)
-            # Rate = Price
-            if base not in self.adj: self.adj[base] = {}
-            # Allow overwriting if we find a better path? 
-            # In this simple version, we process each pair once.
-            self.adj[base][quote] = best_bid
+            if base_mint not in self.adj: self.adj[base_mint] = {}
+            self.adj[base_mint][quote_mint] = best_bid
             
             # 2. Edge QUOTE -> BASE (Buying Base)
-            # Rate = 1 / Price
-            if quote not in self.adj: self.adj[quote] = {}
-            self.adj[quote][base] = 1.0 / best_ask
+            if quote_mint not in self.adj: self.adj[quote_mint] = {}
+            self.adj[quote_mint][base_mint] = 1.0 / best_ask
             
             # Note: This graph mixes Symbols (SOL) and Mints (So111...) depending on what keys are used.
             # We need to ensure consistency. The spread_detector cache uses keys from 'pair_name' arg in scan_pair.
