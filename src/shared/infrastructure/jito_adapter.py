@@ -32,21 +32,7 @@ class TipConfig:
     dynamic_tip: bool = False     # Scale tip with urgency
 
     
-    def create_tip_transaction(self, payer: Pubkey, tip_account: str, lamports: int, latest_blockhash) -> Transaction:
-        """
-        Create a dedicated tip transaction.
-        """
-        ix = transfer(
-            TransferParams(
-                from_pubkey=payer,
-                to_pubkey=Pubkey.from_string(tip_account),
-                lamports=lamports
-            )
-        )
-        tx = Transaction()
-        tx.add(ix)
-        tx.recent_blockhash = latest_blockhash
-        return tx
+
 
 
 class JitoAdapter:
@@ -98,6 +84,22 @@ class JitoAdapter:
         self._bundles_submitted = 0
         self._bundles_landed = 0
         self._rate_limited_until = 0  # V120: Rate limit cooldown timestamp
+
+    def create_tip_transaction(self, payer: Pubkey, tip_account: str, lamports: int, latest_blockhash) -> Transaction:
+        """
+        Create a dedicated tip transaction.
+        """
+        ix = transfer(
+            TransferParams(
+                from_pubkey=payer,
+                to_pubkey=Pubkey.from_string(tip_account),
+                lamports=lamports
+            )
+        )
+        tx = Transaction()
+        tx.add(ix)
+        tx.recent_blockhash = latest_blockhash
+        return tx
     
     def _rpc_call(self, method: str, params: list = None, max_retries: int = 3) -> Optional[Dict]:
         """
