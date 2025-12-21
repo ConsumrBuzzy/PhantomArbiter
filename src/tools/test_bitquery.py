@@ -19,15 +19,32 @@ if not api_key:
 
 REST_URL = "https://streaming.bitquery.io/graphql"
 QUERY = """
-query {
+query ($mint: String!) {
   Solana {
-    DEXTrades(limit: {count: 1}) {
-      Trade {
-        Buy {
-          Currency {
-            Symbol
+    DEXTrades(
+      where: {
+        Trade: {
+          Buy: {
+            Currency: {
+              MintAddress: { is: $mint }
+            }
           }
         }
+      }
+      limit: { count: 10 }
+      orderBy: { ascending: Block_Time }
+    ) {
+      Trade {
+        Buy {
+          Account {
+            Token {
+              Owner
+            }
+          }
+        }
+      }
+      Block {
+        Time
       }
     }
   }
@@ -39,7 +56,10 @@ headers = {
     "X-API-KEY": api_key
 }
 
-payload = {"query": QUERY}
+payload = {
+    "query": QUERY,
+    "variables": {"mint": "EKpQGSJt7itqS9JK7p9u6Nsy2vY8Yn7XfR3JRps6pump"}
+}
 
 try:
     resp = requests.post(REST_URL, json=payload, headers=headers, timeout=10)
