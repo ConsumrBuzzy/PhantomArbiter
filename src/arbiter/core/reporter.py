@@ -31,111 +31,41 @@ class ArbiterReporter:
                         daily_profit: float,
                         verified_opps: List[SpreadOpportunity] = None, 
                         pod_names: List[str] = None):
-        """Print the market dashboard with merged verification status."""
-        now = datetime.now().strftime("%H:%M:%S")
+        """Print the market dashboard."""
+        from src.arbiter.ui.dashboard_formatter import DashboardFormatter
         
-        # Verify map for O(1) lookup
+        # 1. Terminal Output
+        print(DashboardFormatter.format_terminal_header(balance, gas, daily_profit))
+        
+        # Merge verified status for rows
         verified_map = {op.pair: op for op in (verified_opps or [])}
-        
-        # Pod info for display
-        pod_str = f" | Pod: {','.join(pod_names)}" if pod_names else ""
-        
-        # Clear line and print table header
-        print(f"\n   [{now}] MARKET SCAN | Bal: ${balance:.2f} | Gas: ${gas:.2f} | Day P/L: ${daily_profit:+.2f}")
-        print(f"   {'Pair':<12} {'Buy':<8} {'Sell':<8} {'Spread':<8} {'Net':<10} {'Status'}")
-        print("   " + "-"*60)
-        
         profitable_count = 0
         
         for opp in spreads:
-            # Check if we have verified data for this opp
             verified = verified_map.get(opp.pair)
+            status = getattr(verified, 'verification_status', None) if verified else None
             
-            if verified:
-                # Use verified data (Real Net Profit & Status)
-                net_profit = verified.net_profit_usd
-                spread_pct = verified.spread_pct
-                
-                # Status: "✅ LIVE" or "❌ LIQ ($...)"
-                status = verified.verification_status or "✅ LIVE"
-                if "LIVE" in status:
-                     status = "✅ READY" # Keep UI consistent for good ones
-                elif "LIQ" in status:
-                     status = "❌ LIQ" # Shorten for table
-                elif "SCALED" in status:
-                     status = "⚠️ SCALED"
-                
-            else:
-                # Use Scan data + NearMissAnalyzer for nuanced status
-                net_profit = opp.net_profit_usd
-                spread_pct = opp.spread_pct
-                
-                # Calculate near-miss metrics for rich status display
+            # Near-miss enrichment
+            if not status:
                 metrics = NearMissAnalyzer.calculate_metrics(opp)
                 status = metrics.status_icon
-                
-                # Add decay indicator if we have decay data
-                try:
-                    from src.shared.system.db_manager import db_manager
-                    decay_v = db_manager.get_decay_velocity(opp.pair)
-                    if decay_v > 0.1:
-                        status += f" ⚡{decay_v:.1f}%/s"  # Fast decay warning
-                    elif decay_v > 0:
-                        status += f" 📉"  # Has decay data
-                except:
-                    pass
             
-            if opp.is_profitable:
-                profitable_count += 1
-                
-            # Color/Format based on status
-            print(f"   {opp.pair:<12} {opp.buy_dex:<8} {opp.sell_dex:<8} +{spread_pct:.2f}%   ${net_profit:+.3f}    {status}")
-        
-        print("-" * 60)
-        
+            print(DashboardFormatter.format_terminal_row(opp, status_override=status))
+            if opp.is_profitable: profitable_count += 1
+            
+        print("-" * 75)
         if profitable_count > 0:
             print(f"   🎯 {profitable_count} profitable opportunit{'y' if profitable_count == 1 else 'ies'}!")
-        
-        # ═══ TELEGRAM DASHBOARD ═══
-        if self.telegram:
-            tg_table = [
-                f"[{now}] SCAN{pod_str}",
-                f"💰 ${balance:.2f} | ⛽ ${gas:.2f} | P/L: ${daily_profit:+.2f}",
-                f"{'Pair':<11} {'Spread':<7} {'Net':<8} {'St'}",
-                "-" * 33
-            ]
             
-            # Add ALL rows to TG table
-            for i, opp in enumerate(spreads):
-                verified = verified_map.get(opp.pair)
-                status = "❌"
-                net = f"${opp.net_profit_usd:+.3f}"
-                spread = f"{opp.spread_pct:+.2f}%"
-                
-                if verified:
-                    net = f"${verified.net_profit_usd:+.3f}"
-                    if "LIVE" in (verified.verification_status or ""):
-                        status = "✅"
-                    elif "SCALED" in (verified.verification_status or ""):
-                        status = "⚠️"
-                    elif "LIQ" in (verified.verification_status or ""):
-                        status = "💧"
-                else:
-                    # Use NearMissAnalyzer for better status
-                    metrics = NearMissAnalyzer.calculate_metrics(opp)
-                    match metrics.status:
-                        case "VIABLE": status = "✅"
-                        case "NEAR_MISS": status = "⚡"
-                        case "WARM": status = "🔸"
-                        case _: status = "❌"
-                
-                tg_table.append(f"{opp.pair[:10]:<11} {spread:<7} {net:<8} {status}")
-                
-            if profitable_count:
-                tg_table.append(f"\n🎯 {profitable_count} Opportunities!")
-                
-            # Beam to Telegram (Wrapped in Code Block)
-            final_msg = "```\n" + "\n".join(tg_table) + "\n```"
+        # 2. Telegram Output
+        if self.telegram:
+            final_msg = DashboardFormatter.format_telegram_dashboard(
+                spreads=spreads,
+                balance=balance,
+                gas=gas,
+                daily_profit=daily_profit,
+                pod_names=pod_names
+            )
             self.telegram.update_dashboard(final_msg)
 
     def print_summary(self, 

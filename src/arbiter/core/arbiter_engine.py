@@ -204,7 +204,15 @@ class ArbiterEngine:
         if len(self.config.pairs) > 60:
             try:
                 from src.shared.system.db_manager import db_manager
-                sorted_pairs = sorted(self.config.pairs, key=lambda p: (db_manager.get_pair_performance(p[0]) or {}).get('score', 0.5), reverse=True)
+                
+                # Get performance scores
+                pair_scores = {}
+                for p_tuple in self.config.pairs:
+                    stats = db_manager.get_pair_performance(p_tuple[0])
+                    pair_scores[p_tuple[0]] = stats.get('score', 0.5)
+                
+                # Sort and trim
+                sorted_pairs = sorted(self.config.pairs, key=lambda p: pair_scores.get(p[0], 0.5), reverse=True)
                 self.config.pairs = sorted_pairs[:60]
                 print(f"   [{now}] 🔄 Cycled: Keeping top 60 performers")
             except Exception as e:
@@ -260,6 +268,11 @@ class ArbiterEngine:
 
             # B. ML Logic (Thresholds, Decay, etc.)
             pair_threshold = get_pair_threshold(op.pair, self.config.fast_path_threshold)
+            
+            # Bootstrap fallback
+            if pair_threshold == self.config.fast_path_threshold:
+                 pair_threshold = get_bootstrap_min_spread(op.pair) or pair_threshold
+            
             if (op.net_profit_usd - self.config.decay_buffer) > 0.10 and op.net_profit_usd >= pair_threshold:
                 op.verification_status = "⚡ FAST ML"
                 fast_path_candidates.append(op)
@@ -267,10 +280,29 @@ class ArbiterEngine:
         if fast_path_candidates:
             best_fast = sorted(fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True)[0]
             print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
+            
             result = await self.arbiter.execute_trade(best_fast, trade_size=trade_size)
             if result.get("success"):
-                self.tracker.record_trade(best_fast.pair, result['trade']['net_profit'], result['trade'].get('fees', 0.02), mode="LIVE" if self.config.live_mode else "PAPER", engine="FAST", trade_size=trade_size)
+                trade = result["trade"]
+                self.tracker.record_trade(
+                    pair=best_fast.pair, 
+                    net_profit=trade['net_profit'], 
+                    fees=trade.get('fees', 0.02), 
+                    mode="LIVE" if self.config.live_mode else "PAPER", 
+                    engine="FAST", 
+                    trade_size=trade_size
+                )
                 last_trade_time[best_fast.pair] = time.time()
+                
+                # Log to DB
+                db_manager.log_fast_path({
+                    'pair': best_fast.pair,
+                    'scan_profit_usd': best_fast.net_profit_usd,
+                    'execution_profit_usd': trade['net_profit'],
+                    'success': True
+                })
+                
+                print(DashboardFormatter.format_trade_announcement(trade, self.tracker.current_balance))
                 return True
             else:
                 print(f"   [{now}] ❌ FAST REVERTED: {result.get('error')}")
@@ -293,8 +325,17 @@ class ArbiterEngine:
             
             result = await self.arbiter.execute_trade(best, trade_size=exec_size)
             if result.get("success"):
-                self.tracker.record_trade(best.pair, result['trade']['net_profit'], result['trade'].get('fees', 0.02), mode="LIVE" if self.config.live_mode else "PAPER", engine="SCALPER", trade_size=exec_size)
+                trade = result["trade"]
+                self.tracker.record_trade(
+                    pair=best.pair, 
+                    net_profit=trade['net_profit'], 
+                    fees=trade.get('fees', 0.02), 
+                    mode="LIVE" if self.config.live_mode else "PAPER", 
+                    engine="SCALPER", 
+                    trade_size=exec_size
+                )
                 last_trade_time[best.pair] = time.time()
+                print(DashboardFormatter.format_trade_announcement(trade, self.tracker.current_balance))
                 return True
             else:
                 print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
