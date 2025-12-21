@@ -106,6 +106,9 @@ class TriangularScanner:
         # If cache uses "SOL", "USDC", then ANCHORS must match
         # Updating logic to detect aliases mapping if needed.
         # For now, we assume standard tickers.
+        from src.shared.system.logging import Logger
+        # Logger.debug(f"📐 Graph updated: {len(self.adj)} nodes") # Uncomment for verbose debugging
+
         
     def find_cycles(self, amount_in: float = 100.0) -> List[TriangularOpportunity]:
         """
@@ -135,7 +138,9 @@ class TriangularScanner:
                             gross_rate = price1 * price2 * price3
                             
                             # Log candidates to show activity (User Request)
-                            if gross_rate > 1.005:
+                            # Log candidates to show activity (User Request)
+                            # V129: Lower threshold to 0.1% to show activity
+                            if gross_rate > 1.001:
                                 from src.shared.system.logging import Logger
                                 Logger.info(f"📐 [SCAN] Candidate: {start_node}->{mid_node}->{end_node} | Gross: {gross_rate:.4f}x")
 
@@ -144,7 +149,7 @@ class TriangularScanner:
                             if gross_rate > 1.015:
                                 # Detailed calculation
                                 opp = self._build_opportunity(start_node, mid_node, end_node, price1, price2, price3, amount_in)
-                                if opp and opp.net_profit_usd > 0.50: # Min 50c for complex arb
+                                if opp and opp.net_profit_usd > 0.05: # Min 5c (lowered for visibility)
                                     opportunities.append(opp)
                                     
         return opportunities
@@ -173,7 +178,10 @@ class TriangularScanner:
             route_pairs=[f"Pair1", f"Pair2", f"Pair3"], # Placeholder
             directions=["BUY", "BUY", "BUY"], # Placeholder
             start_amount=amount_in,
-            expected_end_amount=end_amount,
+            directions=["BUY", "BUY", "BUY"], # Placeholder
+            start_amount=amount_in,
+            expected_end_amount=realized_end_amount,
+            gross_profit_usd=gross_profit,
             gross_profit_usd=gross_profit,
             net_profit_usd=net_profit,
             roi_pct=(net_profit / amount_in) * 100
