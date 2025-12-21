@@ -64,7 +64,16 @@ class TelegramManager:
 
     def start(self):
         """Start the async bot thread."""
-        if not self.enabled or self.thread:
+        if not self.enabled:
+            return
+        
+        # V131: Simple mode doesn't need async thread
+        if self.simple_mode:
+            self.running = True
+            Logger.info("📡 [TG] Simple Mode: Ready (no polling)")
+            return
+            
+        if self.thread:
             return
             
         self.running = True
@@ -178,9 +187,32 @@ class TelegramManager:
 
     def send_alert(self, message: str):
         """Send a new message (Thread-safe)."""
-        if not self.enabled or not self.loop:
+        if not self.enabled:
+            return
+        
+        # V131: Simple mode uses requests directly
+        if self.simple_mode:
+            self._simple_send(message)
+            return
+            
+        if not self.loop:
             return
         asyncio.run_coroutine_threadsafe(self._async_send(message), self.loop)
+    
+    def _simple_send(self, message: str):
+        """V131: Send via requests.post (blocking but reliable)."""
+        import requests
+        try:
+            url = f"https://api.telegram.org/bot{self.token}/sendMessage"
+            resp = requests.post(url, json={
+                "chat_id": self.chat_id,
+                "text": message,
+                "parse_mode": "HTML"
+            }, timeout=5)
+            if resp.status_code != 200:
+                Logger.debug(f"[TG] Send failed: {resp.status_code}")
+        except Exception as e:
+            Logger.debug(f"[TG] Send error: {e}")
 
     def update_dashboard(self, content: str):
         """Update the persistent dashboard message (Thread-safe)."""
