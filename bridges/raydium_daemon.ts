@@ -475,79 +475,63 @@ async function getBatchPrices(pools: { id: string, type: string }[], connection:
         });
     }
 
-    // 2. Decode to finding Vaults
+    // 2. Decode Pools to find Vaults & Decimals
+    const poolToVaults: { [key: string]: { base: PublicKey, quote: PublicKey, baseDec: number, quoteDec: number } } = {};
     const vaultKeys: PublicKey[] = [];
-    const poolToVaults: { [key: string]: { base: PublicKey, quote: PublicKey } } = {};
+    const layout = Liquidity.getStateLayout(4);
 
     for (const p of standardPools) {
         const info = poolInfosMap[p.id];
         if (!info) continue;
-
         try {
-            const layout = Liquidity.getStateLayout(4);
             const state = layout.decode(info.data);
-            poolToVaults[p.id] = { base: state.baseVault, quote: state.quoteVault };
+            poolToVaults[p.id] = {
+                base: state.baseVault,
+                quote: state.quoteVault,
+                baseDec: state.baseDecimal.toNumber(),
+                quoteDec: state.quoteDecimal.toNumber()
+            };
             vaultKeys.push(state.baseVault);
             vaultKeys.push(state.quoteVault);
         } catch (e) { }
     }
 
-    // 3. Fetch Vaults (Balances)
+    // 3. Get Vault Accounts (Batch)
     const vaultBalances: { [key: string]: number } = {};
-    // Chunk vaults (2x pools)
+    const uniqueVaultKeys = [...new Set(vaultKeys.map(k => k.toBase58()))].map(k => new PublicKey(k));
     const vaultChunks = [];
-    for (let i = 0; i < vaultKeys.length; i += 100) {
-        vaultChunks.push(vaultKeys.slice(i, i + 100));
-    }
+    for (let i = 0; i < uniqueVaultKeys.length; i += 100) vaultChunks.push(uniqueVaultKeys.slice(i, i + 100));
 
     for (const chunk of vaultChunks) {
         const infos = await connection.getMultipleAccountsInfo(chunk);
         infos.forEach((info, idx) => {
             if (info) {
-                // Parse Token Account
-                // Layout: Mint (32), Owner (32), Amount (8), etc.
-                // Amount is at offset 64? No. SPL Token layout:
-                // mint(32) + owner(32) + amount(8) + ...
-                const amountBuffer = info.data.slice(64, 72);
-                const amount = new BN(amountBuffer, 'le').toNumber(); // Dangerous for u64 large? BN.js better.
-                // Or simplified: Just trust it fits in number for reserves? No.
-                // Use default logic.
-                // Actually safer to assume we can read 8 bytes.
-                // But we need decimals to normalize! Pool State has decimals? No.
-                // We need Mint Info for decimals?
-                // This is getting complex.
-                // SHORTCUT: DexScreener API does this for us.
-                // But we want DAEMON.
-
-                // OK, if we assume 1:1 price ratio... No.
-                // We MUST know decimals.
-                // Standard AMM state has `baseDecimal` and `quoteDecimal` in `LiquidityStateV4`.
-                // YES! `state.baseDecimal` and `state.quoteDecimal` exist.
-
-                vaultBalances[chunk[idx].toBase58()] = -1; // Marker
+                try {
+                    // Use AccountLayout from SPL Token
+                    const rawAccount = AccountLayout.decode(info.data);
+                    const amount = Number(rawAccount.amount);
+                    vaultBalances[chunk[idx].toBase58()] = amount;
+                } catch (e) { }
             }
         });
     }
 
-    // Re-fetch Vaults using proper TokenAmount parsing?
-    // Doing strict binary parsing of SPL Token Account (Amount at 64)
-    // and using State decimals.
-
+    // 4. Calculate Prices
     for (const p of standardPools) {
         const vaults = poolToVaults[p.id];
         if (!vaults) continue;
 
-        // We need to re-decode state to get decimals (or cache them from step 2)
-        const info = poolInfosMap[p.id];
-        const layout = Liquidity.getStateLayout(4);
-        const state = layout.decode(info.data);
+        const baseBal = vaultBalances[vaults.base.toBase58()];
+        const quoteBal = vaultBalances[vaults.quote.toBase58()];
 
-        // Manual vault fetch results... 
-        // Actually, connection.getMultipleAccountsInfo returns 'Buffer'.
-        // We map vault address -> data buffer -> read amount.
+        if (baseBal !== undefined && quoteBal !== undefined && baseBal > 0) {
+            const baseReserve = baseBal / (10 ** vaults.baseDec);
+            const quoteReserve = quoteBal / (10 ** vaults.quoteDec);
 
-        // Implementing 'getBatchPrices' properly is huge.
-        // For V99, let's keep it simple.
+            if (baseReserve > 0) {
+                results[p.id] = quoteReserve / baseReserve;
+            }
+        }
     }
 
     return results;
