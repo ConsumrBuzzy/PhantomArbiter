@@ -208,11 +208,60 @@ class StuckTokenGuard:
                 expected_usdc = int(quote.get("outAmount", 0)) / 1_000_000
                 Logger.info(f"[GUARD] Quote: {token.balance:.4f} {token.symbol} → ${expected_usdc:.2f} USDC")
                 
-                # TODO: Execute swap (requires transaction signing)
-                # For now, just log the opportunity
-                Logger.warning(f"[GUARD] ⚠️ MANUAL ACTION NEEDED: Sell {token.symbol} on Jupiter")
-                
-                results[token.mint] = False  # Would be True after execution
+                # V131: Actually execute the swap
+                try:
+                    import base64
+                    from solders.keypair import Keypair
+                    from solders.transaction import VersionedTransaction
+                    
+                    # Get swap transaction
+                    swap_data = self.router.get_swap_transaction({
+                        "quoteResponse": quote,
+                        "userPublicKey": self.wallet_pubkey,
+                        "wrapAndUnwrapSol": True,
+                        "dynamicComputeUnitLimit": True,
+                        "prioritizationFeeLamports": 100000
+                    })
+                    
+                    if not swap_data or 'swapTransaction' not in swap_data:
+                        Logger.warning(f"[GUARD] Could not get swap tx for {token.symbol}")
+                        results[token.mint] = False
+                        continue
+                    
+                    # Sign and send
+                    private_key = os.getenv("SOLANA_PRIVATE_KEY", "")
+                    keypair = Keypair.from_base58_string(private_key)
+                    
+                    tx_bytes = base64.b64decode(swap_data['swapTransaction'])
+                    tx = VersionedTransaction.from_bytes(tx_bytes)
+                    signed_tx = VersionedTransaction(tx.message, [keypair])
+                    signed_b64 = base64.b64encode(bytes(signed_tx)).decode()
+                    
+                    # Send via RPC
+                    send_result = requests.post(self.rpc_url, json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "sendTransaction",
+                        "params": [signed_b64, {"encoding": "base64", "skipPreflight": False}]
+                    }, timeout=15)
+                    
+                    if send_result.status_code == 200:
+                        result_json = send_result.json()
+                        if "result" in result_json:
+                            sig = result_json["result"]
+                            Logger.info(f"[GUARD] ✅ Recovery SUCCESS: {token.symbol} → USDC | Tx: {sig[:20]}...")
+                            print(f"   ✅ [GUARD] Recovered {token.symbol} → ${expected_usdc:.2f} USDC")
+                            results[token.mint] = True
+                            continue
+                        elif "error" in result_json:
+                            Logger.warning(f"[GUARD] RPC error: {result_json['error']}")
+                    
+                    Logger.warning(f"[GUARD] Recovery send failed for {token.symbol}")
+                    results[token.mint] = False
+                    
+                except Exception as swap_error:
+                    Logger.error(f"[GUARD] Swap execution error: {swap_error}")
+                    results[token.mint] = False
                 
             except Exception as e:
                 Logger.error(f"[GUARD] Recovery failed for {token.symbol}: {e}")
