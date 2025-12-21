@@ -21,35 +21,35 @@ class BitqueryAdapter:
     WS_URL = "wss://streaming.bitquery.io/graphql"
     REST_URL = "https://streaming.bitquery.io/graphql"
     
-    # V117: Updated for Bitquery Solana Streaming (V2) schema
+    # V117: Restored PascalCase (V1) schema, works on streaming.bitquery.io for Solana
     QUERY_FIRST_100_BUYERS = """
     query FirstBuyers($mint: String!) {
-      solana {
-        dexTrades(
+      Solana {
+        DEXTrades(
           where: {
-            trade: {
-              buy: {
-                currency: {
-                  mintAddress: { is: $mint }
+            Trade: {
+              Buy: {
+                Currency: {
+                  MintAddress: { is: $mint }
                 }
               }
             }
           }
           limit: { count: 100 }
-          order: { ascending: block { timestamp } }
+          orderBy: { ascending: Block_Time }
         ) {
-          trade {
-            buy {
-              amount
-              account {
-                address
+          Trade {
+            Buy {
+              Amount
+              Account {
+                Token {
+                  Owner
+                }
               }
             }
           }
-          block {
-            timestamp {
-              time
-            }
+          Block {
+            Time
           }
         }
       }
@@ -132,12 +132,11 @@ class BitqueryAdapter:
                 Logger.debug(f"[BITQUERY] GraphQL Errors: {result['errors']}")
                 return []
                 
-            trades = result.get("data", {}).get("solana", {}).get("dexTrades", [])
+            trades = result.get("data", {}).get("Solana", {}).get("DEXTrades", [])
             
             wallets = []
             for trade in trades:
-                # Updated V2 path: trade -> buy -> account -> address
-                owner = trade.get("trade", {}).get("buy", {}).get("account", {}).get("address")
+                owner = trade.get("Trade", {}).get("Buy", {}).get("Account", {}).get("Token", {}).get("Owner")
                 if owner and owner not in wallets:
                     wallets.append(owner)
             
