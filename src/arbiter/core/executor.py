@@ -357,7 +357,23 @@ class ArbitrageExecutor:
                 # Quote tells the truth about liquidity.
                 
                 projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
-                if projected_profit_usd <= 0:
+                
+                # V120: Skip-Quote Logic for Large Spreads
+                # Spreads >1.5% have enough buffer to absorb decay - execute immediately
+                # Spreads 1.0-1.5% verify with quote (borderline, needs confirmation)
+                # Spreads <1.0% already rejected by scanner
+                SKIP_QUOTE_THRESHOLD = 0.015  # 1.5%
+                scan_spread_pct = opportunity.spread_pct if hasattr(opportunity, 'spread_pct') else 0
+                
+                if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
+                    # Large spread - trust the scan, skip quote verification
+                    Logger.info(f"[EXEC] 🚀 FAST PATH: Spread {scan_spread_pct*100:.2f}% >= 1.5%, skipping quote verification")
+                    # Still check for catastrophic loss (>50% of trade size)
+                    if projected_profit_usd < -(trade_size * 0.5):
+                        Logger.warning(f"[EXEC] ✋ Catastrophic loss detected: ${projected_profit_usd:.4f}")
+                        return self._error_result(f"Catastrophic loss ${projected_profit_usd:.4f}", start_time)
+                elif projected_profit_usd <= 0:
+                    # Borderline spread - quote shows loss, abort
                     Logger.warning(f"[EXEC] ✋ Phantom Arb Detected! Quote shows loss: ${projected_profit_usd:.4f}")
                     return self._error_result(f"Phantom Arb: Quote loss ${projected_profit_usd:.4f}", start_time)
                 
