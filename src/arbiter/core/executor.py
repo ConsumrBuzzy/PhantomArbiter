@@ -763,12 +763,35 @@ class ArbitrageExecutor:
                 execution_time_ms=int((time.time() - start) * 1000)
             )
     
-    def _error_result(
-        self, 
-        error: str, 
-        start_time: float,
-        legs: List[TradeResult] = None
-    ) -> ArbitrageExecution:
+    async def execute_triangular_arb(self, opportunity) -> Optional[Dict]:
+        """
+        V120: Execute a triangular arbitrage trade (3 hops).
+        Path: A -> B -> C -> A
+        """
+        start_time = time.time()
+        
+        # 1. Validation (Framework Stub)
+        if not self.jito:
+            Logger.error("[EXEC] ❌ Triangular Arb requires Jito (Atomic Bundle)")
+            return None
+            
+        Logger.info(f"[EXEC] 📐 executing Triangular Arb: {opportunity.route_tokens}")
+        
+        # 2. Get Quotes for all 3 legs
+        # quote_a_b = ...
+        # quote_b_c = ...
+        # quote_c_a = ...
+        
+        # 3. Verify Net Profit
+        # ...
+        
+        # 4. Build & Submit Bundle
+        # ...
+        
+        Logger.warning("[EXEC] 🚧 Triangular Execution not yet fully implemented")
+        return None
+
+    def _error_result(self, error_msg: str, start_time: float, legs: List[TradeResult] = None) -> Dict:
         """Create an error execution result."""
         return ArbitrageExecution(
             success=False,
