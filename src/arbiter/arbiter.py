@@ -455,6 +455,9 @@ class PhantomArbiter:
         if hasattr(self, '_jito') and self._jito:
             await self._jito.close()
             
+        if hasattr(self, 'telegram') and self.telegram:
+            self.telegram.stop()
+            
         Logger.info("[ARB] ✅ Shutdown complete.")
 
     async def run(self, duration_minutes: int = 10, scan_interval: int = 5, smart_pods: bool = False, landlord=None) -> None:

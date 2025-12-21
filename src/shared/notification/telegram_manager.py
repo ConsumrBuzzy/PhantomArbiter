@@ -68,6 +68,26 @@ class TelegramManager:
         self.thread.start()
         Logger.info("📡 [TG] Manager Started (Command Listener + Dashboard)")
 
+    def stop(self):
+        """Clean shutdown of the bot."""
+        if not self.enabled or not self.application:
+            return
+            
+        Logger.info("📡 [TG] Manager Stopping...")
+        try:
+            if self.loop and self.application:
+                # Stop polling first
+                asyncio.run_coroutine_threadsafe(self.application.stop(), self.loop)
+                asyncio.run_coroutine_threadsafe(self.application.shutdown(), self.loop)
+                
+                # Give it a moment to stop
+                time.sleep(1)
+                
+            self.thread = None
+            Logger.info("📡 [TG] Manager Stopped.")
+        except Exception as e:
+            Logger.debug(f"[TG] Stop Error: {e}")
+
     def _run_async_loop(self):
         """Main async loop running in background thread."""
         self.loop = asyncio.new_event_loop()
