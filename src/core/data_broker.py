@@ -24,7 +24,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import Settings
 from src.core.shared_cache import SharedPriceCache
-from src.core.websocket_listener import create_websocket_listener
+from src.shared.infrastructure.websocket_listener import create_websocket_listener
 from src.core.data import batch_fetch_jupiter_prices
 from src.scout.manager import ScoutManager
 from src.scout.auditor import ActiveCoinAuditor
@@ -44,7 +44,7 @@ from src.core.global_state import GlobalState
 from src.data_storage.db_manager import db_manager # V35.0
 
 # V40.0: MarketAggregator for unified status
-from src.core.market_aggregator import MarketAggregator
+from src.shared.system.market_aggregator import MarketAggregator
 
 # V45.0: Unified Merchant Execution
 from src.engine.trading_core import TradingCore
@@ -186,7 +186,7 @@ class DataBroker:
         V45.1: Initialize MarketReporter.
         """
         try:
-            from src.core.market_aggregator import MarketAggregator
+            from src.shared.system.market_aggregator import MarketAggregator
             from src.infrastructure.drift_adapter import DriftAdapter
             
             # 1. Init dYdX if enabled

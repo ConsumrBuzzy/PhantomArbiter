@@ -231,7 +231,7 @@ class CommandProcessor:
     def _handle_jlp_status(self):
         try:
             from src.shared.system.capital_manager import get_capital_manager
-            from src.core.market_aggregator import MarketAggregator
+            from src.shared.system.market_aggregator import MarketAggregator
             cm = get_capital_manager()
             state = cm.get_jlp_state()
             

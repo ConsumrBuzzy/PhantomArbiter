@@ -213,7 +213,7 @@ class MetadataBackgroundResolver:
     def _add_token_standard(self, mint: str, metadata: Dict):
         """V83.0: Detect and add token standard to metadata."""
         try:
-            from src.core.token_standards import get_cached_standard, TokenStandard
+            from src.shared.infrastructure.token_standards import get_cached_standard, TokenStandard
             standard = get_cached_standard(mint)
             metadata["token_standard"] = standard.value
             if standard == TokenStandard.TOKEN_2022:

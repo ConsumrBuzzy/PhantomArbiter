@@ -18,7 +18,7 @@ from typing import Optional, Tuple
 from config.settings import Settings
 
 # V83.0: Import from centralized token standards module
-from src.core.token_standards import (
+from src.shared.infrastructure.token_standards import (
     SPL_TOKEN_PROGRAM_ID as TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
     get_cached_standard,
