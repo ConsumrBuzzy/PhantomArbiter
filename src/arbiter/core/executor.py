@@ -263,230 +263,134 @@ class ArbitrageExecutor:
     ) -> ArbitrageExecution:
         """
         Execute spatial arbitrage (cross-DEX spread).
+        V128.6: Robust quote handling for FAST-PATH.
         V128.1: Optional RPC for simulation.
         """
         start_time = time.time()
+        trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
         
         try:
-            # ═══ ATOMIC BUNDLE PATH (Jito) ═══
-            if self.jito:
-                result = await self._execute_bundled_swaps(opportunity.buy_quote, opportunity.sell_quote, rpc=rpc)
+            # 1. Ensure REAL quotes are present (crucial for Jito bundles)
+            if not getattr(opportunity, 'buy_quote', None) or not getattr(opportunity, 'sell_quote', None):
+                Logger.info(f"[EXEC] 🚀 Quote Cache Miss (likely FAST PATH) - Fetching for {opportunity.pair}")
+                router = self._get_smart_router()
+                usdc_amount = int(trade_size * 1_000_000)
+                USDC = Settings.USDC_MINT
                 
-                if result and result.get("success"):
-                    legs = result.get('legs', [])
-                    total_input = trade_size # Assuming trade_size is the initial input
-                    total_output = legs[-1].output_amount if legs else trade_size
-                    gross_profit = total_output - total_input
-                    total_fees = sum(leg.fee_usd for leg in legs)
-                    net_profit = gross_profit - total_fees
-                    execution_time = int((time.time() - start_time) * 1000)
-                    
-                    self.total_trades += 1
-                    if net_profit > 0:
-                        self.successful_trades += 1
-                    self.total_profit += net_profit
-                    self.total_fees += total_fees
-                    
-                    Logger.info(
-                        f"[EXEC] ✅ Spatial arb complete (Jito Bundle)!\n"
-                        f"   Input: ${total_input:.2f}\n"
-                        f"   Output: ${total_output:.2f}\n"
-                        f"   Gross: ${gross_profit:+.2f}\n"
-                        f"   Fees: ${total_fees:.2f}\n"
-                        f"   Net: ${net_profit:+.2f}"
-                    )
-                    
-                    return ArbitrageExecution(
-                        success=True,
-                        strategy="SPATIAL",
-                        legs=legs,
-                        total_input=total_input,
-                        total_output=total_output,
-                        gross_profit=gross_profit,
-                        fees=total_fees,
-                        net_profit=net_profit,
-                        execution_time_ms=execution_time,
-                        timestamp=time.time()
-                    )
-                else:
-                    # If Jito bundle failed, log and return error. No fallback to sequential.
-                    error_msg = result.get('error', 'Jito bundle failed') if result else 'Jito bundle execution failed'
-                    Logger.error(f"[EXEC] Jito bundle failed: {error_msg}")
-                    return self._error_result(error_msg, start_time, result.get('legs', []))
+                # Fetch fresh quotes
+                buy_quote = router.get_jupiter_quote(USDC, opportunity.base_mint, usdc_amount, slippage_bps=50)
+                if not buy_quote:
+                    return self._error_result("Failed to get buy quote", start_time)
+                
+                opportunity.buy_quote = buy_quote
+                expected_tokens = int(buy_quote.get('outAmount', 0))
+                
+                sell_quote = router.get_jupiter_quote(opportunity.base_mint, USDC, expected_tokens, slippage_bps=50)
+                if not sell_quote:
+                    return self._error_result("Failed to get sell quote", start_time)
+                
+                opportunity.sell_quote = sell_quote
+
+            # 2. Extract verified quotes
+            buy_quote = opportunity.buy_quote
+            sell_quote = opportunity.sell_quote
+            usdc_amount = int(buy_quote.get('inAmount', trade_size * 1_000_000))
+            expected_usdc_back = int(sell_quote.get('outAmount', 0))
+            projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
 
             # V120: Minimum net profit filter (dynamic based on spread)
-            # High-spread trades (>=1.5%) use skip-quote and only need to be positive
-            # Lower-spread trades need $0.15 buffer for decay protection
             SKIP_QUOTE_THRESHOLD = 0.015  # 1.5%
             scan_spread_pct = getattr(opportunity, 'spread_pct', 0)
-            scan_net_profit = getattr(opportunity, 'net_profit_usd', None)
             
-            if scan_net_profit is not None:
-                if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
-                    # High spread - needs at least $0.015 to cover dust/slippage/tips
-                    MIN_SKIP_QUOTE_PROFIT = 0.015
-                    if scan_net_profit < MIN_SKIP_QUOTE_PROFIT:
-                        Logger.info(f"[EXEC] ⏭️ Skip-quote trade too thin: Net ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}")
-                        return self._error_result(f"Skip-quote trade too thin: ${scan_net_profit:.3f} < ${MIN_SKIP_QUOTE_PROFIT}", start_time)
-                else:
-                    # Lower spread - needs buffer for decay
-                    MIN_NET_PROFIT_USD = 0.15
-                    if scan_net_profit < MIN_NET_PROFIT_USD:
-                        Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}")
-                        return self._error_result(f"Net too thin: ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
-            
-            legs = [] # Initialize legs for non-Jito paths
-            
+            # 3. Liquidity Floor & Safety Checks
+            if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
+                # FAST PATH: Large spread allows smaller buffer
+                MIN_SKIP_QUOTE_PROFIT = 0.015
+                if projected_profit_usd < MIN_SKIP_QUOTE_PROFIT:
+                    Logger.info(f"[EXEC] ⏭️ Skip-quote trade too thin: Net ${projected_profit_usd:.3f} < ${MIN_SKIP_QUOTE_PROFIT}")
+                    return self._error_result(f"Skip-quote trade too thin: ${projected_profit_usd:.3f} < ${MIN_SKIP_QUOTE_PROFIT}", start_time)
+            else:
+                # NORMAL PATH: needs buffer for decay
+                MIN_NET_PROFIT_USD = 0.15
+                if projected_profit_usd < MIN_NET_PROFIT_USD:
+                    Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${projected_profit_usd:.3f} < ${MIN_NET_PROFIT_USD}")
+                    return self._error_result(f"Net too thin: ${projected_profit_usd:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
+
+            # 4. Mode-specific Execution
             if self.mode == ExecutionMode.PAPER:
-                # ═══ PAPER MODE: Real-Quote Execution ═══
-                # Fetch REAL quotes to verify liquidity and impact, just like Live mode.
-                
-                Logger.info(f"[EXEC] PAPER: Fetching quotes for ${trade_size:.2f} {opportunity.pair}")
-                router = self._get_smart_router()
-                usdc_amount = int(trade_size * 1_000_000)
-                USDC = Settings.USDC_MINT
-                
-                # 1. Get buy quote
-                buy_quote = router.get_jupiter_quote(
-                    USDC, opportunity.base_mint, usdc_amount, slippage_bps=50
-                )
-                if not buy_quote:
-                    return self._error_result("Failed to get buy quote", start_time)
-                    
-                expected_tokens = int(buy_quote.get('outAmount', 0))
-                
-                # 2. Get sell quote (using exact output from buy)
-                sell_quote = router.get_jupiter_quote(
-                    opportunity.base_mint, USDC, expected_tokens, slippage_bps=50
-                )
-                if not sell_quote:
-                    return self._error_result("Failed to get sell quote", start_time)
-                    
-                expected_usdc_back = int(sell_quote.get('outAmount', 0))
-                
-                # 🚨 PHANTOM ARB CHECK (Liquidity Verification)
-                projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
-                if projected_profit_usd <= 0:
-                    Logger.warning(f"[EXEC] ✋ PAPER: Phantom Arb caught! Quote loss: ${projected_profit_usd:.4f}")
-                    return self._error_result(f"Liquidity Fail: Quote loss ${projected_profit_usd:.4f}", start_time)
-
-                # 3. Simulate Execution Result (using REAL quote data)
-                # We assume execution matches quote (minus fees)
-                
-                # Buy Leg
-                legs.append(TradeResult(
-                    success=True, trade_type="BUY",
-                    input_token="USDC", output_token=opportunity.pair.split("/")[0],
-                    input_amount=trade_size,
-                    output_amount=expected_tokens / 1e9, # Assuming 9 decimals, strict would check mint
-                    price=opportunity.buy_price,
-                    fee_usd=0.01, signature="PAPER_REAL_" + str(int(time.time())),
-                    error=None, timestamp=time.time(), execution_time_ms=250
-                ))
-                
-                # Sell Leg
-                legs.append(TradeResult(
-                    success=True, trade_type="SELL",
-                    input_token=opportunity.pair.split("/")[0], output_token="USDC",
-                    input_amount=expected_tokens / 1e9,
-                    output_amount=expected_usdc_back / 1_000_000,
-                    price=opportunity.sell_price,
-                    fee_usd=0.01, signature="PAPER_REAL_" + str(int(time.time())+1),
-                    error=None, timestamp=time.time(), execution_time_ms=250
-                ))
-                
-            elif self.mode == ExecutionMode.LIVE:
-                # ═══ LIVE MODE: Atomic bundled execution ═══
-                # Both legs in one Jito bundle to prevent price flux
-                USDC = Settings.USDC_MINT
-                token_mint = opportunity.base_mint
-                
-                Logger.info(f"[EXEC] LIVE ATOMIC: ${trade_size:.2f} {opportunity.pair}")
-                
-                router = self._get_smart_router()
-                usdc_amount = int(trade_size * 1_000_000)
-                
-                # 1. Get buy quote
-                buy_quote = router.get_jupiter_quote(
-                    USDC, token_mint, usdc_amount, slippage_bps=50
-                )
-                if not buy_quote:
-                    return self._error_result("Failed to get buy quote", start_time)
-                
-                expected_tokens = int(buy_quote.get('outAmount', 0))
-                
-                # 2. Get sell quote (using expected tokens from buy)
-                sell_quote = router.get_jupiter_quote(
-                    token_mint, USDC, expected_tokens, slippage_bps=50
-                )
-                if not sell_quote:
-                    return self._error_result("Failed to get sell quote", start_time)
-                
-                expected_usdc_back = int(sell_quote.get('outAmount', 0))
-                
-                # 🚨 PHANTOM ARB PROTECTION 🚨
-                # Check if the Quoted Output (which includes price impact) is actually profitable.
-                # Scan uses unit price (no impact), so it might show +34% on illiquid pairs.
-                # Quote tells the truth about liquidity.
-                
-                projected_profit_usd = (expected_usdc_back - usdc_amount) / 1_000_000
-                
-                # V120: Skip-Quote Logic for Large Spreads
-                # Spreads >1.5% have enough buffer to absorb decay - execute immediately
-                # Spreads 1.0-1.5% verify with quote (borderline, needs confirmation)
-                # Spreads <1.0% already rejected by scanner
-                # V124: Jito Safety Floor ($0.15)
-                # We need a strict profit buffer to justify the risk of Jito failure/tips.
-                # Winning $0.02 is not worth the risk of an "Invalid" bundle or 429 lockout.
-                MIN_NET_PROFIT = 0.15
-                
-                if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
-                    # Large spread - trust the scan, skip quote verification
-                    Logger.info(f"[EXEC] 🚀 FAST PATH: Spread {scan_spread_pct*100:.2f}% >= 1.5%, skipping quote verification")
-                    if projected_profit_usd < -(trade_size * 0.5):
-                        Logger.warning(f"[EXEC] ✋ Catastrophic loss detected: ${projected_profit_usd:.4f}")
-                        return self._error_result(f"Catastrophic loss ${projected_profit_usd:.4f}", start_time)
-                        
-                elif projected_profit_usd < MIN_NET_PROFIT:
-                    # Borderline spread - quote shows insufficient profit
-                    reason = "Loss" if projected_profit_usd <= 0 else "Low Yield"
-                    Logger.warning(f"[EXEC] ✋ {reason}: ${projected_profit_usd:.4f} < ${MIN_NET_PROFIT} floor")
-                    return self._error_result(f"Liquidity Floor: ${projected_profit_usd:.4f} < ${MIN_NET_PROFIT}", start_time)
-                
-                Logger.info(f"[EXEC] ✅ Quote verified: ${projected_profit_usd:+.4f} projected profit")
-
-                # 3. Execute atomically via Jito bundle (or sequential fallback)
+                # ═══ PAPER MODE: Simulated Execution ═══
+                legs = [
+                    TradeResult(
+                        success=True, trade_type="BUY",
+                        input_token="USDC", output_token=opportunity.pair.split("/")[0],
+                        input_amount=trade_size,
+                        output_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
+                        price=opportunity.buy_price, fee_usd=0.01,
+                        signature="PAPER_" + str(int(time.time())), timestamp=time.time(), execution_time_ms=250
+                    ),
+                    TradeResult(
+                        success=True, trade_type="SELL",
+                        input_token=opportunity.pair.split("/")[0], output_token="USDC",
+                        input_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
+                        output_amount=expected_usdc_back / 1_000_000,
+                        price=opportunity.sell_price, fee_usd=0.01,
+                        signature="PAPER_" + str(int(time.time())+1), timestamp=time.time(), execution_time_ms=250
+                    )
+                ]
+            else:
+                # ═══ LIVE MODE: Atomic Bundled Execution ═══
                 jito_status = "READY" if self.jito and await self.jito.is_available() else ("MISSING" if not self.jito else "OFFLINE")
                 
                 if jito_status == "READY":
-                    Logger.info("[EXEC] 🛡️ Using Jito atomic bundle...")
-                    result = await self._execute_bundled_swaps(buy_quote, sell_quote)
+                    Logger.info(f"[EXEC] 🛡️ Using Jito atomic bundle (Elite RPC: {getattr(rpc, 'name', 'Winner')})...")
+                    result = await self._execute_bundled_swaps(buy_quote, sell_quote, rpc=rpc)
                     
-                    # Check for fallback trigger (Invalid Bundle)
-                    if result and not result.get("success") and result.get("should_fallback"):
-                        Logger.warning("[EXEC] 🔄 Jito Bundle Invalid - Falling back to sequential execution immediately")
-                        jito_status = "FALLBACK" # Force into else block logic
-                        result = None
-
-                if jito_status != "READY":
-                    Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Aborting trade to prevent stuck tokens (Atomic or Nothing)")
-                    return self._error_result(f"Jito {jito_status} - Aborted", start_time)
-                
-                if result:
-                    # Bundled execution succeeded
-                    legs = result.get('legs', [])
-                    if not result.get('success'):
-                        return self._error_result(result.get('error', 'Bundle failed'), start_time, legs)
+                    if result and result.get("success"):
+                        legs = result.get('legs', [])
+                    else:
+                        error_msg = result.get('error', 'Jito bundle failed') if result else 'Jito bundle execution failed'
+                        Logger.error(f"[EXEC] Jito bundle failed: {error_msg}")
+                        return self._error_result(error_msg, start_time, result.get('legs', []) if result else [])
                 else:
-                    return self._error_result("Trade logic finished without execution path (No result)", start_time)
-                
-                # Track actual slippage and log to DB
-                if legs and len(legs) >= 2:
-                    actual_usdc_back = legs[-1].output_amount * 1_000_000  # Convert to atomic
-                    slippage_usd = (expected_usdc_back - actual_usdc_back) / 1_000_000
-                    slippage_pct = (expected_usdc_back - actual_usdc_back) / expected_usdc_back * 100 if expected_usdc_back > 0 else 0
-                    
-                    Logger.info(f"[EXEC] 📊 Slippage: ${slippage_usd:.4f} ({slippage_pct:.2f}%)")
+                    Logger.warning(f"[EXEC] � Jito {jito_status} - Aborting trade to prevent stuck tokens")
+                    return self._error_result(f"Jito {jito_status} - Aborted", start_time)
+
+            # 5. Finalize Results
+            total_input = trade_size
+            total_output = legs[-1].output_amount if legs else trade_size
+            gross_profit = total_output - total_input
+            total_fees = sum(leg.fee_usd for leg in legs)
+            net_profit = gross_profit - total_fees
+            execution_time = int((time.time() - start_time) * 1000)
+            
+            self.total_trades += 1
+            if net_profit > 0:
+                self.successful_trades += 1
+            self.total_profit += net_profit
+            self.total_fees += total_fees
+            
+            Logger.info(
+                f"[EXEC] ✅ Spatial arb complete!\n"
+                f"   Input: ${total_input:.2f}\n"
+                f"   Output: ${total_output:.2f}\n"
+                f"   Net: ${net_profit:+.2f}"
+            )
+            
+            return ArbitrageExecution(
+                success=True,
+                strategy="SPATIAL",
+                legs=legs,
+                total_input=total_input,
+                total_output=total_output,
+                gross_profit=gross_profit,
+                fees=total_fees,
+                net_profit=net_profit,
+                execution_time_ms=execution_time,
+                timestamp=time.time()
+            )
+        except Exception as e:
+            Logger.error(f"[EXEC] Spatial arb error: {e}")
+            return self._error_result(str(e), start_time)
                 
             else:
                 # DRY_RUN
