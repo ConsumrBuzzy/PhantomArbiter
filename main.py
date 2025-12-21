@@ -75,12 +75,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Pair risk tier: all (default), low, mid, high, or trending"
     )
     arbiter_parser.add_argument(
-        "--smart-pods", action="store_true",
-        help="Enable smart pod rotation (focus 1 pod per scan, auto-promote/demote)"
+        "--no-smart-pods", action="store_true",
+        help="Disable smart pod rotation (fallback to sequential scanning)"
     )
     arbiter_parser.add_argument(
-        "--unified-engine", action="store_true",
-        help="Use unified execution engine (Meteora + Orca atomic, bypasses Jupiter)"
+        "--no-unified", action="store_true",
+        help="Disable unified execution engine (fallback to Jupiter/Standard RPC)"
     )
     arbiter_parser.add_argument(
         "--pool-scan", action="store_true",
@@ -209,10 +209,10 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
         live_mode=args.live,
         full_wallet=args.full_wallet,
         pairs=selected_pairs,
-        use_unified_engine=getattr(args, 'unified_engine', False)
+        use_unified_engine=not args.no_unified
     )
     
-    smart_pods_mode = getattr(args, 'smart_pods', False)
+    smart_pods_mode = not args.no_smart_pods
     if smart_pods_mode:
         print(f"   🔀 Smart Pod Rotation: ENABLED")
     print(f"   📊 Risk Tier: {args.risk_tier.upper()} ({len(selected_pairs)} pairs)")

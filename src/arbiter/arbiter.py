@@ -58,7 +58,7 @@ class ArbiterConfig:
     # V88.0: Minimum liquidity = trade_size * this multiplier
     liquidity_multiplier: float = 50.0  # Min $1250 liq for $25 trades
     # Use unified engine for direct Meteora/Orca atomic execution (bypasses Jupiter)
-    use_unified_engine: bool = False
+    use_unified_engine: bool = True
 
 
 # Bootstrap defaults based on observed data (used until ML has enough samples)
