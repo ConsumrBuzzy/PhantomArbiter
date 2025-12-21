@@ -272,7 +272,7 @@ class ArbitrageExecutor:
         try:
             # 1. Ensure REAL quotes are present (crucial for Jito bundles)
             if not getattr(opportunity, 'buy_quote', None) or not getattr(opportunity, 'sell_quote', None):
-                Logger.info(f"[EXEC] 🚀 Quote Cache Miss (likely FAST PATH) - Fetching for {opportunity.pair}")
+                Logger.info(f"[EXEC] 🚀 Quote Cache Miss (FAST PATH) - Fetching for {opportunity.pair}")
                 router = self._get_smart_router()
                 usdc_amount = int(trade_size * 1_000_000)
                 USDC = Settings.USDC_MINT
@@ -317,6 +317,7 @@ class ArbitrageExecutor:
                     return self._error_result(f"Net too thin: ${projected_profit_usd:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
 
             # 4. Mode-specific Execution
+            legs = []
             if self.mode == ExecutionMode.PAPER:
                 # ═══ PAPER MODE: Simulated Execution ═══
                 legs = [
@@ -337,7 +338,7 @@ class ArbitrageExecutor:
                         signature="PAPER_" + str(int(time.time())+1), timestamp=time.time(), execution_time_ms=250
                     )
                 ]
-            else:
+            elif self.mode == ExecutionMode.LIVE:
                 # ═══ LIVE MODE: Atomic Bundled Execution ═══
                 jito_status = "READY" if self.jito and await self.jito.is_available() else ("MISSING" if not self.jito else "OFFLINE")
                 
@@ -352,8 +353,12 @@ class ArbitrageExecutor:
                         Logger.error(f"[EXEC] Jito bundle failed: {error_msg}")
                         return self._error_result(error_msg, start_time, result.get('legs', []) if result else [])
                 else:
-                    Logger.warning(f"[EXEC] � Jito {jito_status} - Aborting trade to prevent stuck tokens")
+                    Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Aborting trade to prevent stuck tokens")
                     return self._error_result(f"Jito {jito_status} - Aborted", start_time)
+            else:
+                # DRY RUN
+                Logger.info(f"[EXEC] DRY RUN - would execute {opportunity.pair} arb")
+                return self._error_result("Dry run - no execution", start_time)
 
             # 5. Finalize Results
             total_input = trade_size
@@ -377,64 +382,11 @@ class ArbitrageExecutor:
             )
             
             return ArbitrageExecution(
-                success=True,
-                strategy="SPATIAL",
-                legs=legs,
-                total_input=total_input,
-                total_output=total_output,
-                gross_profit=gross_profit,
-                fees=total_fees,
-                net_profit=net_profit,
-                execution_time_ms=execution_time,
-                timestamp=time.time()
+                success=True, strategy="SPATIAL", legs=legs,
+                total_input=total_input, total_output=total_output,
+                gross_profit=gross_profit, fees=total_fees, net_profit=net_profit,
+                execution_time_ms=execution_time, timestamp=time.time()
             )
-        except Exception as e:
-            Logger.error(f"[EXEC] Spatial arb error: {e}")
-            return self._error_result(str(e), start_time)
-                
-            else:
-                # DRY_RUN
-                Logger.info(f"[EXEC] DRY RUN - would execute {opportunity.pair} arb")
-                return self._error_result("Dry run - no execution", start_time)
-            
-            # Calculate P&L
-            total_input = trade_size
-            total_output = legs[-1].output_amount if legs else trade_size
-            gross_profit = total_output - total_input
-            total_fees = sum(leg.fee_usd for leg in legs)
-            net_profit = gross_profit - total_fees
-            
-            execution_time = int((time.time() - start_time) * 1000)
-            
-            # Update stats
-            self.total_trades += 1
-            if net_profit > 0:
-                self.successful_trades += 1
-            self.total_profit += net_profit
-            self.total_fees += total_fees
-            
-            Logger.info(
-                f"[EXEC] ✅ Spatial arb complete!\n"
-                f"   Input: ${total_input:.2f}\n"
-                f"   Output: ${total_output:.2f}\n"
-                f"   Gross: ${gross_profit:+.2f}\n"
-                f"   Fees: ${total_fees:.2f}\n"
-                f"   Net: ${net_profit:+.2f}"
-            )
-            
-            return ArbitrageExecution(
-                success=True,
-                strategy="SPATIAL",
-                legs=legs,
-                total_input=total_input,
-                total_output=total_output,
-                gross_profit=gross_profit,
-                fees=total_fees,
-                net_profit=net_profit,
-                execution_time_ms=execution_time,
-                timestamp=time.time()
-            )
-            
         except Exception as e:
             Logger.error(f"[EXEC] Spatial arb error: {e}")
             return self._error_result(str(e), start_time)
