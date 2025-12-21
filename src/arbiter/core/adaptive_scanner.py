@@ -34,6 +34,7 @@ class PairMetrics:
     skip_until: float = 0.0       # Unix timestamp - don't scan before this
     scan_count: int = 0           # Total scans for this pair
     last_status: str = "FAR"      # Last near-miss status for priority sorting
+    unprofitable_count: int = 0    # V120: Consecutive scans with net_profit < 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -106,10 +107,11 @@ class AdaptiveScanner:
         self.pair_metrics: Dict[str, PairMetrics] = {}
         self.warming_until: Dict[str, float] = {} # V102: pair -> unix timestamp
 
-        # V120: 1-hour blacklist for consistently low-spread pairs
+        # V120: 5-minute blacklist for consistently low-profit/spread pairs
         self.blacklisted_until: Dict[str, float] = {}  # pair -> unix timestamp
-        self.BLACKLIST_DURATION = 3600  # 1 hour
+        self.BLACKLIST_DURATION = 300  # 5 minutes
         self.BLACKLIST_THRESHOLD_PCT = 0.4  # Blacklist pairs with avg spread < 0.4%
+        self.BLACKLIST_UNPROFITABLE_LIMIT = 5  # Blacklist after 5 consecutive losses
         
         # Learning-based promotion/demotion
         self.promoted_pairs: set = set()   # High-variance pairs → scan faster
@@ -310,13 +312,29 @@ class AdaptiveScanner:
              # Cool down if no longer promising
              self.warming_until[opp.pair] = 0
 
-        # V120: Auto-blacklist pairs with consistently low spreads
-        # If spread is below threshold and has been scanned 10+ times, blacklist for 1 hour
-        if opp.spread_pct < self.BLACKLIST_THRESHOLD_PCT and metrics.scan_count >= 10:
-            # Check if average spread is consistently low (use variance as proxy)
-            if metrics.spread_variance < 0.2:  # Low variance = consistently low
-                self.blacklisted_until[opp.pair] = now + self.BLACKLIST_DURATION
-                print(f"   🚫 [SCAN] Blacklisting {opp.pair} for 1hr (avg spread too low)")
+        # V120: Auto-blacklist logic (Smart Detect)
+        
+        # 1. Update unprofitable counter
+        if opp.net_profit_usd < 0:
+            metrics.unprofitable_count += 1
+        else:
+            metrics.unprofitable_count = 0
+
+        # 2. Trigger blacklist if consistently unprofitable OR consistently low spread
+        should_blacklist = False
+        reason = ""
+
+        if metrics.unprofitable_count >= self.BLACKLIST_UNPROFITABLE_LIMIT:
+            should_blacklist = True
+            reason = f"{metrics.unprofitable_count} consecutive losses"
+        elif opp.spread_pct < self.BLACKLIST_THRESHOLD_PCT and metrics.scan_count >= 10:
+            if metrics.spread_variance < 0.2:
+                should_blacklist = True
+                reason = "spread too low"
+
+        if should_blacklist:
+            self.blacklisted_until[opp.pair] = now + self.BLACKLIST_DURATION
+            print(f"   🚫 [SCAN] Blacklisting {opp.pair} for 5min ({reason})")
         
         # Determine skip interval based on spread, variance, AND learned data
         skip_seconds = self._calculate_skip_interval(opp.pair, opp.spread_pct, metrics.spread_variance)
