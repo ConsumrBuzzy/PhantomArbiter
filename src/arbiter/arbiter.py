@@ -547,6 +547,17 @@ class PhantomArbiter:
                     await coordinator.register_new_pairs(new_pairs)
                     print(f"   [{now}] 🧠 Added {len(new_pairs)} hot tokens from Scraper")
                 
+                # V112: Self-Healing RPC Selection (The Provider Vote)
+                if not hasattr(self, '_last_vote_time'):
+                    self._last_vote_time = 0
+                    
+                if time.time() - self._last_vote_time > 60:
+                    from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
+                    vote_result = get_rpc_balancer().perform_provider_vote()
+                    if "WON BY" in vote_result:
+                        print(f"   [{now}] 🗳️ RPC VOTE: {vote_result}")
+                    self._last_vote_time = time.time()
+                    
                 # V90.0: Periodic Discovery Refresh (every 30 min)
                 if not hasattr(self, '_discovery_engine'):
                     from src.tools.discovery import TokenDiscovery

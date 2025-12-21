@@ -45,6 +45,11 @@ class RPCProvider:
     request_count: int = 0
     success_count: int = 0
     
+    # V112: Data Freshness Tracking
+    latest_slot: int = 0
+    last_latency_ms: float = 0.0
+    is_leading: bool = False
+    
     # Backoff configuration
     base_backoff_seconds: float = 1.0
     max_backoff_seconds: float = 60.0
@@ -186,6 +191,12 @@ class RPCBalancer:
         
         # Weighted random selection
         total_weight = sum(p.weight for p in available)
+        
+        # V112: Hard prioritization for the Network Leader
+        leader = next((p for p in available if p.is_leading), None)
+        if leader and random.random() < 0.7: # 70% of traffic to leader
+            return leader
+            
         if total_weight <= 0:
             return random.choice(available)
         
@@ -298,6 +309,54 @@ class RPCBalancer:
         
         return None, last_error or "All providers failed"
     
+    def perform_provider_vote(self) -> str:
+        """
+        V112: Self-Healing RPC Selection (The Provider Vote)
+        Polls all healthy providers for their current slot height.
+        Identifies the 'Network Leader' to prioritize for scanning.
+        """
+        healthy = [p for p in self.providers if p.status == ProviderStatus.HEALTHY]
+        if not healthy: return "No healthy providers"
+        
+        best_slot = 0
+        leader = None
+        
+        for p in healthy:
+            start = time.time()
+            try:
+                # Use getSlot because it's fast and light
+                payload = {"jsonrpc": "2.0", "id": 1, "method": "getSlot"}
+                response = requests.post(p.url, json=payload, timeout=0.5)
+                if response.status_code == 200:
+                    data = response.json()
+                    slot = data.get("result", 0)
+                    latency = (time.time() - start) * 1000
+                    
+                    p.latest_slot = slot
+                    p.last_latency_ms = latency
+                    
+                    if slot > best_slot:
+                        best_slot = slot
+                        leader = p
+                    elif slot == best_slot and leader and latency < leader.last_latency_ms:
+                        leader = p
+            except:
+                continue
+                
+        if leader:
+            # Reset all leaders first
+            for p in self.providers:
+                p.is_leading = False
+                # If a provider is more than 5 slots behind, penalize its weight
+                if p.latest_slot > 0 and (best_slot - p.latest_slot) > 5:
+                    p.weight = max(0.1, p.weight * 0.8) # Stale penalty
+            
+            leader.is_leading = True
+            leader.weight = max(leader.weight, 1.5) # Efficiency boost
+            return f"WON BY {leader.name} (Slot: {best_slot}, Latency: {leader.last_latency_ms:.1f}ms)"
+            
+        return "Vote inconclusive"
+
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics for all providers."""
         return {
@@ -307,6 +366,9 @@ class RPCBalancer:
                     "status": p.status.value,
                     "requests": p.request_count,
                     "success_rate": f"{(p.success_count / p.request_count * 100):.1f}%" if p.request_count > 0 else "N/A",
+                    "slot": p.latest_slot,
+                    "latency": f"{p.last_latency_ms:.1f}ms",
+                    "is_leader": p.is_leading,
                     "available": p.is_available()
                 }
                 for p in self.providers
