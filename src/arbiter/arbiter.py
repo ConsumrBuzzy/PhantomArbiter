@@ -552,9 +552,9 @@ class PhantomArbiter:
                 if not hasattr(self, '_discovery_engine'):
                     from src.tools.discovery import TokenDiscovery
                     self._discovery_engine = TokenDiscovery()
-                    self._last_discovery_time = 0
+                    self._last_discovery_time = time.time() # Skip startup run
                 
-                if time.time() - self._last_discovery_time > 1800:  # 30 minutes
+                if time.time() - self._last_discovery_time > 14400:  # 4 hours
                     try:
                         known_mints = set(Settings.ASSETS.values())
                         discovered = self._discovery_engine.discover_and_validate(known_mints)
