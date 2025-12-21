@@ -176,8 +176,39 @@ class ArbiterEngine:
 
         # Discovery (4 hours)
         if time.time() - self._last_discovery_time > 14400:
-            self._last_discovery_time = time.time()
-            # ... discovery logic ...
+            try:
+                from src.tools.discovery import TokenDiscovery
+                if not hasattr(self, '_discovery_engine'):
+                    self._discovery_engine = TokenDiscovery()
+                
+                known_mints = set(Settings.ASSETS.values())
+                discovered = self._discovery_engine.discover_and_validate(known_mints)
+                
+                if discovered:
+                    USDC = USDC_MINT
+                    new_discovered = []
+                    for token in discovered:
+                        pair = (f"{token['symbol']}/USDC", token['mint'], USDC)
+                        if pair not in self.config.pairs:
+                            new_discovered.append(pair)
+                    
+                    if new_discovered:
+                        self.config.pairs.extend(new_discovered)
+                        print(f"   [{now}] 🔭 Discovery: +{len(new_discovered)} trending tokens")
+                
+                self._last_discovery_time = time.time()
+            except Exception as e:
+                Logger.debug(f"Discovery failed: {e}")
+
+        # Smart Pair Cycling (MAX 60)
+        if len(self.config.pairs) > 60:
+            try:
+                from src.shared.system.db_manager import db_manager
+                sorted_pairs = sorted(self.config.pairs, key=lambda p: (db_manager.get_pair_performance(p[0]) or {}).get('score', 0.5), reverse=True)
+                self.config.pairs = sorted_pairs[:60]
+                print(f"   [{now}] 🔄 Cycled: Keeping top 60 performers")
+            except Exception as e:
+                Logger.debug(f"Pair cycling error: {e}")
 
     def _rotate_pods(self, smart_pods: bool) -> List[str]:
         """Update self.config.pairs based on pod rotation."""
@@ -210,23 +241,62 @@ class ArbiterEngine:
 
     async def _process_executions(self, opportunities, verified_opps, trade_size, last_trade_time, cooldown) -> bool:
         """Route to Fast or Normal path."""
-        # 1. Check OPTIMISTIC / FAST-PATH
-        # ... logic ...
+        now = datetime.now().strftime("%H:%M:%S")
         
-        # 2. Check NORMAL PATH
+        # 1. FAST-PATH (ML & Optimistic)
+        fast_path_candidates = []
+        from src.shared.system.db_manager import db_manager
+        
+        for op in sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True):
+            if time.time() - last_trade_time.get(op.pair, 0) < cooldown: continue
+            
+            # A. Optimistic (Unified Engine)
+            if self.arbiter.trade_engine.use_unified:
+                if op.buy_dex in ["METEORA", "ORCA"] and op.sell_dex in ["METEORA", "ORCA"]:
+                    if op.net_profit_usd > 0.10: 
+                        op.verification_status = "✨ OPTIMISTIC"
+                        fast_path_candidates.append(op)
+                        continue
+
+            # B. ML Logic (Thresholds, Decay, etc.)
+            pair_threshold = get_pair_threshold(op.pair, self.config.fast_path_threshold)
+            if (op.net_profit_usd - self.config.decay_buffer) > 0.10 and op.net_profit_usd >= pair_threshold:
+                op.verification_status = "⚡ FAST ML"
+                fast_path_candidates.append(op)
+        
+        if fast_path_candidates:
+            best_fast = sorted(fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True)[0]
+            print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
+            result = await self.arbiter.execute_trade(best_fast, trade_size=trade_size)
+            if result.get("success"):
+                self.tracker.record_trade(best_fast.pair, result['trade']['net_profit'], result['trade'].get('fees', 0.02), mode="LIVE" if self.config.live_mode else "PAPER", engine="FAST", trade_size=trade_size)
+                last_trade_time[best_fast.pair] = time.time()
+                return True
+            else:
+                print(f"   [{now}] ❌ FAST REVERTED: {result.get('error')}")
+                return False
+
+        # 2. NORMAL PATH (Verified)
         valid_opps = [op for op in verified_opps if "LIVE" in str(op.verification_status or "")]
         if valid_opps:
             best = sorted(valid_opps, key=lambda x: x.net_profit_usd, reverse=True)[0]
-            result = await self.arbiter.execute_trade(best, trade_size=trade_size)
+            
+            # Scaled Size Check
+            status_str = str(best.verification_status or "")
+            exec_size = trade_size
+            if "SCALED" in status_str:
+                import re
+                match = re.search(r'\$(\d+)', status_str)
+                if match: exec_size = float(match.group(1))
+            
+            if exec_size < 10: return False
+            
+            result = await self.arbiter.execute_trade(best, trade_size=exec_size)
             if result.get("success"):
-                self.tracker.record_trade(
-                    pair=best.pair,
-                    net_profit=result['trade']['net_profit'],
-                    fees=result['trade'].get('fees', 0.01),
-                    mode="LIVE" if self.config.live_mode else "PAPER",
-                    engine="SCALPER",
-                    trade_size=trade_size
-                )
+                self.tracker.record_trade(best.pair, result['trade']['net_profit'], result['trade'].get('fees', 0.02), mode="LIVE" if self.config.live_mode else "PAPER", engine="SCALPER", trade_size=exec_size)
                 last_trade_time[best.pair] = time.time()
                 return True
+            else:
+                print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
+                
         return False
