@@ -435,8 +435,8 @@ class ArbitrageExecutor:
             buy_raw = base64.b64decode(buy_tx_data["swapTransaction"])
             sell_raw = base64.b64decode(sell_tx_data["swapTransaction"])
             
-            buy_tx = VersionedTransaction(buy_raw)
-            sell_tx = VersionedTransaction(sell_raw)
+            buy_tx = VersionedTransaction.from_bytes(buy_raw)
+            sell_tx = VersionedTransaction.from_bytes(sell_raw)
             
             signed_buy = VersionedTransaction(buy_tx.message, [self.wallet.keypair])
             signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])

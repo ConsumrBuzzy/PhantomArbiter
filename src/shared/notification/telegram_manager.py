@@ -99,16 +99,39 @@ class TelegramManager:
         # Register Command Handlers
         self._register_commands()
         
-        # Run Polling (Blocking for this thread)
+        # Run Polling (Blocking for this thread) with self-healing loop
         # Suppress httpx logs
         logging.getLogger("httpx").setLevel(logging.WARNING)
         
-        print("   ✅ Telegram Manager READY")
+        import time
+        backoff = 5
         
-        try:
-            self.application.run_polling(stop_signals=None, drop_pending_updates=True)
-        except Exception as e:
-            Logger.error(f"❌ [TG] Loop Error: {e}")
+        while self.running:
+            try:
+                print(f"   ✅ Telegram Manager READY (Polling...)")
+                self.application.run_polling(
+                    stop_signals=None, 
+                    drop_pending_updates=True,
+                    close_loop=False
+                )
+            except Exception as e:
+                if not self.running:
+                    break
+                    
+                Logger.error(f"❌ [TG] Loop Error: {e}")
+                print(f"   ⚠️ [TG] Connection lost. Retrying in {backoff}s...")
+                time.sleep(backoff)
+                
+                # Exponential backoff up to 60s
+                backoff = min(backoff * 2, 60)
+                
+                # Re-initialize application if needed
+                try:
+                    # In some cases we might need to recreate the application
+                    # but usually run_polling can just be restarted.
+                    pass
+                except:
+                    pass
 
     def _register_commands(self):
         """Register command handlers."""
