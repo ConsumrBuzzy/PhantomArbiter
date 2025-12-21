@@ -275,6 +275,35 @@ class JitoAdapter:
             return response.get("result")
         return None
     
+        if response and isinstance(response, dict):
+            return response.get("result")
+        return None
+        
+    def simulate_bundle(self, serialized_transactions: List[str]) -> Dict:
+        """
+        V123: Simulate bundle before submission to prevent 'Invalid' errors.
+        
+        Args:
+            serialized_transactions: List of base58-encoded transactions
+            
+        Returns:
+            Dict: {'success': bool, 'logs': list, 'error': str}
+        """
+        response = self._rpc_call("simulateBundle", [{"encodedTransactions": serialized_transactions}])
+        
+        if response and isinstance(response, dict):
+            result = response.get("result", {}).get("value", {})
+            err = result.get("err")
+            logs = result.get("logs", [])
+            
+            if err:
+                Logger.warning(f"   🛑 [JITO] Simulation Failed: {err}")
+                return {"success": False, "error": str(err), "logs": logs}
+                
+            return {"success": True, "error": None, "logs": logs}
+            
+        return {"success": False, "error": "RPC failed", "logs": []}
+
     def wait_for_confirmation(self, bundle_id: str, timeout: float = 30.0) -> bool:
         """
         V120: Wait for bundle to be confirmed on-chain.
