@@ -505,16 +505,15 @@ class PhantomArbiter:
         # ═══════════════════════════════════════════════════════════════════
         from src.arbiter.core.signal_coordinator import SignalCoordinator, CoordinatorConfig
         
-        # Callback for WSS triggers:
-        # 1. Notify scanner to boost rate for this pair
-        # 2. Wake up main loop instantly
+        # Callbacks for WSS triggers:
         def on_activity(symbol):
             if adaptive_mode and monitor:
-                # Map symbol to pair key if needed? 
-                # monitor.trigger_activity expects pair key (e.g. "SOL/USDC")
-                # We can construct it or pass symbol if monitor is smart.
-                # Simplest: "SYMBOL/USDC"
                 monitor.trigger_activity(f"{symbol}/USDC")
+                wake_event.set()
+                
+        def on_flash_warm(symbol):
+            if adaptive_mode and monitor:
+                monitor.flash_warm(f"{symbol}/USDC")
                 wake_event.set()
 
         signal_config = CoordinatorConfig(
@@ -523,7 +522,7 @@ class PhantomArbiter:
             scraper_poll_interval=60
         )
         
-        coordinator = SignalCoordinator(signal_config, on_activity)
+        coordinator = SignalCoordinator(signal_config, on_activity, on_flash_warm=on_flash_warm)
         await coordinator.start()
 
         try:
