@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 from solders.pubkey import Pubkey
 from solders.system_program import transfer, TransferParams
-from solana.transaction import Transaction
+from solders.transaction import Transaction
 
 
 @dataclass
