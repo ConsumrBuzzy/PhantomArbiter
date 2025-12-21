@@ -41,7 +41,7 @@ from src.engine.heartbeat_reporter import HeartbeatReporter
 from src.core.prices.pyth_adapter import PythAdapter
 
 # V48.0: Jito Block Engine for Priority Execution
-from src.speed.jito_adapter import JitoAdapter
+from src.shared.infrastructure.jito_adapter import JitoAdapter
 
 
 class TradingCore:

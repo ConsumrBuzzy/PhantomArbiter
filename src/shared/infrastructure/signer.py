@@ -338,7 +338,7 @@ class TransactionSigner:
         Ensures update_fees + collect_fees land in same block.
         This is CRITICAL for Orca - without atomic execution, fees may be lost.
         """
-        from src.speed.jito_adapter import JitoAdapter
+        from src.shared.infrastructure.jito_adapter import JitoAdapter
         
         Logger.info(f"   🔐 [SIGNER] Bundling {len(instructions)} instructions via Jito...")
         

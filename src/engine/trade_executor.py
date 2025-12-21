@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from src.shared.system.capital_manager import CapitalManager
     from src.shared.infrastructure.validator import TokenValidator
     from src.core.prices.pyth_adapter import PythAdapter, PythPrice
-    from src.speed.jito_adapter import JitoAdapter
+    from src.shared.infrastructure.jito_adapter import JitoAdapter
 
 
 @dataclass

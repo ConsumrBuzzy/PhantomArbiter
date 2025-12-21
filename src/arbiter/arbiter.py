@@ -25,7 +25,7 @@ from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
 from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
-from src.speed.jito_adapter import JitoAdapter
+from src.shared.infrastructure.jito_adapter import JitoAdapter
 from src.arbiter.core.trade_engine import TradeEngine
 from src.arbiter.core.reporter import ArbiterReporter
 
