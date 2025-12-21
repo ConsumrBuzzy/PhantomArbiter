@@ -360,6 +360,16 @@ class DBManager:
             )
             """)
 
+            # Target Wallets (V116: DeepScout Alpha Watchlist)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS target_wallets (
+                address TEXT PRIMARY KEY,
+                tags TEXT,
+                last_seen REAL,
+                success_rate REAL
+            )
+            """)
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
@@ -841,7 +851,23 @@ class DBManager:
             row = c.fetchone()
             return row[0] if row else 0.20
 
-    # --- Pod State (Smart Rotation Persistence) ---
+    # --- Alpha Wallet Management (V116) ---
+    
+    def add_target_wallet(self, address: str, tags: str = "ALFA"):
+        """Add a wallet to the global priority watchlist."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+            INSERT OR REPLACE INTO target_wallets (address, tags, last_seen)
+            VALUES (?, ?, ?)
+            """, (address, tags, time.time()))
+
+    def get_target_wallets(self) -> List[str]:
+        """Get all watchlisted wallets."""
+        with self.cursor() as c:
+            c.execute("SELECT address FROM target_wallets")
+            return [row[0] for row in c.fetchall()]
+
+    # --- Inclusion Stats (Auction Sniper V110) ---
     
     def save_pod_state(self, pod_name: str, state: dict):
         """Save pod state for persistence across restarts."""
