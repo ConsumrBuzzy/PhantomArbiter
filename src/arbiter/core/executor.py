@@ -395,9 +395,26 @@ class ArbitrageExecutor:
                     if result and result.get("success"):
                         legs = result.get('legs', [])
                     else:
+                        # V131: Fallback to sequential execution when Jito fails
                         error_msg = result.get('error', 'Jito bundle failed') if result else 'Jito bundle execution failed'
-                        Logger.error(f"[EXEC] Jito bundle failed: {error_msg}")
-                        return self._error_result(error_msg, start_time, result.get('legs', []) if result else [])
+                        Logger.warning(f"[EXEC] Jito failed: {error_msg} - Trying sequential fallback...")
+                        print(f"   ⚠️ Jito failed: {error_msg}")
+                        print(f"   🔄 Attempting sequential RPC fallback...")
+                        
+                        try:
+                            # Sequential fallback: Execute buy, then sell
+                            fallback_result = await self._execute_sequential_fallback(buy_quote, sell_quote, rpc)
+                            if fallback_result and fallback_result.get("success"):
+                                Logger.info("[EXEC] ✅ Sequential fallback succeeded!")
+                                print("   ✅ Sequential fallback SUCCEEDED!")
+                                legs = fallback_result.get('legs', [])
+                            else:
+                                fb_error = fallback_result.get('error', 'Unknown') if fallback_result else 'Failed'
+                                Logger.error(f"[EXEC] Sequential fallback also failed: {fb_error}")
+                                return self._error_result(f"Both Jito and fallback failed: {fb_error}", start_time)
+                        except Exception as e:
+                            Logger.error(f"[EXEC] Sequential fallback exception: {e}")
+                            return self._error_result(f"Fallback exception: {e}", start_time)
                 else:
                     Logger.warning(f"[EXEC] 🛑 Jito {jito_status} - Aborting trade to prevent stuck tokens")
                     return self._error_result(f"Jito {jito_status} - Aborted", start_time)
