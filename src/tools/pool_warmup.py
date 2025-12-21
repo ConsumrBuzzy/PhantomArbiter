@@ -1,7 +1,7 @@
 """
 Pool Warmup CLI
 ================
-Warms up pool routes for specific tokens by querying Jupiter.
+Warms up pool routes for specific tokens using existing SmartRouter.
 
 Usage:
     python -m src.tools.pool_warmup SYMBOL1 SYMBOL2 ...
@@ -12,8 +12,7 @@ import os
 import sys
 import json
 import time
-import requests
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -23,14 +22,14 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path
 
 from src.shared.system.logging import Logger
 from src.shared.system.db_manager import db_manager
+from src.shared.system.smart_router import SmartRouter
 from config.settings import Settings
 
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-JUPITER_QUOTE_URL = "https://quote-api.jup.ag/v6/quote"
 
 
-def check_jupiter_route(token_mint: str, symbol: str) -> Dict[str, bool]:
-    """Check if Jupiter has routes for a token."""
+def check_route(router: SmartRouter, token_mint: str, symbol: str) -> Dict[str, bool]:
+    """Check if Jupiter has routes for a token using existing SmartRouter."""
     routes = {
         "jupiter": False,
         "raydium": False,
@@ -39,40 +38,33 @@ def check_jupiter_route(token_mint: str, symbol: str) -> Dict[str, bool]:
     }
     
     try:
-        # Small test quote to check routability
-        params = {
-            "inputMint": USDC_MINT,
-            "outputMint": token_mint,
-            "amount": "1000000",  # 1 USDC
-            "slippageBps": 100
-        }
+        # Use existing SmartRouter to get quote
+        quote = router.get_jupiter_quote(
+            USDC_MINT,
+            token_mint,
+            1_000_000,  # 1 USDC
+            slippage_bps=100
+        )
         
-        response = requests.get(JUPITER_QUOTE_URL, params=params, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            route_plan = data.get("routePlan", [])
+        if quote:
+            routes["jupiter"] = True
             
-            if route_plan:
-                routes["jupiter"] = True
+            # Check which DEXes are in the route
+            route_plan = quote.get("routePlan", [])
+            for step in route_plan:
+                swap_info = step.get("swapInfo", {})
+                label = swap_info.get("label", "").lower()
                 
-                # Check which DEXes are in the route
-                for step in route_plan:
-                    swap_info = step.get("swapInfo", {})
-                    label = swap_info.get("label", "").lower()
-                    
-                    if "raydium" in label:
-                        routes["raydium"] = True
-                    elif "orca" in label or "whirlpool" in label:
-                        routes["orca"] = True
-                    elif "meteora" in label:
-                        routes["meteora"] = True
-                
-                print(f"  ✅ {symbol}: Jupiter route found - Raydium:{routes['raydium']} Orca:{routes['orca']} Meteora:{routes['meteora']}")
-            else:
-                print(f"  ❌ {symbol}: No Jupiter route found")
+                if "raydium" in label:
+                    routes["raydium"] = True
+                elif "orca" in label or "whirlpool" in label:
+                    routes["orca"] = True
+                elif "meteora" in label:
+                    routes["meteora"] = True
+            
+            print(f"  ✅ {symbol}: Jupiter route found - Raydium:{routes['raydium']} Orca:{routes['orca']} Meteora:{routes['meteora']}")
         else:
-            print(f"  ⚠️ {symbol}: Jupiter API error {response.status_code}")
+            print(f"  ❌ {symbol}: No Jupiter route found")
             
     except Exception as e:
         print(f"  ❌ {symbol}: Error checking route - {e}")
@@ -96,9 +88,9 @@ def update_pool_registry(symbol: str, mint: str, routes: Dict[str, bool]):
         """, (mint, symbol, routes["jupiter"], routes["raydium"], routes["orca"], routes["meteora"], time.time()))
 
 
-def warm_token(symbol: str, mint: str) -> bool:
+def warm_token(router: SmartRouter, symbol: str, mint: str) -> bool:
     """Warm a single token's pool routes."""
-    routes = check_jupiter_route(mint, symbol)
+    routes = check_route(router, mint, symbol)
     if routes["jupiter"]:
         update_pool_registry(symbol, mint, routes)
         return True
@@ -108,6 +100,7 @@ def warm_token(symbol: str, mint: str) -> bool:
 def warm_all_watchlist():
     """Warm pools for all tokens in watchlist.json."""
     watchlist_path = os.path.join(Settings.DATA_DIR, "watchlist.json")
+    router = SmartRouter()
     
     with open(watchlist_path, 'r') as f:
         data = json.load(f)
@@ -121,11 +114,11 @@ def warm_all_watchlist():
     for symbol, info in assets.items():
         mint = info.get("mint", "")
         if mint:
-            if warm_token(symbol.upper(), mint):
+            if warm_token(router, symbol.upper(), mint):
                 success += 1
             else:
                 failed += 1
-            time.sleep(0.2)  # Rate limit
+            time.sleep(0.3)  # Rate limit
     
     print(f"\n📊 Results: {success} routable, {failed} no routes")
 
@@ -133,6 +126,7 @@ def warm_all_watchlist():
 def warm_specific_tokens(symbols: List[str]):
     """Warm pools for specific tokens by symbol."""
     watchlist_path = os.path.join(Settings.DATA_DIR, "watchlist.json")
+    router = SmartRouter()
     
     with open(watchlist_path, 'r') as f:
         data = json.load(f)
@@ -153,13 +147,13 @@ def warm_specific_tokens(symbols: List[str]):
             name, info = found
             mint = info.get("mint", "")
             if mint:
-                warm_token(symbol.upper(), mint)
+                warm_token(router, symbol.upper(), mint)
             else:
                 print(f"  ⚠️ {symbol}: No mint address")
         else:
             print(f"  ⚠️ {symbol}: Not found in watchlist")
         
-        time.sleep(0.2)
+        time.sleep(0.3)
 
 
 def main():
