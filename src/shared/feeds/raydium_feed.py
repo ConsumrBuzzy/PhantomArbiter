@@ -239,7 +239,6 @@ class RaydiumFeed(PriceSource):
             dex_filter: Optional filter for specific DEX (e.g., "raydium")
         """
         try:
-        try:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
             # V127: persistent session async
             resp = await self.session.get(url, timeout=5)
