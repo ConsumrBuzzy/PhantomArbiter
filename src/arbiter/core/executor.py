@@ -887,7 +887,7 @@ class ArbitrageExecutor:
             net_profit=0,
             execution_time_ms=int((time.time() - start_time) * 1000),
             timestamp=time.time(),
-            error=error
+            error=error_msg
         )
     
     def get_stats(self) -> Dict[str, Any]:
