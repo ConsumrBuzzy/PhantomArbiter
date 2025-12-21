@@ -40,8 +40,8 @@ class TriangularScanner:
         self.GAS_COST_PER_LEG_USD = 0.0005 * 180 
         
         # Bridge assets to simplify the graph
-        self.ANCHORS = ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
-                        "So11111111111111111111111111111111111111112"] # SOL
+        # Using Symbols to match the keys from update_graph (which parses pair names like "SOL/USDC")
+        self.ANCHORS = ["USDC", "SOL"] 
         self.adj = {} # Graph: token_a -> {token_b: price}
         
     def update_graph(self, spread_detector) -> None:

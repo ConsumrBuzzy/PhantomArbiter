@@ -91,48 +91,34 @@ class ArbitrageOrchestrator:
     def _init_spread_detector(self):
         """Initialize spread detector with feeds."""
         from src.arbiter.core.spread_detector import SpreadDetector
+        from src.arbiter.core.triangular_scanner import TriangularScanner
         
         self._spread_detector = SpreadDetector(feeds=self._feeds)
-        Logger.info("🔍 Spread detector ready")
-        
-    def _get_monitored_pairs(self) -> List[tuple]:
-        """Get pairs to monitor based on settings."""
-        # Default pairs
-        USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-        SOL = "So11111111111111111111111111111111111111112"
-        BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
-        WIF = "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"
-        
-        return [
-            ("SOL/USDC", SOL, USDC),
-            ("BONK/USDC", BONK, USDC),
-            ("WIF/USDC", WIF, USDC),
-        ]
-    
-    async def _fetch_funding_rates(self) -> Dict[str, float]:
-        """Fetch funding rates from Drift (mock if not connected)."""
-        try:
-            from src.shared.feeds.drift_funding import MockDriftFundingFeed
-            feed = MockDriftFundingFeed()  # Use mock for now
-            
-            rates = {}
-            for market in ["SOL-PERP", "BTC-PERP", "ETH-PERP"]:
-                info = await feed.get_funding_rate(market)
-                if info:
-                    rates[market] = info.rate_8h
-            return rates
-        except Exception as e:
-            Logger.debug(f"Funding rate fetch error: {e}")
-            return {}
-    
+        self._triangular_scanner = TriangularScanner(feeds=self._feeds)
+        Logger.info("🔍 Spread detector & Triangular scanner ready")
+
     async def _tick(self):
         """Single tick of the arbitrage loop."""
         pairs = self._get_monitored_pairs()
         
-        # 1. Scan for spread opportunities
+        # 1. Scan for spread opportunities (Spatial)
         opportunities = self._spread_detector.scan_all_pairs(pairs)
         
-        # 2. Convert to dashboard format
+        # 2. Update Triangular Graph & Scan for Cycles
+        # This uses the price cache populated by scan_all_pairs
+        try:
+            self._triangular_scanner.update_graph(self._spread_detector)
+            cycles = self._triangular_scanner.find_cycles()
+            if cycles:
+                for cyc in cycles:
+                    Logger.info(f"📐 [V115] TRIANGULAR ARB: {' -> '.join(cyc.route_tokens)} | Net: ${cyc.net_profit_usd:.2f}")
+                    # Execution Logic (Skeleton):
+                    # await self._executor.execute_triangular_arb(cyc)
+        except Exception as e:
+            # Don't let new scanner crash the main loop
+            Logger.debug(f"Triangular scan error: {e}")
+        
+        # 3. Convert to dashboard format
         spread_infos = []
         for opp in opportunities:
             # Build price dict for all DEXs
