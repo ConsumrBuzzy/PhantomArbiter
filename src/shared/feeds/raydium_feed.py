@@ -255,47 +255,102 @@ class RaydiumFeed(PriceSource):
 
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> dict:
         """
-        Batch fetch prices via DexScreener (up to 30 tokens).
-        V92.2: Added to prevent sequential scan bottlenecks.
+        Batch fetch prices via Daemon (Fast + Fresh) with DexScreener fallback.
+        V99: Restored speed by batching Standard AMM pools.
         """
         if not mints:
             return {}
             
-        try:
-            ids = ",".join(mints[:30])
-            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
-            resp = requests.get(url, timeout=5)
-            
-            if resp.status_code != 200:
-                return {}
-                
-            data = resp.json()
-            pairs = data.get('pairs', [])
-            results = {}
-            
-            for pair in pairs:
-                # Filter for Raydium pairs
-                if "raydium" not in pair.get('dexId', '').lower():
+        results = {}
+        missing_mints = []
+        
+        # 1. Resolve Pool IDs from Index
+        pool_index = get_pool_index()
+        usdc = self.USDC_MINT
+        daemon_batch = []
+        mint_to_pool = {}
+        
+        for mint in mints:
+            # Check cache first
+            cache_key = f"{mint}:{usdc}"
+            if cache_key in self._price_cache:
+                cached = self._price_cache[cache_key]
+                if time.time() - cached['timestamp'] < self._cache_ttl:
+                    results[mint] = cached['price']
                     continue
-                    
-                base = pair.get('baseToken', {}).get('address')
-                price = float(pair.get('priceUsd', 0) or 0)
+            
+            # Lookup pool
+            pools = pool_index.get_pools(mint, usdc)
+            if pools:
+                # Prefer Standard AMM for batching (supported in V99 daemon)
+                if pools.raydium_standard_pool:
+                    daemon_batch.append({'id': pools.raydium_standard_pool, 'type': 'standard'})
+                    mint_to_pool[pools.raydium_standard_pool] = mint
+                elif pools.raydium_clmm_pool:
+                    # CLMM not yet batched in daemon, add to missing for fallback
+                    missing_mints.append(mint)
+                else:
+                    missing_mints.append(mint)
+            else:
+                 missing_mints.append(mint)
+
+        # 2. Execute Daemon Batch
+        if daemon_batch:
+            try:
+                bridge = self._get_bridge()
+                batch_prices = bridge.get_batch_prices(daemon_batch)
                 
-                if base and price > 0 and base not in results:
-                    results[base] = price
+                for pool_id, price in batch_prices.items():
+                    if pool_id in mint_to_pool:
+                        mint = mint_to_pool[pool_id]
+                        if price > 0:
+                            results[mint] = price
+                            # Update Cache
+                            self._price_cache[f"{mint}:{usdc}"] = {
+                                'price': price,
+                                'timestamp': time.time()
+                            }
+            except Exception as e:
+                Logger.warning(f"[RAYDIUM] Daemon Batch Failed: {e}")
+                # All become missing
+                for item in daemon_batch:
+                    if item['id'] in mint_to_pool:
+                        missing_mints.append(mint_to_pool[item['id']])
+
+        # 3. Fallback for Missing / CLMM (DexScreener Batch)
+        # Re-verify what is missing
+        really_missing = [m for m in mints if m not in results]
+        
+        if really_missing:
+            try:
+                # Chunk into 30s
+                for i in range(0, len(really_missing), 30):
+                    chunk = really_missing[i:i+30]
+                    ids = ",".join(chunk)
+                    url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
+                    resp = requests.get(url, timeout=5)
                     
-                    # Update cache
-                    key = f"{base}:{self.USDC_MINT}"
-                    self._price_cache[key] = {
-                        'price': price,
-                        'timestamp': time.time()
-                    }
-            
-            return results
-            
-        except Exception as e:
-            Logger.debug(f"Raydium batch fetch error: {e}")
-            return {}
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        pairs = data.get('pairs', [])
+                        for pair in pairs:
+                            if "raydium" not in pair.get('dexId', '').lower():
+                                continue
+                            
+                            base = pair.get('baseToken', {}).get('address')
+                            price = float(pair.get('priceUsd', 0) or 0)
+                            
+                            if base in chunk and base not in results and price > 0:
+                                results[base] = price
+                                self._price_cache[f"{base}:{usdc}"] = {
+                                    'price': price,
+                                    'timestamp': time.time()
+                                }
+            except Exception as e:
+                Logger.debug(f"[RAYDIUM] DexScreener Fallback Failed: {e}")
+
+        return results
+
 
     
     def _fetch_raydium_api_price(self, mint: str) -> Optional[float]:
