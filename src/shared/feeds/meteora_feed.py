@@ -226,18 +226,42 @@ class MeteoraFeed(PriceSource):
     def get_multiple_prices(self, mints: list, vs_token: str = None) -> Dict[str, float]:
         """
         Batch fetch prices via DexScreener (up to 30 tokens).
+        V99: Fixed to use true batch endpoint instead of serial loop.
         """
+        if not mints:
+            return {}
+        
         prices = {}
-        
-        for mint in mints[:30]:  # DexScreener limit
-            try:
-                result = self._fetch_dexscreener_price(mint, dex_filter="meteora")
-                if result:
-                    prices[mint] = result[0]
-            except:
-                pass
-        
+        try:
+            # Chunk first 30
+            chunk = mints[:30]
+            ids = ",".join(chunk)
+            # Use specific batch endpoint
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{ids}"
+            resp = requests.get(url, timeout=5)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                pairs = data.get('pairs', [])
+                
+                for pair in pairs:
+                    # Filter for Meteora
+                    if "meteora" not in pair.get('dexId', '').lower():
+                        continue
+                        
+                    base = pair.get('baseToken', {}).get('address')
+                    price = float(pair.get('priceUsd', 0) or 0)
+                    
+                    if base in chunk and base not in prices and price > 0:
+                        prices[base] = price
+                        # Cache
+                        self._price_cache[f"{base}_{self.USDC_MINT}"] = (price, time.time())
+                        
+        except Exception as e:
+            Logger.debug(f"[METEORA] Batch fetch error: {e}")
+            
         return prices
+
 
 
 # ═══════════════════════════════════════════════════════════════════
