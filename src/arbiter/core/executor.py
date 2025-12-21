@@ -439,25 +439,33 @@ class ArbitrageExecutor:
     
     async def _execute_bundled_swaps(self, buy_quote: Dict, sell_quote: Dict, rpc: Any = None) -> Dict:
         """
-        Execute both swap legs as an atomic Jito bundle.
-        V128.1: Optional RPC for simulation.
+        V130: Execute both swap legs as an atomic Jito bundle.
         
-        Both transactions succeed or both fail - no partial execution.
-        Prevents price flux between buy and sell legs.
+        OPTIMIZATION: Tip is embedded in sell transaction (2 txs instead of 3).
+        This reduces bundle size by 33% for faster Jito ingestion.
+        
+        Bundle structure: [buy_tx, sell_tx_with_tip]
         """
         import base64
+        import base58
         from solders.transaction import VersionedTransaction
+        from solders.system_program import TransferParams, transfer
+        from solders.message import MessageV0
+        from solders.pubkey import Pubkey
+        from solders.instruction import Instruction, AccountMeta
         
         try:
-            Logger.info("[EXEC] Building atomic bundle...")
+            Logger.info("[EXEC] Building atomic bundle (V130: 2-tx embedded tip)...")
             
-            # Get swap instructions for both legs
-            if not self.swapper:
-                from src.shared.execution.swapper import JupiterSwapper
-                from src.shared.execution.wallet import WalletManager
-                self.swapper = JupiterSwapper(WalletManager())
+            # Get tip account first (needed for sell tx)
+            tip_account = await self.jito.get_random_tip_account()
+            if not tip_account:
+                Logger.warning("[EXEC] No Jito tip account available")
+                return {"success": False, "error": "No Jito tip account available", "legs": []}
             
-            # Get swap tx for buy leg
+            Logger.info(f"[EXEC] 💰 Tip account: {tip_account[:16]}...")
+            
+            # ═══ BUY TX: Standard Jupiter transaction ═══
             buy_tx_data = self._get_smart_router().get_swap_transaction({
                 "quoteResponse": buy_quote,
                 "userPublicKey": str(self.wallet.get_public_key()),
@@ -467,80 +475,92 @@ class ArbitrageExecutor:
             if not buy_tx_data or 'swapTransaction' not in buy_tx_data:
                 return {"success": False, "error": "Failed to get buy tx", "legs": []}
             
-            # Get swap tx for sell leg
-            sell_tx_data = self._get_smart_router().get_swap_transaction({
-                "quoteResponse": sell_quote,
-                "userPublicKey": str(self.wallet.get_public_key()),
-                "wrapAndUnwrapSol": True,
-            })
-            
-            if not sell_tx_data or 'swapTransaction' not in sell_tx_data:
-                return {"success": False, "error": "Failed to get sell tx", "legs": []}
-            
-            # Sign both transactions
             buy_raw = base64.b64decode(buy_tx_data["swapTransaction"])
-            sell_raw = base64.b64decode(sell_tx_data["swapTransaction"])
-            
             buy_tx = VersionedTransaction.from_bytes(buy_raw)
-            sell_tx = VersionedTransaction.from_bytes(sell_raw)
-            
             signed_buy = VersionedTransaction(buy_tx.message, [self.wallet.keypair])
-            signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
+            buy_b58 = base58.b58encode(bytes(signed_buy)).decode()
             
-            # Encode signed transactions to base58 for Jito bundle
-            import base58 as b58_module
-            buy_b58 = b58_module.b58encode(bytes(signed_buy)).decode()
-            sell_b58 = b58_module.b58encode(bytes(signed_sell)).decode()
-            
-            # ═══ CREATE TIP TRANSACTION ═══
-            # Jito requires a SOL transfer to a tip account in the bundle
-            from solders.system_program import TransferParams, transfer
-            from solders.message import MessageV0
-            from solders.pubkey import Pubkey
-            from solders.hash import Hash
-            import httpx
-            import base58
-            
-            # Get random tip account from Jito
-            tip_account = await self.jito.get_random_tip_account()
-            if not tip_account:
-                Logger.warning("[EXEC] No Jito tip account available, falling back to sequential")
-                # Return None to trigger sequential fallback
-                return {"success": False, "error": "No Jito tip account available", "legs": []}
-            
-            Logger.info(f"[EXEC] 💰 Using tip account: {tip_account[:16]}...")
-            
-            # Create tip transfer instruction (10,000 lamports ≈ $0.002)
-            TIP_AMOUNT_LAMPORTS = 10000
-            tip_ix = transfer(TransferParams(
-                from_pubkey=self.wallet.keypair.pubkey(),
-                to_pubkey=Pubkey.from_string(tip_account),
-                lamports=TIP_AMOUNT_LAMPORTS
-            ))
-            
-            # V121: Reuse Blockhash from Swap Tx
-            # Instead of fetching a new blockhash (which adds latency and risk of mismatch),
-            # we use the same blockhash as the swap transaction.
-            # This ensures both expire at the same time and saves an RPC call.
+            # Get blockhash from buy tx for tip (ensures same expiry)
             recent_blockhash = buy_tx.message.recent_blockhash
             
-            if not recent_blockhash:
-                return {"success": False, "error": "Failed to extract blockhash from swap tx", "legs": []}
+            # ═══ SELL TX: Try to use swap-instructions API for embedded tip ═══
+            sell_b58 = None
+            TIP_AMOUNT_LAMPORTS = 10000  # ~$0.002
             
-            # Build tip transaction
-            tip_msg = MessageV0.try_compile(
-                payer=self.wallet.keypair.pubkey(),
-                instructions=[tip_ix],
-                address_lookup_table_accounts=[],
-                recent_blockhash=recent_blockhash
-            )
-            tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
-            tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
+            try:
+                # Attempt instruction-level build for embedded tip
+                if self.swapper:
+                    sell_instructions = await self.swapper.get_swap_instructions(sell_quote)
+                    
+                    if sell_instructions:
+                        # Create tip instruction
+                        tip_ix = transfer(TransferParams(
+                            from_pubkey=self.wallet.keypair.pubkey(),
+                            to_pubkey=Pubkey.from_string(tip_account),
+                            lamports=TIP_AMOUNT_LAMPORTS
+                        ))
+                        
+                        # Append tip to swap instructions
+                        all_instructions = sell_instructions + [tip_ix]
+                        
+                        # Build tipped sell transaction
+                        sell_msg = MessageV0.try_compile(
+                            payer=self.wallet.keypair.pubkey(),
+                            instructions=all_instructions,
+                            address_lookup_table_accounts=[],
+                            recent_blockhash=recent_blockhash
+                        )
+                        
+                        tipped_sell_tx = VersionedTransaction(sell_msg, [self.wallet.keypair])
+                        sell_b58 = base58.b58encode(bytes(tipped_sell_tx)).decode()
+                        Logger.debug("[EXEC] ✅ Built tipped sell tx (embedded)")
+                        
+            except Exception as e:
+                Logger.debug(f"[EXEC] Embedded tip fallback: {e}")
             
-            # V123/V128: Hardened Submission
-            # Simulation is handled internally by submit_bundle(simulate=True, rpc=rpc)
-            tx_bundle = [buy_b58, sell_b58, tip_b58]
-            Logger.info(f"[EXEC] 🚀 Submitting bundle (V128.1 Simulation on {getattr(rpc, 'name', 'Jito')})...")
+            # ═══ FALLBACK: Standard sell tx + separate tip tx ═══
+            if not sell_b58:
+                Logger.debug("[EXEC] Using fallback: separate tip tx")
+                
+                # Standard sell tx
+                sell_tx_data = self._get_smart_router().get_swap_transaction({
+                    "quoteResponse": sell_quote,
+                    "userPublicKey": str(self.wallet.get_public_key()),
+                    "wrapAndUnwrapSol": True,
+                })
+                
+                if not sell_tx_data or 'swapTransaction' not in sell_tx_data:
+                    return {"success": False, "error": "Failed to get sell tx", "legs": []}
+                
+                sell_raw = base64.b64decode(sell_tx_data["swapTransaction"])
+                sell_tx = VersionedTransaction.from_bytes(sell_raw)
+                signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
+                sell_b58 = base58.b58encode(bytes(signed_sell)).decode()
+                
+                # Separate tip tx (fallback - 3 tx bundle)
+                tip_ix = transfer(TransferParams(
+                    from_pubkey=self.wallet.keypair.pubkey(),
+                    to_pubkey=Pubkey.from_string(tip_account),
+                    lamports=TIP_AMOUNT_LAMPORTS
+                ))
+                tip_msg = MessageV0.try_compile(
+                    payer=self.wallet.keypair.pubkey(),
+                    instructions=[tip_ix],
+                    address_lookup_table_accounts=[],
+                    recent_blockhash=recent_blockhash
+                )
+                tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
+                tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
+                
+                # 3-tx fallback bundle
+                tx_bundle = [buy_b58, sell_b58, tip_b58]
+                Logger.info(f"[EXEC] 🚀 Submitting 3-tx fallback bundle...")
+            else:
+                # 2-tx optimized bundle
+                tx_bundle = [buy_b58, sell_b58]
+                Logger.info(f"[EXEC] 🚀 Submitting 2-tx bundle (V130 embedded tip)...")
+            
+            # Submit bundle
             bundle_id = await self.jito.submit_bundle(tx_bundle, simulate=True, rpc=rpc)
             
             if not bundle_id:
