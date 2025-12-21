@@ -1,59 +1,37 @@
 """
-V48.0: Jito Block Engine Adapter
-================================
-Provides priority transaction execution via Jito Labs' MEV-protected
-block engine. Transactions submitted through Jito bypass the standard
-Solana queue and enter a priority auction.
+V48.1: Jito Block Engine Adapter (Async)
+========================================
+Non-blocking priority transaction execution via Jito Labs.
 
 Features:
-- Tip account management (fetch, cache, random selection)
-- Bundle submission for atomic execution
-- Priority fee optimization
-
-API: https://mainnet.block-engine.jito.wtf/api/v1/bundles
+- Async HTTP (httpx) to prevent event loop blocking
+- Regional failover with rotation
+- Pre-flight bundle simulation
 """
 
 import time
 import random
-import requests
+import asyncio
+import httpx
 from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass
 
 from solders.pubkey import Pubkey
 from solders.system_program import transfer, TransferParams
 from solders.transaction import Transaction
-
+from src.shared.system.logging import Logger
 
 @dataclass
 class TipConfig:
-    """Configuration for Jito tips."""
-    lamports: int = 10000         # Minimum tip (~$0.002)
-    max_lamports: int = 100000    # Maximum tip for high priority
-    dynamic_tip: bool = False     # Scale tip with urgency
-
-    
-
+    lamports: int = 10000
+    max_lamports: int = 100000
+    dynamic_tip: bool = False
 
 
 class JitoAdapter:
-    """
-    V48.0: Jito Block Engine client for priority transactions.
-    
-    Provides guaranteed transaction inclusion by tipping Jito validators.
-    Tip accounts are fetched from the block engine and cached.
-    
-    Usage:
-        adapter = JitoAdapter()
-        tip_account = adapter.get_random_tip_account()
-        
-        # For bundle submission (live trading):
-        tx_id = adapter.submit_bundle([signed_tx], tip_lamports=10000)
-    """
-    
     # Block Engine endpoints
     MAINNET_API = "https://mainnet.block-engine.jito.wtf/api/v1/bundles"
     
-    # Regional endpoints for lower latency
     REGIONAL_ENDPOINTS = {
         "mainnet": "https://mainnet.block-engine.jito.wtf/api/v1/bundles",
         "frankfurt": "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles",
@@ -62,328 +40,150 @@ class JitoAdapter:
         "tokyo": "https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles",
     }
     
-    # Cache settings
-    TIP_CACHE_TTL = 300  # 5 minutes
-    REQUEST_TIMEOUT = 5  # Reduced timeout for faster failover
-    RATE_LIMIT_COOLDOWN = 5  # V122: Reduced from 60s to 5s - aggressive retry logic
+    TIP_CACHE_TTL = 300
+    REQUEST_TIMEOUT = 5
+    RATE_LIMIT_COOLDOWN = 5
     
     def __init__(self, region: str = "ny"):
-        """
-        Initialize Jito adapter with regional failover.
-        """
-        # Prioritize selected region, manage fallback list
         all_endpoints = list(self.REGIONAL_ENDPOINTS.values())
         preferred = self.REGIONAL_ENDPOINTS.get(region, self.MAINNET_API)
-        
-        # Ensure preferred is first, then others randomized for load distribution
         fallback = [ep for ep in all_endpoints if ep != preferred]
         random.shuffle(fallback)
         self._endpoints = [preferred] + fallback
         self._current_endpoint_idx = 0
-        
         self.api_url = self._endpoints[0]
         
-        # Tip account cache
-        self._tip_accounts: List[str] = []
-        self._tip_accounts_fetched: float = 0
-        
-        # Stats
+        self._tip_accounts = []
+        self._tip_accounts_fetched = 0
         self._bundles_submitted = 0
         self._bundles_landed = 0
         self._rate_limited_until = 0
 
     def _rotate_endpoint(self):
-        """Switch to next regional endpoint."""
         self._current_endpoint_idx = (self._current_endpoint_idx + 1) % len(self._endpoints)
         self.api_url = self._endpoints[self._current_endpoint_idx]
         Logger.info(f"   🔄 [JITO] Rotating endpoint to: {self.api_url.split('//')[1].split('.')[0]}...")
 
-    def _rpc_call(self, method: str, params: list = None, max_retries: int = 5) -> Optional[Dict]:
-        """
-        Make RPC call with regional failover.
-        Retries across different regions if rate limited or timed out.
-        """
-        # Check cooldown
+    async def _rpc_call(self, method: str, params: list = None, max_retries: int = 5) -> Optional[Dict]:
         if time.time() < self._rate_limited_until:
-            # Silent ignore during cooldown to prevent log spam if hammered
             return None
+            
+        payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         
-        payload = {
-            "jsonrpc": "2.0", "id": 1, "method": method, "params": params or []
-        }
-        
-        # Import Logger lazily or assume global import
-        from src.shared.system.logging import Logger
-        
-        for attempt in range(max_retries):
-            try:
-                response = requests.post(
-                    self.api_url,
-                    json=payload,
-                    timeout=self.REQUEST_TIMEOUT
-                )
-                
-                if response.status_code == 200:
-                    return response.json()
-                elif response.status_code == 429:
-                    # Rate Limited -> Rotate Region immediately
-                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url.split('//')[1].split('.')[0]}")
-                    self._rotate_endpoint()
-                    time.sleep(0.2) # Micro-pause
-                    continue
-                else:
-                    Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
-                    self._rotate_endpoint()
-                    continue
+        async with httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT) as client:
+            for attempt in range(max_retries):
+                try:
+                    response = await client.post(self.api_url, json=payload)
                     
-            except requests.exceptions.Timeout:
-                Logger.debug(f"   ⚠️ [JITO] Timeout on {self.api_url.split('//')[1].split('.')[0]}")
-                self._rotate_endpoint()
-                continue
-            except Exception as e:
-                Logger.error(f"   ❌ [JITO] RPC error: {e}")
-                self._rotate_endpoint()
-                time.sleep(0.5)
+                    if response.status_code == 200:
+                        return response.json()
+                    elif response.status_code == 429:
+                        Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url}")
+                        self._rotate_endpoint()
+                        # Use asyncio.sleep for non-blocking wait
+                        await asyncio.sleep(0.2)
+                        continue
+                    else:
+                        Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
+                        self._rotate_endpoint()
+                        continue
+                        
+                except Exception as e:
+                    Logger.debug(f"   ⚠️ [JITO] RPC Error: {e}")
+                    self._rotate_endpoint()
+                    await asyncio.sleep(0.5)
         
-        # If all retries failed (covered all regions)
         self._rate_limited_until = time.time() + self.RATE_LIMIT_COOLDOWN
         Logger.warning(f"   ❌ [JITO] All regions failed. Cooldown {self.RATE_LIMIT_COOLDOWN}s")
         return None
-    
-    def get_tip_accounts(self, force_refresh: bool = False) -> List[str]:
-        """
-        Fetch and cache Jito tip accounts.
-        
-        Tip accounts are validator addresses that receive priority fees.
-        Randomly selecting from the pool reduces contention.
-        
-        Returns:
-            List of tip account public key strings
-        """
+
+    async def get_tip_accounts(self, force_refresh: bool = False) -> List[str]:
         now = time.time()
-        
-        # Return cached if valid
         if not force_refresh and self._tip_accounts:
             if now - self._tip_accounts_fetched < self.TIP_CACHE_TTL:
                 return self._tip_accounts
         
-        response = self._rpc_call("getTipAccounts")
-        
+        response = await self._rpc_call("getTipAccounts")
         if response and isinstance(response, dict):
             accounts = response.get("result", [])
             if isinstance(accounts, list) and len(accounts) > 0:
                 self._tip_accounts = accounts
                 self._tip_accounts_fetched = now
-                print(f"   ✅ [JITO] Cached {len(accounts)} tip accounts")
-                return self._tip_accounts
-        
+                Logger.info(f"   ✅ [JITO] Cached {len(accounts)} tip accounts")
+                return accounts
         return self._tip_accounts or []
+
+    async def get_random_tip_account(self) -> Optional[str]:
+        accounts = await self.get_tip_accounts()
+        return random.choice(accounts) if accounts else None
     
-    def get_random_tip_account(self) -> Optional[str]:
-        """
-        Get a random tip account to reduce contention.
-        
-        Returns:
-            Tip account public key or None if unavailable
-        """
-        accounts = self.get_tip_accounts()
-        if accounts:
-            return random.choice(accounts)
-        return None
-    
-    def is_available(self) -> bool:
-        """Check if Jito Block Engine is reachable."""
-        accounts = self.get_tip_accounts()
+    async def is_available(self) -> bool:
+        """Async availability check."""
+        accounts = await self.get_tip_accounts()
         return len(accounts) > 0
-    
-    def get_stats(self) -> Dict[str, int]:
-        """Get bundle submission statistics."""
-        return {
-            "bundles_submitted": self._bundles_submitted,
-            "bundles_landed": self._bundles_landed,
-            "tip_accounts_cached": len(self._tip_accounts)
-        }
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # BUNDLE SUBMISSION (for future live trading)
-    # ═══════════════════════════════════════════════════════════════════
-    
-    def submit_bundle(
-        self,
-        serialized_transactions: List[str],
-        tip_account: Optional[str] = None,
-        tip_lamports: int = 10000
-    ) -> Optional[str]:
-        """
-        Submit a transaction bundle to Jito Block Engine.
+
+    async def submit_bundle(self, serialized_transactions: List[str]) -> Optional[str]:
+        if not serialized_transactions: return None
         
-        The bundle is submitted as an atomic unit - either all transactions
-        land or none do. A tip transaction to the tip account is required.
+        # Note: Tip account logic handled by caller consuming get_random_tip_account
         
-        Args:
-            serialized_transactions: List of base58-encoded signed transactions
-            tip_account: Optional specific tip account (random if not provided)
-            tip_lamports: Tip amount in lamports (minimum 1000)
-            
-        Returns:
-            Bundle UUID if submitted, None on failure
-        """
-        if not serialized_transactions:
-            print("   ❌ [JITO] No transactions provided")
-            return None
-        
-        # Get tip account if not provided
-        if not tip_account:
-            tip_account = self.get_random_tip_account()
-            if not tip_account:
-                print("   ❌ [JITO] No tip accounts available")
-                return None
-        
-        response = self._rpc_call("sendBundle", [serialized_transactions])
-        
+        response = await self._rpc_call("sendBundle", [serialized_transactions])
         self._bundles_submitted += 1
         
         if response and isinstance(response, dict):
             bundle_id = response.get("result")
             if bundle_id:
-                print(f"   🚀 [JITO] Bundle submitted: {bundle_id[:16]}...")
-                # V120: Post-trade cooldown to prevent rate limit hammering
-                # Set a 3s cooldown after successful bundle to let Jito recover (Reduced from 10s)
+                Logger.info(f"   🚀 [JITO] Bundle submitted: {bundle_id[:16]}...")
                 self._rate_limited_until = time.time() + 3
-                print(f"   ⏳ [JITO] Post-trade cooldown: 3s")
                 return bundle_id
-                
             error = response.get("error", {})
-            print(f"   ❌ [JITO] Submit failed: {error}")
+            Logger.warning(f"   ❌ [JITO] Submit failed: {error}")
             return None
-        
         return None
-    
-    def get_bundle_status(self, bundle_id: str) -> Optional[Dict]:
-        """
-        Check status of a submitted bundle.
-        
-        Args:
-            bundle_id: UUID returned from submit_bundle()
-            
-        Returns:
-            Status dict or None
-        """
-        response = self._rpc_call("getInflightBundleStatuses", [[bundle_id]])
-        
-        if response and isinstance(response, dict):
-            return response.get("result")
-        return None
-    
-        if response and isinstance(response, dict):
-            return response.get("result")
-        return None
-        
-    def simulate_bundle(self, serialized_transactions: List[str]) -> Dict:
-        """
-        V123: Simulate bundle before submission to prevent 'Invalid' errors.
-        
-        Args:
-            serialized_transactions: List of base58-encoded transactions
-            
-        Returns:
-            Dict: {'success': bool, 'logs': list, 'error': str}
-        """
-        response = self._rpc_call("simulateBundle", [{"encodedTransactions": serialized_transactions}])
-        
+
+    async def simulate_bundle(self, serialized_transactions: List[str]) -> Dict:
+        # V123 Safety: Simulate before send
+        response = await self._rpc_call("simulateBundle", [{"encodedTransactions": serialized_transactions}])
         if response and isinstance(response, dict):
             result = response.get("result", {}).get("value", {})
             err = result.get("err")
             logs = result.get("logs", [])
-            
             if err:
                 Logger.warning(f"   🛑 [JITO] Simulation Failed: {err}")
                 return {"success": False, "error": str(err), "logs": logs}
-                
             return {"success": True, "error": None, "logs": logs}
-            
         return {"success": False, "error": "RPC failed", "logs": []}
 
-    def wait_for_confirmation(self, bundle_id: str, timeout: float = 30.0) -> bool:
-        """
-        V120: Wait for bundle to be confirmed on-chain.
-        
-        Polls bundle status until confirmed or timeout.
-        
-        Args:
-            bundle_id: UUID from submit_bundle()
-            timeout: Max seconds to wait
-            
-        Returns:
-            True if bundle landed, False if not confirmed
-        """
+    async def get_bundle_status(self, bundle_id: str) -> Optional[Dict]:
+        response = await self._rpc_call("getInflightBundleStatuses", [[bundle_id]])
+        if response and isinstance(response, dict):
+            return response.get("result")
+        return None
+
+    async def wait_for_confirmation(self, bundle_id: str, timeout: float = 30.0) -> bool:
         start = time.time()
-        poll_interval = 2.0
-        
         while time.time() - start < timeout:
             try:
-                status = self.get_bundle_status(bundle_id)
-                
+                status = await self.get_bundle_status(bundle_id)
                 if status:
-                    # Check for landed status
                     values = status.get("value", [])
                     if values:
                         bundle_status = values[0] if isinstance(values, list) else values
                         state = bundle_status.get("status", "")
-                        
                         if state == "Landed":
                             self._bundles_landed += 1
-                            print(f"   ✅ [JITO] Bundle LANDED: {bundle_id[:16]}...")
+                            Logger.info(f"   ✅ [JITO] Bundle LANDED: {bundle_id[:16]}...")
                             return True
                         elif state in ("Invalid", "Failed"):
-                            print(f"   ❌ [JITO] Bundle FAILED: {state}")
+                            Logger.warning(f"   ❌ [JITO] Bundle FAILED: {state}")
                             return False
-                        else:
-                            print(f"   ⏳ [JITO] Bundle status: {state}")
-                
-            except Exception as e:
-                print(f"   ⚠️ [JITO] Status check error: {e}")
-            
-            time.sleep(poll_interval)
-        
-        print(f"   ⚠️ [JITO] Bundle confirmation timeout ({timeout}s)")
+            except Exception:
+                pass
+            await asyncio.sleep(2.0)
         return False
-
-
-# ═══════════════════════════════════════════════════════════════════
-# TEST SCRIPT
-# ═══════════════════════════════════════════════════════════════════
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Jito Block Engine Adapter Test")
-    print("=" * 60)
-    
-    adapter = JitoAdapter()
-    
-    # Test tip account fetching
-    print("\n1. Fetching tip accounts...")
-    accounts = adapter.get_tip_accounts()
-    print(f"   Found {len(accounts)} tip accounts")
-    
-    if accounts:
-        print(f"   Sample: {accounts[0][:32]}...")
         
-        # Test random selection
-        print("\n2. Random tip account selection...")
-        for i in range(3):
-            tip = adapter.get_random_tip_account()
-            print(f"   [{i+1}] {tip[:32]}...")
-    
-    # Test availability
-    print("\n3. Block Engine availability...")
-    available = adapter.is_available()
-    print(f"   Available: {available}")
-    
-    # Stats
-    print("\n4. Stats...")
-    stats = adapter.get_stats()
-    print(f"   {stats}")
-    
-    print("\n" + "=" * 60)
-    print("Test complete!")
+    def get_stats(self) -> Dict[str, int]:
+        return {
+            "bundles_submitted": self._bundles_submitted,
+            "bundles_landed": self._bundles_landed
+        }
