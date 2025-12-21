@@ -582,10 +582,13 @@ class ArbitrageExecutor:
                 Logger.info(f"[EXEC] 🚀 Submitting 2-tx bundle (V130 embedded tip)...")
             
             # Submit bundle
+            Logger.info(f"[EXEC] 📦 Bundle size: {len(tx_bundle)} txs")
             bundle_id = await self.jito.submit_bundle(tx_bundle, simulate=True, rpc=rpc)
             
             if not bundle_id:
-                Logger.warning("[EXEC] ⚠️ Jito submission failed - Triggering fallback")
+                # V131: Enhanced failure logging
+                Logger.warning(f"[EXEC] ⚠️ Jito submission failed - Check simulation logs above")
+                Logger.debug(f"[EXEC] Bundle txs: {[tx[:20] + '...' for tx in tx_bundle]}")
                 return {"success": False, "error": "Jito bundle submission failed", "legs": [], "should_fallback": True}
             
             Logger.info(f"[EXEC] ✅ Bundle submitted: {bundle_id[:16]}...")
