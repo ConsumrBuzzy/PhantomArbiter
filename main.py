@@ -46,8 +46,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Starting budget in USD (default: 50)"
     )
     arbiter_parser.add_argument(
-        "--duration", type=int, default=10,
-        help="Duration in minutes (default: 10, 0 for infinite)"
+        "--duration", type=int, default=60,
+        help="Duration in minutes (default: 60, 0 for infinite)"
     )
     arbiter_parser.add_argument(
         "--interval", type=int, default=2,
