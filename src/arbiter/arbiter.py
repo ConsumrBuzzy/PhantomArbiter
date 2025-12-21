@@ -502,6 +502,7 @@ class PhantomArbiter:
         # V92.0: Initialize batch size for adaptive scanning
         self._batch_size = 5
         self._last_duration = 0
+        self._trigger_wallets = {} # V117: Track which wallet triggered a pair
         # ═══════════════════════════════════════════════════════════════════
         from src.arbiter.core.signal_coordinator import SignalCoordinator, CoordinatorConfig
         
@@ -511,9 +512,11 @@ class PhantomArbiter:
                 monitor.trigger_activity(f"{symbol}/USDC")
                 wake_event.set()
                 
-        def on_flash_warm(symbol):
+        def on_flash_warm(symbol, wallet=None):
             if adaptive_mode and monitor:
                 monitor.flash_warm(f"{symbol}/USDC")
+                if wallet:
+                    self._trigger_wallets[f"{symbol}/USDC"] = wallet
                 wake_event.set()
 
         signal_config = CoordinatorConfig(
