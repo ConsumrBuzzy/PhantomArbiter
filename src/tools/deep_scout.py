@@ -32,41 +32,43 @@ class DeepScout:
         self.dexscreener_url = "https://api.dexscreener.com/latest/dex/tokens/"
         
     def harvest_pools(self, token_mints: List[str]):
-        """Find and register all available liquid pools for target tokens."""
-        Logger.info(f"🔎 [SCOUT] Harvesting pools for {len(token_mints)} tokens...")
+        """Find and register all available liquid pools (Bulk Mode)."""
+        valid_mints = [m for m in token_mints if m]
+        Logger.info(f"🔎 [SCOUT] Harvesting pools for {len(valid_mints)} tokens (Bulk)...")
         
         USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         SOL = "So11111111111111111111111111111111111111112"
         USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
-        
-        # All common quote addresses
         CITADEL_TOKENS = {USDC, SOL, USDT}
         
         count = 0
-        for mint in token_mints:
+        CHUNK_SIZE = 30 # DexScreener bulk limit
+        
+        for i in range(0, len(valid_mints), CHUNK_SIZE):
+            chunk = valid_mints[i:i + CHUNK_SIZE]
+            mint_str = ",".join(chunk)
+            Logger.info(f"⚡ [SCOUT] Syncing batch {i//CHUNK_SIZE + 1} ({len(chunk)} tokens)...")
+            
             try:
-                # V117.3: Added explicit timeout and SSL ignore for problematic environments
-                resp = requests.get(f"{self.dexscreener_url}{mint}", timeout=15, verify=False)
+                # V117.5: Bulk API execution
+                resp = requests.get(f"{self.dexscreener_url}{mint_str}", timeout=20, verify=False)
                 if resp.status_code == 200:
                     data = resp.json()
                     pairs = data.get("pairs", [])
+                    
                     for p in pairs:
                         if p.get("chainId") == "solana":
-                            # Register pool in DB
-                            # V116 Note: This uses the existing registry schema
-                            # V117.4: Robust DEX Mapping
-                            # DexScreener uses IDs like 'raydium-clmm' or 'meteora-dlmm'
+                            mint = p.get("baseToken", {}).get("address")
                             raw_dex = p.get("dexId", "").lower()
+                            
                             mapped_dex = None
                             if "raydium" in raw_dex: mapped_dex = "RAYDIUM"
                             elif "orca" in raw_dex: mapped_dex = "ORCA"
                             elif "meteora" in raw_dex: mapped_dex = "METEORA"
                             elif "jupiter" in raw_dex: mapped_dex = "JUPITER"
                             
-                            pool_addr = p.get("pairAddress")
                             quote_token = p.get("quoteToken", {}).get("address")
                             
-                            # Only care about major DEXs and stable/SOL routes
                             if mapped_dex and quote_token in CITADEL_TOKENS:
                                 db_manager.register_pool(
                                     mint=mint,
@@ -74,12 +76,14 @@ class DeepScout:
                                     symbol=p.get("baseToken", {}).get("symbol", "UNK")
                                 )
                                 count += 1
-                                Logger.debug(f"[SCOUT] Linked {mint[:8]} to {mapped_dex} pool {pool_addr[:8]}")
-                time.sleep(0.5) # Rate limit protection
-            except Exception as e:
-                Logger.debug(f"Failed to harvest pools for {mint}: {e}")
                 
-        Logger.info(f"✅ [SCOUT] Registered {count} pools across target assets.")
+                # Small pulse between batches to avoid IP bans
+                if i + CHUNK_SIZE < len(valid_mints):
+                    time.sleep(1.0)
+            except Exception as e:
+                Logger.debug(f"Bulk sync failed: {e}")
+                
+        Logger.info(f"✅ [SCOUT] Bulk Registered {count} pools.")
 
     def harvest_global_trending(self, min_vol=10000):
         """V117: Find high-volume pools across the entire network."""
