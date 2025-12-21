@@ -19,6 +19,10 @@ import requests
 from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass
 
+from solders.pubkey import Pubkey
+from solders.system_program import transfer, TransferParams
+from solana.transaction import Transaction
+
 
 @dataclass
 class TipConfig:
@@ -26,6 +30,23 @@ class TipConfig:
     lamports: int = 10000         # Minimum tip (~$0.002)
     max_lamports: int = 100000    # Maximum tip for high priority
     dynamic_tip: bool = False     # Scale tip with urgency
+
+    
+    def create_tip_transaction(self, payer: Pubkey, tip_account: str, lamports: int, latest_blockhash) -> Transaction:
+        """
+        Create a dedicated tip transaction.
+        """
+        ix = transfer(
+            TransferParams(
+                from_pubkey=payer,
+                to_pubkey=Pubkey.from_string(tip_account),
+                lamports=lamports
+            )
+        )
+        tx = Transaction()
+        tx.add(ix)
+        tx.recent_blockhash = latest_blockhash
+        return tx
 
 
 class JitoAdapter:
