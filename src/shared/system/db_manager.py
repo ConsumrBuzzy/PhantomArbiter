@@ -96,7 +96,8 @@ class DBManager:
                 slippage_usd REAL DEFAULT 0,
                 fees_usd REAL DEFAULT 0,
                 liquidity_usd REAL DEFAULT 0,
-                is_volatile BOOLEAN DEFAULT 0
+                is_volatile BOOLEAN DEFAULT 0,
+                trigger_wallet TEXT
             )
             """)
             c.execute("CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol)")
@@ -385,6 +386,16 @@ class DBManager:
                     Logger.info("📦 [DB] Migrated target_wallets table: added performance tracking columns")
                 except:
                     pass
+                    
+            # Migration: V117 Add trigger_wallet column
+            try:
+                c.execute("SELECT trigger_wallet FROM trades LIMIT 1")
+            except:
+                try:
+                    c.execute("ALTER TABLE trades ADD COLUMN trigger_wallet TEXT")
+                    Logger.info("📦 [DB] Migrated trades table: added trigger_wallet column")
+                except:
+                    pass
 
     # --- Position Operations (Replacing JSON) ---
 
@@ -444,8 +455,8 @@ class DBManager:
             INSERT INTO trades (
                 symbol, entry_price, exit_price, size_usd,
                 pnl_usd, net_pnl_pct, exit_reason, timestamp, is_win, engine_name,
-                slippage_pct, slippage_usd, fees_usd, liquidity_usd, is_volatile
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                slippage_pct, slippage_usd, fees_usd, liquidity_usd, is_volatile, trigger_wallet
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 trade_data.get('symbol'),
                 trade_data.get('entry_price'),
