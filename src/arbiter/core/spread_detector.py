@@ -40,9 +40,7 @@ class SpreadOpportunity:
     
     # Dashboard/Verification fields (added for compatibility)
     verification_status: Optional[str] = None
-    
-    # Dashboard/Verification fields (added for compatibility)
-    verification_status: Optional[str] = None
+    trigger_wallet: Optional[str] = None
     
     def calculate_optimal_size(self, impact_factor: float, min_size: float = 10.0, max_size: float = 1000.0) -> float:
         """

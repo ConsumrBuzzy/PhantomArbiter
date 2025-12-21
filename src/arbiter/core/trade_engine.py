@@ -165,6 +165,33 @@ class TradeEngine:
             # Adjust for actual size traded if needed (assuming trade_size)
             net_profit = opportunity.net_profit_usd * (trade_size / opportunity.max_size_usd)
             
+            # V117: Centralized Audit Logging
+            try:
+                db_manager.log_trade({
+                    'symbol': opportunity.pair,
+                    'entry_price': opportunity.buy_price,
+                    'exit_price': opportunity.sell_price,
+                    'size_usd': trade_size,
+                    'pnl_usd': net_profit,
+                    'net_pnl_pct': (net_profit / trade_size) * 100,
+                    'exit_reason': 'ARBITER_HYBRID',
+                    'is_win': net_profit > 0,
+                    'engine_name': engine_used.upper(),
+                    'fees_usd': opportunity.estimated_fees_usd,
+                    'trigger_wallet': opportunity.trigger_wallet
+                })
+                
+                # V117: Update Alpha Wallet Performance
+                if opportunity.trigger_wallet:
+                    db_manager.update_wallet_performance(
+                        opportunity.trigger_wallet, 
+                        is_win=(net_profit > 0), 
+                        pnl_usd=net_profit
+                    )
+                    Logger.info(f"📈 [SCOUT] Updated performance for wallet {opportunity.trigger_wallet[:8]} (PnL: ${net_profit:+.2f})")
+            except Exception as e:
+                Logger.debug(f"Audit logging error: {e}")
+
             return TradeResult(
                 success=True,
                 net_profit=net_profit,

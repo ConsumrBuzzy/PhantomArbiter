@@ -433,26 +433,6 @@ class ArbitrageExecutor:
                     slippage_pct = (expected_usdc_back - actual_usdc_back) / expected_usdc_back * 100 if expected_usdc_back > 0 else 0
                     
                     Logger.info(f"[EXEC] 📊 Slippage: ${slippage_usd:.4f} ({slippage_pct:.2f}%)")
-                    
-                    # Log to DB for calibration
-                    try:
-                        from src.shared.system.db_manager import db_manager
-                        db_manager.log_trade({
-                            'symbol': opportunity.pair,
-                            'entry_price': opportunity.buy_price,
-                            'exit_price': opportunity.sell_price,
-                            'size_usd': trade_size,
-                            'pnl_usd': legs[-1].output_amount - trade_size,
-                            'net_pnl_pct': ((legs[-1].output_amount - trade_size) / trade_size) * 100,
-                            'exit_reason': 'ARBITER_SPATIAL',
-                            'is_win': legs[-1].output_amount > trade_size,
-                            'engine_name': 'ARBITER',
-                            'slippage_pct': slippage_pct,
-                            'slippage_usd': slippage_usd,
-                            'fees_usd': opportunity.estimated_fees_usd,
-                        })
-                    except Exception as e:
-                        Logger.debug(f"Trade logging error: {e}")
                 
             else:
                 # DRY_RUN

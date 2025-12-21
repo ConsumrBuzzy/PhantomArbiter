@@ -840,6 +840,11 @@ class PhantomArbiter:
                 # Sort by NET PROFIT (descending) - prioritize actually profitable opportunities
                 raw_opps = sorted(opportunities, key=lambda x: x.net_profit_usd, reverse=True)
                 
+                # V117: Attach trigger wallet to opportunities if found recently
+                for opp in raw_opps:
+                    if opp.pair in self._trigger_wallets:
+                        opp.trigger_wallet = self._trigger_wallets[opp.pair]
+                
                 # Check Top Candidates for Real Liquidity
                 # V12.2: Parallel DSM Pre-Check (Local/API) -> Then Parallel RPC Verification
                 
