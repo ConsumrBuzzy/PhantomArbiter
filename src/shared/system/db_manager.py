@@ -407,6 +407,24 @@ class DBManager:
                 except:
                     pass
 
+            # V120: Token Watchlist (replaces data/watchlist.json)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS watchlist (
+                symbol TEXT PRIMARY KEY,
+                mint TEXT NOT NULL UNIQUE,
+                category TEXT DEFAULT 'WATCH',
+                trading_enabled BOOLEAN DEFAULT 0,
+                description TEXT,
+                added_at REAL,
+                promoted_at REAL,
+                demoted_at REAL,
+                demoted_reason TEXT,
+                coingecko_id TEXT
+            )
+            """)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_mint ON watchlist(mint)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_category ON watchlist(category)")
+
     # --- Position Operations (Replacing JSON) ---
 
     def save_position(self, symbol, data):
@@ -1124,6 +1142,72 @@ class DBManager:
                 ORDER BY ABS(avg_decay) ASC
             """, (cutoff, min_samples, max_decay))
             return [row['pair'] for row in c.fetchall()]
+
+    # ═══════════════════════════════════════════════════════════════════
+    # WATCHLIST OPERATIONS (V120 - Replacing JSON)
+    # ═══════════════════════════════════════════════════════════════════
+    
+    def add_token(self, symbol: str, mint: str, category: str = "WATCH", 
+                  trading_enabled: bool = True, description: str = None):
+        """Add or update a token in the watchlist."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                INSERT INTO watchlist (symbol, mint, category, trading_enabled, description, added_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(symbol) DO UPDATE SET
+                    mint = excluded.mint,
+                    category = excluded.category,
+                    trading_enabled = excluded.trading_enabled,
+                    description = excluded.description
+            """, (symbol.upper(), mint, category, trading_enabled, description, time.time()))
+        Logger.info(f"📋 [WATCHLIST] Added {symbol} ({category})")
+    
+    def remove_token(self, symbol: str):
+        """Remove a token from the watchlist."""
+        with self.cursor(commit=True) as c:
+            c.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol.upper(),))
+        Logger.info(f"📋 [WATCHLIST] Removed {symbol}")
+    
+    def promote_token(self, symbol: str, category: str = "ACTIVE"):
+        """Promote a token to a higher category."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                UPDATE watchlist SET category = ?, trading_enabled = 1, promoted_at = ?
+                WHERE symbol = ?
+            """, (category, time.time(), symbol.upper()))
+        Logger.info(f"📋 [WATCHLIST] Promoted {symbol} to {category}")
+    
+    def demote_token(self, symbol: str, reason: str = "Manual"):
+        """Demote a token to WATCH category."""
+        with self.cursor(commit=True) as c:
+            c.execute("""
+                UPDATE watchlist SET category = 'WATCH', trading_enabled = 0, 
+                demoted_at = ?, demoted_reason = ?
+                WHERE symbol = ?
+            """, (time.time(), reason, symbol.upper()))
+        Logger.info(f"📋 [WATCHLIST] Demoted {symbol}: {reason}")
+    
+    def get_watchlist(self, category: str = None) -> list:
+        """Get all tokens in the watchlist, optionally filtered by category."""
+        with self.cursor() as c:
+            if category:
+                c.execute("SELECT * FROM watchlist WHERE category = ? ORDER BY symbol", (category,))
+            else:
+                c.execute("SELECT * FROM watchlist ORDER BY category, symbol")
+            return [dict(row) for row in c.fetchall()]
+    
+    def get_active_tokens(self) -> dict:
+        """Get active tokens as {symbol: mint} dict for trading."""
+        with self.cursor() as c:
+            c.execute("SELECT symbol, mint FROM watchlist WHERE trading_enabled = 1")
+            return {row['symbol']: row['mint'] for row in c.fetchall()}
+    
+    def get_token_by_mint(self, mint: str) -> dict:
+        """Get token info by mint address."""
+        with self.cursor() as c:
+            c.execute("SELECT * FROM watchlist WHERE mint = ?", (mint,))
+            row = c.fetchone()
+            return dict(row) if row else None
 
 # Global Accessor
 db_manager = DBManager()

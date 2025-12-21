@@ -522,6 +522,42 @@
             "trading_enabled": false,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1766097035.4392064
+        },
+        "MOBILE": {
+            "mint": "mb1eu7TzEc71KxDpsmsKoucSSuuoGLv1drys1oP2jh6",
+            "category": "ACTIVE",
+            "trading_enabled": true,
+            "description": "Helium Mobile - Less watched DePIN"
+        },
+        "ONDO": {
+            "mint": "ondoKS7nK3ZXi9yJWKSrNPCNVnkiC8AQNZ3DaP9HNMM",
+            "category": "ACTIVE",
+            "trading_enabled": true,
+            "description": "Ondo Finance - RWA, less bot competition"
+        },
+        "IO": {
+            "mint": "iouQcQBAiEXe6cKLS85zmZxUB9mMoqRDnqKwEGpxWNr",
+            "category": "ACTIVE",
+            "trading_enabled": true,
+            "description": "io.net - GPU compute, newer token"
+        },
+        "GRASS": {
+            "mint": "Grass7B4RdKfBCjTKgSqnXkqjwiGvQyFbuSCUJr3XXjs",
+            "category": "ACTIVE",
+            "trading_enabled": true,
+            "description": "Grass - Data network, less watched"
+        },
+        "SC": {
+            "mint": "sc1aXLrrqA2yyjsQG3D8vNUjJDANz39vpNMZuHhxpump",
+            "category": "WATCH",
+            "trading_enabled": true,
+            "description": "Pump.fun grad - May have wider spreads"
+        },
+        "ZEUS": {
+            "mint": "ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq",
+            "category": "ACTIVE",
+            "trading_enabled": true,
+            "description": "Zeus Network - Cross-chain, less competition"
         }
     },
     "categories": {
