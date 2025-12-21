@@ -15,12 +15,27 @@ class ProbeAnalytic:
         self.LADDER_COUNT = 3       # Number of buys to trigger
         self.WINDOW_SECONDS = 120   # 2-minute window for clusters
         
+        # V116: Alpha Watchlist (DeepScout)
+        from src.shared.system.db_manager import db_manager
+        self.alpha_wallets = set(db_manager.get_target_wallets())
+        self.last_sync = time.time()
+        
     def analyze_tx(self, wallet: str, usd_value: float) -> str:
         """
         Analyze a single transaction for probing patterns.
         Returns "PROBE_DETECTED" or "NORMAL".
         """
         now = time.time()
+        
+        # V116: Priority Alpha Check (Instant trigger for known Smart Money)
+        if now - self.last_sync > 300: # Periodic sync
+            from src.shared.system.db_manager import db_manager
+            self.alpha_wallets = set(db_manager.get_target_wallets())
+            self.last_sync = now
+            
+        if wallet in self.alpha_wallets:
+            Logger.info(f"🚨 [PROBE] Alpha Wallet Active: {wallet[:8]}... (${usd_value:.0f})")
+            return "PROBE_DETECTED"
         
         # We only care about small 'probe-sized' buys
         if usd_value < self.PROBE_THRESHOLD:

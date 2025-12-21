@@ -44,11 +44,9 @@ class DeepScout:
                             # Only care about USDC/SOL routes for now
                             if quote_token in [USDC, SOL]:
                                 db_manager.register_pool(
-                                    symbol=p.get("baseToken", {}).get("symbol", "UNK"),
+                                    mint=mint,
                                     dex=dex,
-                                    pool_id=pool_addr,
-                                    pair_address=pool_addr,
-                                    fee=0.003 # Placeholder, usually 0.01% - 1%
+                                    symbol=p.get("baseToken", {}).get("symbol", "UNK")
                                 )
                                 count += 1
                 time.sleep(0.5) # Rate limit protection

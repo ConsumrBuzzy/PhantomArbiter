@@ -597,6 +597,33 @@ class DBManager:
             ORDER BY spread_range DESC
             """, (cutoff,))
             return [dict(row) for row in c.fetchall()]
+
+    # --- Pool Registry (V116: DeepScout) ---
+    
+    def register_pool(self, mint: str, dex: str, symbol: str = None):
+        """Update pool registry for a token/dex combination."""
+        col = f"has_{dex.lower()}"
+        # Ensure only supported DEXs are registered
+        if col not in ["has_jupiter", "has_raydium", "has_orca", "has_meteora"]:
+            return
+            
+        with self.cursor(commit=True) as c:
+            # Check if exists
+            c.execute("SELECT mint FROM pool_registry WHERE mint = ?", (mint,))
+            if c.fetchone():
+                c.execute(f"UPDATE pool_registry SET {col} = 1, last_checked = ? WHERE mint = ?", (time.time(), mint))
+            else:
+                c.execute(f"""
+                INSERT INTO pool_registry (mint, symbol, {col}, last_checked)
+                VALUES (?, ?, 1, ?)
+                """, (mint, symbol, time.time()))
+
+    def get_pool_registry(self, mint: str) -> dict:
+        """Get DEX availability for a token."""
+        with self.cursor() as c:
+            c.execute("SELECT * FROM pool_registry WHERE mint = ?", (mint,))
+            row = c.fetchone()
+            return dict(row) if row else None
     
     def get_dex_route_performance(self, hours: int = 24) -> list:
         """
