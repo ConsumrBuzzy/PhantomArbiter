@@ -261,6 +261,14 @@ class ArbitrageExecutor:
         trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
         start_time = time.time()
         
+        # V120: Minimum net profit filter
+        # Reject razor-thin spreads that will decay before execution
+        MIN_NET_PROFIT_USD = 0.15  # Must have $0.15 buffer at scan time
+        scan_net_profit = getattr(opportunity, 'net_profit_usd', None)
+        if scan_net_profit is not None and scan_net_profit < MIN_NET_PROFIT_USD:
+            Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}")
+            return self._error_result(f"Net too thin: ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
+        
         try:
             legs = []
             
