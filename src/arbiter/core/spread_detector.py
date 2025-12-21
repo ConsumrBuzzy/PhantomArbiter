@@ -97,11 +97,23 @@ class SpreadDetector:
     to buy low and sell high across different venues.
     """
     
+    
     def __init__(self, feeds: List = None):
-        from src.shared.feeds import PriceSource
-        self.feeds: Dict[str, 'PriceSource'] = {}
+        """Initialize with list of price feeds."""
+        self.feeds = {f.name: f for f in feeds} if feeds else {}
+        self.default_trade_size = 100.0  # USD
         
+        # V125: Persistent ThreadPool for zero-overhead polling
+        from concurrent.futures import ThreadPoolExecutor
+        self.executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="SpreadScanner")
+        
+    def shutdown(self):
+        """Cleanup persistent resources."""
+        if self.executor:
+            self.executor.shutdown(wait=False)
+        # V125 cleanup: Feeds already initialized above
         if feeds:
+            # Re-sync in case duplicates were passed
             for feed in feeds:
                 self.feeds[feed.get_name()] = feed
                 
@@ -372,11 +384,12 @@ class SpreadDetector:
             except Exception:
                 return feed_name, {}
         
+        
+        # V125: Reuse persistent executor (Zero Overhead)
         # Fetch from all feeds in parallel (3 feeds = 3 threads)
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(fetch_from_feed, item) for item in self.feeds.items()]
-            
-            try:
+        futures = [self.executor.submit(fetch_from_feed, item) for item in self.feeds.items()]
+        
+        try:
                 for future in as_completed(futures, timeout=8):  # V91.0: Reduced to 8s for speed
                     try:
                         feed_name, prices = future.result()
