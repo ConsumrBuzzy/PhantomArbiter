@@ -129,9 +129,9 @@ class SpreadDetector:
         """Add a price feed source."""
         self.feeds[feed.get_name()] = feed
         
-    def _get_sol_price(self) -> float:
-        """Get live SOL/USD price for gas cost estimation."""
-        import time
+    async def _get_sol_price(self) -> float:
+        """Get live SOL/USD price for gas cost estimation (async)."""
+        import asyncio
         
         # Cache for 30 seconds to avoid excessive API calls
         if time.time() - self._sol_price_ts < 30:
@@ -142,7 +142,12 @@ class SpreadDetector:
         
         for feed in self.feeds.values():
             try:
-                spot = feed.get_spot_price(SOL_MINT, USDC_MINT)
+                # V131: Properly handle async feeds
+                if asyncio.iscoroutinefunction(feed.get_spot_price):
+                    spot = await feed.get_spot_price(SOL_MINT, USDC_MINT)
+                else:
+                    spot = feed.get_spot_price(SOL_MINT, USDC_MINT)
+                
                 if spot and spot.price > 0:
                     self._sol_price_cache = spot.price
                     self._sol_price_ts = time.time()
@@ -409,7 +414,7 @@ class SpreadDetector:
         
         from src.arbiter.core.fee_estimator import get_fee_estimator
         fee_est = get_fee_estimator()
-        fee_est._sol_price_cache = self._get_sol_price()
+        fee_est._sol_price_cache = await self._get_sol_price()
         fee_est._sol_price_ts = time.time()
         
         for pair_name, base_mint, quote_mint in pairs:
