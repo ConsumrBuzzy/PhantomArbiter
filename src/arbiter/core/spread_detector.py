@@ -355,6 +355,7 @@ class SpreadDetector:
         
         async def fetch_from_feed(feed_item):
             feed_name, feed = feed_item
+            start_time = time.time()  # V131: Feed latency tracking
             try:
                 if hasattr(feed, 'get_multiple_prices'):
                     # Check if method is async
@@ -362,22 +363,26 @@ class SpreadDetector:
                         res = await feed.get_multiple_prices(all_mints)
                     else:
                         res = feed.get_multiple_prices(all_mints)
-                    return feed_name, res
+                    
+                    # V131: Log feed latency for learning
+                    latency_ms = (time.time() - start_time) * 1000
+                    if not hasattr(self, '_feed_latencies'):
+                        self._feed_latencies = {}
+                    self._feed_latencies[feed_name] = latency_ms
+                    
+                    return feed_name, res, latency_ms
                 else:
                     # Fallback: parallel individual fetches
                     prices = {}
-                    # If feed is async, use gather for mints too
-                    tasks = []
                     for mint in all_mints:
-                        # Assumption: By V127 all feeds should be async or we wrap them
-                        # For now, simplistic sync wrapper if needed
                         spot = await feed.get_spot_price(mint, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
                         if spot and spot.price > 0:
                             prices[mint] = spot.price
-                    return feed_name, prices
+                    latency_ms = (time.time() - start_time) * 1000
+                    return feed_name, prices, latency_ms
             except Exception as e:
-                # print(f"DEBUG: Feed {feed_name} err: {e}")
-                return feed_name, {}
+                latency_ms = (time.time() - start_time) * 1000
+                return feed_name, {}, latency_ms
         
         
         
@@ -392,7 +397,13 @@ class SpreadDetector:
             if not result:
                 continue
             
-            feed_name, prices = result
+            # V131: Unpack 3-tuple (feed_name, prices, latency_ms)
+            if len(result) == 3:
+                feed_name, prices, latency_ms = result
+            else:
+                feed_name, prices = result
+                latency_ms = 0
+            
             if prices:
                 feed_prices[feed_name] = prices
         
