@@ -237,9 +237,18 @@ class PodManager:
             # Filter pods in this category
             cat_pods = [(name, self.state[name]) for name in pods if name in self.state]
             
-            # Sort by priority (lower is better)
-            # Add randomness to break ties and rotate
-            cat_pods.sort(key=lambda x: (x[1]["priority"], x[1]["last_scan"] + random.uniform(0, 300)))
+            # V131: Time-based rotation
+            # Effective priority = base_priority - time_since_last_scan/60
+            # This forces rotation even without trades
+            def effective_priority(item):
+                name, state = item
+                base_prio = state["priority"]
+                time_since_scan = now - state["last_scan"]
+                # Every 60s without scan reduces effective priority by 1
+                time_bonus = min(time_since_scan / 60, 5)  # Cap at -5 priority
+                return base_prio - time_bonus + random.uniform(0, 0.5)
+            
+            cat_pods.sort(key=effective_priority)
             
             # Pick best available
             for name, state in cat_pods:
