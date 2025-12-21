@@ -58,6 +58,7 @@ class JitoAdapter:
     # Cache settings
     TIP_CACHE_TTL = 300  # 5 minutes
     REQUEST_TIMEOUT = 10  # seconds
+    RATE_LIMIT_COOLDOWN = 60  # 1 minute cooldown after rate limit
     
     def __init__(self, region: str = "ny"):
         """
@@ -75,19 +76,26 @@ class JitoAdapter:
         # Stats tracking
         self._bundles_submitted = 0
         self._bundles_landed = 0
+        self._rate_limited_until = 0  # V120: Rate limit cooldown timestamp
     
-    def _rpc_call(self, method: str, params: list = None, max_retries: int = 1) -> Optional[Dict]:
+    def _rpc_call(self, method: str, params: list = None, max_retries: int = 3) -> Optional[Dict]:
         """
         Make a JSON-RPC call to the Block Engine with retry logic.
         
         Args:
             method: RPC method name
             params: Optional parameters
-            max_retries: Maximum retry attempts for rate limiting (Default: 1 for speed)
+            max_retries: Maximum retry attempts for rate limiting (Default: 3)
             
         Returns:
             Response dict or None on error
         """
+        # V120: Check rate limit cooldown
+        if time.time() < self._rate_limited_until:
+            remaining = int(self._rate_limited_until - time.time())
+            print(f"   ⏳ [JITO] Rate limit cooldown ({remaining}s remaining)")
+            return None
+        
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -113,7 +121,9 @@ class JitoAdapter:
                         time.sleep(wait_time)
                         continue
                     else:
-                        print(f"   ❌ [JITO] Rate limited, max retries exceeded")
+                        # V120: Set cooldown to avoid hammering API
+                        self._rate_limited_until = time.time() + self.RATE_LIMIT_COOLDOWN
+                        print(f"   ❌ [JITO] Rate limited, cooldown for {self.RATE_LIMIT_COOLDOWN}s")
                         return None
                 else:
                     print(f"   ⚠️ [JITO] HTTP {response.status_code}: {response.text[:100]}")

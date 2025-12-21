@@ -530,16 +530,16 @@
             "description": "Helium Mobile - Less watched DePIN"
         },
         "ONDO": {
-            "mint": "ondoKS7nK3ZXi9yJWKSrNPCNVnkiC8AQNZ3DaP9HNMM",
+            "mint": "9ECe6fUtoGD7rCFVw7xx9NJpmfy6B8kGvEtRWvwZUbpd",
             "category": "ACTIVE",
             "trading_enabled": true,
-            "description": "Ondo Finance - RWA, less bot competition"
+            "description": "Ondo Finance - RWA, verified mint"
         },
         "IO": {
-            "mint": "iouQcQBAiEXe6cKLS85zmZxUB9mMoqRDnqKwEGpxWNr",
+            "mint": "BZLbGTNCSFfoth2GYDtwr7e4imWzpR5jqcUuGEwr646K",
             "category": "ACTIVE",
             "trading_enabled": true,
-            "description": "io.net - GPU compute, newer token"
+            "description": "io.net - GPU compute, verified mint"
         },
         "GRASS": {
             "mint": "Grass7B4RdKfBCjTKgSqnXkqjwiGvQyFbuSCUJr3XXjs",
@@ -547,11 +547,11 @@
             "trading_enabled": true,
             "description": "Grass - Data network, less watched"
         },
-        "SC": {
-            "mint": "sc1aXLrrqA2yyjsQG3D8vNUjJDANz39vpNMZuHhxpump",
-            "category": "WATCH",
+        "PENGU": {
+            "mint": "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
+            "category": "ACTIVE",
             "trading_enabled": true,
-            "description": "Pump.fun grad - May have wider spreads"
+            "description": "Pudgy Penguins - High volume Solana token"
         },
         "ZEUS": {
             "mint": "ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq",
