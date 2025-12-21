@@ -57,7 +57,14 @@ class JitoAdapter:
         self._tip_accounts_fetched = 0
         self._bundles_submitted = 0
         self._bundles_landed = 0
+        self._bundles_landed = 0
         self._rate_limited_until = 0
+        
+        # V128: Persistent Async Client
+        self.client = httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT)
+
+    async def close(self):
+        await self.client.aclose()
 
     def _rotate_endpoint(self):
         self._current_endpoint_idx = (self._current_endpoint_idx + 1) % len(self._endpoints)
@@ -70,12 +77,14 @@ class JitoAdapter:
             
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         
-        async with httpx.AsyncClient(timeout=self.REQUEST_TIMEOUT) as client:
-            for attempt in range(max_retries):
-                try:
-                    response = await client.post(self.api_url, json=payload)
-                    
-                    if response.status_code == 200:
+        payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
+        
+        # V128: Use persistent client
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.post(self.api_url, json=payload)
+                
+                if response.status_code == 200:
                         return response.json()
                     elif response.status_code == 429:
                         Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url}")
@@ -88,10 +97,10 @@ class JitoAdapter:
                         self._rotate_endpoint()
                         continue
                         
-                except Exception as e:
-                    Logger.debug(f"   ⚠️ [JITO] RPC Error: {e}")
-                    self._rotate_endpoint()
-                    await asyncio.sleep(0.5)
+            except Exception as e:
+                Logger.debug(f"   ⚠️ [JITO] RPC Error: {e}")
+                self._rotate_endpoint()
+                await asyncio.sleep(0.5)
         
         self._rate_limited_until = time.time() + self.RATE_LIMIT_COOLDOWN
         Logger.warning(f"   ❌ [JITO] All regions failed. Cooldown {self.RATE_LIMIT_COOLDOWN}s")
@@ -120,6 +129,8 @@ class JitoAdapter:
     async def is_available(self) -> bool:
         """Async availability check."""
         accounts = await self.get_tip_accounts()
+        if not accounts:
+            Logger.debug("[JITO] is_available() -> False (No tip accounts)")
         return len(accounts) > 0
 
     async def submit_bundle(self, serialized_transactions: List[str]) -> Optional[str]:
