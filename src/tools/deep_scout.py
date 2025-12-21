@@ -1,9 +1,12 @@
-
+import argparse
+import os
+import sys
 import requests
 import time
-import json
-import argparse
 from typing import List, Dict
+
+# Add project root to path so 'src' can be imported
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.shared.system.logging import Logger
 from src.shared.system.db_manager import db_manager
 from config.settings import Settings
