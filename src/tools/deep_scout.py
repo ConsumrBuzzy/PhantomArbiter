@@ -77,8 +77,10 @@ class DeepScout:
             resp = requests.get(url, timeout=15, verify=False)
             if resp.status_code == 200:
                 data = resp.json()
+                pairs = data.get("pairs", [])
+                Logger.info(f"📊 [SCOUT] Found {len(pairs)} candidates. Filtering for volume...")
                 mints = []
-                for p in data.get("pairs", [])[:500]: # Deep scan top 500
+                for p in pairs[:500]: # Deep scan top 500
                     vol = float(p.get("volume", {}).get("h24", 0) or 0)
                     if vol >= min_vol:
                         mint = p.get("baseToken", {}).get("address")
