@@ -28,11 +28,16 @@ from dataclasses import dataclass
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Load .env file
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env'))
+
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.transaction import VersionedTransaction
 from solana.rpc.api import Client as SolanaClient
 from src.shared.system.logging import Logger
+
 
 # Constants
 DRIFT_API_URL = "https://drift-gateway-api.mainnet.drift.trade"
@@ -49,13 +54,16 @@ class DriftBalance:
 
 
 def load_wallet() -> Keypair:
-    """Load wallet keypair from environment."""
-    wallet_path = os.getenv("WALLET_PATH", os.path.expanduser("~/.config/solana/id.json"))
+    """Load wallet keypair from environment (same as wallet.py)."""
+    pk = os.getenv("SOLANA_PRIVATE_KEY")
+    if not pk:
+        raise ValueError("SOLANA_PRIVATE_KEY environment variable not set")
     
-    with open(wallet_path, 'r') as f:
-        secret_key = json.load(f)
-    
-    return Keypair.from_bytes(bytes(secret_key))
+    try:
+        return Keypair.from_base58_string(pk)
+    except Exception as e:
+        raise ValueError(f"Invalid SOLANA_PRIVATE_KEY format: {e}")
+
 
 
 def get_rpc_client() -> SolanaClient:
