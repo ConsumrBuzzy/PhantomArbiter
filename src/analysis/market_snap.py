@@ -20,7 +20,7 @@ class MarketSnapshot:
             - mover_count: int
         """
         try:
-            from src.data.token_registry import get_registry
+            from src.shared.infrastructure.token_registry import get_registry
             
             raw = SharedPriceCache._read_raw()
             # V89.8: Read from market_data (where DexScreener writes price_change_1h)

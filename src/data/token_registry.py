@@ -35,7 +35,7 @@ class TokenRegistry:
     Centralized token identification singleton.
     
     Usage:
-        from src.data.token_registry import get_registry
+        from src.shared.infrastructure.token_registry import get_registry
         symbol = get_registry().get_symbol(mint)
     """
     

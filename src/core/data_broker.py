@@ -739,7 +739,7 @@ class DataBroker:
                         
                         if rich_data:
                             # V89.10: Use TokenRegistry for symbol resolution
-                            from src.data.token_registry import get_registry
+                            from src.shared.infrastructure.token_registry import get_registry
                             registry = get_registry()
                             
                             # Convert MarketData objects to dicts for cache

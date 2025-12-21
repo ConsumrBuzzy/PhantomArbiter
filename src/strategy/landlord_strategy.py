@@ -19,7 +19,7 @@ import time
 from typing import Optional, Dict, Tuple
 from dataclasses import dataclass
 
-from src.leverage.drift_adapter import DriftAdapter, get_drift_adapter
+from src.shared.infrastructure.drift_adapter import DriftAdapter, get_drift_adapter
 
 
 @dataclass

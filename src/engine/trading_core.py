@@ -10,7 +10,7 @@ from src.strategy.watcher import Watcher
 from src.tools.asset_manager import AssetManager
 from src.strategy.portfolio import PortfolioManager
 from src.shared.infrastructure.validator import TokenValidator
-from src.utils.notifications import get_notifier
+from src.shared.notification.notifications import get_notifier
 from src.core.shared_cache import SharedPriceCache
 from src.shared.system.logging import Logger
 

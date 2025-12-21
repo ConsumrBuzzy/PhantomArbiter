@@ -86,7 +86,7 @@ class CommsDaemon:
         
     def _daemon_loop(self):
         """Main daemon loop - processes alerts with throttling."""
-        from src.utils.notifications import get_notifier
+        from src.shared.notification.notifications import get_notifier
         notifier = get_notifier()
         
         while self.running:
@@ -127,7 +127,7 @@ class CommsDaemon:
                 if self.pending_batch:
                     now = time.time()
                     if now - self.last_send_time >= self.MIN_INTERVAL_S:
-                        from src.utils.notifications import get_notifier
+                        from src.shared.notification.notifications import get_notifier
                         self._send_batch(get_notifier())
                 continue
             except Exception as e:

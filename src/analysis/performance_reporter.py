@@ -353,7 +353,7 @@ class PerformanceReporter:
             True if sent successfully
         """
         try:
-            from src.utils.notifications import get_notifier
+            from src.shared.notification.notifications import get_notifier
             notifier = get_notifier()
             
             report = self.generate_report()
