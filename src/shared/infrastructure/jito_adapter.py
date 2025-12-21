@@ -64,67 +64,56 @@ class JitoAdapter:
     
     # Cache settings
     TIP_CACHE_TTL = 300  # 5 minutes
-    REQUEST_TIMEOUT = 10  # seconds
-    RATE_LIMIT_COOLDOWN = 60  # 1 minute cooldown after rate limit
+    REQUEST_TIMEOUT = 5  # Reduced timeout for faster failover
+    RATE_LIMIT_COOLDOWN = 5  # V122: Reduced from 60s to 5s - aggressive retry logic
     
     def __init__(self, region: str = "ny"):
         """
-        Initialize Jito adapter.
-        
-        Args:
-            region: Regional endpoint (mainnet, frankfurt, amsterdam, ny, tokyo)
+        Initialize Jito adapter with regional failover.
         """
-        self.api_url = self.REGIONAL_ENDPOINTS.get(region, self.MAINNET_API)
+        # Prioritize selected region, manage fallback list
+        all_endpoints = list(self.REGIONAL_ENDPOINTS.values())
+        preferred = self.REGIONAL_ENDPOINTS.get(region, self.MAINNET_API)
+        
+        # Ensure preferred is first, then others randomized for load distribution
+        fallback = [ep for ep in all_endpoints if ep != preferred]
+        random.shuffle(fallback)
+        self._endpoints = [preferred] + fallback
+        self._current_endpoint_idx = 0
+        
+        self.api_url = self._endpoints[0]
         
         # Tip account cache
         self._tip_accounts: List[str] = []
         self._tip_accounts_fetched: float = 0
         
-        # Stats tracking
+        # Stats
         self._bundles_submitted = 0
         self._bundles_landed = 0
-        self._rate_limited_until = 0  # V120: Rate limit cooldown timestamp
+        self._rate_limited_until = 0
 
-    def create_tip_transaction(self, payer: Pubkey, tip_account: str, lamports: int, latest_blockhash) -> Transaction:
+    def _rotate_endpoint(self):
+        """Switch to next regional endpoint."""
+        self._current_endpoint_idx = (self._current_endpoint_idx + 1) % len(self._endpoints)
+        self.api_url = self._endpoints[self._current_endpoint_idx]
+        Logger.info(f"   🔄 [JITO] Rotating endpoint to: {self.api_url.split('//')[1].split('.')[0]}...")
+
+    def _rpc_call(self, method: str, params: list = None, max_retries: int = 5) -> Optional[Dict]:
         """
-        Create a dedicated tip transaction.
+        Make RPC call with regional failover.
+        Retries across different regions if rate limited or timed out.
         """
-        ix = transfer(
-            TransferParams(
-                from_pubkey=payer,
-                to_pubkey=Pubkey.from_string(tip_account),
-                lamports=lamports
-            )
-        )
-        tx = Transaction()
-        tx.add(ix)
-        tx.recent_blockhash = latest_blockhash
-        return tx
-    
-    def _rpc_call(self, method: str, params: list = None, max_retries: int = 3) -> Optional[Dict]:
-        """
-        Make a JSON-RPC call to the Block Engine with retry logic.
-        
-        Args:
-            method: RPC method name
-            params: Optional parameters
-            max_retries: Maximum retry attempts for rate limiting (Default: 3)
-            
-        Returns:
-            Response dict or None on error
-        """
-        # V120: Check rate limit cooldown
+        # Check cooldown
         if time.time() < self._rate_limited_until:
-            remaining = int(self._rate_limited_until - time.time())
-            print(f"   ⏳ [JITO] Rate limit cooldown ({remaining}s remaining)")
+            # Silent ignore during cooldown to prevent log spam if hammered
             return None
         
         payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": method,
-            "params": params or []
+            "jsonrpc": "2.0", "id": 1, "method": method, "params": params or []
         }
+        
+        # Import Logger lazily or assume global import
+        from src.shared.system.logging import Logger
         
         for attempt in range(max_retries):
             try:
@@ -137,28 +126,28 @@ class JitoAdapter:
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 429:
-                    # Rate limited - exponential backoff
-                    wait_time = (2 ** attempt)  # 1s, 2s, 4s
-                    if attempt < max_retries - 1:
-                        print(f"   ⚠️ [JITO] Rate limited, waiting {wait_time}s...")
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        # V120: Set cooldown to avoid hammering API
-                        self._rate_limited_until = time.time() + self.RATE_LIMIT_COOLDOWN
-                        print(f"   ❌ [JITO] Rate limited, cooldown for {self.RATE_LIMIT_COOLDOWN}s")
-                        return None
+                    # Rate Limited -> Rotate Region immediately
+                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url.split('//')[1].split('.')[0]}")
+                    self._rotate_endpoint()
+                    time.sleep(0.2) # Micro-pause
+                    continue
                 else:
-                    print(f"   ⚠️ [JITO] HTTP {response.status_code}: {response.text[:100]}")
-                    return None
+                    Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
+                    self._rotate_endpoint()
+                    continue
                     
             except requests.exceptions.Timeout:
-                print("   ⚠️ [JITO] Request timeout")
-                return None
+                Logger.debug(f"   ⚠️ [JITO] Timeout on {self.api_url.split('//')[1].split('.')[0]}")
+                self._rotate_endpoint()
+                continue
             except Exception as e:
-                print(f"   ❌ [JITO] RPC error: {e}")
-                return None
+                Logger.error(f"   ❌ [JITO] RPC error: {e}")
+                self._rotate_endpoint()
+                time.sleep(0.5)
         
+        # If all retries failed (covered all regions)
+        self._rate_limited_until = time.time() + self.RATE_LIMIT_COOLDOWN
+        Logger.warning(f"   ❌ [JITO] All regions failed. Cooldown {self.RATE_LIMIT_COOLDOWN}s")
         return None
     
     def get_tip_accounts(self, force_refresh: bool = False) -> List[str]:
