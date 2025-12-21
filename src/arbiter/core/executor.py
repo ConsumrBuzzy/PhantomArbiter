@@ -672,6 +672,124 @@ class ArbitrageExecutor:
             Logger.error(f"[EXEC] Bundle execution failed: {e}")
             return {"success": False, "error": str(e), "legs": []}
     
+    async def _execute_sequential_fallback(self, buy_quote: Dict, sell_quote: Dict, rpc: Any = None) -> Dict:
+        """
+        V131: Sequential fallback when Jito is unavailable.
+        Executes buy then sell via standard RPC (non-atomic).
+        
+        RISK: Tokens can get stuck if sell fails after buy succeeds.
+        """
+        Logger.info("[EXEC] 🔄 Sequential Fallback Mode")
+        legs = []
+        
+        try:
+            # Ensure swapper is initialized
+            if not self.swapper:
+                from src.shared.execution.swapper import JupiterSwapper
+                from src.shared.execution.wallet import WalletManager
+                self.swapper = JupiterSwapper(WalletManager())
+            
+            router = self._get_smart_router()
+            
+            # ═══ STEP 1: Execute Buy ═══
+            print("   [1/2] Executing BUY...")
+            buy_tx_data = router.get_swap_transaction({
+                "quoteResponse": buy_quote,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True,
+            })
+            
+            if not buy_tx_data or 'swapTransaction' not in buy_tx_data:
+                return {"success": False, "error": "Failed to get buy tx", "legs": []}
+            
+            # Submit buy via standard RPC
+            buy_sig = await self._submit_standard_tx(buy_tx_data['swapTransaction'], rpc)
+            if not buy_sig:
+                return {"success": False, "error": "Buy tx submission failed", "legs": []}
+            
+            print(f"   ✅ Buy submitted: {buy_sig[:16]}...")
+            Logger.info(f"[EXEC] Buy submitted: {buy_sig[:16]}...")
+            
+            legs.append(TradeResult(
+                success=True, trade_type="BUY",
+                input_token=buy_quote.get('inputMint', ''),
+                output_token=buy_quote.get('outputMint', ''),
+                input_amount=int(buy_quote.get('inAmount', 0)) / 1e6,
+                output_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
+                price=0, fee_usd=0.01,
+                signature=buy_sig, error=None,
+                timestamp=time.time(), execution_time_ms=0
+            ))
+            
+            # Wait for buy confirmation
+            await asyncio.sleep(2.0)  # Allow tx to propagate
+            
+            # ═══ STEP 2: Execute Sell ═══
+            print("   [2/2] Executing SELL...")
+            sell_tx_data = router.get_swap_transaction({
+                "quoteResponse": sell_quote,
+                "userPublicKey": str(self.wallet.get_public_key()),
+                "wrapAndUnwrapSol": True,
+            })
+            
+            if not sell_tx_data or 'swapTransaction' not in sell_tx_data:
+                Logger.error("[EXEC] ⚠️ SELL FAILED - Tokens may be stuck!")
+                return {"success": False, "error": "Failed to get sell tx (tokens stuck)", "legs": legs}
+            
+            sell_sig = await self._submit_standard_tx(sell_tx_data['swapTransaction'], rpc)
+            if not sell_sig:
+                Logger.error("[EXEC] ⚠️ SELL SUBMISSION FAILED - Tokens may be stuck!")
+                return {"success": False, "error": "Sell tx submission failed (tokens stuck)", "legs": legs}
+            
+            print(f"   ✅ Sell submitted: {sell_sig[:16]}...")
+            Logger.info(f"[EXEC] Sell submitted: {sell_sig[:16]}...")
+            
+            legs.append(TradeResult(
+                success=True, trade_type="SELL",
+                input_token=sell_quote.get('inputMint', ''),
+                output_token=sell_quote.get('outputMint', ''),
+                input_amount=int(sell_quote.get('inAmount', 0)) / 1e9,
+                output_amount=int(sell_quote.get('outAmount', 0)) / 1e6,
+                price=0, fee_usd=0.01,
+                signature=sell_sig, error=None,
+                timestamp=time.time(), execution_time_ms=0
+            ))
+            
+            return {"success": True, "legs": legs}
+            
+        except Exception as e:
+            Logger.error(f"[EXEC] Sequential fallback error: {e}")
+            return {"success": False, "error": str(e), "legs": legs}
+    
+    async def _submit_standard_tx(self, b64_tx: str, rpc: Any = None) -> Optional[str]:
+        """Submit a transaction via standard RPC (non-Jito)."""
+        import base64
+        from solders.transaction import VersionedTransaction
+        
+        try:
+            # Decode and sign
+            tx_bytes = base64.b64decode(b64_tx)
+            tx = VersionedTransaction.from_bytes(tx_bytes)
+            signed_tx = VersionedTransaction(tx.message, [self.wallet.keypair])
+            
+            # Serialize for RPC
+            tx_base64 = base64.b64encode(bytes(signed_tx)).decode()
+            
+            # Send via SmartRouter RPC
+            router = self._get_smart_router()
+            result = router.json_rpc_call("sendTransaction", [
+                tx_base64,
+                {"encoding": "base64", "skipPreflight": False, "maxRetries": 3}
+            ])
+            
+            if result and isinstance(result, dict):
+                return result.get("result")
+            return None
+            
+        except Exception as e:
+            Logger.error(f"[EXEC] Standard tx submit error: {e}")
+            return None
+    
     async def _execute_swap(self, quote: Dict) -> TradeResult:
         """Execute a Jupiter swap from a quote."""
         start = time.time()
