@@ -75,6 +75,11 @@ class AdaptiveScanner:
     SKIP_COLD = 15.0          # Skip 15 seconds
     SKIP_FROZEN = 20.0        # Very stale + low spread
     
+    # V102: Warming / Stickiness
+    WARM_DURATION_SECONDS = 180  # Hold "Warming" status for 3 mins
+    WARM_VOLATILITY_THRESHOLD = 0.15 # Volatility above this triggers warming
+
+    
     # RPC rate limiting
     DEFAULT_MAX_CONCURRENT_RPC = 5  # Increased for 3 RPC providers
     
@@ -99,7 +104,8 @@ class AdaptiveScanner:
         
         # Per-pair state
         self.pair_metrics: Dict[str, PairMetrics] = {}
-        self.pair_heat: Dict[str, float] = {}  # Legacy: {pair: last_activity_time}
+        self.warming_until: Dict[str, float] = {} # V102: pair -> unix timestamp
+
         
         # Learning-based promotion/demotion
         self.promoted_pairs: set = set()   # High-variance pairs → scan faster
@@ -134,7 +140,7 @@ class AdaptiveScanner:
         """External trigger (e.g. WSS) to indicate activity on a pair."""
         now = time.time()
         self.last_spread_spike = now
-        self.pair_heat[pair] = now
+        self.warming_until[pair] = now + self.WARM_DURATION_SECONDS
         self.current_interval = self.fast_interval
         
         # Reset skip for this pair
@@ -146,8 +152,18 @@ class AdaptiveScanner:
         Check if a pair should be scanned this cycle.
         
         Returns False if pair is in skip cooldown.
+        V102: Warming pairs ALWAYS bypass cooldown (Sticky Watchers).
         """
         now = now or time.time()
+        
+        # V102: Automated Warming logic
+        if now < self.warming_until.get(pair, 0):
+            return True
+            
+        from config.settings import Settings
+        if pair in Settings.WATCHER_PAIRS:
+            return True
+            
         metrics = self.pair_metrics.get(pair)
         
         if not metrics:
@@ -176,18 +192,41 @@ class AdaptiveScanner:
         # Priority order: VIABLE > NEAR_MISS > WARM > FAR > unknown
         status_priority = {"VIABLE": 0, "NEAR_MISS": 1, "WARM": 2, "FAR": 3}
         
+        from config.settings import Settings
+        
         def get_priority(pair_tuple: tuple) -> int:
             pair_name = pair_tuple[0]
+            
+            # V102: Sticky Warming Pairs = Highest Priority
+            if now < self.warming_until.get(pair_name, 0):
+                return -2 # Higher than static watchers
+            
+            # V101: Watcher Pairs = High Priority
+            if pair_name in Settings.WATCHER_PAIRS:
+                return -1 
+                
             metrics = self.pair_metrics.get(pair_name)
             
-            if not metrics:
-                return 0  # Unknown = Top Priority (Must Discover!)
-            
             # Starvation Guard: If not scanned in >60s, force high priority
-            if now - metrics.last_scan_time > 60:
+            if not metrics or (now - metrics.last_scan_time > 60):
                 return 0
+            
+            # Pod-based Priority
+            # Extract base symbol (e.g. "SOL" from "SOL/USDC")
+            base_symbol = pair_name.split('/')[0] if '/' in pair_name else pair_name
+            meta = Settings.ASSET_METADATA.get(base_symbol, {})
+            category = meta.get('category', 'WATCH')
+            pod_priority = Settings.POD_PRIORITIES.get(category, 5)
+            
+            # Combine with status priority
+            # If status is VIABLE, we definitely want it (0)
+            # Otherwise we use the pod priority to rotate
+            status_p = status_priority.get(metrics.last_status, 3)
+            
+            if status_p <= 1: # VIABLE or NEAR_MISS
+                return status_p
                 
-            return status_priority.get(metrics.last_status, 3)
+            return pod_priority + 2 # Offset to keep VIABLE/NEAR_MISS at top
         
         return sorted(scannable, key=get_priority)
     
@@ -220,6 +259,11 @@ class AdaptiveScanner:
         # Track near-miss status for priority sorting
         from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
         metrics.last_status = NearMissAnalyzer.classify_status(opp.net_profit_usd)
+        
+        # V102: Automatic Warming Trigger
+        # If spread is hot or volatility is high, keep it warm for 5 minutes
+        if opp.spread_pct >= self.SPREAD_THRESHOLD or metrics.spread_variance >= self.WARM_VOLATILITY_THRESHOLD:
+             self.warming_until[opp.pair] = now + self.WARM_DURATION_SECONDS
         
         # Determine skip interval based on spread, variance, AND learned data
         skip_seconds = self._calculate_skip_interval(opp.pair, opp.spread_pct, metrics.spread_variance)
@@ -290,7 +334,7 @@ class AdaptiveScanner:
         if hot_pairs:
             self.last_spread_spike = now
             for s in hot_pairs:
-                self.pair_heat[s.pair] = now
+                self.warming_until[s.pair] = now + self.WARM_DURATION_SECONDS
             self.current_interval = self.fast_interval
             return self.fast_interval
         
@@ -305,10 +349,11 @@ class AdaptiveScanner:
         return 1.0
     
     def get_priority_pairs(self, all_pairs: List) -> List:
-        """Return pairs sorted by recent activity (hot pairs first)."""
+        """Return pairs sorted by recent activity (warming pairs first)."""
+        now = time.time()
         return sorted(
             all_pairs, 
-            key=lambda p: self.pair_heat.get(p[0], 0), 
+            key=lambda p: self.warming_until.get(p[0], 0), 
             reverse=True
         )
     
@@ -317,6 +362,7 @@ class AdaptiveScanner:
         now = time.time()
         active = sum(1 for m in self.pair_metrics.values() if now >= m.skip_until)
         skipped = len(self.pair_metrics) - active
+        warming = sum(1 for t in self.warming_until.values() if now < t)
         
         return {
             "mode": self.mode_name,
@@ -324,6 +370,7 @@ class AdaptiveScanner:
             "pairs_tracked": len(self.pair_metrics),
             "pairs_active": active,
             "pairs_skipped": skipped,
+            "pairs_warming": warming,
         }
     
     @property

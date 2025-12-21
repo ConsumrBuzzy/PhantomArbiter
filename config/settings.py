@@ -35,6 +35,7 @@ class Settings:
         volatile = {}
         watch = {}
         scout = {}
+        watcher_pairs = [] # V101
         all_assets = {}
         
         try:
@@ -47,6 +48,14 @@ class Settings:
                 trading_enabled = info.get("trading_enabled", False)
                 all_assets[symbol] = mint
                 
+                # V101: Support WATCHER category for high-priority rotation
+                if category == "WATCHER":
+                    # For pair rotation, we need the "NAME/QUOTE" format. 
+                    # Usually "NAME/USDC" or "NAME/SOL". 
+                    # We'll added the base symbols and the scanner will split them.
+                    watcher_pairs.append(f"{symbol}/USDC") # Default to USDC pod
+                    watcher_pairs.append(f"{symbol}/SOL")  # Also SOL pod
+                
                 # Only add to ACTIVE if trading is enabled
                 if category == "ACTIVE" and trading_enabled:
                     active[symbol] = mint
@@ -57,10 +66,11 @@ class Settings:
                 else:
                     watch[symbol] = mint
                     
-            return active, volatile, watch, scout, all_assets, data.get("assets", {})
+            return active, volatile, watch, scout, all_assets, data.get("assets", {}), watcher_pairs
         except Exception as e:
             print(f"⚠️ Failed to load assets.json: {e}")
-            return {}, {}, {}, {}, {}, {}
+            return {}, {}, {}, {}, {}, {}, []
+
     
     # Loaded at runtime
     ACTIVE_ASSETS = {}
@@ -434,15 +444,30 @@ class Settings:
     RAYDIUM_ENABLED = True
     ORCA_ARB_ENABLED = True             # Enable Orca for arbitrage scanning
     
+    # ─── V101 Priority Rotation ───
+    # Pod Priorities (Lower = Higher Priority)
+    POD_PRIORITIES = {
+        "ACTIVE": 1,   # Core trading pairs
+        "VOLATILE": 2, # High movement pairs
+        "WATCH": 3,    # Monitoring
+        "SCOUT": 4     # New discoveries
+    }
+    
+    # Watcher Pairs (Always Priority 0 - Every Scan)
+    # Format: ["SOL/USDC", "WIF/USDC"]
+    WATCHER_PAIRS = [] 
+
 
 try:
-    a, v, w, s, all_a, meta = Settings.load_assets()
+    a, v, w, s, all_a, meta, wp = Settings.load_assets()
     Settings.ACTIVE_ASSETS = a
     Settings.VOLATILE_ASSETS = v
     Settings.WATCH_ASSETS = w
     Settings.SCOUT_ASSETS = s
     Settings.ASSETS = all_a
     Settings.ASSET_METADATA = meta
+    Settings.WATCHER_PAIRS = wp  # V101
     Settings.TARGET_MINT = a.get("WIF", "")
 except Exception:
     pass
+
