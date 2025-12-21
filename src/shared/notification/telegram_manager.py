@@ -37,11 +37,12 @@ class TelegramManager:
     """
     
     def __init__(self, command_queue: Optional[queue.Queue] = None):
-        self.token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        self.chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+        self.token = os.getenv("TELEGRAM_BOT_TOKEN")
+        self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.command_queue = command_queue
         
-        self.enabled = bool(self.token and self.token != "YOUR_BOT_TOKEN_HERE")
+        self.enabled = bool(self.token and self.chat_id)
+        self.running = False
         
         # Dashboard State
         self.dashboard_message_id: Optional[int] = None
@@ -60,11 +61,12 @@ class TelegramManager:
         if not self.enabled or self.thread:
             return
             
+        self.running = True
         self.thread = threading.Thread(
             target=self._run_async_loop,
-            daemon=True,
             name="TelegramManager"
         )
+        self.thread.daemon = True
         self.thread.start()
         Logger.info("📡 [TG] Manager Started (Command Listener + Dashboard)")
 
@@ -74,6 +76,7 @@ class TelegramManager:
             return
             
         Logger.info("📡 [TG] Manager Stopping...")
+        self.running = False # Signal the _run_async_loop to stop
         try:
             if self.loop and self.application:
                 # Stop polling first
@@ -81,6 +84,7 @@ class TelegramManager:
                 asyncio.run_coroutine_threadsafe(self.application.shutdown(), self.loop)
                 
                 # Give it a moment to stop
+                import time
                 time.sleep(1)
                 
             self.thread = None
