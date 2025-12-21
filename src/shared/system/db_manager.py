@@ -906,7 +906,8 @@ class DBManager:
                 AND trade_size_usd BETWEEN ? AND ?
             """, (token, cutoff, trade_size_usd * 0.5, trade_size_usd * 1.5))
             row = c.fetchone()
-            if row and row['samples'] >= 3 and row['avg_slippage']:
+            if row and row['samples'] >= 1 and row['avg_slippage']:
+                # V113: Immediate learning - even 1 sample is better than '0' for meme coins
                 return float(row['avg_slippage'])
             
             # Fallback: get average across all sizes

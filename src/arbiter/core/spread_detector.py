@@ -268,6 +268,13 @@ class SpreadDetector:
         
         slippage_cost = trade_size * (expected_slippage_pct / 100)
         
+        # V115: Raydium Impact Penalty
+        # Raydium CLMM/Standard often quotes worse than unit-price scan suggests.
+        # Add a fixed 0.2% 'Ghost Penalty' if Raydium is involved.
+        ghost_penalty = 0.0
+        if buy_dex == "RAYDIUM" or sell_dex == "RAYDIUM":
+            ghost_penalty = trade_size * 0.002 # 0.2%
+            
         # ML Decay Prediction: adjust for expected spread decay during execution
         # Uses learned cycle time (or default 3s) as execution window
         decay_cost = 0.0
@@ -296,7 +303,7 @@ class SpreadDetector:
         except Exception:
             pass
         
-        net_profit = gross_profit - fees.total_usd - slippage_cost - decay_cost
+        net_profit = gross_profit - fees.total_usd - slippage_cost - decay_cost - ghost_penalty
         
         return SpreadOpportunity(
             pair=pair_name,

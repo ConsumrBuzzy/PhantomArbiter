@@ -961,7 +961,8 @@ class PhantomArbiter:
                     if self.trade_engine.use_unified:
                         if op.buy_dex in ["METEORA", "ORCA"] and op.sell_dex in ["METEORA", "ORCA"]:
                              # Low threshold for atomic speed
-                             if op.net_profit_usd > 0.02: 
+                             # V114: Bumped threshold to 10 cents to avoid phantom 'dust' arbs
+                             if op.net_profit_usd > 0.10: 
                                  op.verification_status = "✨ OPTIMISTIC" 
                                  fast_path_candidates.append(op)
                                  continue
