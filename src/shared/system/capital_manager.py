@@ -17,7 +17,7 @@ import time
 import random
 from typing import Dict, Any, Optional, Tuple, List, ClassVar
 from dataclasses import dataclass, field, asdict
-from src.system.logging import Logger
+from src.shared.system.logging import Logger
 
 
 # Type aliases for clarity
@@ -457,7 +457,7 @@ class CapitalManager:
             stats["losses"] += 1
         
         # V46.1: Log trade with execution data for ML feedback loop
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         trade_record = {
             'symbol': symbol,
             'entry_price': avg_price,
