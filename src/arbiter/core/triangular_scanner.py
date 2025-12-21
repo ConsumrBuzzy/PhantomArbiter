@@ -47,17 +47,63 @@ class TriangularScanner:
     def update_graph(self, spread_detector) -> None:
         """
         Build adjacency matrix from spread detector's price cache.
+        Input: spread_detector._price_cache = {"SOL/USDC": {"Orca": 100.0, "Raydium": 101.0}}
+        Output: self.adj["SOL"]["USDC"] = 101.0 (Best Sell Price for SOL? No, best rate)
+        
+        For Arbitrage A -> B:
+        - If we trade A -> B, we are selling A and buying B.
+        - Rate = Output Amount of B per 1 unit of A.
+        
+        If Pair is "A/B" (Price of A in terms of B):
+        - A -> B (Sell A): Rate = Price (We want Highest Price to get most B)
+        - B -> A (Buy A): Rate = 1/Price (We want Lowest Price to pay least B)
         """
         # Clear graph
         self.adj = {}
         
-        # We need a way to get all known prices. 
-        # Currently SpreadDetector caches by Pair (e.g. "SOL/USDC").
-        # We need to invert this to Token -> Token prices.
+        if not hasattr(spread_detector, '_price_cache'):
+            return
+
+        cache = spread_detector._price_cache
         
-        # For V1, we will iterate known markets in the spread detector
-        # This part requires SpreadDetector to expose its market list
-        pass
+        for pair_name, prices in cache.items():
+            if "/" not in pair_name:
+                continue
+                
+            base, quote = pair_name.split("/")
+            # Use mints if available, but for now we rely on symbols as keys in this graph
+            # In a real system, we'd map symbols to mints.
+            
+            # Find Best Bid (Highest Price) and Best Ask (Lowest Price) across DEXs
+            if not prices:
+                continue
+                
+            best_bid = max(prices.values()) # Sell A -> B (get most B)
+            best_ask = min(prices.values()) # Buy A <- B (pay least B)
+            
+            if best_bid <= 0 or best_ask <= 0:
+                continue
+            
+            # 1. Edge BASE -> QUOTE (Selling Base)
+            # Rate = Price
+            if base not in self.adj: self.adj[base] = {}
+            # Allow overwriting if we find a better path? 
+            # In this simple version, we process each pair once.
+            self.adj[base][quote] = best_bid
+            
+            # 2. Edge QUOTE -> BASE (Buying Base)
+            # Rate = 1 / Price
+            if quote not in self.adj: self.adj[quote] = {}
+            self.adj[quote][base] = 1.0 / best_ask
+            
+            # Note: This graph mixes Symbols (SOL) and Mints (So111...) depending on what keys are used.
+            # We need to ensure consistency. The spread_detector cache uses keys from 'pair_name' arg in scan_pair.
+            # Usually strings like "SOL/USDC".
+            
+        # Ensure our Anchors are using the same naming convention
+        # If cache uses "SOL", "USDC", then ANCHORS must match
+        # Updating logic to detect aliases mapping if needed.
+        # For now, we assume standard tickers.
         
     def find_cycles(self, amount_in: float = 100.0) -> List[TriangularOpportunity]:
         """
