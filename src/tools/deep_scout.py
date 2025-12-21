@@ -11,6 +11,9 @@ from src.shared.system.logging import Logger
 from src.shared.system.db_manager import db_manager
 from config.settings import Settings
 
+# Force disable silent mode for CLI tool feedback
+Settings.SILENT_MODE = False
+
 class DeepScout:
     """
     V116: DeepScout Large-Scale Data Harvester
@@ -107,6 +110,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     scout = DeepScout()
+    Logger.section(f"DeepScout V117 - {args.mode.upper()} Mode")
+    
     if args.mode == "full":
         scout.run_full_sync()
     elif args.mode == "global":
