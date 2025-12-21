@@ -509,51 +509,51 @@ class ArbitrageExecutor:
             TIP_AMOUNT_LAMPORTS = 10000  # ~$0.002
             
             try:
-                # Attempt instruction-level build for embedded tip
-                if self.swapper:
-                    sell_instructions = await self.swapper.get_swap_instructions(sell_quote)
+                # V131-FIX: Ensure swapper is initialized for instruction-level API
+                if not self.swapper:
+                    from src.shared.execution.swapper import JupiterSwapper
+                    from src.shared.execution.wallet import WalletManager
+                    self.swapper = JupiterSwapper(WalletManager())
                     
-                    if sell_instructions:
-                        # Create tip instruction
-                        tip_ix = transfer(TransferParams(
-                            from_pubkey=self.wallet.keypair.pubkey(),
-                            to_pubkey=Pubkey.from_string(tip_account),
-                            lamports=TIP_AMOUNT_LAMPORTS
-                        ))
-                        
-                        # Append tip to swap instructions
-                        all_instructions = sell_instructions + [tip_ix]
-                        
-                        # Build tipped sell transaction
-                        sell_msg = MessageV0.try_compile(
-                            payer=self.wallet.keypair.pubkey(),
-                            instructions=all_instructions,
-                            address_lookup_table_accounts=[],
-                            recent_blockhash=recent_blockhash
-                        )
-                        
-                        tipped_sell_tx = VersionedTransaction(sell_msg, [self.wallet.keypair])
-                        sell_b58 = base58.b58encode(bytes(tipped_sell_tx)).decode()
-                        Logger.debug("[EXEC] ✅ Built tipped sell tx (embedded)")
+                sell_instructions = await self.swapper.get_swap_instructions(sell_quote)
+                
+                if sell_instructions:
+                    # Create tip instruction
+                    tip_ix = transfer(TransferParams(
+                        from_pubkey=self.wallet.keypair.pubkey(),
+                        to_pubkey=Pubkey.from_string(tip_account),
+                        lamports=TIP_AMOUNT_LAMPORTS
+                    ))
+                    
+                    # Append tip to swap instructions
+                    all_instructions = sell_instructions + [tip_ix]
+                    
+                    # Build tipped sell transaction
+                    sell_msg = MessageV0.try_compile(
+                        payer=self.wallet.keypair.pubkey(),
+                        instructions=all_instructions,
+                        address_lookup_table_accounts=[],
+                        recent_blockhash=recent_blockhash
+                    )
+                    
+                    tipped_sell_tx = VersionedTransaction(sell_msg, [self.wallet.keypair])
+                    sell_b58 = base58.b58encode(bytes(tipped_sell_tx)).decode()
+                    Logger.debug("[EXEC] ✅ Built tipped sell tx (embedded)")
                         
             except Exception as e:
-                Logger.debug(f"[EXEC] Embedded tip fallback: {e}")
+                Logger.warning(f"[EXEC] Embedded tip fallback triggered: {e}")
             
-            # ═══ FALLBACK: Standard sell tx + separate tip tx ═══
+            # ═══ FALLBACK: Use pre-fetched sell tx + separate tip tx ═══
             if not sell_b58:
-                Logger.debug("[EXEC] Using fallback: separate tip tx")
+                Logger.debug("[EXEC] Using fallback: 3-tx bundle with pre-fetched sell")
                 
-                # Standard sell tx
-                sell_tx_data = self._get_smart_router().get_swap_transaction({
-                    "quoteResponse": sell_quote,
-                    "userPublicKey": str(self.wallet.get_public_key()),
-                    "wrapAndUnwrapSol": True,
-                })
-                
-                if not sell_tx_data or 'swapTransaction' not in sell_tx_data:
+                # V131-FIX: Use pre-fetched sell_tx_fallback instead of re-fetching
+                if isinstance(sell_tx_fallback, Exception) or not sell_tx_fallback:
                     return {"success": False, "error": "Failed to get sell tx", "legs": []}
+                if 'swapTransaction' not in sell_tx_fallback:
+                    return {"success": False, "error": "Failed to get sell tx (no swapTransaction)", "legs": []}
                 
-                sell_raw = base64.b64decode(sell_tx_data["swapTransaction"])
+                sell_raw = base64.b64decode(sell_tx_fallback["swapTransaction"])
                 sell_tx = VersionedTransaction.from_bytes(sell_raw)
                 signed_sell = VersionedTransaction(sell_tx.message, [self.wallet.keypair])
                 sell_b58 = base58.b58encode(bytes(signed_sell)).decode()
