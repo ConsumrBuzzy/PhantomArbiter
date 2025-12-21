@@ -261,13 +261,25 @@ class ArbitrageExecutor:
         trade_size = trade_size or getattr(Settings, 'DEFAULT_TRADE_SIZE_USD', 50.0)
         start_time = time.time()
         
-        # V120: Minimum net profit filter
-        # Reject razor-thin spreads that will decay before execution
-        MIN_NET_PROFIT_USD = 0.15  # Must have $0.15 buffer at scan time
+        # V120: Minimum net profit filter (dynamic based on spread)
+        # High-spread trades (>=1.5%) use skip-quote and only need to be positive
+        # Lower-spread trades need $0.15 buffer for decay protection
+        SKIP_QUOTE_THRESHOLD = 0.015  # 1.5%
+        scan_spread_pct = getattr(opportunity, 'spread_pct', 0)
         scan_net_profit = getattr(opportunity, 'net_profit_usd', None)
-        if scan_net_profit is not None and scan_net_profit < MIN_NET_PROFIT_USD:
-            Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}")
-            return self._error_result(f"Net too thin: ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
+        
+        if scan_net_profit is not None:
+            if scan_spread_pct >= SKIP_QUOTE_THRESHOLD:
+                # High spread - just needs to be positive
+                if scan_net_profit <= 0:
+                    Logger.info(f"[EXEC] ⏭️ Skip-quote trade not profitable: Net ${scan_net_profit:.3f}")
+                    return self._error_result(f"Skip-quote trade not profitable: ${scan_net_profit:.3f}", start_time)
+            else:
+                # Lower spread - needs buffer for decay
+                MIN_NET_PROFIT_USD = 0.15
+                if scan_net_profit < MIN_NET_PROFIT_USD:
+                    Logger.info(f"[EXEC] ⏭️ Skipping thin spread: Net ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}")
+                    return self._error_result(f"Net too thin: ${scan_net_profit:.3f} < ${MIN_NET_PROFIT_USD}", start_time)
         
         try:
             legs = []
