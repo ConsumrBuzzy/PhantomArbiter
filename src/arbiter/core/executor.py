@@ -565,25 +565,21 @@ class ArbitrageExecutor:
                 lamports=TIP_AMOUNT_LAMPORTS
             ))
             
-            # Get recent blockhash for tip tx
-            async with httpx.AsyncClient() as client:
-                rpc_resp = await client.post(
-                    "https://api.mainnet-beta.solana.com",
-                    json={"jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash"},
-                    timeout=10
-                )
-                blockhash_data = rpc_resp.json()
-                recent_blockhash = blockhash_data.get("result", {}).get("value", {}).get("blockhash")
+            # V121: Reuse Blockhash from Swap Tx
+            # Instead of fetching a new blockhash (which adds latency and risk of mismatch),
+            # we use the same blockhash as the swap transaction.
+            # This ensures both expire at the same time and saves an RPC call.
+            recent_blockhash = buy_tx.message.recent_blockhash
             
             if not recent_blockhash:
-                return {"success": False, "error": "Failed to get blockhash for tip tx", "legs": []}
+                return {"success": False, "error": "Failed to extract blockhash from swap tx", "legs": []}
             
             # Build tip transaction
             tip_msg = MessageV0.try_compile(
                 payer=self.wallet.keypair.pubkey(),
                 instructions=[tip_ix],
                 address_lookup_table_accounts=[],
-                recent_blockhash=Hash.from_string(recent_blockhash)
+                recent_blockhash=recent_blockhash
             )
             tip_tx = VersionedTransaction(tip_msg, [self.wallet.keypair])
             tip_b58 = base58.b58encode(bytes(tip_tx)).decode()
