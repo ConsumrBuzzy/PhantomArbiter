@@ -1,7 +1,12 @@
+import os
 import requests
+from dotenv import load_dotenv
 
-api_key = '***REDACTED***'
-url = "https://quote-api.jup.ag/v6/quote"
+load_dotenv()
+api_key = os.getenv("JUPITER_API_KEY", "")
+if not api_key:
+    print("⚠️ JUPITER_API_KEY not set in .env - test will use public endpoint")
+
 params = {
     "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
     "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF

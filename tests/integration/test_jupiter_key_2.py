@@ -1,6 +1,12 @@
+import os
 import requests
+from dotenv import load_dotenv
 
-api_key = '***REDACTED***'
+load_dotenv()
+api_key = os.getenv("JUPITER_API_KEY", "")
+if not api_key:
+    print("⚠️ JUPITER_API_KEY not set in .env - test will use public endpoint")
+
 # api.jup.ag is resolving (we saw 401s earlier), so let's try it with the key
 url = "https://api.jup.ag/swap/v1/quote" 
 params = {

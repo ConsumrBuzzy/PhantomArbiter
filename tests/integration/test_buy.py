@@ -27,7 +27,7 @@ WIF_MINT = "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"
 TEST_AMOUNT_USDC = 0.1  # $0.10 test buy
 TEST_AMOUNT_LAMPORTS = int(TEST_AMOUNT_USDC * 1_000_000)
 
-JUPITER_API_KEY = os.getenv("JUPITER_API_KEY", "***REDACTED***").strip("'\"")
+JUPITER_API_KEY = os.getenv("JUPITER_API_KEY", "").strip("'\"")
 JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"
 JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
 JUPITER_QUOTE_URL_PUBLIC = "https://public.jupiterapi.com/quote"

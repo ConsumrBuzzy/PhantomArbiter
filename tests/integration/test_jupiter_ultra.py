@@ -1,6 +1,12 @@
+import os
 import requests
+from dotenv import load_dotenv
 
-api_key = '***REDACTED***'
+load_dotenv()
+api_key = os.getenv("JUPITER_API_KEY", "")
+if not api_key:
+    print("⚠️ JUPITER_API_KEY not set in .env - test will use public endpoint")
+
 # Trying the Ultra endpoint mentioned by user
 url = "https://api.jup.ag/ultra/v1/quote" 
 params = {
