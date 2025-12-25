@@ -1,7 +1,12 @@
+import os
 import requests
 import time
+from dotenv import load_dotenv
 
-api_key = '***REDACTED***'
+load_dotenv()
+api_key = os.getenv("JUPITER_API_KEY", "")
+if not api_key:
+    print("⚠️ JUPITER_API_KEY not set in .env - tests may fail")
 
 # Endpoints associated with "Basic" tier
 urls = [
