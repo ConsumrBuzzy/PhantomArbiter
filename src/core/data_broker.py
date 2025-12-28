@@ -27,7 +27,8 @@ from src.core.prices.dexscreener import DexScreenerProvider
 # V17.1: Centralized Command Queue
 import queue
 from src.shared.notification.telegram_manager import (
-    TelegramManager, CMD_STATUS_REPORT, CMD_STOP_ENGINE,
+    TelegramManager, CMD_STATUS_REPORT, CMD_STOP_ENGINE
+)
 from src.shared.state.app_state import state as app_state
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 from src.data_storage.db_manager import db_manager # V35.0
