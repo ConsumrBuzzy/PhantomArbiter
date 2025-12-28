@@ -496,39 +496,38 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
     )
 
 async def cmd_pulse(args: argparse.Namespace) -> None:
-    """Handle pulse subcommand - CLI Dashboard."""
+    """Handle pulse subcommand - CLI Dashboard (Full Stack)."""
     from rich.console import Console
+    from src.engine.director import Director
+    from src.arbiter.ui.pulsed_dashboard import RichPulseReporter
+    from src.shared.state.app_state import state as app_state
+    
+    # 1. Init
     console = Console()
     console.clear()
-    console.print("\n   [bold cyan]PHANTOM PULSE[/bold cyan] [green]CLI DASHBOARD[/green]\n")
     
-    # Defaults for Pulse View
-    # Setup Config (Same as run_arbiter)
-    from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
-    from src.arbiter.ui.pulsed_dashboard import RichPulseReporter
+    # 2. Start Engines (Director)
+    # Using defaults or args
+    director = Director()
+    engine_task = asyncio.create_task(director.start())
     
-    config = ArbiterConfig(
-        budget=args.budget,
-        live=args.live, # Respect flag (was hardcoded in previous step?)
-        max_trade=10.0,
-        min_spread=0.20
-    )
+    # 3. Start UI (Pulse Reporter)
+    reporter = RichPulseReporter()
     
-    # Initialize & Inject Rich Reporter
-    arbiter = PhantomArbiter(config)
-    
-    # Monkey-patch the reporter
-    # We pass the telegram manager we just created inside PhantomArbiter
-    arbiter.reporter = RichPulseReporter(arbiter.telegram)
-    
-    # Run loop
-    await arbiter.run(
-        duration_minutes=60, 
-        scan_interval=args.interval
-    )
-    
-    # Cleanup
-    arbiter.reporter.stop()
+    try:
+        # Main Loop
+        while True:
+            reporter.update_from_state(app_state)
+            await asyncio.sleep(0.1)
+            
+    except asyncio.CancelledError:
+        pass
+    except KeyboardInterrupt:
+        pass
+    finally:
+        reporter.stop()
+        engine_task.cancel()
+        await director.stop()
 
 
 async def cmd_monitor(args: argparse.Namespace) -> None:
