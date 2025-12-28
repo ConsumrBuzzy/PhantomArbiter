@@ -401,24 +401,28 @@ class TradingCore:
     # ═══════════════════════════════════════════════════════════════════
 
     def scan_signals(self) -> list:
-        """
-        V45.0: Generate signals without executing them.
-        Used by DataBroker to collect and resolve conflicts.
-        """
+        """V133: Delegates to SignalScanner."""
         # V132: Ingest new tokens from Discovery before scanning
         self._process_discovery_watchlist()
-
-        signals = []
-        combined_watchers = {**self.watchers, **self.scout_watchers}
         
-        # Sync logic from run_tick
+        # Sync logic
         self.tick_count += 1
-        
-        # V45.0: Ensure Heartbeat Logs Visualization
         self._perform_maintenance_and_heartbeat()
         
-        self.portfolio.update_cash(self.watchers)
-        self.data_manager.update_prices(self.watchers, self.scout_watchers)
+        # Delegate to SignalScanner
+        return self.signal_scanner.scan_signals(
+            watchers=self.watchers,
+            scout_watchers=self.scout_watchers,
+            data_manager=self.data_manager,
+            portfolio=self.portfolio,
+            tick_count=self.tick_count
+        )
+
+    def get_status_summary(self) -> str:
+        """V133: Delegates to SignalScanner."""
+        return self.signal_scanner.get_status_summary()
+
+    def _placeholder_end_scan_signals(self):
         
         for symbol, watcher in combined_watchers.items():
             price = watcher.data_feed.get_last_price()
