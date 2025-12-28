@@ -20,13 +20,22 @@ fn calculate_arb_opportunity(
     Ok(spread > fee_impact)
 }
 
-/// Go/No-Go Decision Engine for Net Profit.
-/// Moves float math to Rust to avoid GIL and precision overhead.
+/// Batch processing to eliminate FFI overhead.
+/// Processes thousands of trades in a single Rust call.
 #[pyfunction]
-fn calculate_net_profit(spread_raw: f64, trade_size: f64, jito_tip: f64, route_friction: f64) -> PyResult<f64> {
-    let gross = trade_size * (spread_raw / 100.0);
-    let net = gross - jito_tip - route_friction;
-    Ok(net)
+fn calculate_net_profit_batch(
+    spreads: Vec<f64>,
+    trade_size: f64,
+    jito_tip: f64,
+    route_friction: f64
+) -> PyResult<Vec<f64>> {
+    let mut results = Vec::with_capacity(spreads.len());
+    for spread in spreads {
+        let gross = trade_size * (spread / 100.0);
+        let net = gross - jito_tip - route_friction;
+        results.push(net);
+    }
+    Ok(results)
 }
 
 /// A Python module implemented in Rust.
@@ -35,5 +44,6 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_arb_opportunity, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_net_profit, m)?)?;
+    m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
     Ok(())
 }
