@@ -69,6 +69,7 @@ class Pod:
     tokens: List[Tuple[str, str]] # List of (Symbol, Mint)
     priority: float = 5.0
     tags: List[str] = field(default_factory=list) # e.g. ["MEME", "VOLATILE"]
+    smart_sizing_multiplier: float = 1.0 # V28: Smart Sizing (0.5x for risk, 2.0x for conviction)
     
     # Runtime State
     last_scan: float = 0
@@ -96,7 +97,13 @@ class PodBuilder:
     
     @staticmethod
     def from_named_list(name: str, token_list: List[Tuple[str, str]], tags: List[str] = None) -> Pod:
-        return Pod(name=name, tokens=token_list, tags=tags or ["STATIC"])
+        # Auto-size based on tags
+        multiplier = 1.0
+        if tags:
+            if "MEME" in tags or "VOLATILE" in tags: multiplier = 0.5
+            if "STABLE" in tags or "BLUE_CHIP" in tags: multiplier = 1.5
+            
+        return Pod(name=name, tokens=token_list, tags=tags or ["STATIC"], smart_sizing_multiplier=multiplier)
 
     @staticmethod
     def create_smart_money_pod(name: str, tokens: List[Dict], min_score: float = 0.8) -> Pod:
@@ -133,7 +140,13 @@ class PodManager:
         """Load default static pods."""
         # Legacy mapping (simplified)
         for name, tokens in ALL_NAMED_PODS.items():
-            self.pods[name] = PodBuilder.from_named_list(name, tokens, tags=["STATIC"])
+            # Heuristic tagging
+            tags = ["STATIC"]
+            if "OG" in name or "VIRAL" in name: tags.append("MEME")
+            if "DEFI" in name: tags.append("STABLE")
+            if "AI" in name: tags.append("VOLATILE")
+            
+            self.pods[name] = PodBuilder.from_named_list(name, tokens, tags=tags)
 
     def register_pod(self, pod: Pod):
         """Register a new dynamic pod."""
@@ -199,6 +212,13 @@ class PodManager:
                     found.append(p.name)
                     break
         return found
+        
+    def get_smart_size_multiplier(self, pair_name: str) -> float:
+        """Get the safe trade size multiplier based on the pod."""
+        pods = self.get_pods_for_pair(pair_name)
+        if not pods: return 1.0
+        # Return the most conservative multiplier if in multiple pods (min)
+        return min(self.pods[p].smart_sizing_multiplier for p in pods)
 
     def get_all_pairs(self) -> List[Tuple[str, str, str]]:
         """Get ALL tradeable pairs from ALL pods (deduped)."""

@@ -102,19 +102,31 @@ class PhantomDashboard(App):
         self.set_interval(0.5, self.update_ui)
         
     def update_ui(self) -> None:
+        # 1. Update Core Stats
         try:
-            # 1. Update Core Stats
             self.query_one(StatsPanel).update_stats()
-            
-            # 2. Update Wallets
+        except: pass
+        
+        # 2. Update Wallets
+        try:
             self.query_one(WalletWidget).update_wallets()
-            
-            # 3. Update Columns (Three Pillars)
+        except: pass
+        
+        # 3. Update Columns (Three Pillars)
+        try:
             self.query_one(ArbWidget).update_opps()
+        except: pass
+        
+        try:
             self.query_one(ScalpWidget).update_scalps()
+        except: pass
+        
+        try:
             self.query_one(InventoryWidget).update_inventory()
-            
-            # 4. Update Logs
+        except: pass
+        
+        # 4. Update Logs
+        try:
             log_widget = self.query_one(Log)
             current_len = len(state.logs)
             last_len = getattr(self, "_last_log_len", 0)
@@ -125,8 +137,7 @@ class PhantomDashboard(App):
                 for item in new_items:
                     log_widget.write_line(item)
                 self._last_log_len = current_len
-        except Exception as e:
-            pass
+        except: pass
 
     def action_clear_logs(self) -> None:
         self.query_one(Log).clear()

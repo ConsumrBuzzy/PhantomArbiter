@@ -105,7 +105,10 @@ class ArbiterEngine:
                 should_print = (self._scan_counter % 3 == 0)
                 self._scan_counter += 1
                 
-                trade_size = self._calculate_trade_size()
+                self._scan_counter += 1
+                
+                # Base trade size (multiplier applied later per pair)
+                base_trade_size = self._calculate_trade_size()
                 
                 try:
                     scan_start = time.time()
@@ -158,7 +161,7 @@ class ArbiterEngine:
                     opportunities, all_spreads = [], []
 
                 # 4. VERIFICATION
-                verified_opps = await self._verify_top_candidates(opportunities, trade_size, last_trade_time, cooldown)
+                verified_opps = await self._verify_top_candidates(opportunities, base_trade_size, last_trade_time, cooldown)
                 
                 # 5. DASHBOARD
                 stats = self.tracker.get_stats()
@@ -297,9 +300,15 @@ class ArbiterEngine:
         self.config.pairs = [p for p in scan_pairs if p[2] == USDC_MINT]
         return active_pod_names
 
-    def _calculate_trade_size(self) -> float:
+    def _calculate_trade_size(self, pair: str = None) -> float:
         limit = self.config.max_trade if self.config.max_trade > 0 else float('inf')
-        return min(self.tracker.current_balance, limit)
+        base = min(self.tracker.current_balance, limit)
+        
+        if pair:
+            multiplier = pod_system.get_smart_size_multiplier(pair)
+            return base * multiplier
+            
+        return base
 
     async def _verify_top_candidates(self, opportunities, trade_size, last_trade_time, cooldown):
         """Parallel verification of top candidates."""
@@ -349,7 +358,11 @@ class ArbiterEngine:
             best_fast = sorted(fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True)[0]
             print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
             
-            result = await self.arbiter.execute_trade(best_fast, trade_size=trade_size)
+            print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
+            
+            # Apply Smart Sizing
+            smart_size = self._calculate_trade_size(best_fast.pair)
+            result = await self.arbiter.execute_trade(best_fast, trade_size=smart_size)
             if result.get("success"):
                 trade = result["trade"]
                 self.tracker.record_trade(
@@ -358,7 +371,7 @@ class ArbiterEngine:
                     fees=trade.get('fees', 0.02), 
                     mode="LIVE" if self.config.live_mode else "PAPER", 
                     engine="FAST", 
-                    trade_size=trade_size
+                    trade_size=smart_size
                 )
                 last_trade_time[best_fast.pair] = time.time()
                 
