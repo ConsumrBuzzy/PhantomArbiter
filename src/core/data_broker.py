@@ -455,47 +455,15 @@ class DataBroker:
 
         
         # V66.0: Start Whale Watcher
-        def start_whales():
-            import asyncio
-            asyncio.run(self.whale_watcher.start())
-            
-        whale_thread = threading.Thread(target=start_whales, daemon=True, name="WhaleWatcher")
-        whale_thread.start()
-        print("   🐋 Whale Watcher Started (Copy Trader)")
+
         
         # V67.0: Start Sauron Discovery
-        def start_sauron():
-            import asyncio
-            asyncio.run(self.sauron.start())
-            
-        sauron_thread = threading.Thread(target=start_sauron, daemon=True, name="SauronDiscovery")
-        sauron_thread.start()
-        print("   👁️ Sauron Discovery (Omni-Monitor) Started")
+
         
         # V68.0: Start Sniper and wire to Sauron
-        def start_sniper():
-            import asyncio
-            asyncio.run(self.sniper.start())
-            
-        sniper_thread = threading.Thread(target=start_sniper, daemon=True, name="SniperAgent")
-        sniper_thread.start()
-        print("   🎯 Sniper Agent Started")
+
         
-        # Wire Sauron -> Sniper callback
-        self.sauron.set_sniper_callback(self.sniper.on_new_pool)
-        
-        # V69.0: Wire Scout -> Sniper for Flash Audit
-        self.sniper.scout_agent = self.scout_agent
-        
-        # V64.0: Start Bitquery Adapter
-        if self.bitquery_adapter:
-            def start_bitquery():
-                import asyncio
-                asyncio.run(self.bitquery_adapter.start())
-                
-            bq_thread = threading.Thread(target=start_bitquery, daemon=True, name="BitqueryAdapter")
-            bq_thread.start()
-            print("   🔌 Bitquery Real-time Stream Started")
+
         
         # V77.0: Start Glass Cockpit Dashboard
         from src.shared.system.dashboard_service import get_dashboard_service
