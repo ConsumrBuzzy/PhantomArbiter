@@ -55,7 +55,7 @@ class PhantomDashboard(App):
     
     /* Global Styles */
     .wallet_header { color: cyan; text-style: bold; text-align: center; width: 100%; }
-    .wallet_total { color: green; text-style: bold; text-align: center; width: 100%; text-size: 200%; }
+    .wallet_total { color: green; text-style: bold; text-align: center; width: 100%; }
     .wallet_grid_inner { layout: grid; grid-size: 2 2; grid-gutter: 1; padding: 0 1; }
     
     .stat_value { text-align: center; color: $text-muted; }
