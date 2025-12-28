@@ -5,6 +5,7 @@ from typing import Dict, Optional, List
 from src.scraper.agents.base_agent import BaseAgent, AgentSignal
 from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
 from src.shared.system.logging import Logger
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 import os
 import json
 from config.settings import Settings
@@ -108,13 +109,20 @@ class ScoutAgent(BaseAgent):
                 # Log PRE_PUMP signal
                 Logger.info(f"🚀 [SCOUT] PRE_PUMP: {symbol} +{momentum*100:.1f}% momentum detected!")
                 
+                # Emit to Global SignalBus (V33 Unification)
+                signal_bus.emit(Signal(
+                    type=SignalType.SCOUT,
+                    source=self.name,
+                    data={
+                        "symbol": symbol,
+                        "action": "BUY",
+                        "confidence": min(0.5 + momentum * 10, 0.9),
+                        "momentum": momentum,
+                        "reason": f"PRE_PUMP: {momentum*100:.1f}% momentum"
+                    }
+                ))
+                
                 return self._create_signal(
-                    symbol=symbol,
-                    action="BUY",
-                    confidence=min(0.5 + momentum * 10, 0.9),  # Scale confidence with momentum
-                    reason=f"PRE_PUMP: {momentum*100:.1f}% momentum",
-                    metadata={"momentum": momentum, "strategy": "MOMENTUM"}
-                )
         
         # V100: Whale Probe Detection
         # Check if the market data includes signer/signer-value (parsed from logs)
@@ -138,17 +146,20 @@ class ScoutAgent(BaseAgent):
             )
             
             if probe_status == "PROBE_DETECTED":
-                return self._create_signal(
-                    symbol=symbol,
-                    action="ALERT",
-                    confidence=0.95,
-                    reason=f"WHALE_PROBE: Alpha activity detected on {symbol}",
-                    metadata={
-                        "strategy": "PROBE",
-                        "wallet": market_data['signer'],
-                        "type": "FLASH_WARM"
+                # Emit to Global SignalBus (V33 Unification)
+                signal_bus.emit(Signal(
+                    type=SignalType.SCOUT,
+                    source=self.name,
+                    data={
+                        "symbol": symbol,
+                        "action": "ALERT",
+                        "confidence": 0.95,
+                        "reason": f"WHALE_PROBE: Alpha activity detected on {symbol}",
+                        "wallet": market_data['signer']
                     }
-                )
+                ))
+                
+                return self._create_signal(
              
         return None
     

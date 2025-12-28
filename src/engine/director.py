@@ -4,8 +4,8 @@ from typing import Optional
 from src.shared.state.app_state import state
 from src.shared.infrastructure.websocket_listener import WebSocketListener
 from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
-from src.engine.trading_core import TradingCore
 from src.strategy.ensemble import MerchantEnsemble
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 
 class Director:
     """
@@ -61,6 +61,17 @@ class Director:
         # Landlord (V23)
         from src.engine.landlord_core import get_landlord
         self.agents["landlord"] = get_landlord()
+
+        # 5. SIGNAL BUS (Unified OS Hub)
+        self.signal_bus = signal_bus
+        self._setup_signal_routing()
+
+    def _setup_signal_routing(self):
+        """Route internal system alerts to the bus."""
+        def log_signal(sig: Signal):
+            state.log(f"📡 [Bus] {sig.type.value} from {sig.source}")
+        
+        self.signal_bus.subscribe(SignalType.SYSTEM_ALERT, log_signal)
 
     async def start(self):
         """Ignition: The Supervisor Kernel Start (Non-blocking)."""

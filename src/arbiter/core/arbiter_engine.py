@@ -16,8 +16,8 @@ from src.shared.core.pod_system import pod_system, USDC_MINT, SOL_MINT
 from src.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_spread
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
-from src.arbiter.ui.dashboard_formatter import DashboardFormatter
 from src.shared.state.app_state import state as app_state
+from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 
 class ArbiterEngine:
     """
@@ -82,6 +82,17 @@ class ArbiterEngine:
         )
         coordinator = SignalCoordinator(signal_config, on_activity, on_flash_warm=on_flash_warm)
         await coordinator.start()
+
+        # Phase 33: SignalBus Subscription (Whale-Fed Arb)
+        def handle_whale_signal(sig: Signal):
+            token = sig.data.get("symbol")
+            if token and token != "UNKNOWN":
+                Logger.info(f"🐋 [Arbiter] Prioritizing Whale Pod: {token}")
+                # Inject into pod system as a priority
+                pod_system.inject_priority_token(token, tag="WHALE")
+                wake_event.set()
+
+        signal_bus.subscribe(SignalType.WHALE, handle_whale_signal)
 
         try:
             while time.time() < end_time:

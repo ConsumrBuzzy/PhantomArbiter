@@ -10,9 +10,8 @@ from src.strategy.watcher import Watcher
 from src.tools.asset_manager import AssetManager
 from src.strategy.portfolio import PortfolioManager
 from src.shared.infrastructure.validator import TokenValidator
-from src.shared.notification.notifications import get_notifier
-from src.core.shared_cache import SharedPriceCache
 from src.shared.system.logging import Logger
+from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 
 
 # V10.2 Delegates
@@ -226,14 +225,20 @@ class TradingCore:
         )
         
         # V48.0: Initialize HeartbeatReporter
-        self.reporter = HeartbeatReporter(
-            engine_name=self.engine_name,
-            paper_wallet=self.paper_wallet,
-            portfolio=self.portfolio,
-            wallet=self.wallet,
-            decision_engine=self.decision_engine,
             dydx_adapter=getattr(self, 'dydx_adapter', None)
         )
+        
+        # Phase 33: SignalBus Subscription (Scout-Fed Scalping)
+        def handle_scout_signal(sig: Signal):
+            token = sig.data.get("symbol")
+            mint = sig.data.get("mint") or sig.data.get("symbol") # In case symbol is used as mint
+            if mint:
+                Logger.info(f"🔭 [Scalper] Feeding Scout signal: {token} ({mint[:8]})")
+                # Add to watchlist for next scan
+                if mint not in self.watchlist:
+                    self.watchlist.append(mint)
+        
+        signal_bus.subscribe(SignalType.SCOUT, handle_scout_signal)
         
     def _init_watchers(self):
         """Initialize active watchers from config. V11.4: Scouts deferred to background."""

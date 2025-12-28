@@ -232,5 +232,26 @@ class PodManager:
                     pairs.append(p)
         return pairs
 
+    def inject_priority_token(self, mint: str, symbol: str = "AUTO", tag: str = "PRIORITY"):
+        """V33: Inject a token from sensory signals (Whale/Scout) with high priority."""
+        pod_name = f"SIGNAL_{tag}_{mint[:4]}"
+        if pod_name not in self.pods:
+            # Create a dynamic pod for this token
+            new_pod = Pod(
+                name=pod_name,
+                tokens=[(symbol, mint)],
+                priority=1.0, # High Priority
+                tags=[tag, "DYNAMIC"],
+                smart_sizing_multiplier=1.2 # Slightly more conviction
+            )
+            self.register_pod(new_pod)
+            # Ensure it scans immediately
+            new_pod.last_scan = 0
+            new_pod.cooldown_until = 0
+        else:
+            # Refresh priority if already exists
+            self.pods[pod_name].priority = 1.0
+            self.pods[pod_name].last_scan = 0
+
 # Global Instance
 pod_system = PodManager()

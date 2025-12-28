@@ -28,10 +28,8 @@ from src.core.prices.dexscreener import DexScreenerProvider
 import queue
 from src.shared.notification.telegram_manager import (
     TelegramManager, CMD_STATUS_REPORT, CMD_STOP_ENGINE,
-    CMD_SET_MODE, CMD_SET_SIZE, CMD_SET_BUDGET, CMD_RETRAIN_ML,
-    CMD_PERFORMANCE
-)
-from src.core.global_state import GlobalState
+from src.shared.state.app_state import state as app_state
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 from src.data_storage.db_manager import db_manager # V35.0
 
 # V40.0: MarketAggregator for unified status
@@ -273,10 +271,9 @@ class DataBroker:
         finally:
              loop.close()
             
-        # Append engine mode (Safety check for GlobalState)
+        # Append engine mode (Safety check for AppState truth)
         try:
-            state = GlobalState.read_state()
-            mode = state.get('MODE', 'MONITOR')
+            mode = app_state.mode
             status += f"\n\n⚙️ Engine Mode: **{mode}**"
         except Exception:
             pass
@@ -624,11 +621,9 @@ class DataBroker:
     def run_loop(self):
         """The main loop for data collection and processing."""
         self.running = True
-        try:
             while self.running:
-                # V18.0: Check if engines are halted - enter Sentinel Mode
-                state = GlobalState.read_state()
-                engines_halted = state.get('ENGINES_HALTED', False)
+                # V18.0: Check if engines are halted (AppState Truth)
+                engines_halted = app_state.stats.get('engines_halted', False)
                 
                 self._run_tick()
                 
@@ -784,7 +779,7 @@ class DataBroker:
         if hasattr(self, 'merchant_engines') and self.merchant_engines:
             # V86.3: Merchant Heartbeat (logging only, every 60s approx)
             if self.batch_count % 120 == 0:
-                 Logger.info(f"🧠 [MERCHANT] Scanning {len(all_mints)} markets... (Mode: {GlobalState.read_state().get('MODE', 'UNKNOWN')})")
+                 Logger.info(f"🧠 [MERCHANT] Scanning {len(all_mints)} markets... (Mode: {app_state.mode})")
             
             # V89.0: Merchant Pulse (Every 30s)
             if self.batch_count % 60 == 0:

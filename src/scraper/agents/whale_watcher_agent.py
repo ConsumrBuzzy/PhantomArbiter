@@ -7,6 +7,7 @@ from typing import Dict, Optional, Set, List
 from src.scraper.agents.base_agent import BaseAgent, AgentSignal
 from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
 from src.shared.system.logging import Logger
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 
 class WhaleWatcherAgent(BaseAgent):
     """
@@ -170,15 +171,18 @@ class WhaleWatcherAgent(BaseAgent):
                 # If we find something async, we can queue it and return it on next on_tick?
                 # Or we inject it into a Shared bus.
                 
-                # For now, let's just Log it. The implementation plan says "Emit AgentSignal".
-                # We will store it in a volatile 'pending_signal' slot.
-                self.pending_signal = AgentSignal(
-                    symbol=mint,
-                    action="BUY",
-                    confidence=0.9,
-                    reason=f"Whale Copy: {wallet[:8]}",
-                    metadata={"source": "WHALE_WATCHER", "wallet": wallet}
-                )
+                # Emit to Global SignalBus (V33 Unification)
+                signal_bus.emit(Signal(
+                    type=SignalType.WHALE,
+                    source=self.name,
+                    data={
+                        "symbol": mint,
+                        "action": "BUY",
+                        "confidence": 0.9,
+                        "wallet": wallet,
+                        "usd_value": abs(sol_change)/1e9 * 150 # Est
+                    }
+                ))
 
         except Exception as e:
             Logger.debug(f"[{self.name}] TX Analysis failed: {e}")

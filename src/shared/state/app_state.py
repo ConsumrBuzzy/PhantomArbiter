@@ -3,6 +3,8 @@ from typing import List, Dict, Any
 from dataclasses import dataclass, field
 import threading
 import time
+import os
+from src.core.global_state import GlobalState
 
 @dataclass
 class ArbOpportunity:
@@ -72,7 +74,29 @@ class AppState:
         self.market_pulse: Dict[str, Dict[str, Any]] = {} 
         self.scalp_signals: List[ScalpSignal] = []
         
+        # V33: Persistent Registry Sync
+        self._load_from_global_state()
+        
         self._initialized = True
+
+    def _load_from_global_state(self):
+        """Initialize stats and mode from persistent GlobalState."""
+        gs = GlobalState.read_state()
+        self.mode = gs.get("MODE", "PAPER")
+        self.stats["base_size_usd"] = gs.get("BASE_SIZE_USD", 50.0)
+        self.stats["max_exposure_usd"] = gs.get("MAX_EXPOSURE_USD", 1000.0)
+        self.stats["engines_halted"] = gs.get("ENGINES_HALTED", False)
+
+    def update_persistent_setting(self, key: str, value: Any):
+        """Update a setting and sync to disk."""
+        if key == "MODE":
+            self.mode = value
+        elif key == "BASE_SIZE_USD":
+            self.stats["base_size_usd"] = value
+        
+        # Sync to GlobalState (disk)
+        GlobalState.update_state({key: value})
+        self.log(f"[State] Persistent setting {key} -> {value}")
 
     # ... (methods) ...
     
