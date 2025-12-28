@@ -13,6 +13,10 @@ class Director:
     Manages the lifecycle of Fast Lane (Arb) and Slow Lane (Scout/Whale) tasks.
     And now: Mid Lane (Scalper).
     """
+    
+    # V23: Lag Monitor
+    from src.shared.system.lag_monitor import LagMonitor
+    
     def __init__(self, live_mode: bool = False):
         self.is_running = False
         
