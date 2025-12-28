@@ -56,9 +56,9 @@ class WalletWidget(Static):
         # Actually, let's just make WalletDisplay self-managing if passed data?
         # Or just manually update here.
         
-        # Update Paper
-        # Use query() to get DOMQuery, then filter
-        self.query(WalletDisplay).filter(lambda w: w.prefix == "paper").first().update_data(state.wallet_paper)
-        
-        # Update Live
-        self.query(WalletDisplay).filter(lambda w: w.prefix == "live").first().update_data(state.wallet_live)
+        # Update Via Iteration (Textual Query filter doesn't support lambdas)
+        for widget in self.query(WalletDisplay):
+            if widget.prefix == "paper":
+                widget.update_data(state.wallet_paper)
+            elif widget.prefix == "live":
+                widget.update_data(state.wallet_live)
