@@ -1,4 +1,4 @@
-use pyo3.prelude::*;
+use pyo3::prelude::*;
 
 /// Formats the sum of two numbers as string.
 #[pyfunction]
