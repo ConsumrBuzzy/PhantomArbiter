@@ -114,13 +114,15 @@ class PulsedDashboard:
                     conf = float(raw_conf) if raw_conf else 0.0
                 except (ValueError, TypeError):
                     # Map text labels to numeric values
-                    conf_map = {'high': 0.9, 'medium': 0.6, 'low': 0.3}
+                    conf_map = {'high': 0.9, 'medium': 0.6, 'med': 0.6, 'low': 0.3}
                     conf = conf_map.get(str(raw_conf).lower(), 0.5)
                 conf_color = "green" if conf > 0.8 else "yellow"
+                # Use available ScalpSignal attributes
+                price_str = f"${getattr(s, 'price', 0):.4f}" if hasattr(s, 'price') else s.signal_type
                 rows.append([
                     f"⚡ {s.token}", 
-                    f"${s.price:.4f}", 
-                    "SIG", 
+                    price_str, 
+                    s.action if hasattr(s, 'action') else "SIG", 
                     f"[{conf_color}]{conf:.0%}[/{conf_color}]"
                 ])
         
