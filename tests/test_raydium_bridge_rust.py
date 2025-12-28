@@ -149,6 +149,7 @@ def test_execute_swap_rust_success(bridge):
 def test_execute_swap_rust_rpc_failure(bridge):
     """Verify RPC failure handling."""
     mock_requests.reset_mock()
+    mock_requests.post.side_effect = None # Clear previous side effect
     mock_requests.post.return_value.json.return_value = {"error": "RPC Fail"}
     
     result = bridge.execute_swap_rust(
