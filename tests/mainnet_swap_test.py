@@ -15,6 +15,7 @@ async def test_mainnet_swap():
     Validation Test: SOL -> USDC Small Swap on Mainnet.
     Uses UnifiedTradeRouter (Rust) via Jito Path.
     """
+    Settings.SILENT_MODE = False
     Logger.info("🧪 INITIALIZING MAINNET SWAP TEST...")
     
     # 1. Setup
