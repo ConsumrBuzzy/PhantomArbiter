@@ -286,6 +286,19 @@ impl Graph {
         }
         Ok(vec![])
     }
+
+    /// Scans for arbitrage cycles starting from multiple base tokens.
+    /// Returns a list of paths (each path is a list of pool IDs).
+    fn find_all_cycles(&self, start_mints: Vec<String>) -> PyResult<Vec<Vec<String>>> {
+        let mut all_paths = Vec::new();
+        for mint in start_mints {
+            let path = self.find_arbitrage_loop(mint)?;
+            if !path.is_empty() {
+                all_paths.push(path);
+            }
+        }
+        Ok(all_paths)
+    }
 }
 
 impl Graph {
