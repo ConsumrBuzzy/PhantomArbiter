@@ -272,7 +272,7 @@ class MetadataBackgroundResolver:
     def _notify_resolution(self, pending: PendingToken, metadata: Dict):
         """Optionally notify via Telegram when a token is resolved."""
         try:
-            from src.system.comms_daemon import send_telegram
+            from src.shared.system.comms_daemon import send_telegram
             
             symbol = metadata.get("symbol", "???")
             name = metadata.get("name", "Unknown")

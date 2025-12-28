@@ -7,7 +7,7 @@ import sys
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-from src.system.db_manager import db_manager
+from src.shared.system.db_manager import db_manager
 from src.shared.system.logging import Logger
 
 def migrate_trade_history():

@@ -162,7 +162,7 @@ class RelativeStrengthAnalyzer:
         win_rates = {}
         try:
             # V11.3: Use db_manager instead of legacy database.py
-            from src.system.db_manager import db_manager
+            from src.shared.system.db_manager import db_manager
             # db_manager.get_win_rate() returns overall win rate (float 0.0-1.0)
             # For per-symbol, we'd need a different query. For now, use overall.
             overall_rate = db_manager.get_win_rate(limit=20) * 100  # Convert to percentage

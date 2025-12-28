@@ -3,7 +3,7 @@ import asyncio
 from src.shared.system.logging import Logger
 from config.settings import Settings
 from src.utils.boot_utils import BootTimer
-from src.system.comms_daemon import send_telegram
+from src.shared.system.comms_daemon import send_telegram
 
 # Imports for loop
 from src.liquidity.liquidity_manager import get_liquidity_manager, MarketRegime

@@ -55,7 +55,7 @@ async def heartbeat_loop(broker):
     await asyncio.sleep(60)
     
     from src.analysis.status_generator import StatusGenerator
-    from src.system.comms_daemon import send_telegram
+    from src.shared.system.comms_daemon import send_telegram
     
     while not SHUTDOWN_EVENT.is_set():
         try:

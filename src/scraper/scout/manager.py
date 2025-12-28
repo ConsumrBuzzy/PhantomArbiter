@@ -70,7 +70,7 @@ class ScoutManager:
         Logger.info(msg)
         
         # V13.3: Ensure visibility in Telegram
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         send_telegram(msg, source="SCOUT", priority="LOW")
 
         # 4. Prune Old Scouts
