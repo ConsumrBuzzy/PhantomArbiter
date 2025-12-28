@@ -397,7 +397,167 @@ pub fn build_dlmm_swap_ix(
 }
 
 // ============================================================================
+// PHASE 4: RAYDIUM CLMM SWAP (Concentrated Liquidity)
+// ============================================================================
+
+/// Raydium CLMM Program ID
+const RAYDIUM_CLMM: &str = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
+
+/// Token-2022 Program ID (Raydium CLMM supports both SPL and Token-2022)
+const TOKEN_2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+
+/// Memo Program ID (required by Raydium CLMM)
+const MEMO_PROGRAM: &str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+
+/// Anchor discriminator for Raydium CLMM `swapV2` instruction
+/// Calculated as: sha256("global:swap_v2")[0..8]
+const RAYDIUM_CLMM_SWAP_V2_DISCRIMINATOR: [u8; 8] = [0x2b, 0x04, 0xed, 0x0b, 0x1a, 0xc9, 0x1e, 0xb8];
+
+/// Build Raydium CLMM swapV2 instruction data.
+/// 
+/// # Arguments
+/// * `amount` - Amount to swap (input or output depending on by_amount_in)
+/// * `other_amount_threshold` - Slippage threshold (min output or max input)
+/// * `sqrt_price_limit_x64` - Price limit as Q64.64 (0 = no limit)
+/// * `by_amount_in` - True if `amount` is input amount (ExactIn mode)
+/// 
+/// # Returns
+/// Instruction data bytes (without accounts)
+#[pyfunction]
+#[pyo3(signature = (amount, other_amount_threshold, sqrt_price_limit_x64, by_amount_in=true))]
+pub fn build_raydium_clmm_swap_data(
+    amount: u64,
+    other_amount_threshold: u64,
+    sqrt_price_limit_x64: u128,
+    by_amount_in: bool,
+) -> PyResult<Vec<u8>> {
+    // Anchor instruction format:
+    // [8 byte discriminator] + [borsh-encoded args]
+    
+    let mut data = Vec::with_capacity(8 + 8 + 8 + 16 + 1);
+    
+    // Discriminator
+    data.extend_from_slice(&RAYDIUM_CLMM_SWAP_V2_DISCRIMINATOR);
+    
+    // Args (Borsh serialized, matching SwapV2 struct)
+    data.extend_from_slice(&amount.to_le_bytes());
+    data.extend_from_slice(&other_amount_threshold.to_le_bytes());
+    data.extend_from_slice(&sqrt_price_limit_x64.to_le_bytes());
+    data.push(by_amount_in as u8);
+    
+    Ok(data)
+}
+
+/// Build complete Raydium CLMM swapV2 instruction with accounts.
+/// 
+/// Account order is critical - this matches the on-chain IDL exactly.
+/// 
+/// # Arguments
+/// * `payer` - Fee payer (signer)
+/// * `amm_config` - AMM config account
+/// * `pool_state` - Pool state account
+/// * `input_token_account` - User's source token account
+/// * `output_token_account` - User's destination token account
+/// * `input_vault` - Pool's input token vault
+/// * `output_vault` - Pool's output token vault
+/// * `observation_state` - Oracle observation state
+/// * `tick_array_lower` - Lower tick array for current range
+/// * `tick_array_current` - Current tick array
+/// * `tick_array_upper` - Upper tick array
+/// * `input_token_mint` - Input token mint address
+/// * `output_token_mint` - Output token mint address
+/// * `amount` - Swap amount
+/// * `other_amount_threshold` - Slippage protection
+/// * `sqrt_price_limit_x64` - Price limit (0 for none)
+/// * `by_amount_in` - True for ExactIn mode
+#[pyfunction]
+#[pyo3(signature = (
+    payer,
+    amm_config,
+    pool_state,
+    input_token_account,
+    output_token_account,
+    input_vault,
+    output_vault,
+    observation_state,
+    tick_array_lower,
+    tick_array_current,
+    tick_array_upper,
+    input_token_mint,
+    output_token_mint,
+    amount,
+    other_amount_threshold,
+    sqrt_price_limit_x64,
+    by_amount_in=true
+))]
+pub fn build_raydium_clmm_swap_ix(
+    payer: &str,
+    amm_config: &str,
+    pool_state: &str,
+    input_token_account: &str,
+    output_token_account: &str,
+    input_vault: &str,
+    output_vault: &str,
+    observation_state: &str,
+    tick_array_lower: &str,
+    tick_array_current: &str,
+    tick_array_upper: &str,
+    input_token_mint: &str,
+    output_token_mint: &str,
+    amount: u64,
+    other_amount_threshold: u64,
+    sqrt_price_limit_x64: u128,
+    by_amount_in: bool,
+) -> PyResult<Vec<u8>> {
+    let clmm_program = Pubkey::from_str(RAYDIUM_CLMM)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let token_program = Pubkey::from_str(TOKEN_PROGRAM)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let token_2022_program = Pubkey::from_str(TOKEN_2022_PROGRAM)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let memo_program = Pubkey::from_str(MEMO_PROGRAM)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    
+    // Build account metas in exact order from IDL
+    let accounts = vec![
+        AccountMeta::new_readonly(parse_pubkey(payer)?, true),           // 0: payer (signer)
+        AccountMeta::new_readonly(parse_pubkey(amm_config)?, false),     // 1: ammConfig
+        AccountMeta::new(parse_pubkey(pool_state)?, false),              // 2: poolState
+        AccountMeta::new(parse_pubkey(input_token_account)?, false),     // 3: inputTokenAccount
+        AccountMeta::new(parse_pubkey(output_token_account)?, false),    // 4: outputTokenAccount
+        AccountMeta::new(parse_pubkey(input_vault)?, false),             // 5: inputVault
+        AccountMeta::new(parse_pubkey(output_vault)?, false),            // 6: outputVault
+        AccountMeta::new(parse_pubkey(observation_state)?, false),       // 7: observationState
+        AccountMeta::new_readonly(token_program, false),                 // 8: tokenProgram
+        AccountMeta::new_readonly(token_2022_program, false),            // 9: tokenProgram2022
+        AccountMeta::new_readonly(memo_program, false),                  // 10: memoProgram
+        AccountMeta::new_readonly(parse_pubkey(input_token_mint)?, false), // 11: inputTokenMint
+        AccountMeta::new_readonly(parse_pubkey(output_token_mint)?, false), // 12: outputTokenMint
+        AccountMeta::new(parse_pubkey(tick_array_lower)?, false),        // 13: tickArrayLower
+        AccountMeta::new(parse_pubkey(tick_array_current)?, false),      // 14: tickArrayCurrent  
+        AccountMeta::new(parse_pubkey(tick_array_upper)?, false),        // 15: tickArrayUpper
+    ];
+    
+    let data = build_raydium_clmm_swap_data(
+        amount,
+        other_amount_threshold,
+        sqrt_price_limit_x64,
+        by_amount_in,
+    )?;
+    
+    let ix = Instruction {
+        program_id: clmm_program,
+        accounts,
+        data,
+    };
+    
+    bincode::serialize(&ix)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+}
+
+// ============================================================================
 // HELPERS
+
 // ============================================================================
 
 fn parse_pubkey(s: &str) -> PyResult<Pubkey> {
@@ -410,9 +570,12 @@ fn parse_pubkey(s: &str) -> PyResult<Pubkey> {
 pub fn get_dex_program_ids() -> PyResult<Vec<(String, String)>> {
     Ok(vec![
         ("RAYDIUM_AMM_V4".to_string(), RAYDIUM_AMM_V4.to_string()),
+        ("RAYDIUM_CLMM".to_string(), RAYDIUM_CLMM.to_string()),
         ("ORCA_WHIRLPOOL".to_string(), ORCA_WHIRLPOOL.to_string()),
         ("METEORA_DLMM".to_string(), METEORA_DLMM.to_string()),
         ("TOKEN_PROGRAM".to_string(), TOKEN_PROGRAM.to_string()),
+        ("TOKEN_2022_PROGRAM".to_string(), TOKEN_2022_PROGRAM.to_string()),
+        ("MEMO_PROGRAM".to_string(), MEMO_PROGRAM.to_string()),
     ])
 }
 
@@ -421,9 +584,13 @@ pub fn get_dex_program_ids() -> PyResult<Vec<(String, String)>> {
 // ============================================================================
 
 pub fn register_instruction_functions(m: &PyModule) -> PyResult<()> {
-    // Raydium
+    // Raydium AMM V4
     m.add_function(wrap_pyfunction!(build_raydium_swap_ix, m)?)?;
     m.add_function(wrap_pyfunction!(build_raydium_swap_data, m)?)?;
+    
+    // Raydium CLMM (Concentrated Liquidity)
+    m.add_function(wrap_pyfunction!(build_raydium_clmm_swap_ix, m)?)?;
+    m.add_function(wrap_pyfunction!(build_raydium_clmm_swap_data, m)?)?;
     
     // Orca Whirlpool
     m.add_function(wrap_pyfunction!(build_whirlpool_swap_data, m)?)?;
