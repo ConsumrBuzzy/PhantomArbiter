@@ -277,6 +277,9 @@ class TradingCore:
             portfolio=self.portfolio
         )
         
+        # V133: PositionSizer (SRP Refactor)
+        self.position_sizer = PositionSizer(engine_name=self.engine_name)
+        
         # Phase 33: SignalBus Subscription (Scout-Fed Scalping)
         def handle_scout_signal(sig: Signal):
             token = sig.data.get("symbol")
