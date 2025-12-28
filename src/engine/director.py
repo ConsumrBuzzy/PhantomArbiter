@@ -1,32 +1,41 @@
-import asyncio
-import time
-from typing import Optional
-from src.shared.state.app_state import state
-from src.shared.infrastructure.websocket_listener import WebSocketListener
-from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
+from src.scalper.engine import ScalperConfig # Assuming we use the file we copied
+# We need a proper Scalper Engine class. 
+# The existing src/scalper/scalper.py was just configs and enums.
+# I will create a placeholder Engine wrapper here to show logic.
 
-# Import Slow Components (mock/real)
-# from src.scraper.agents.scout_agent import ScoutAgent 
+class PhantomScalperEngine:
+    def __init__(self, config):
+        self.config = config
+        self.watchlist = []
+    
+    async def run_cycle(self):
+        # Logic: Check watchlist -> Execute Strategy
+        pass
 
 class Director:
     """
     The Orchestrator.
     Manages the lifecycle of Fast Lane (Arb) and Slow Lane (Scout/Whale) tasks.
+    And now: Mid Lane (Scalper).
     """
     def __init__(self):
         self.is_running = False
         self.fast_tasks = []
+        self.mid_tasks = []
         self.slow_tasks = []
         
         # Components
         self.listener = WebSocketListener()
         
-        # Configure Arbiter
-        # (In prod, load from config/settings/args)
-        config = ArbiterConfig(live_mode=False) 
-        self.arbiter = PhantomArbiter(config)
+        # 1. ARBITER (Atomic)
+        arb_config = ArbiterConfig(live_mode=False) 
+        self.arbiter = PhantomArbiter(arb_config)
         
-        # Mocking Scout for now to show structure
+        # 2. SCALPER (Inventory)
+        scalp_config = ScalperConfig(live_mode=False)
+        self.scalper = PhantomScalperEngine(scalp_config)
+        
+        # 3. SCOUT (Discovery)
         self.scout_active = True
 
     async def start(self):
@@ -36,19 +45,16 @@ class Director:
         state.log("[Director] Igniting Systems...")
         
         # 1. THE WIRE (Fast Lane)
-        # Allows Rust to see logs
         self.fast_tasks.append(asyncio.create_task(self._run_wss()))
+        state.update_stat("rust_core_active", True)
         
-        # 2. THE ARBITER (Hot Path)
-        # Not strictly a loop if event-driven, but we might have a heartbeat
-        # For now, Arbiter is reactive to Graph updates pushed by Listener->Rust.
-        # But we might want a 'cleanup' loop or 'health check' loop.
-        state.update_stat("rust_core_active", True) # Assuming successful init
+        # 2. THE SCALPER (Mid Lane)
+        self.mid_tasks.append(asyncio.create_task(self._run_scalper_loop()))
         
         # 3. THE SCOUT (Slow Lane)
         self.slow_tasks.append(asyncio.create_task(self._run_scout_loop()))
         
-        # 4. THE WHALE WATCHER (Slow Lane)
+        # 4. THE WHALE (Slow Lane)
         self.slow_tasks.append(asyncio.create_task(self._run_whale_loop()))
         
         state.status = "OPERATIONAL"
@@ -60,7 +66,7 @@ class Director:
         state.log("[Director] Shutting down...")
         self.listener.stop()
         
-        for task in self.fast_tasks + self.slow_tasks:
+        for task in self.fast_tasks + self.mid_tasks + self.slow_tasks:
             task.cancel()
         
         state.status = "OFFLINE"
@@ -72,24 +78,43 @@ class Director:
         except Exception as e:
             state.log(f"[Director] ❌ WSS Crash: {e}")
 
+    async def _run_scalper_loop(self):
+        """Mid Lane: Scalping Strategy."""
+        state.log("[Director] Scalper: Active (Interval: 2s)")
+        while self.is_running:
+            try:
+                await asyncio.sleep(2)
+                # await self.scalper.run_cycle()
+                # Mock activity for TUI
+                if len(self.scalper.watchlist) > 0:
+                     # state.log(f"[Scalper] Analyzing {len(self.scalper.watchlist)} tokens...")
+                     pass
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                state.log(f"[Scalper] Error: {e}")
+
     async def _run_scout_loop(self):
         """Slow Lane: Token Discovery."""
         state.log("[Director] Scout Agent: Active (Interval: 60s)")
         while self.is_running:
             try:
-                # 1. Sleep first to let system settle
-                await asyncio.sleep(60) 
+                # 1. Sleep first
+                await asyncio.sleep(60)
                 
-                # 2. Perform Scan (Mock for now)
-                # candidates = await self.scout.scan()
-                # state.log(f"[Scout] Found {len(candidates)} new tokens.")
-                pass 
+                # 2. Perform Scan (Mock)
+                # new_tokens = await self.scout.scan()
+                new_tokens = ["MOCK_TOKEN"] # Mock
+                
+                # 3. Feed Scalper
+                if new_tokens:
+                    self.scalper.watchlist.extend(new_tokens)
+                    state.log(f"[Scout] Found {len(new_tokens)} targets -> Passed to Scalper")
                 
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 state.log(f"[Scout] Error: {e}")
-                await asyncio.sleep(60) # Backoff
 
     async def _run_whale_loop(self):
         """Slow Lane: Smart Money Tracker."""
@@ -98,7 +123,6 @@ class Director:
             try:
                 await asyncio.sleep(300)
                 # await self.whale.track()
-                pass
             except asyncio.CancelledError:
                 break
             except Exception as e:
