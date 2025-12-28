@@ -581,54 +581,8 @@ class TradingCore:
             self.consecutive_losses = self.executor.consecutive_losses
     
     def _confidence_to_size(self, confidence: float, base_size: float) -> float:
-        """
-        V79.0: Map confidence to position size.
-        
-        Tiers:
-        - HIGH (>0.75): 30% of cash
-        - MEDIUM (0.5-0.75): 10% of cash
-        - LOW (<0.5): 5% of cash
-        
-        Returns:
-            Position size in USD
-        """
-        from src.shared.system.capital_manager import get_capital_manager
-        
-        try:
-            cm = get_capital_manager()
-            engine = cm.get_engine_state(self.engine_name)
-            if not engine:
-                return base_size
-                
-            cash = engine.get("cash_balance", 0)
-            
-            # Determine tier
-            if confidence >= 0.75:
-                # HIGH confidence
-                pct = Settings.POSITION_SIZE_HIGH_PCT
-                tier = "HIGH"
-            elif confidence >= 0.50:
-                # MEDIUM confidence
-                pct = Settings.POSITION_SIZE_MED_PCT
-                tier = "MED"
-            else:
-                # LOW confidence
-                pct = Settings.POSITION_SIZE_LOW_PCT
-                tier = "LOW"
-            
-            # Calculate size
-            tier_size = cash * pct
-            
-            # Cap at base_size (which may already be capped by settings)
-            final_size = min(tier_size, base_size, Settings.POSITION_SIZE_USD)
-            
-            Logger.debug(f"[V79.0] Confidence {confidence:.2f} → {tier} tier → ${final_size:.2f} (was ${base_size:.2f})")
-            
-            return final_size
-            
-        except Exception as e:
-            Logger.debug(f"[V79.0] Confidence sizing error: {e}")
-            return base_size
+        """V133: Delegates to PositionSizer."""
+        return self.position_sizer.calculate_size(confidence, base_size)
     
     def _paper_buy(self, symbol: str, price: float, reason: str, size_usd: float):
         """V11.15: Log paper position entry (Logic handled by CapitalManager)."""
