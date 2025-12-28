@@ -249,7 +249,8 @@ class Director:
                             token=s['symbol'],
                             signal_type=f"🧠 {s['engine']}",
                             confidence="High" if s['confidence'] > 0.8 else ("Med" if s['confidence'] > 0.5 else "Low"),
-                            action=s['action']
+                            action=s['action'],
+                            price=s.get('price', 0)  # V133: Include price in signal
                         ))
                         
                         # 2. Execute (Simulation or Live)

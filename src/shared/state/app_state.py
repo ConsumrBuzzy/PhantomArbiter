@@ -19,10 +19,13 @@ class ArbOpportunity:
 class InventoryItem:
     """Represents a held token with its value and pnl."""
     symbol: str
-    amount: float
+    amount: float  # Quantity held
     value_usd: float = 0.0
     pnl: float = 0.0
     price_change_24h: float = 0.0
+    entry_price: float = 0.0      # V133: Bought Price
+    current_price: float = 0.0    # V133: Current Price
+    quantity: float = 0.0         # V133: Token quantity
 
 @dataclass
 class WalletData:
@@ -40,6 +43,7 @@ class ScalpSignal:
     signal_type: str # "RSI Oversold", "Breakout"
     confidence: str # "High", "Med"
     action: str # "BUY", "SELL"
+    price: float = 0.0  # V133: Current price at signal time
     timestamp: float = field(default_factory=time.time)
 
 class AppState:
