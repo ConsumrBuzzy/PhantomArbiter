@@ -74,7 +74,8 @@ def setup_venv():
     pip_path = venv_path / "Scripts" / "pip" if sys.platform == "win32" else venv_path / "bin" / "pip"
     
     try:
-        subprocess.run([str(pip_path), "install", "."], check=True)
+        # Added timeout to handle slow connections
+        subprocess.run([str(pip_path), "install", ".", "--default-timeout=1000"], check=True)
         print("✅ Environment setup complete using standard pip.")
     except subprocess.CalledProcessError as e:
         print(f"❌ Pip Install Failed: {e}")
