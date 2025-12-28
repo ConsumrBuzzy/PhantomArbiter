@@ -76,6 +76,21 @@ def setup_venv():
     try:
         # Added timeout to handle slow connections
         subprocess.run([str(pip_path), "install", "."], check=True)
+        
+        # V133: Verify Python version and install Maturin
+        print("🔍 Verifying Python version...")
+        python_path = venv_path / "Scripts" / "python" if sys.platform == "win32" else venv_path / "bin" / "python"
+        result = subprocess.run([str(python_path), "--version"], capture_output=True, text=True)
+        version_str = result.stdout.strip()
+        if "3.12" not in version_str:
+            print(f"⚠️  Warning: Expected Python 3.12, got {version_str}")
+        else:
+            print(f"✅ Python version verified: {version_str}")
+        
+        # V133: Install Maturin for Rust builds
+        print("📦 Installing Maturin for Rust extension builds...")
+        subprocess.run([str(pip_path), "install", "maturin"], check=True)
+        
         print("✅ Environment setup complete using standard pip.")
     except subprocess.CalledProcessError as e:
         print(f"❌ Pip Install Failed: {e}")

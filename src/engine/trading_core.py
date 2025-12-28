@@ -42,6 +42,9 @@ from src.core.prices.pyth_adapter import PythAdapter
 # V48.0: Jito Block Engine for Priority Execution
 from src.shared.infrastructure.jito_adapter import JitoAdapter
 
+# V133: SharedPriceCache for position sync
+from src.core.shared_cache import SharedPriceCache
+
 
 class TradingCore:
     """

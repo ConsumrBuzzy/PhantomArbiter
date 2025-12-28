@@ -24,8 +24,12 @@ LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
-# Fallback file logger (used if LogManager not available)
-log_file = os.path.join(LOG_DIR, "phantom.log")
+# V133: Per-run session log file (Session-Based Forensics)
+# Each run creates a unique log file for easier debugging
+_run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+log_file = os.path.join(LOG_DIR, f"phantom_{_run_id}.log")
+
+# Fallback file logger (uses per-run file instead of static phantom.log)
 handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 handler.setFormatter(formatter)

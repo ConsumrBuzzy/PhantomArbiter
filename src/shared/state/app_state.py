@@ -86,6 +86,12 @@ class AppState:
         self.scalp_signals: List[ScalpSignal] = []
         self.system_signals = deque(maxlen=50) # V35: Unified Signal Audit
         
+        # V133: UI Footer Timestamp (seconds since last pulse update)
+        self.last_pulse_time: float = 0.0
+        
+        # V133: Flash Error Bar (Real-time Red Alert display)
+        self.flash_errors: deque = deque(maxlen=10)
+        
         # V33: Persistent Registry Sync
         self._load_from_global_state()
         
@@ -126,6 +132,7 @@ class AppState:
     def update_pulse_batch(self, data: Dict[str, Dict[str, Any]]):
         """Update multiple tickers at once."""
         self.market_pulse.update(data)
+        self.last_pulse_time = time.time()  # V133: Track for UI footer
         
     def add_signal(self, signal: ScalpSignal):
         """Add new scalp signal."""
@@ -140,6 +147,10 @@ class AppState:
     def log(self, message: str):
         """Add a log message."""
         self.logs.append(message)
+    
+    def flash_error(self, message: str):
+        """V133: Add a flash error for UI Red Alert bar."""
+        self.flash_errors.appendleft({"msg": message, "ts": time.time()})
 
     def add_opportunity(self, opp: ArbOpportunity):
         """Register a new arbitrage opportunity."""

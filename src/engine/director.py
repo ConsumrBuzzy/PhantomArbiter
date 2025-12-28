@@ -189,8 +189,10 @@ class Director:
         # Stop Components
         self.listener.stop()
         if hasattr(self, 'lag_monitor'): self.lag_monitor.stop()
-        self.agents["scout"].stop()
-        self.agents["whale"].stop()
+        
+        # V133: Safe-Stop Iterator - Guard against None agents in lite_mode
+        if agent := self.agents.get("scout"): agent.stop()
+        if agent := self.agents.get("whale"): agent.stop()
         
         # Cancel All Tasks
         for tier in self.tasks.values():

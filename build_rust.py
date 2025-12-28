@@ -48,7 +48,20 @@ def build_rust():
     try:
         print(f"Running: {' '.join(command)}")
         subprocess.run(command, check=True, env=env)
-        print("✅ Rust Extension Built & Installed Successfully!")
+        print("✅ Rust Extension Built Successfully!")
+        
+        # V133: Verify import
+        print("🔍 Verifying Rust extension import...")
+        python_path = venv_dir / "Scripts" / "python" if sys.platform == "win32" else venv_dir / "bin" / "python"
+        verify = subprocess.run(
+            [str(python_path), "-c", "import phantom_core; print('✅ phantom_core loaded successfully')"],
+            env=env, capture_output=True, text=True
+        )
+        if verify.returncode != 0:
+            print(f"❌ Verification failed: {verify.stderr}")
+            sys.exit(1)
+        print(verify.stdout.strip())
+        print("✅ Rust Extension Installed & Verified!")
         
     except subprocess.CalledProcessError:
         print("❌ Build Failed.")
