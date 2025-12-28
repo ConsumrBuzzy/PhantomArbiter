@@ -239,21 +239,45 @@ class TokenRegistry:
         """
         V134: Get comprehensive 3-tier metadata.
         Returns a dict containing identity, risk, and market data.
+        Uses DB persistence for Identity and Risk tiers.
         """
         # 1. Identity (Static)
         identity = self._identity_cache.get(mint)
+        risk = self._risk_cache.get(mint)
+        
+        # If any persistent data missing from RAM, check DB
+        if not identity or not risk:
+            try:
+                from src.shared.system.db_manager import db_manager
+                db_data = db_manager.get_token_metadata(mint)
+                if db_data:
+                    # Hydrate caches
+                    if not identity and db_data.get("identity"):
+                        identity = db_data["identity"]
+                        self._identity_cache[mint] = identity
+                        
+                    if not risk and db_data.get("risk"):
+                        risk = db_data["risk"]
+                        self._risk_cache[mint] = risk
+                        
+                    Logger.debug(f"📚 [REGISTRY] Loaded metadata from DB: {mint[:6]}")
+            except Exception as e:
+                Logger.warning(f"📚 [REGISTRY] DB Read Failed: {e}")
+
+        # If still missing, create defaults / fetch
         if not identity:
             symbol, _, _ = self.get_symbol_with_confidence(mint)
             identity = TokenIdentity(
                 mint=mint,
                 symbol=symbol,
-                decimals=6, # Default, should fetch for accuracy
+                decimals=6, # Default
                 name=symbol
             )
             self._identity_cache[mint] = identity
+            # Save new identity to DB
+            self._persist_metadata(mint)
             
         # 2. Risk (Slow-Changing)
-        risk = self._risk_cache.get(mint)
         if not risk:
             # Default low-risk assumption until vetted
             risk = TokenRisk()
@@ -271,6 +295,17 @@ class TokenRegistry:
             "market": market
         }
     
+    def _persist_metadata(self, mint: str):
+        """Save current identity/risk to DB."""
+        try:
+            from src.shared.system.db_manager import db_manager
+            identity = self._identity_cache.get(mint)
+            risk = self._risk_cache.get(mint)
+            if identity:
+                db_manager.save_token_metadata(identity, risk)
+        except Exception as e:
+            Logger.warning(f"📚 [REGISTRY] DB Write Failed: {e}")
+    
     def update_risk_data(self, mint: str, data: Dict):
         """Update risk tier for a token."""
         if mint not in self._risk_cache:
@@ -280,6 +315,8 @@ class TokenRegistry:
         if 'mint_authority' in data: risk.mint_authority = data['mint_authority']
         if 'freeze_authority' in data: risk.freeze_authority = data['freeze_authority']
         if 'safety_score' in data: risk.safety_score = float(data['safety_score'])
+        
+        self._persist_metadata(mint) # Persist on update
         
     def update_market_data(self, mint: str, data: Dict):
         """Update market tier for a token."""
