@@ -16,7 +16,9 @@ struct PhoenixHeaderMin {
     // MarketSizeParams is usually 4 * u64 or similar.
     // Let's use a byte array for the rest to avoid padding issues.
     // We just want to prove Zero-Copy casting works.
-    _padding: [u8; 112], 
+    // We used [u8; 112] but bytemuck commonly limits Pod arrays to size 32.
+    // 112 bytes = 14 * u64.
+    pub _padding: [u64; 14], 
 }
 
 // ------------------------------------------------------------------------
