@@ -1159,9 +1159,11 @@ version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
  "bincode",
+ "borsh 1.6.0",
  "pyo3",
  "serde",
  "solana-sdk",
+ "thiserror",
 ]
 
 [[package]]
