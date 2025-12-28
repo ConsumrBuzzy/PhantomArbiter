@@ -38,10 +38,15 @@ sys.modules['spl.token.instructions'] = mock_spl_instructions
 mock_requests = MagicMock()
 sys.modules['requests'] = mock_requests
 
+# Mock Logger
+mock_logger_module = MagicMock()
+sys.modules['src.shared.system.logging'] = mock_logger_module
+
 # 2. Import Module Under Test
 from src.shared.execution.raydium_bridge import RaydiumBridge
 
 # Fake data
+
 POOL_ADDR = "Pool111111111111111111111111111111111111111"
 MINT_A = "So11111111111111111111111111111111111111112" # SOL
 MINT_B = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" # USDC
@@ -110,9 +115,16 @@ def test_execute_swap_rust_success(bridge):
         payer_keypair="SecretKey123"
     )
     
+    if not result.success:
+        with open("bridge_error.log", "w") as f:
+            f.write(f"Result Error: {result.error}")
+            
     # Assertions
     assert result.success is True
     assert result.signature == "signature_ok_123"
+    
+    # ... rest of verify ...
+
     
     # Verify Rust calls
     mock_phantom.parse_clmm_pool_state.assert_called_with(POOL_ADDR, "base64data==")
