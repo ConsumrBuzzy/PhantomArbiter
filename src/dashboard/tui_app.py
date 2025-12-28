@@ -19,9 +19,10 @@ class PhantomDashboard(App):
     #main_grid {
         layout: grid;
         grid-size: 3 3;
-        grid-rows: 1fr 4fr 2fr;
+        grid-rows: 8% 62% 30%;
         grid-columns: 1fr 1fr 1fr;
         height: 100%;
+        width: 100%;
     }
     
     /* Global Styles */
@@ -30,7 +31,12 @@ class PhantomDashboard(App):
         text-style: bold;
         background: $primary;
         color: white;
-        padding: 1;
+        padding: 0 1;
+        width: 100%;
+    }
+    
+    Static, DataTable, Log, Container {
+        height: 100%;
         width: 100%;
     }
     
@@ -106,8 +112,13 @@ class PhantomDashboard(App):
 
     def on_mount(self) -> None:
         self.title = "Phantom Arbiter [Dashboard 2.0]"
-        self.sub_title = "Cycle: --μs | State: CONNECTING"
-        self.set_interval(0.25, self.update_ui)
+        self.sub_title = "Cycle: --μs | State: OPERATIONAL"
+        
+        # Log Startup
+        state.log("🚀 Phantom Cockpit: Interface Mounted")
+        state.log("📡 Mode: " + ("LIVE" if state.mode == "LIVE" else "PAPER"))
+        
+        self.set_interval(0.5, self.update_ui)
         
     def update_ui(self) -> None:
         try:
