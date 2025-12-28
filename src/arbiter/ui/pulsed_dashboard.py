@@ -108,12 +108,13 @@ class PulsedDashboard:
         rows = []
         if signals:
             for s in signals[:3]:
-                conf_color = "green" if s.confidence > 0.8 else "yellow"
+                conf = float(s.confidence) if s.confidence else 0.0
+                conf_color = "green" if conf > 0.8 else "yellow"
                 rows.append([
                     f"⚡ {s.token}", 
                     f"${s.price:.4f}", 
                     "SIG", 
-                    f"[{conf_color}]{s.confidence:.0%}[/{conf_color}]"
+                    f"[{conf_color}]{conf:.0%}[/{conf_color}]"
                 ])
         
         # 2. Fill with Market Pulse (Top watched)
