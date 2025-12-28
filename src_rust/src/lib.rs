@@ -356,7 +356,12 @@ mod slab_decoder;
 mod amm_math;
 
 // ------------------------------------------------------------------------
-// SECTION 7: MODULE REGISTRATION
+// SECTION 8: INSTRUCTION BUILDER (THE FORGE)
+// ------------------------------------------------------------------------
+mod instruction_builder;
+
+// ------------------------------------------------------------------------
+// SECTION 9: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
@@ -370,10 +375,15 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;
-    m.add_function(wrap_pyfunction!(slab_decoder::decode_phoenix_header, m)?)?;
     
     // AMM Math (The Oracle)
     amm_math::register_amm_functions(m)?;
+    
+    // Instruction Builder (The Forge)
+    instruction_builder::register_instruction_functions(m)?;
+    
+    // Slab Decoder (The Ledger)
+    slab_decoder::register_slab_functions(m)?;
     
     Ok(())
 }
