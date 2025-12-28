@@ -3,6 +3,7 @@ import time
 import os
 from contextlib import contextmanager
 from src.shared.system.logging import Logger
+from typing import List
 
 class DBManager:
     """
