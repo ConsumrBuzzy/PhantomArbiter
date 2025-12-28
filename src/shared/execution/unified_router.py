@@ -33,7 +33,7 @@ class UnifiedTradeRouter:
         self.router = None
         
         # Initialize Rust Core
-        private_key = Settings.PRIVATE_KEY
+        private_key = os.getenv("PHANTOM_PRIVATE_KEY") or getattr(Settings, "PHANTOM_PRIVATE_KEY", None)
         if RustRouter and private_key:
             try:
                 self.router = RustRouter(private_key)

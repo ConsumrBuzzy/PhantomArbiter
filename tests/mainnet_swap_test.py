@@ -37,9 +37,11 @@ async def test_mainnet_swap():
         return
 
     # 3. Get Swap Transaction
+    public_key = os.getenv("PHANTOM_PUBLIC_KEY") or str(Settings.PUBLIC_KEY) if hasattr(Settings, "PUBLIC_KEY") else "96g9sAg9CeGguRiYp9YmNTSUky1F9p7hYy1B52B7WAbA"
+    
     payload = {
         "quoteResponse": quote,
-        "userPublicKey": str(Settings.PUBLIC_KEY),
+        "userPublicKey": public_key,
         "wrapAndUnwrapSol": True,
         "computeUnitPriceMicroLamports": 5000 # Minimal
     }
