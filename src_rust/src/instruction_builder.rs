@@ -409,11 +409,49 @@ const TOKEN_2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 /// Memo Program ID (required by Raydium CLMM)
 const MEMO_PROGRAM: &str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
-/// Anchor discriminator for Raydium CLMM `swapV2` instruction
+/// Anchor discriminator for Raydium CLMM `swap` instruction (SPL-only legacy)
+/// Calculated as: sha256("global:swap")[0..8]
+const RAYDIUM_CLMM_SWAP_DISCRIMINATOR: [u8; 8] = [248, 198, 244, 225, 115, 175, 175, 192];
+
+/// Anchor discriminator for Raydium CLMM `swapV2` instruction (SPL + Token-2022)
 /// Calculated as: sha256("global:swap_v2")[0..8]
 const RAYDIUM_CLMM_SWAP_V2_DISCRIMINATOR: [u8; 8] = [0x2b, 0x04, 0xed, 0x0b, 0x1a, 0xc9, 0x1e, 0xb8];
 
-/// Build Raydium CLMM swapV2 instruction data.
+/// Build Raydium CLMM swap instruction data (Legacy SPL-only).
+/// Use this for older CLMM pools that don't support Token-2022.
+/// 
+/// # Arguments
+/// * `amount` - Amount to swap (input or output depending on by_amount_in)
+/// * `other_amount_threshold` - Slippage threshold (min output or max input)
+/// * `sqrt_price_limit_x64` - Price limit as Q64.64 (0 = no limit)
+/// * `by_amount_in` - True if `amount` is input amount (ExactIn mode)
+/// 
+/// # Returns
+/// Instruction data bytes (without accounts)
+#[pyfunction]
+#[pyo3(signature = (amount, other_amount_threshold, sqrt_price_limit_x64, by_amount_in=true))]
+pub fn build_raydium_clmm_swap_legacy_data(
+    amount: u64,
+    other_amount_threshold: u64,
+    sqrt_price_limit_x64: u128,
+    by_amount_in: bool,
+) -> PyResult<Vec<u8>> {
+    let mut data = Vec::with_capacity(8 + 8 + 8 + 16 + 1);
+    
+    // Legacy discriminator (SPL-only)
+    data.extend_from_slice(&RAYDIUM_CLMM_SWAP_DISCRIMINATOR);
+    
+    // Args (Borsh serialized, matching Swap struct)
+    data.extend_from_slice(&amount.to_le_bytes());
+    data.extend_from_slice(&other_amount_threshold.to_le_bytes());
+    data.extend_from_slice(&sqrt_price_limit_x64.to_le_bytes());
+    data.push(by_amount_in as u8);
+    
+    Ok(data)
+}
+
+/// Build Raydium CLMM swapV2 instruction data (SPL + Token-2022).
+/// Preferred for all modern CLMM pools.
 /// 
 /// # Arguments
 /// * `amount` - Amount to swap (input or output depending on by_amount_in)
@@ -436,7 +474,7 @@ pub fn build_raydium_clmm_swap_data(
     
     let mut data = Vec::with_capacity(8 + 8 + 8 + 16 + 1);
     
-    // Discriminator
+    // Discriminator (Token-2022 compatible)
     data.extend_from_slice(&RAYDIUM_CLMM_SWAP_V2_DISCRIMINATOR);
     
     // Args (Borsh serialized, matching SwapV2 struct)
@@ -591,6 +629,7 @@ pub fn register_instruction_functions(m: &PyModule) -> PyResult<()> {
     // Raydium CLMM (Concentrated Liquidity)
     m.add_function(wrap_pyfunction!(build_raydium_clmm_swap_ix, m)?)?;
     m.add_function(wrap_pyfunction!(build_raydium_clmm_swap_data, m)?)?;
+    m.add_function(wrap_pyfunction!(build_raydium_clmm_swap_legacy_data, m)?)?;
     
     // Orca Whirlpool
     m.add_function(wrap_pyfunction!(build_whirlpool_swap_data, m)?)?;

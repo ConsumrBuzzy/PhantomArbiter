@@ -366,7 +366,17 @@ mod instruction_builder;
 mod network_submitter;
 
 // ------------------------------------------------------------------------
-// SECTION 10: MODULE REGISTRATION
+// SECTION 10: SLOT CONSENSUS (THE ACCURACY GUARD)
+// ------------------------------------------------------------------------
+mod slot_consensus;
+
+// ------------------------------------------------------------------------
+// SECTION 11: TICK ARRAY MANAGER (CLMM CORRECTNESS)
+// ------------------------------------------------------------------------
+mod tick_array_manager;
+
+// ------------------------------------------------------------------------
+// SECTION 12: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
@@ -393,5 +403,13 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // Network Submitter (The Blast)
     network_submitter::register_network_functions(m)?;
     
+    // Slot Consensus (The Accuracy Guard)
+    slot_consensus::register_consensus_classes(m)?;
+    
+    // Tick Array Manager (CLMM Correctness)
+    tick_array_manager::register_tick_array_functions(m)?;
+    
     Ok(())
 }
+
+
