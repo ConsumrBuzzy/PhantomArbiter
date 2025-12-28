@@ -100,6 +100,7 @@ class PulsedDashboard:
         # V90.0: Unified Price Watch + Signal View
         table = Table(box=box.SIMPLE, expand=True)
         table.add_column("Token", style="magenta")
+        table.add_column("Status", style="cyan")  # V133: Dedicated Status column
         table.add_column("Price", justify="right")
         table.add_column("RSI", justify="right")
         table.add_column("Conf")
@@ -117,11 +118,14 @@ class PulsedDashboard:
                     conf_map = {'high': 0.9, 'medium': 0.6, 'med': 0.6, 'low': 0.3}
                     conf = conf_map.get(str(raw_conf).lower(), 0.5)
                 conf_color = "green" if conf > 0.8 else "yellow"
-                # Use available ScalpSignal attributes
-                price_str = f"${getattr(s, 'price', 0):.4f}" if hasattr(s, 'price') else s.signal_type
+                # V133: Separate Status and Price columns
+                price_val = getattr(s, 'price', None)
+                price_str = f"${price_val:.4f}" if price_val else "-"
+                status_str = s.signal_type if hasattr(s, 'signal_type') else s.action
                 rows.append([
-                    f"⚡ {s.token}", 
-                    price_str, 
+                    f"⚡ {s.token}",
+                    status_str,  # V133: Status column
+                    price_str,   # V133: Price column 
                     s.action if hasattr(s, 'action') else "SIG", 
                     f"[{conf_color}]{conf:.0%}[/{conf_color}]"
                 ])
@@ -150,10 +154,11 @@ class PulsedDashboard:
                 # Deduplicate if already shown as signal
                 if any(r[0] == f"⚡ {symbol}" for r in rows): continue
                 
-                rows.append([symbol, f"${price:.4f}", rsi_str, f"{conf:.0%}"])
+                # V133: Add Status column (empty for market data)
+                rows.append([symbol, "-", f"${price:.4f}", rsi_str, f"{conf:.0%}"])
                 
         if not rows:
-             table.add_row("-", "Initializing...", "-", "-")
+             table.add_row("-", "-", "Initializing...", "-", "-")
         else:
             for r in rows[:10]:
                 table.add_row(*r)
@@ -161,18 +166,26 @@ class PulsedDashboard:
         return Panel(table, title="[magenta]Scalper & Price Watch[/magenta]", border_style="magenta")
 
     def generate_inventory_panel(self, inventory: List[Any]):
-        """Show held bags."""
+        """Show held bags with Bought and Current prices."""
         table = Table(box=box.SIMPLE, expand=True)
         table.add_column("Token")
-        table.add_column("Value", justify="right")
+        table.add_column("Bought", justify="right")   # V133: Bought Price
+        table.add_column("Current", justify="right")  # V133: Current Price
         table.add_column("PnL", justify="right")
         
         if not inventory:
-            table.add_row("No positions", "-", "-")
+            table.add_row("No positions", "-", "-", "-")
         else:
             for item in inventory[:5]:
                 pnl_color = "green" if item.pnl > 0 else "red"
-                table.add_row(item.symbol, f"${item.value_usd:.2f}", f"[{pnl_color}]${item.pnl:.2f}[/{pnl_color}]")
+                bought_price = getattr(item, 'bought_price', 0) or getattr(item, 'entry_price', 0)
+                current_price = getattr(item, 'current_price', 0) or (item.value_usd / item.quantity if getattr(item, 'quantity', 0) else 0)
+                table.add_row(
+                    item.symbol, 
+                    f"${bought_price:.4f}" if bought_price else "-",
+                    f"${current_price:.4f}" if current_price else "-",
+                    f"[{pnl_color}]${item.pnl:.2f}[/{pnl_color}]"
+                )
                 
         return Panel(table, title="Inventory (Held Bags)", border_style="yellow")
 

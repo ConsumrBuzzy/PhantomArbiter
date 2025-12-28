@@ -555,7 +555,7 @@ class TradingCore:
         watcher = signal.get("watcher")
         price = signal.get("price")
         reason = signal.get("reason")
-        size_usd = signal.get("size_usd")
+        size_usd = signal.get("size_usd") or Settings.POSITION_SIZE_USD  # V133: Default if None
         confidence = signal.get("confidence", 0.5)  # V79.0: Get confidence
         
         # V85.1: Enforce Dynamic Confidence Thresholds
