@@ -232,7 +232,7 @@ class TradingCore:
         
         # V48.0: Initialize HeartbeatReporter
         self.heartbeat = HeartbeatReporter(
-            engine_name=self.name,
+            engine_name=engine_name,
             paper_wallet=self.paper_wallet,
             portfolio=self.portfolio,
             wallet=self.wallet,
