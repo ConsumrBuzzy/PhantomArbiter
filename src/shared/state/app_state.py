@@ -5,6 +5,7 @@ import threading
 import time
 import os
 from src.core.global_state import GlobalState
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 
 @dataclass
 class ArbOpportunity:
@@ -73,6 +74,7 @@ class AppState:
         # Value is Dict: {'price': float, 'rsi': float, 'conf': float, 'action': str}
         self.market_pulse: Dict[str, Dict[str, Any]] = {} 
         self.scalp_signals: List[ScalpSignal] = []
+        self.system_signals = deque(maxlen=50) # V35: Unified Signal Audit
         
         # V33: Persistent Registry Sync
         self._load_from_global_state()
@@ -97,6 +99,13 @@ class AppState:
         # Sync to GlobalState (disk)
         GlobalState.update_state({key: value})
         self.log(f"[State] Persistent setting {key} -> {value}")
+        
+        # V35: Reactive Notify
+        signal_bus.emit(Signal(
+            type=SignalType.CONFIG_CHANGE,
+            source="AppState",
+            data={"key": key, "value": value}
+        ))
 
     # ... (methods) ...
     
@@ -113,6 +122,10 @@ class AppState:
         self.scalp_signals.insert(0, signal)
         if len(self.scalp_signals) > 50:
             self.scalp_signals.pop()
+
+    def add_system_signal(self, sig: Any):
+        """Add any signal to the audit log."""
+        self.system_signals.appendleft(sig)
 
     def log(self, message: str):
         """Add a log message."""

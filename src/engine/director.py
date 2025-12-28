@@ -70,8 +70,23 @@ class Director:
         """Route internal system alerts to the bus."""
         def log_signal(sig: Signal):
             state.log(f"📡 [Bus] {sig.type.value} from {sig.source}")
+            # V35: Push to unified audit log
+            state.add_system_signal(sig)
         
         self.signal_bus.subscribe(SignalType.SYSTEM_ALERT, log_signal)
+        self.signal_bus.subscribe(SignalType.WHALE, log_signal)
+        self.signal_bus.subscribe(SignalType.SCOUT, log_signal)
+        self.signal_bus.subscribe(SignalType.SCALP_SIGNAL, log_signal)
+        self.signal_bus.subscribe(SignalType.ARB_OPP, log_signal)
+        
+        # V35: Reactive Mode Toggle
+        def handle_config_change(sig: Signal):
+            key = sig.data.get("key")
+            value = sig.data.get("value")
+            if key == "MODE":
+                self._sync_execution_mode(value)
+                
+        self.signal_bus.subscribe(SignalType.CONFIG_CHANGE, handle_config_change)
 
     async def start(self):
         """Ignition: The Supervisor Kernel Start (Non-blocking)."""
@@ -260,3 +275,22 @@ class Director:
                 state.log(f"[WalletSync] Error: {e}")
                 await asyncio.sleep(5)
 
+    def _sync_execution_mode(self, mode: str):
+        """Synchronize LIVE/PAPER mode across all tiered agents."""
+        is_live = (mode == "LIVE")
+        state.log(f"🔄 [Director] Syncing execution mode to: {mode} (Live: {is_live})")
+        
+        # 1. Update Arbiter
+        if "arbiter" in self.agents:
+            # We add this method to PhantomArbiter
+            self.agents["arbiter"].set_live_mode(is_live)
+            
+        # 2. Update Scalper
+        if "scalper" in self.agents:
+            # We add this method to TradingCore
+            self.agents["scalper"].set_live_mode(is_live)
+            
+        # 3. Update Other Components
+        # e.g. Landlord, Discovery (usually informational but good to sync)
+        
+        state.log(f"✅ [Director] System transformed to {mode} path.")

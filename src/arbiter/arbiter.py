@@ -241,6 +241,25 @@ class PhantomArbiter:
             Logger.error(f"❌ LIVE MODE FAILED: {e}")
             self.config.live_mode = False
             self._setup_paper_mode()
+            
+    def set_live_mode(self, live: bool):
+        """Dynamically switch between LIVE and PAPER modes."""
+        if self.config.live_mode == live:
+            return
+            
+        Logger.info(f"🔄 [Arbiter] Switching to {'LIVE' if live else 'PAPER'} mode...")
+        self.config.live_mode = live
+        
+        if live:
+            # We use a simplified setup that reuses existing wallet if available
+            # or forces a full re-init in background
+            asyncio.create_task(self._setup_live_mode_async())
+        else:
+            self._setup_paper_mode()
+            
+        # Notify engine if active
+        if self._engine:
+            self._engine.live_mode = live
 
     
     def _get_detector(self) -> SpreadDetector:

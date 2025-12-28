@@ -27,10 +27,15 @@ class PulsedDashboard:
             Layout(name="main", ratio=1),
             Layout(name="footer", size=3)
         )
-        # Main area: Split Left (Arbiter) and Right (Scalper/Inventory/Stats)
+        # Main area: Split Left (Arbiter + Signals) and Right (Scalper/Inventory/Stats)
         self.layout["main"].split_row(
-            Layout(name="left", ratio=3), 
+            Layout(name="left_container", ratio=3), 
             Layout(name="right", ratio=2)
+        )
+        
+        self.layout["left_container"].split_column(
+            Layout(name="left", ratio=2), # Arb Table
+            Layout(name="signals", ratio=1) # Signal Audit
         )
         
         # Right Column: Split Top (Scalper), Middle (Inventory), Bottom (Stats)
@@ -161,6 +166,27 @@ class PulsedDashboard:
                 
         return Panel(table, title="Inventory (Held Bags)", border_style="yellow")
 
+    def generate_signal_panel(self, signals: List[Any]):
+        """Show recent system-wide signals."""
+        table = Table(box=box.SIMPLE, expand=True)
+        table.add_column("Time", style="dim")
+        table.add_column("Type")
+        table.add_column("Source", style="cyan")
+        table.add_column("Summary", ratio=1)
+        
+        for sig in list(signals)[:10]:
+            ts = datetime.fromtimestamp(sig.timestamp).strftime("%H:%M:%S")
+            s_type = sig.type.value
+            color = "white"
+            if s_type == "WHALE": color = "bold blue"
+            elif s_type == "SCOUT": color = "bold green"
+            elif s_type == "ARB_OPP": color = "cyan"
+            
+            summary = str(sig.data.get("symbol", sig.data.get("message", "Data...")))
+            table.add_row(ts, f"[{color}]{s_type}[/{color}]", sig.source, summary)
+            
+        return Panel(table, title="Signal Intelligence (Global Feed)", border_style="magenta")
+
     def generate_stats_panel(self, trades: int, volume: float, turnover: float):
         lines = [
             f"[bold]Session Stats[/bold]",
@@ -201,6 +227,11 @@ class RichPulseReporter(ArbiterReporter):
         # Pass both signals and market_pulse
         self.dashboard.layout["scalper"].update(
             self.dashboard.generate_scalper_panel(app_state.scalp_signals, app_state.market_pulse)
+        )
+        
+        # 3b. Signals (Left Bottom)
+        self.dashboard.layout["signals"].update(
+            self.dashboard.generate_signal_panel(app_state.system_signals)
         )
         
         # 4. Inventory (Right Mid)

@@ -240,6 +240,24 @@ class TradingCore:
         
         signal_bus.subscribe(SignalType.SCOUT, handle_scout_signal)
         
+    def set_live_mode(self, live: bool):
+        """Dynamically switch between LIVE and PAPER modes."""
+        Logger.info(f"🔄 [{self.engine_name}] Switching to {'LIVE' if live else 'PAPER'} mode...")
+        self.executor.live_mode = live
+        
+        # Sync Settings (Legacy compat for other components that haven't been refactored yet)
+        # Settings.ENABLE_TRADING = live 
+        # Note: We avoid changing global Settings if possible to keep isolation,
+        # but some legacy path might still need it. 
+        # For now, we rely on the refactored Executor.
+        
+        # update portfolio state if needed
+        if live:
+            self.portfolio.initial_capital = None # Using real wallet balance
+        else:
+            if not self.portfolio.initial_capital:
+                self.portfolio.initial_capital = 1000.0
+        
     def _init_watchers(self):
         """Initialize active watchers from config. V11.4: Scouts deferred to background."""
         active, volatile, watch, scout, all_assets, raw_data, watcher_pairs = Settings.load_assets()

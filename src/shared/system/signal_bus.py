@@ -10,6 +10,7 @@ class SignalType(Enum):
     ARB_OPP = "ARB_OPP"
     SCALP_SIGNAL = "SCALP_SIGNAL"
     SYSTEM_ALERT = "SYSTEM_ALERT"
+    CONFIG_CHANGE = "CONFIG_CHANGE"
 
 @dataclass
 class Signal:

@@ -51,7 +51,7 @@ class TradeExecutor:
     # V85.0: Use aggressive threshold in paper mode
     @property
     def ML_THRESHOLD(self):
-        if not Settings.ENABLE_TRADING and getattr(Settings, 'PAPER_AGGRESSIVE_MODE', False):
+        if not self.live_mode and getattr(Settings, 'PAPER_AGGRESSIVE_MODE', False):
             return getattr(Settings, 'PAPER_ML_THRESHOLD', 0.45)
         return 0.65
     
@@ -94,6 +94,7 @@ class TradeExecutor:
         self.validator = validator
         self.pyth_adapter = pyth_adapter
         self.jito_adapter = jito_adapter
+        self.live_mode = getattr(Settings, 'ENABLE_TRADING', False)
         
         # V48.0: Price divergence tolerance
         self.PRICE_DIVERGENCE_TOLERANCE = 0.005  # 0.5%
@@ -144,7 +145,7 @@ class TradeExecutor:
                     return False, "Token-2022 (unsupported)"
         
         # 1. Check Cash Balance (Paper Trading)
-        if not Settings.ENABLE_TRADING:
+        if not self.live_mode:
             min_buy_size = 2.0
             if is_paper_aggressive:
                 print(f"      🔍 Cash Check: ${self.paper_wallet.cash_balance:.2f} >= ${min_buy_size}? {self.paper_wallet.cash_balance >= min_buy_size}")
@@ -154,7 +155,7 @@ class TradeExecutor:
                 return False, "Insufficient cash"
         
         # 2. Check Gas Balance
-        if not Settings.ENABLE_TRADING:
+        if not self.live_mode:
             min_gas = 0.005
             if is_paper_aggressive:
                 print(f"      🔍 Gas Check: {self.paper_wallet.sol_balance:.4f} SOL >= {min_gas}? {self.paper_wallet.sol_balance >= min_gas}")
@@ -524,8 +525,8 @@ class TradeExecutor:
             print(f"      ✅ Lock acquired")
         
         # Log execution attempt
-        mode_prefix = "LIVE" if Settings.ENABLE_TRADING else "MOCK"
-        icon = "🚀" if Settings.ENABLE_TRADING else "🔧"
+        mode_prefix = "LIVE" if self.live_mode else "MOCK"
+        icon = "🚀" if self.live_mode else "🔧"
         priority_queue.add(2, 'LOG', {
             'level': 'INFO', 
             'message': f"{icon} EXECUTING {mode_prefix} BUY: {watcher.symbol} (${size_usd:.2f})"
@@ -533,7 +534,7 @@ class TradeExecutor:
         
         tx_id = None
         
-        if Settings.ENABLE_TRADING:
+        if self.live_mode:
             # LIVE EXECUTION
             tx_id = self.swapper.execute_swap(
                 direction="BUY",
@@ -746,15 +747,15 @@ class TradeExecutor:
             ExecutionResult with success status, message, and PnL
         """
         # Guard - only sell assets we hold
-        if not Settings.ENABLE_TRADING:
+        if not self.live_mode:
             if watcher.symbol not in self.paper_wallet.assets:
                 return ExecutionResult(False, "No position to sell")
         
         # Log execution attempt
-        mode_prefix = "LIVE" if Settings.ENABLE_TRADING else "MOCK"
+        mode_prefix = "LIVE" if self.live_mode else "MOCK"
         if getattr(Settings, 'DRY_RUN', False): mode_prefix = "SIMULATION"
         
-        icon = "📉" if Settings.ENABLE_TRADING else "🔧"
+        icon = "📉" if self.live_mode else "🔧"
         priority_queue.add(2, 'LOG', {
             'level': 'INFO',
             'message': f"{icon} EXECUTING {mode_prefix} SELL: {watcher.symbol} ({reason})"
@@ -787,7 +788,7 @@ class TradeExecutor:
         tx_id = None
         pnl_usd = 0.0
         
-        if Settings.ENABLE_TRADING:
+        if self.live_mode:
             # LIVE EXECUTION
             tx_id = self.swapper.execute_swap(
                 direction="SELL",
@@ -804,7 +805,7 @@ class TradeExecutor:
             time.sleep(2)
             
             # PnL calculation
-            if not Settings.ENABLE_TRADING:
+            if not self.live_mode:
                 pnl_usd = self._last_paper_pnl
             else:
                 exit_value = size_token_log * price
@@ -826,7 +827,7 @@ class TradeExecutor:
             )
             
             from src.system.comms_daemon import send_telegram
-            tg_priority = "HIGH" if Settings.ENABLE_TRADING else "LOW"
+            tg_priority = "HIGH" if self.live_mode else "LOW"
             send_telegram(msg, source="PRIMARY", priority=tg_priority)
             
             # Log success
