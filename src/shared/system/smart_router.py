@@ -6,6 +6,7 @@ import time
 import random
 from config.settings import Settings
 from src.shared.system.logging import Logger
+from typing import Optional, Dict
 
 class SmartRouter:
     """
