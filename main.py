@@ -199,28 +199,62 @@ def create_parser() -> argparse.ArgumentParser:
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
     """Run the TUI Dashboard with the Director orchestrator."""
-    from src.dashboard.tui_app import PhantomDashboard
-    from src.engine.director import Director
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.console import Console
+    import time
     
-    live_mode = getattr(args, 'live', False)
-    mode_str = "LIVE" if live_mode else "PAPER"
-    print(f"🚀 Launching Phantom Cockpit [{mode_str}]...")
+    console = Console()
+    console.clear()
+    console.print("\n   [bold cyan]PHANTOM ARBITER[/bold cyan] [green]v4.2.0[/green]\n")
+
+    director = None
+    app = None
     
-    # 1. Initialize Director (The Brain)
-    director = Director(live_mode=live_mode)
+    # Visual Loading Sequence
+    with Progress(
+        SpinnerColumn(spinner_name="dots"),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True
+    ) as progress:
+        
+        # Step 1: Kernel
+        task1 = progress.add_task("[cyan]Initializing Supervisor Kernel...", total=100)
+        from src.engine.director import Director
+        from config.settings import Settings
+        Settings.SILENT_MODE = True
+        
+        # Simulate 'heavy' boot (or actually measure it)
+        # We split init to show progress
+        director = Director()
+        progress.update(task1, advance=50)
+        await asyncio.sleep(0.3) # UX: Let user see the step
+        progress.update(task1, completed=100)
+        
+        # Step 2: Dashboard
+        task2 = progress.add_task("[magenta]Loading Cockpit Interface...", total=100)
+        from src.dashboard.tui_app import PhantomDashboard
+        app = PhantomDashboard()
+        progress.update(task2, advance=60)
+        await asyncio.sleep(0.2)
+        progress.update(task2, completed=100)
+        
+        # Step 3: Neural Net (Simulated connection for vibe)
+        task3 = progress.add_task("[green]Connecting to Neural Network...", total=100)
+        await asyncio.sleep(0.4) 
+        progress.update(task3, completed=100)
+        
+    console.print("   [bold green]✅ SYSTEM ONLINE[/bold green]\n")
+    await asyncio.sleep(0.5)
+
+    # 3. Start Engines in Background (V13.0)
+    engine_task = asyncio.create_task(director.start())
     
-    # 2. Initialize Dashboard (The Face)
-    app = PhantomDashboard()
-    
-    # 3. Start Engines
-    # We start the Director in the background
-    await director.start()
-    
-    # 4. Launch UI
+    # 4. Launch UI (Instant)
     try:
         await app.run_async()
     finally:
         # 5. Cleanup
+        engine_task.cancel()
         await director.stop()
 
 
