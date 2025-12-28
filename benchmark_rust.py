@@ -32,12 +32,18 @@ def benchmark():
     end_rs = time.perf_counter()
     time_rs = end_rs - start_rs
 
-    print(f"🦀 Rust Time:   {time_rs:.4f}s")
+    print(f"🦀 Rust Batch:  ", end="", flush=True)
+    start_batch = time.perf_counter()
+    # Create a list/vector of spreads to simulate bulk processing
+    spreads_list = [spread] * ITERATIONS
+    phantom_core.calculate_net_profit_batch(spreads_list, size, tip, friction)
+    end_batch = time.perf_counter()
+    time_batch = end_batch - start_batch
+
+    print(f"{time_batch:.4f}s")
     
-    if time_rs > 0:
-        print(f"⚡ Speedup:     {time_py / time_rs:.2f}x")
-    else:
-        print("⚡ Speedup:     Infinite (Rust was too fast to measure!)")
+    if time_batch > 0:
+        print(f"🚀 Batch Speedup: {time_py / time_batch:.2f}x")
 
 if __name__ == "__main__":
     benchmark()
