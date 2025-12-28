@@ -1,26 +1,20 @@
-"""
-Test Suite: Raydium Bridge Rust Execution (Phase 20.2)
-======================================================
-Verifies the plumbing of execute_swap_rust:
-- ATA Derivation
-- Vault Resolution
-- Rust Instruction Building Call
-- Atomic Transaction Signing
-"""
-
 import pytest
 from unittest.mock import MagicMock, patch
 import sys
-import base64
+import os
+sys.path.append(os.getcwd()) # Ensure src is importable
 
 # Mock phantom_core and solders/spl if needed
 sys.modules['phantom_core'] = MagicMock()
+
 sys.modules['solders'] = MagicMock()
 sys.modules['solders.pubkey'] = MagicMock()
 sys.modules['solders.keypair'] = MagicMock()
 sys.modules['spl.token.instructions'] = MagicMock()
+sys.modules['requests'] = MagicMock() # Mock requests globally
 
 from src.shared.execution.raydium_bridge import RaydiumBridge, RaydiumSwapResult
+import requests # Get the mock
 
 # Fake data
 POOL_ADDR = "Pool111111111111111111111111111111111111111"
@@ -31,15 +25,14 @@ MINT_B = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" # USDC
 def bridge():
     return RaydiumBridge(bridge_path="dummy")
 
-@patch('src.shared.execution.raydium_bridge.requests')
 @patch('src.shared.execution.raydium_bridge.phantom_core')
 @patch('src.shared.execution.raydium_bridge.Keypair')
 @patch('src.shared.execution.raydium_bridge.get_associated_token_address')
-def test_execute_swap_rust_success(mock_gata, mock_keypair, mock_core, mock_requests, bridge):
+def test_execute_swap_rust_success(mock_gata, mock_keypair, mock_core, bridge):
     """Verify successfully wired execution flow."""
     # 1. Setup Mocks
-    
-    # Mock RPC responses
+    mock_requests = sys.modules['requests'] # Access the global mock
+
     mock_requests.post.side_effect = [
         # Pool Info Response
         MagicMock(json=lambda: {
