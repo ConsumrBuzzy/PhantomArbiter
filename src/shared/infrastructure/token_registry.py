@@ -11,8 +11,7 @@ Provides:
 
 import time
 import requests
-from typing import Dict, Optional, Tuple
-from config.settings import Settings
+from typing import Dict, Optional, Tuple, Any
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.state.app_state import TokenIdentity, TokenRisk, TokenMarket
