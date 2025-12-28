@@ -5,8 +5,8 @@ Detects 3-leg arbitrage loops (e.g., USDC -> SOL -> JUP -> USDC).
 This framework enables "Triple Hopping" to capture inefficiencies across multiple pairs.
 """
 
-from dataclasses import dataclass, field, tuple
-from typing import List, Dict, Optional
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Tuple
 import time
 
 @dataclass
