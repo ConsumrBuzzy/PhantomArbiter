@@ -6,6 +6,7 @@ from solders.keypair import Keypair
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.system.rpc_pool import get_rpc_pool
+from src.shared.infrastructure.token_registry import get_registry
 
 class WalletManager:
     """
@@ -307,30 +308,29 @@ class WalletManager:
         try:
             # Fetch ALL token accounts
             all_tokens = self.get_all_token_accounts()
-            mint_to_symbol = {v: k for k, v in Settings.ASSETS.items()}
+            registry = get_registry()
             
             for mint, amount in all_tokens.items():
-                if mint == Settings.USDC_MINT: continue
+                if mint == Settings.USDC_MINT or mint in usdc_mints: continue
+                if mint in bridged_eth_mints: continue
                 
-                # Identify Symbol
-                symbol = mint_to_symbol.get(mint, "UNKNOWN")
+                # V300: Use Strong Token Recognition System
+                symbol = registry.get_symbol(mint)
                 price = 0.0
                 
                 # Get Price (Cache -> DexScreener)
-                if symbol != "UNKNOWN":
-                    price, _ = get_cached_price(symbol)
+                from src.core.shared_cache import get_cached_price
+                price, _ = get_cached_price(symbol)
                 
-                # If unknown or not in cache, skip synchronous fetch to prevent lag
-                # V15.1: Removed synchronous requests.get
-                if price <= 0:
-                     continue
-
-                usd_value = amount * price
-                if usd_value > 1.0: # Filter dust (<$1)
+                usd_value = amount * price if price else 0.0
+                
+                # Report if balance is significant or it's a known non-empty account
+                if amount > 0:
                     held_assets.append({
                         "symbol": symbol,
                         "amount": amount,
-                        "usd_value": usd_value
+                        "usd_value": usd_value,
+                        "mint": mint
                     })
                     total_usd += usd_value
                     
