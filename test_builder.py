@@ -35,12 +35,16 @@ def test_atomic_builder():
     jito_slot = 1000 # No gap
 
     try:
-        # Payer needs to be base58 string for our Rust function
-        payer_pubkey_str = str(payer.pubkey())
+        # Payer needs to be base58 string of the SECRET KEY for our Rust function
+        # solders Keypair string representation is the JSON array usually, need explicit base58
+        payer_key_b58 = str(payer) # Solders might default to something else, lets be specific
+        # Actually, solders.keypair.Keypair does not verify easily to base58 string in one go.
+        # Let's manually encode the secret bytes.
+        payer_key_b58 = base58.b58encode(bytes(payer.secret())).decode("ascii")
         
         tx_bytes = phantom_core.build_atomic_transaction(
             instruction_data,
-            payer_pubkey_str,
+            payer_key_b58,
             blockhash_str,
             rpc_slot,
             jito_slot
