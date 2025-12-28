@@ -179,5 +179,98 @@ def test_rust_vs_python_benchmark():
     assert speedup > 2, f"Expected at least 2x speedup, got {speedup:.1f}x"
 
 
+# ============================================================================
+# PHASE 2: CLMM TESTS
+# ============================================================================
+
+def test_clmm_imports():
+    """Verify CLMM functions are available."""
+    import phantom_core
+    
+    assert hasattr(phantom_core, 'compute_clmm_swap')
+    assert hasattr(phantom_core, 'sqrt_price_from_tick')
+    assert hasattr(phantom_core, 'tick_from_sqrt_price')
+    assert hasattr(phantom_core, 'price_from_sqrt_price')
+
+
+def test_sqrt_price_from_tick_zero():
+    """Tick 0 should give sqrt_price = 1.0 (Q64.64 = 2^64)."""
+    import phantom_core
+    
+    sqrt_price = phantom_core.sqrt_price_from_tick(0)
+    q64 = 1 << 64
+    
+    # Should be very close to 2^64
+    assert abs(sqrt_price - q64) < q64 * 0.001, f"Tick 0 sqrt_price should be ~{q64}, got {sqrt_price}"
+
+
+def test_tick_roundtrip():
+    """Converting tick -> sqrt_price -> tick should be stable."""
+    import phantom_core
+    
+    test_ticks = [0, 100, -100, 1000, -1000, 50000, -50000]
+    
+    for tick in test_ticks:
+        sqrt_price = phantom_core.sqrt_price_from_tick(tick)
+        recovered_tick = phantom_core.tick_from_sqrt_price(sqrt_price)
+        
+        # Allow +/- 1 due to rounding
+        assert abs(recovered_tick - tick) <= 1, (
+            f"Tick roundtrip failed: {tick} -> {sqrt_price} -> {recovered_tick}"
+        )
+
+
+def test_price_from_sqrt_price():
+    """Price should be sqrt_price squared."""
+    import phantom_core
+    
+    q64 = 1 << 64
+    
+    # sqrt_price = 2.0 (Q64.64 = 2 * 2^64)
+    sqrt_price_x64 = 2 * q64
+    price = phantom_core.price_from_sqrt_price(sqrt_price_x64)
+    
+    # Price should be 4.0
+    assert abs(price - 4.0) < 0.01, f"Expected price 4.0, got {price}"
+
+
+def test_compute_clmm_swap_basic():
+    """Basic CLMM swap should produce reasonable output."""
+    import phantom_core
+    
+    # Simulate a pool at tick 0 (price = 1.0), with 1M liquidity
+    sqrt_price_x64 = phantom_core.sqrt_price_from_tick(0)
+    liquidity = 1_000_000_000_000  # 1M in token units
+    amount_in = 1_000_000  # 1 token
+    
+    # Swap A -> B (price decreases)
+    amount_out, new_sqrt_price = phantom_core.compute_clmm_swap(
+        amount_in, sqrt_price_x64, liquidity, True, 30
+    )
+    
+    # Should get some output
+    assert amount_out > 0, f"Expected positive output, got {amount_out}"
+    # Price should decrease for A->B
+    assert new_sqrt_price < sqrt_price_x64, "Price should decrease for A->B swap"
+    
+    print(f"\nCLMM Swap A->B: {amount_in} in -> {amount_out} out")
+    print(f"Price change: {sqrt_price_x64} -> {new_sqrt_price}")
+
+
+def test_compute_clmm_swap_zero_input():
+    """Zero input should return zero output."""
+    import phantom_core
+    
+    sqrt_price_x64 = phantom_core.sqrt_price_from_tick(0)
+    liquidity = 1_000_000_000
+    
+    amount_out, new_sqrt_price = phantom_core.compute_clmm_swap(
+        0, sqrt_price_x64, liquidity, True, 30
+    )
+    
+    assert amount_out == 0
+    assert new_sqrt_price == sqrt_price_x64
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
