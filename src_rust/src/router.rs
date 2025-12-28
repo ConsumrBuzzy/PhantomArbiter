@@ -2,11 +2,11 @@ use pyo3::prelude::*;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
-use solana_sdk::instruction::{Instruction, AccountMeta};
+use solana_sdk::instruction::Instruction;
 use solana_sdk::system_instruction;
 use std::str::FromStr;
-use solana_sdk::transaction::VersionedTransaction;
-use solana_sdk::hash::Hash;
+use base64::Engine; // Fix base64 trait scope
+
 use crate::network_submitter::{submit_jito_async, submit_rpc_async, get_runtime};
 
 #[pyclass]
@@ -20,7 +20,7 @@ pub enum ExecutionPath {
 pub struct UnifiedTradeRouter {
     keypair: Keypair,
     jito_tip_account: Pubkey,
-    #[pyo3(get)]
+    // Removed #[pyo3(get)] as AtomicU64 doesn't implement IntoPy/Clone directly for get
     pub total_session_exposure: std::sync::atomic::AtomicU64, // In Milli-USD for atomic ops
 }
 
@@ -29,8 +29,8 @@ impl UnifiedTradeRouter {
     #[new]
     pub fn new(private_key_base58: String) -> PyResult<Self> {
         // Init keypair once for zero-latency signing
-        let keypair = Keypair::from_base58_string(&private_key_base58)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid keypair: {}", e)))?;
+        // Keypair::from_base58_string in this version returns Self directly (panics on invalid)
+        let keypair = Keypair::from_base58_string(&private_key_base58);
             
         Ok(Self { 
             keypair,
@@ -39,12 +39,18 @@ impl UnifiedTradeRouter {
         })
     }
 
+    /// Manual getter for atomic exposure
+    #[getter]
+    pub fn get_total_session_exposure(&self) -> u64 {
+        self.total_session_exposure.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// The High-Frequency Entry Point
     pub fn route(
         &self, 
         path: ExecutionPath, 
         instruction_data: Vec<u8>, // Serialized Instruction
-        cu_limit: u32,
+        _cu_limit: u32,
         priority_fee_lamports: u64,
         recent_blockhash: String
     ) -> PyResult<String> {
@@ -59,10 +65,10 @@ impl UnifiedTradeRouter {
 
         match path {
             ExecutionPath::AtomicJito => {
-                self.execute_jito_bundle(instruction_data, cu_limit, priority_fee_lamports, blockhash)
+                self.execute_jito_bundle(instruction_data, _cu_limit, priority_fee_lamports, blockhash)
             },
             ExecutionPath::SmartStandard => {
-                self.execute_standard_tx(instruction_data, cu_limit, priority_fee_lamports, blockhash)
+                self.execute_standard_tx(instruction_data, _cu_limit, priority_fee_lamports, blockhash)
             },
         }
     }
@@ -102,7 +108,7 @@ impl UnifiedTradeRouter {
     fn execute_jito_bundle(
         &self, 
         ix_data: Vec<u8>, 
-        cu_limit: u32, 
+        _cu_limit: u32, 
         tip_lamports: u64,
         blockhash: solana_sdk::hash::Hash
     ) -> PyResult<String> {

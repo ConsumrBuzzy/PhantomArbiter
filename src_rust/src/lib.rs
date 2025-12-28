@@ -1,10 +1,9 @@
 use solana_sdk::{
-    transaction::VersionedTransaction,
-    message::{v0, VersionedMessage},
-    pubkey::Pubkey,
     signature::{Keypair, Signer},
     hash::Hash,
     instruction::Instruction,
+    transaction::VersionedTransaction,
+    message::{v0, VersionedMessage},
 };
 use std::str::FromStr;
 use pyo3::prelude::*;
@@ -391,6 +390,7 @@ mod tick_array_manager;
 // SECTION 14: UNIFIED TRADE ROUTER (THE MUSCLE)
 // ------------------------------------------------------------------------
 pub mod router;
+pub mod wss_aggregator;
 
 // ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION

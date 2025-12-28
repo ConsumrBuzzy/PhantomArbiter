@@ -90,7 +90,7 @@ impl SubmissionResult {
 
 /// Get or create the Tokio runtime.
 /// PyO3 functions can't be async directly, so we use a blocking runtime.
-fn get_runtime() -> tokio::runtime::Runtime {
+pub(crate) fn get_runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(2)
@@ -155,7 +155,7 @@ pub fn submit_to_jito(
     }
 }
 
-async fn submit_jito_async(
+pub(crate) async fn submit_jito_async(
     endpoint: &str,
     tx_base64: &str,
     _tip_lamports: u64,
@@ -352,7 +352,7 @@ pub fn submit_to_rpc(
     }
 }
 
-async fn submit_rpc_async(
+pub(crate) async fn submit_rpc_async(
     endpoint: &str,
     tx_base64: &str,
     skip_preflight: bool,
