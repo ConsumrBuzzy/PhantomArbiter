@@ -108,7 +108,14 @@ class PulsedDashboard:
         rows = []
         if signals:
             for s in signals[:3]:
-                conf = float(s.confidence) if s.confidence else 0.0
+                # Handle both numeric and text-based confidence
+                raw_conf = s.confidence
+                try:
+                    conf = float(raw_conf) if raw_conf else 0.0
+                except (ValueError, TypeError):
+                    # Map text labels to numeric values
+                    conf_map = {'high': 0.9, 'medium': 0.6, 'low': 0.3}
+                    conf = conf_map.get(str(raw_conf).lower(), 0.5)
                 conf_color = "green" if conf > 0.8 else "yellow"
                 rows.append([
                     f"⚡ {s.token}", 
