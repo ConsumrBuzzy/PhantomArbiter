@@ -687,7 +687,6 @@ async def main() -> None:
         "dashboard": cmd_dashboard,
         "pulse": cmd_pulse,
     }
-    }
     
     handler = command_handlers.get(args.command)
     if handler:
