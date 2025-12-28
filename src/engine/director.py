@@ -233,5 +233,6 @@ class Director:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                pass
+                state.log(f"[WalletSync] Error: {e}")
+                await asyncio.sleep(5)
 

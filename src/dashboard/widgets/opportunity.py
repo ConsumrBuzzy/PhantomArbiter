@@ -22,6 +22,16 @@ class ArbWidget(Container):
         t1.clear()
         
         # Show top 15 arb paths
+        if not state.opportunities:
+            # Show scanning status
+            t1.add_row(
+                "SCANNING...", 
+                f"Rate: {state.stats.get('cycles_per_sec', 0):.1f}/s", 
+                "-", 
+                "-"
+            )
+            return
+
         for opp in state.opportunities[:15]:
              # Colorize Profit
             profit_str = f"{opp.profit_pct:.2f}%"
