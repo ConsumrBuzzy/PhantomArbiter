@@ -546,6 +546,7 @@ class DataBroker:
     def run_loop(self):
         """The main loop for data collection and processing."""
         self.running = True
+        try:
             while self.running:
                 # V18.0: Check if engines are halted (AppState Truth)
                 engines_halted = app_state.stats.get('engines_halted', False)
