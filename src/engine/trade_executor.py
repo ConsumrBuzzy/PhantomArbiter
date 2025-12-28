@@ -18,12 +18,12 @@ from typing import Dict, Optional, Tuple, Any, TYPE_CHECKING
 from dataclasses import dataclass
 
 from config.settings import Settings
-from src.system.priority_queue import priority_queue
+from src.shared.system.priority_queue import priority_queue
 from src.shared.system.logging import Logger
 
 if TYPE_CHECKING:
     from src.strategy.watcher import Watcher
-    from src.execution.paper_wallet import PaperWallet
+    from src.shared.execution.paper_wallet import PaperWallet
     from src.shared.system.capital_manager import CapitalManager
     from src.shared.infrastructure.validator import TokenValidator
     from src.core.prices.pyth_adapter import PythAdapter, PythPrice
@@ -554,7 +554,7 @@ class TradeExecutor:
             time.sleep(2)  # Execution pacing
             
             # V51.0: Use Template
-            from src.system.telegram_templates import TradeTemplates
+            from src.shared.system.telegram_templates import TradeTemplates
             msg = TradeTemplates.entry(
                 symbol=watcher.symbol,
                 action="BUY",
@@ -564,7 +564,7 @@ class TradeExecutor:
                 reason=reason
             )
             
-            from src.system.comms_daemon import send_telegram
+            from src.shared.system.comms_daemon import send_telegram
             tg_priority = "HIGH" if Settings.ENABLE_TRADING else "LOW"
             send_telegram(msg, source="PRIMARY", priority=tg_priority)
             
@@ -702,12 +702,12 @@ class TradeExecutor:
     
     def _log_paper_buy(self, symbol: str, price: float, reason: str, size_usd: float) -> None:
         """Log paper buy to console and telegram."""
-        from src.system.data_source_manager import DataSourceManager
+        from src.shared.system.data_source_manager import DataSourceManager
         dsm = DataSourceManager()
         volatility = dsm.get_volatility(symbol)
         
         # V51.0: Use Template
-        from src.system.telegram_templates import TradeTemplates
+        from src.shared.system.telegram_templates import TradeTemplates
         msg = TradeTemplates.entry(
             symbol=symbol,
             action="BUY",
@@ -717,7 +717,7 @@ class TradeExecutor:
             reason=f"{reason} (Vol: {volatility:.1f}%)"
         )
         
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         send_telegram(msg, source="PAPER", priority="LOW")
         
         # V51.0: Rich Console Log
