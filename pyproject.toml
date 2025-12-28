@@ -21,7 +21,6 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "driftpy>=0.7.0",
     "anchorpy>=0.18.0",
-    "telegram>=0.0.1",
     "loguru>=0.7.0",
     "rich>=13.0.0",
     "httpx",  # Added as per user request snippet
