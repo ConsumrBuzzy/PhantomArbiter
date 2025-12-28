@@ -441,7 +441,7 @@ class DataBroker:
         def delayed_hunter_start():
             time.sleep(5) 
             print("   🏹 Hunter Daemon Starting...")
-            self.hunter.run_loop()
+
 
         hunter_thread = threading.Thread(target=delayed_hunter_start, daemon=True, name="Hunter")
         hunter_thread.start()
