@@ -187,10 +187,191 @@ pub fn compute_price_impact(
 }
 
 // ============================================================================
-// PHASE 2: CLMM (Concentrated Liquidity) - Placeholder
+// PHASE 2: CLMM (Concentrated Liquidity Market Maker)
+// Supports: Orca Whirlpool, Raydium CLMM
 // ============================================================================
 
-// TODO: Implement compute_clmm_swap for Orca Whirlpool / Raydium CLMM
+/// Q64.64 fixed-point constant (2^64)
+const Q64: u128 = 1u128 << 64;
+
+/// Compute output amount for a CLMM swap within a single tick range.
+/// 
+/// This is an approximation that assumes the swap does NOT cross tick boundaries.
+/// For accurate multi-tick swaps, call this iteratively or use the full SDK.
+/// 
+/// # Arguments
+/// * `amount_in` - Input token amount
+/// * `sqrt_price_x64` - Current sqrt price as Q64.64 fixed point
+/// * `liquidity` - Active liquidity in the current tick range
+/// * `a_to_b` - True if swapping token A for token B (price decreases)
+/// * `fee_rate_bps` - Fee rate in basis points (e.g., 30 = 0.3%)
+/// 
+/// # Returns
+/// Tuple of (amount_out, new_sqrt_price_x64)
+#[pyfunction]
+#[pyo3(signature = (amount_in, sqrt_price_x64, liquidity, a_to_b, fee_rate_bps=30))]
+pub fn compute_clmm_swap(
+    amount_in: u64,
+    sqrt_price_x64: u128,
+    liquidity: u128,
+    a_to_b: bool,
+    fee_rate_bps: u64,
+) -> PyResult<(u64, u128)> {
+    if amount_in == 0 || liquidity == 0 || sqrt_price_x64 == 0 {
+        return Ok((0, sqrt_price_x64));
+    }
+    
+    // Apply fee to input
+    let fee_factor = 10000u128 - fee_rate_bps as u128;
+    let amount_in_after_fee = (amount_in as u128 * fee_factor) / 10000;
+    
+    if a_to_b {
+        // Swapping A -> B (selling A, price goes down)
+        // delta_sqrt_price = amount_in * Q64 / liquidity
+        // new_sqrt_price = old_sqrt_price - delta_sqrt_price
+        
+        let delta_sqrt_price = (amount_in_after_fee * Q64)
+            .checked_div(liquidity)
+            .unwrap_or(0);
+        
+        let new_sqrt_price = sqrt_price_x64.saturating_sub(delta_sqrt_price);
+        
+        if new_sqrt_price == 0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Swap would drain pool (sqrt_price would be 0)"
+            ));
+        }
+        
+        // amount_out = liquidity * (1/new_sqrt_price - 1/old_sqrt_price) * Q64
+        // Simplified: amount_out = liquidity * delta_sqrt_price / (sqrt_price_old * sqrt_price_new / Q64)
+        let amount_out = compute_b_from_sqrt_price_change(
+            sqrt_price_x64, 
+            new_sqrt_price, 
+            liquidity
+        )?;
+        
+        Ok((amount_out, new_sqrt_price))
+    } else {
+        // Swapping B -> A (buying A, price goes up)
+        // delta_sqrt_price = amount_in * sqrt_price^2 / (liquidity * Q64)
+        
+        // For B -> A: new_sqrt_price = old_sqrt_price + (amount_in * old_sqrt_price / liquidity)
+        let delta_sqrt_price = (amount_in_after_fee * sqrt_price_x64)
+            .checked_div(liquidity)
+            .unwrap_or(0);
+        
+        let new_sqrt_price = sqrt_price_x64.saturating_add(delta_sqrt_price);
+        
+        // amount_out (in A) = liquidity * (new_sqrt_price - old_sqrt_price) / Q64
+        let amount_out = compute_a_from_sqrt_price_change(
+            sqrt_price_x64,
+            new_sqrt_price,
+            liquidity
+        )?;
+        
+        Ok((amount_out, new_sqrt_price))
+    }
+}
+
+/// Helper: Compute amount of token B received from a sqrt_price decrease (A->B swap)
+fn compute_b_from_sqrt_price_change(
+    sqrt_price_old: u128,
+    sqrt_price_new: u128,
+    liquidity: u128,
+) -> PyResult<u64> {
+    // amount_b = liquidity * (sqrt_price_old - sqrt_price_new) / Q64
+    let delta = sqrt_price_old.saturating_sub(sqrt_price_new);
+    let amount = (liquidity * delta) / Q64;
+    Ok(amount.min(u64::MAX as u128) as u64)
+}
+
+/// Helper: Compute amount of token A received from a sqrt_price increase (B->A swap)
+fn compute_a_from_sqrt_price_change(
+    sqrt_price_old: u128,
+    sqrt_price_new: u128,
+    liquidity: u128,
+) -> PyResult<u64> {
+    // amount_a = liquidity * Q64 * (1/sqrt_price_old - 1/sqrt_price_new)
+    // = liquidity * Q64 * (sqrt_price_new - sqrt_price_old) / (sqrt_price_old * sqrt_price_new)
+    
+    if sqrt_price_old == 0 || sqrt_price_new == 0 {
+        return Ok(0);
+    }
+    
+    let delta = sqrt_price_new.saturating_sub(sqrt_price_old);
+    
+    // Use u128 arithmetic carefully to avoid overflow
+    // amount = liquidity * delta / sqrt_price_old
+    // (simplified since we're dividing by Q64 implicitly in the price representation)
+    let amount = (liquidity * delta) / sqrt_price_old;
+    let amount = amount / sqrt_price_new * Q64; // Normalize
+    
+    Ok(amount.min(u64::MAX as u128) as u64)
+}
+
+/// Convert a tick index to sqrt_price_x64.
+/// 
+/// Formula: sqrt_price = 1.0001^(tick/2) * 2^64
+/// 
+/// # Arguments
+/// * `tick` - The tick index (can be negative)
+/// 
+/// # Returns
+/// sqrt_price as Q64.64 fixed point
+#[pyfunction]
+pub fn sqrt_price_from_tick(tick: i32) -> PyResult<u128> {
+    // sqrt(1.0001^tick) = 1.0001^(tick/2)
+    // We compute this using: e^(tick * ln(1.0001) / 2)
+    
+    let tick_f64 = tick as f64;
+    let ln_1_0001 = 0.00009999500033330834f64; // ln(1.0001)
+    let exponent = tick_f64 * ln_1_0001 / 2.0;
+    let sqrt_price = exponent.exp();
+    
+    // Convert to Q64.64
+    let sqrt_price_x64 = (sqrt_price * (Q64 as f64)) as u128;
+    
+    Ok(sqrt_price_x64)
+}
+
+/// Convert sqrt_price_x64 back to a tick index.
+/// 
+/// # Arguments
+/// * `sqrt_price_x64` - sqrt price as Q64.64 fixed point
+/// 
+/// # Returns
+/// Tick index (rounded down)
+#[pyfunction]
+pub fn tick_from_sqrt_price(sqrt_price_x64: u128) -> PyResult<i32> {
+    if sqrt_price_x64 == 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "sqrt_price cannot be zero"
+        ));
+    }
+    
+    // Convert from Q64.64 to f64
+    let sqrt_price = (sqrt_price_x64 as f64) / (Q64 as f64);
+    
+    // tick = 2 * log(sqrt_price) / log(1.0001)
+    let ln_1_0001 = 0.00009999500033330834f64;
+    let tick = (2.0 * sqrt_price.ln()) / ln_1_0001;
+    
+    Ok(tick.floor() as i32)
+}
+
+/// Get the current price from sqrt_price_x64.
+/// 
+/// # Returns
+/// Price of token A in terms of token B (as f64)
+#[pyfunction]
+pub fn price_from_sqrt_price(sqrt_price_x64: u128) -> PyResult<f64> {
+    if sqrt_price_x64 == 0 {
+        return Ok(0.0);
+    }
+    
+    let sqrt_price = (sqrt_price_x64 as f64) / (Q64 as f64);
+    Ok(sqrt_price * sqrt_price)
+}
 
 // ============================================================================
 // PHASE 3: DLMM (Discrete Liquidity) - Placeholder
