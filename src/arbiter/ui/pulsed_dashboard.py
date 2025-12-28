@@ -40,9 +40,25 @@ class PulsedDashboard:
             Layout(name="stats", size=6)
         )
         
-    def generate_header(self, balance: float, gas: float, daily_profit: float, pod_names: List[str]):
-        pod_str = f" | 🔭 {','.join(pod_names)}" if pod_names else ""
-        text = f"[bold cyan]PHANTOM PULSE[/bold cyan] | 💰 Bal: [green]${balance:.2f}[/green] | ⛽ Gas: [yellow]${gas:.2f}[/yellow] | 📈 P/L: [green]${daily_profit:+.2f}[/green]{pod_str}"
+    def generate_header(self, state: Any):
+        """Render header with Real/Paper split."""
+        # Real Wallet
+        real_usdc = state.wallet_live.balance_usdc
+        real_sol = state.wallet_live.balance_sol
+        
+        # Paper Wallet
+        paper_usdc = state.wallet_paper.balance_usdc
+        paper_sol = state.wallet_paper.balance_sol
+        
+        pod_status = state.stats.get('pod_status', "")
+        pod_str = f" | 🔭 {pod_status}" if pod_status else ""
+        
+        # Layout: REAL [USDC | SOL]  ||  PAPER [USDC | SOL]
+        text = (
+            f"[bold cyan]PHANTOM PULSE[/bold cyan]{pod_str}   "
+            f"🔴 [bold]REAL:[/bold] [green]${real_usdc:,.2f}[/green] / [yellow]{real_sol:.3f} SOL[/yellow]   "
+            f"⚪ [dim]PAPER:[/dim] [green]${paper_usdc:,.2f}[/green] / [yellow]{paper_sol:.3f} SOL[/yellow]"
+        )
         return Panel(text, style="white on blue", box=box.HEAVY_HEAD)
         
     def generate_opp_table(self, spreads: List[SpreadOpportunity], verified_opps: List[SpreadOpportunity] = None):
@@ -168,15 +184,8 @@ class RichPulseReporter(ArbiterReporter):
     def update_from_state(self, app_state):
         """Pull ALL data from AppState (The Global Truth)."""
         # 1. Header
-        # Use mocked balance or real from state if available
-        # Ideally Director updates stats['balance']
-        balance = app_state.stats.get('balance', 0.0)
-        gas = 0.0 # TODO: Expose in state
-        daily_profit = app_state.stats.get('daily_profit', 0.0)
-        pod_status = app_state.stats.get('pod_status', "")
-        
         self.dashboard.layout["header"].update(
-            self.dashboard.generate_header(balance, gas, daily_profit, [pod_status] if pod_status else [])
+            self.dashboard.generate_header(app_state)
         )
         
         # 2. Arbiter (Left)
