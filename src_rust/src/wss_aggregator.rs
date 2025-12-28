@@ -401,7 +401,7 @@ fn parse_log_notification(text: &str, provider_name: &str) -> Option<WssEvent> {
         .filter_map(|l| l.as_str().map(|s| s.to_string()))
         .collect();
     
-    let timestamp_ns = std::time::SystemTime::now()
+    let _timestamp_ns = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos() as u64;

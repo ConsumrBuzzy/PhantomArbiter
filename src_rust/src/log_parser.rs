@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use base64::{Engine as _, engine::general_purpose};
-use borsh::{BorshDeserialize};
+// use borsh::{BorshDeserialize};
 
 #[pyclass]
 pub struct SwapEvent {

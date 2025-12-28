@@ -7,7 +7,7 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use base64::{Engine as _, engine::general_purpose};
+// use base64::{Engine as _, engine::general_purpose};
 
 // ============================================================================
 // CONSTANTS

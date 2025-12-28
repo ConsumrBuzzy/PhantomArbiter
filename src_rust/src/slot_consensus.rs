@@ -11,7 +11,7 @@
 use pyo3::prelude::*;
 use std::collections::HashSet;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+// use std::time::{Duration, Instant};
 
 // ============================================================================
 // BLOOM FILTER FOR SIGNATURE DE-DUPLICATION

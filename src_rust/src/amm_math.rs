@@ -6,6 +6,7 @@
 // ------------------------------------------------------------------------
 
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 
 // ============================================================================
 // PHASE 1: CONSTANT PRODUCT AMM (x * y = k)
@@ -440,7 +441,7 @@ pub fn dlmm_bin_from_price(price: f64, bin_step: u16) -> PyResult<i32> {
 /// # Returns
 /// Tuple of (amount_out, amount_in_consumed, bin_crossed)
 #[pyfunction]
-#[pyo3(signature = (amount_in, bin_reserve_in, bin_reserve_out, bin_id, bin_step, fee_rate_bps=25, swap_for_y=true))]
+#[pyo3(signature = (amount_in, _bin_reserve_in, bin_reserve_out, bin_id, bin_step, fee_rate_bps=25, swap_for_y=true))]
 pub fn compute_dlmm_swap_single_bin(
     amount_in: u64,
     _bin_reserve_in: u64,
