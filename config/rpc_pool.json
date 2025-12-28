@@ -46,24 +46,31 @@
         },
         {
             "name": "NOWNodes",
-            "url": "https://sol.nownodes.io/${NOWNODES_API_KEY}",
+            "url": "${NOWNODES_RPC_URL}",
             "priority": 2,
             "enabled": false,
-            "note": "Unmetered RPS for heavy queries. Requires NOWNODES_API_KEY"
+            "note": "Unmetered RPS for heavy queries."
         },
         {
             "name": "Ankr",
-            "url": "https://rpc.ankr.com/solana/${ANKR_API_KEY}",
+            "url": "${ANKR_ENDPOINT}",
             "priority": 2,
             "enabled": false,
-            "note": "Decentralized Failover. Requires ANKR_API_KEY"
+            "note": "Decentralized Failover."
         },
         {
             "name": "Lava",
-            "url": "https://solana.lava.build/rpc/v1/${LAVA_API_KEY}",
+            "url": "${LAVA_ENDPOINT}",
             "priority": 2,
             "enabled": false,
-            "note": "Privacy & Aggregation. Requires LAVA_API_KEY"
+            "note": "Privacy & Aggregation."
+        },
+        {
+            "name": "Chainstack",
+            "url": "${CHAINSTACK_RPC_URL}",
+            "priority": 2,
+            "enabled": false,
+            "note": "Fast node recovery."
         },
         {
             "name": "Solana Mainnet",

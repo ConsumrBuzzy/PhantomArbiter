@@ -36,6 +36,9 @@ class ProviderType(Enum):
     NOWNODES = "nownodes"
     ANKR = "ankr"
     LAVA = "lava"
+    LUNARCRUSH = "lunarcrush"
+    MORALIS = "moralis"
+    BITQUERY = "bitquery"
     PUBLIC = "public"  # No key required
 
 
@@ -167,6 +170,24 @@ PROVIDER_CONFIGS: dict[ProviderType, ProviderConfig] = {
         wss_template="wss://solana.lava.build/rpc/v1/{api_key}",
         env_key_prefix="LAVA_API_KEY",
     ),
+    ProviderType.LUNARCRUSH: ProviderConfig(
+        provider=ProviderType.LUNARCRUSH,
+        http_template="https://api.lunarcrush.com/v2?api-key={api_key}",
+        wss_template="",
+        env_key_prefix="LUNARCRUSH_API_KEY",
+    ),
+    ProviderType.MORALIS: ProviderConfig(
+        provider=ProviderType.MORALIS,
+        http_template="https://solana-mainnet.g.alchemy.com/v2/{api_key}", # Logic below handles moralis specific if needed
+        wss_template="",
+        env_key_prefix="MORALIS_API_KEY",
+    ),
+    ProviderType.BITQUERY: ProviderConfig(
+        provider=ProviderType.BITQUERY,
+        http_template="https://graphql.bitquery.io",
+        wss_template="",
+        env_key_prefix="BITQUERY_API_KEY",
+    ),
 }
 
 
@@ -196,18 +217,34 @@ class ProviderPool:
     
     def load_from_env(self) -> int:
         """
-        Load all API keys from environment variables.
+        Load all API keys and full URLs from environment variables.
         
-        Supports multiple keys per provider:
-        - HELIUS_API_KEY (single key)
-        - HELIUS_API_KEY_1, HELIUS_API_KEY_2, ... (multiple keys)
-        
-        Returns:
-            Number of endpoints loaded.
+        Supports:
+        - <PREFIX>_API_KEY (injected into template)
+        - <PREFIX>_RPC_URL (full HTTP URL override)
+        - <PREFIX>_WSS_URL (full WSS URL override)
         """
         loaded = 0
         
         for provider_type, config in PROVIDER_CONFIGS.items():
+            # 1. Check for full URL overrides (e.g., HELIUS_RPC_URL)
+            rpc_url = os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_RPC_URL") or \
+                      os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_ENDPOINT")
+            wss_url = os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_WSS_URL") or \
+                      os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_WSS")
+            
+            if rpc_url:
+                endpoint = ProviderEndpoint(
+                    provider=provider_type,
+                    api_key="manual",
+                    http_url=rpc_url.strip().strip('"').strip("'"),
+                    wss_url=(wss_url or rpc_url.replace("https://", "wss://")).strip().strip('"').strip("'"),
+                )
+                self._endpoints.append(endpoint)
+                loaded += 1
+                continue # Skip key loading for this provider if full URL is given
+
+            # 2. Regular key-based loading
             keys = self._get_env_keys(config.env_key_prefix)
             
             for key in keys:
