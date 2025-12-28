@@ -63,12 +63,14 @@ class WalletWidget(Static):
     
     def compose(self) -> ComposeResult:
         # Side-by-side Institutional View
-        yield Container(
-            WalletDisplay("📜 SIMULATION", "paper"),
-            WalletDisplay("🔥 TRADE CAP", "live"),
+        container = Container(
+            WalletDisplay("PAPER WALLET", "paper"),
+            WalletDisplay("REAL WALLET", "live"),
             id="dual_wallet_container",
             classes="horizontal_layout"
         )
+        container.border_title = "SIMULATION"
+        yield container
 
     def update_wallets(self):
         for widget in self.query(WalletDisplay):

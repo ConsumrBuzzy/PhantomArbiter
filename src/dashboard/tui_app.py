@@ -43,8 +43,14 @@ class PhantomDashboard(App):
     }
     
     #stats_panel { row-span: 1; column-span: 1; background: $boost; border: solid green; }
-    #wallet_panel { row-span: 1; column-span: 2; background: $surface; border: solid cyan; }
+    #wallet_panel { row-span: 1; column-span: 2; background: $surface; }
     
+    #dual_wallet_container { 
+        border: solid cyan; 
+        height: 100%; 
+        width: 100%; 
+    }
+
     /* Row 2: Arb (Left), Scalp (Mid), Inventory (Right) */
     #arb_panel { row-span: 1; column-span: 1; background: $surface; border: solid blue; }
     #scalp_panel { row-span: 1; column-span: 1; background: $surface; border: solid yellow; }

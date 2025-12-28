@@ -140,19 +140,17 @@ class ArbiterEngine:
                     self._last_spreads = current_spreads
 
                     # ═══ V12.5: Push to TUI AppState ═══
-                    try:
-                        from src.shared.state.app_state import ArbOpportunity
-                        app_state.update_stat("cycles_per_sec", 1.0 / (self._last_duration / 1000.0) if self._last_duration > 0 else 0)
-                        app_state.opportunities = [
-                            ArbOpportunity(
-                                token=o.pair,
-                                route=f"{o.buy_dex}->{o.sell_dex}",
-                                profit_pct=o.spread_pct,
-                                est_profit_sol=o.net_profit_usd / 150.0 # Mock conversion for Sol
-                            ) for o in opportunities[:10]
-                        ]
-                    except:
-                        pass
+                    # ═══ V12.5: Push to TUI AppState ═══
+                    from src.shared.state.app_state import ArbOpportunity
+                    app_state.update_stat("cycles_per_sec", 1.0 / (self._last_duration / 1000.0) if self._last_duration > 0 else 0)
+                    app_state.opportunities = [
+                        ArbOpportunity(
+                            token=o.pair,
+                            route=f"{o.buy_dex}->{o.sell_dex}",
+                            profit_pct=o.spread_pct,
+                            est_profit_sol=o.net_profit_usd / 150.0 # Mock conversion for Sol
+                        ) for o in opportunities[:10]
+                    ]
 
                 except Exception as e:
                     Logger.error(f"Scan error: {e}")
