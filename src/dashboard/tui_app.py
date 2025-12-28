@@ -28,7 +28,7 @@ class PhantomDashboard(App):
     
     #stats_panel {
         row-span: 1;
-        col-span: 1;
+        column-span: 1;
         background: $boost;
         border: solid green;
         padding: 1;
@@ -36,14 +36,14 @@ class PhantomDashboard(App):
     
     #arb_table_container {
         row-span: 3;
-        col-span: 1;
+        column-span: 1;
         background: $surface;
         border: solid blue;
     }
 
     #log_panel {
         row-span: 2;
-        col-span: 1;
+        column-span: 1;
         background: $surface;
         border: solid yellow;
     }
