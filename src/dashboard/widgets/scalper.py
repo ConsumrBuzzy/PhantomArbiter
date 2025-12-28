@@ -23,6 +23,11 @@ class ScalpWidget(Container):
         
         t2.clear()
         
+        # Show initializing state before signals arrive
+        if not state.scalp_signals:
+            t2.add_row("Initializing...", "-", "-", "-", "-")
+            return
+        
         # Show top 10 recent signals
         for sig in state.scalp_signals[:15]:
             # Stylize Action

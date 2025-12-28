@@ -45,6 +45,9 @@ from src.shared.infrastructure.jito_adapter import JitoAdapter
 # V133: SharedPriceCache for position sync
 from src.core.shared_cache import SharedPriceCache
 
+# V133: Notification service
+from src.shared.notification.notifications import get_notifier
+
 
 class TradingCore:
     """
