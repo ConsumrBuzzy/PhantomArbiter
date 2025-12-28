@@ -39,6 +39,10 @@ class ProviderType(Enum):
     LUNARCRUSH = "lunarcrush"
     MORALIS = "moralis"
     BITQUERY = "bitquery"
+    BIRDEYE = "birdeye"
+    JUPITER = "jupiter"
+    DEXSCREENER = "dexscreener"
+    PYTH = "pyth"
     PUBLIC = "public"  # No key required
 
 
@@ -187,6 +191,30 @@ PROVIDER_CONFIGS: dict[ProviderType, ProviderConfig] = {
         http_template="https://graphql.bitquery.io",
         wss_template="",
         env_key_prefix="BITQUERY_API_KEY",
+    ),
+    ProviderType.BIRDEYE: ProviderConfig(
+        provider=ProviderType.BIRDEYE,
+        http_template="https://public-api.birdeye.so",
+        wss_template="",
+        env_key_prefix="BIRDEYE_API_KEY",
+    ),
+    ProviderType.JUPITER: ProviderConfig(
+        provider=ProviderType.JUPITER,
+        http_template="https://api.jup.ag",
+        wss_template="",
+        env_key_prefix="JUPITER_API_KEY",
+    ),
+    ProviderType.DEXSCREENER: ProviderConfig(
+        provider=ProviderType.DEXSCREENER,
+        http_template="https://api.dexscreener.com/latest/dex",
+        wss_template="",
+        env_key_prefix="DEXSCREENER_API_KEY",
+    ),
+    ProviderType.PYTH: ProviderConfig(
+        provider=ProviderType.PYTH,
+        http_template="https://hermes.pyth.network",
+        wss_template="wss://hermes.pyth.network/ws",
+        env_key_prefix="PYTH_HERMES_URL",
     ),
 }
 

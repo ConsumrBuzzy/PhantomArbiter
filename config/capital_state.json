@@ -1,57 +1,22 @@
 {
   "version": "40.0",
   "total_capital_usd": 50.0,
-  "last_updated": 1766097366.2289255,
+  "last_updated": 1766952365.9264464,
   "engines": {
     "MERCHANT": {
-      "allocated_capital": 100.0,
-      "cash_balance": 6.47527865735206,
-      "sol_balance": 0.011466666666666667,
-      "positions": {
-        "r/snoofi": {
-          "balance": 188188.02412552352,
-          "avg_price": 0.00014865101011509588,
-          "entry_price": 0.00014865101011509588,
-          "current_price": 0.00014865101011509588,
-          "size_usd": 27.974339877823105,
-          "current_value": 27.974339877823102,
-          "mint": "7M9KJcPNC65ShLDmJmTNhVFcuY95Y1VMeYngKgt67D1t",
-          "entry_time": 1766097334.804669,
-          "dex_id": "JUPITER"
-        },
-        "CAPY": {
-          "balance": 63718017.31439121,
-          "avg_price": 4.327868317894379e-07,
-          "entry_price": 4.327868317894379e-07,
-          "current_price": 4.327868317894379e-07,
-          "size_usd": 27.576318841399917,
-          "current_value": 27.576318841399917,
-          "mint": "7VENy6wCjBChAMGpjPQCPYJDeYJGFr5NZUxk7uQ7bonk",
-          "entry_time": 1766097356.5873833,
-          "dex_id": "JUPITER"
-        },
-        "FREYA": {
-          "balance": 3132.856503533622,
-          "avg_price": 0.008591071987835888,
-          "entry_price": 0.008591071987835888,
-          "current_price": 0.008591071987835888,
-          "size_usd": 26.914595749417185,
-          "current_value": 26.914595749417185,
-          "mint": "AzVCECC5zr21ikYQne4Xtoh3SVg848duPHUHb3M7bonk",
-          "entry_time": 1766097362.7304332,
-          "dex_id": "JUPITER"
-        }
-      },
+      "allocated_capital": 50.0,
+      "cash_balance": 50.0,
+      "sol_balance": 0.06,
+      "positions": {},
       "stats": {
         "wins": 0,
-        "losses": 6,
-        "total_pnl_usd": -1.0594668740077413,
-        "fees_paid_usd": 11.379999999999997,
-        "slippage_usd": 1.3276127913172904
+        "losses": 0,
+        "total_pnl_usd": 0.0,
+        "fees_paid_usd": 0.0,
+        "slippage_usd": 0.0
       },
-      "peak_equity": 100.0,
-      "daily_start_equity": 100.0
+      "peak_equity": 50.0,
+      "daily_start_equity": 50.0
     }
-  },
-  "is_seeded": true
+  }
 }

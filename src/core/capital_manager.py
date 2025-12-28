@@ -59,7 +59,7 @@ class CapitalManager:
     # Simulation parameters (V16.2 pattern, now centralized)
     SLIPPAGE_MIN_PCT: ClassVar[float] = 0.005  # 0.5%
     SLIPPAGE_MAX_PCT: ClassVar[float] = 0.010  # 1.0%
-    GAS_FEE_SOL: ClassVar[float] = 0.005       # SOL per transaction
+    GAS_FEE_SOL: ClassVar[float] = 0.003       # Realistic SOL per transaction
     
     # Singleton instance
     _instance: ClassVar[Optional['CapitalManager']] = None
@@ -187,8 +187,8 @@ class CapitalManager:
         """Create default state structure for an engine."""
         return {
             "allocated_capital": capital,
-            "cash_balance": capital,
-            "sol_balance": 0.02,  # Starting gas
+            "cash_balance": 50.0,     # User requested hard $50 budget
+            "sol_balance": 0.06,      # Starting gas (~$10)
             "positions": {},  # {symbol: {balance, avg_price, mint, entry_time}}
             "stats": {
                 "wins": 0,

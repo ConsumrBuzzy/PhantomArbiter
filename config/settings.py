@@ -205,7 +205,7 @@ class Settings:
     # ═══════════════════════════════════════════════════════════════════
     # V10.3 AGGRESSIVE FINANCIAL EFFICIENCY (Prioritize Liquidity)
     # ═══════════════════════════════════════════════════════════════════
-    GAS_FLOOR_SOL = 0.005     # ~0.65 USD (Warn only)
+    GAS_FLOOR_SOL = 0.06      # ~$10.00 (Hard limit for Paper/Real)
     GAS_CRITICAL_SOL = 0.002  # ~0.26 USD (Auto-Refuel trigger)
     GAS_REPLENISH_USD = 1.00  # Buy min SOL to restore safety
     
