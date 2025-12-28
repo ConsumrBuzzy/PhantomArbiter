@@ -63,17 +63,23 @@ class Director:
         self.agents["landlord"] = get_landlord()
 
     async def start(self):
-        """Ignition: The Supervisor Kernel Start."""
+        """Ignition: The Supervisor Kernel Start (Non-blocking)."""
         self.is_running = True
         state.status = "STARTING_ENGINES"
         state.log("[Director] Igniting Supervisor Kernel...")
         
-        # 1. Initialize Core (Async)
-        await self.agents["arbiter"].initialize()
-        await self.agents["scalper"].initialize()
-        
+        # 1. Launch Initialization Task (Background)
+        # We do NOT await this here, so the Dashboard can load instantly.
+        # The 'Arbiter_Core' task will wait for init internally if needed,
+        # or we rely on the async nature.
+        self.tasks["slow"]["init"] = asyncio.create_task(
+            self._async_init_sequence(),
+            name="System_Init"
+        )
+
         # 2. Launch FAST TIER (Hot Path)
         self.tasks["fast"]["wss"] = asyncio.create_task(self._run_wss(), name="WSS_Listener")
+        # Arbiter Run loop handles its own readiness checks
         self.tasks["fast"]["arbiter"] = asyncio.create_task(
             self.agents["arbiter"].run(duration_minutes=0, scan_interval=2),
             name="Arbiter_Core"
@@ -83,38 +89,32 @@ class Director:
         # 3. Launch MID TIER (Intelligence)
         self.tasks["mid"]["scalper"] = asyncio.create_task(self._run_scalper_loop(), name="Scalper_Engine")
         
-        self.agents["whale"].start() # Internal loop
-        # We assume agent.start() spawns internal tasks, but to be safe under Supervisor,
-        # we ideally manage the loop here. 
-        # WhaleWatcher currently spawns its own task in start().
-        # For V23 integration, we let it spawn but track it if possible, 
-        # or we just assume it runs.
-        # Ideally: self.tasks["mid"]["whale"] = asyncio.create_task(self.agents["whale"].run_loop())
+        # Whale Watcher (Internal Loop)
+        self.agents["whale"].start() 
         
         # 4. Launch SLOW TIER (Maintenance)
-        self.agents["scout"].start() # Internal
-        # self.tasks["slow"]["scout"] = ... (Scout manages own tasks)
+        self.agents["scout"].start() 
         
-        # Landlord Monitoring (V23)
+        # Landlord Monitoring
         self.tasks["slow"]["landlord"] = asyncio.create_task(
             self.agents["landlord"].run_monitoring_loop(),
             name="Landlord_Monitor"
         )
         
-        # Wallet Sync (V23: Moved to Slow)
+        # Wallet Sync (Robust Loop)
         self.tasks["slow"]["wallet_sync"] = asyncio.create_task(
             self._run_state_sync(),
             name="Wallet_Sync"
         )
         
-        # Discovery Service (V23: Adapted Loop)
+        # Discovery Service
         from src.services.discovery_service import discovery_monitor_loop
         self.tasks["slow"]["discovery"] = asyncio.create_task(
             discovery_monitor_loop(),
             name="Discovery_Monitor"
         )
         
-        # Liquidity Service (V23: Adapted Loop)
+        # Liquidity Service
         from src.services.liquidity_service import liquidity_cycle_loop
         self.tasks["slow"]["liquidity"] = asyncio.create_task(
             liquidity_cycle_loop(),
@@ -124,12 +124,25 @@ class Director:
         # 5. Start Supervisor Monitor
         asyncio.create_task(self.monitor_system(), name="Kernel_Monitor")
         
-        # 6. Start Loop Lag Monitor (V23)
+        # 6. Start Loop Lag Monitor
         self.lag_monitor = LagMonitor()
         asyncio.create_task(self.lag_monitor.start(), name="Lag_Monitor")
         
         state.status = "OPERATIONAL"
-        state.log("[Director] All Systems Nominal (Tiered Execution Active).")
+        state.log("[Director] Supervisor Kernel Online (Background Init).")
+
+    async def _async_init_sequence(self):
+        """Heavy initialization sequence running in background."""
+        state.log("[Init] Warming up engines...")
+        try:
+            # Parallel init for maximum speed
+            await asyncio.gather(
+                self.agents["arbiter"].initialize(),
+                self.agents["scalper"].initialize()
+            )
+            state.log("[Init] Engines Ready.")
+        except Exception as e:
+            state.log(f"[Init] ❌ Startup Error: {e}")
 
     async def stop(self):
         """Shutdown."""
