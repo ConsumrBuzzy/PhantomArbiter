@@ -67,8 +67,9 @@ class AppState:
         self.wallet_paper = WalletData()
         self.mode = "PAPER"
         
-        # V12.2: High-Fidelity Data (Market Pulse)
-        self.market_pulse: Dict[str, float] = {} # {Symbol: Price}
+    # V12.2: High-Fidelity Data (Market Pulse)
+        # Value is Dict: {'price': float, 'rsi': float, 'conf': float, 'action': str}
+        self.market_pulse: Dict[str, Dict[str, Any]] = {} 
         self.scalp_signals: List[ScalpSignal] = []
         
         self._initialized = True
@@ -76,8 +77,12 @@ class AppState:
     # ... (methods) ...
     
     def update_pulse(self, symbol: str, price: float):
-        """Update live price for ticker."""
-        self.market_pulse[symbol] = price
+        """Update live price for ticker (Legacy)."""
+        self.market_pulse[symbol] = {'price': price}
+
+    def update_pulse_batch(self, data: Dict[str, Dict[str, Any]]):
+        """Update multiple tickers at once."""
+        self.market_pulse.update(data)
         
     def add_signal(self, signal: ScalpSignal):
         """Add new scalp signal."""
