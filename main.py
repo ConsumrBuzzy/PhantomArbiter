@@ -508,7 +508,7 @@ async def cmd_pulse(args: argparse.Namespace) -> None:
     
     # 2. Start Engines (Director)
     # Using defaults or args
-    director = Director()
+    director = Director(lite_mode=True)
     engine_task = asyncio.create_task(director.start())
     
     # 3. Start UI (Pulse Reporter)

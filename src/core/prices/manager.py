@@ -56,7 +56,7 @@ class PriceManager:
         results = {}
         missing_mints = set(mints)
         
-        # 1. Try Primary (Jupiter)
+        # 1. Try Primary (Jupiter) - Standard for SPL Tokens
         if self.circuit.can_try_primary():
             try:
                 # We attempt to fetch all. Jupiter handler does chunking internally.

@@ -18,8 +18,9 @@ class Director:
     # V23: Lag Monitor
     from src.shared.system.lag_monitor import LagMonitor
     
-    def __init__(self, live_mode: bool = False):
+    def __init__(self, live_mode: bool = False, lite_mode: bool = False):
         self.is_running = False
+        self.lite_mode = lite_mode
         
         # V23: Supervisor Registry (Tiered)
         self.tasks = {
@@ -50,18 +51,24 @@ class Director:
         # Scalper
         self.agents["scalper"] = TradingCore(strategy_class=MerchantEnsemble, engine_name="SCALPER")
         
-        # Whale Watcher (V23)
-        from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
-        self.agents["whale"] = WhaleWatcherAgent()
-        
-        # 4. SLOW TIER AGENTS
-        # Scout
-        from src.scraper.agents.scout_agent import ScoutAgent
-        self.agents["scout"] = ScoutAgent()
-        
-        # Landlord (V23)
-        from src.engine.landlord_core import get_landlord
-        self.agents["landlord"] = get_landlord()
+        if not self.lite_mode:
+            # Whale Watcher (V23)
+            from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
+            self.agents["whale"] = WhaleWatcherAgent()
+            
+            # 4. SLOW TIER AGENTS
+            # Scout
+            from src.scraper.agents.scout_agent import ScoutAgent
+            self.agents["scout"] = ScoutAgent()
+            
+            # Landlord (V23)
+            from src.engine.landlord_core import get_landlord
+            self.agents["landlord"] = get_landlord()
+        else:
+            # Mock or Skip
+            self.agents["whale"] = None
+            self.agents["scout"] = None
+            self.agents["landlord"] = None
 
         # 5. SIGNAL BUS (Unified OS Hub)
         self.signal_bus = signal_bus
@@ -116,37 +123,34 @@ class Director:
         # 3. Launch MID TIER (Intelligence)
         self.tasks["mid"]["scalper"] = asyncio.create_task(self._run_scalper_loop(), name="Scalper_Engine")
         
-        # Whale Watcher (Internal Loop)
-        self.agents["whale"].start() 
-        
-        # 4. Launch SLOW TIER (Maintenance)
-        self.agents["scout"].start() 
-        
-        # Landlord Monitoring
-        self.tasks["slow"]["landlord"] = asyncio.create_task(
-            self.agents["landlord"].run_monitoring_loop(),
-            name="Landlord_Monitor"
-        )
-        
-        # Wallet Sync (Robust Loop)
-        self.tasks["slow"]["wallet_sync"] = asyncio.create_task(
-            self._run_state_sync(),
-            name="Wallet_Sync"
-        )
-        
-        # Discovery Service
-        from src.services.discovery_service import discovery_monitor_loop
-        self.tasks["slow"]["discovery"] = asyncio.create_task(
-            discovery_monitor_loop(),
-            name="Discovery_Monitor"
-        )
-        
-        # Liquidity Service
-        from src.services.liquidity_service import liquidity_cycle_loop
-        self.tasks["slow"]["liquidity"] = asyncio.create_task(
-            liquidity_cycle_loop(),
-            name="Liquidity_Manager"
-        )
+        if not self.lite_mode:
+            # Whale Watcher (Internal Loop)
+            self.agents["whale"].start() 
+            
+            # 4. Launch SLOW TIER (Maintenance)
+            self.agents["scout"].start() 
+            
+            # Landlord Monitoring
+            self.tasks["slow"]["landlord"] = asyncio.create_task(
+                self.agents["landlord"].run_monitoring_loop(),
+                name="Landlord_Monitor"
+            )
+            
+            # Discovery Service
+            from src.services.discovery_service import discovery_monitor_loop
+            self.tasks["slow"]["discovery"] = asyncio.create_task(
+                discovery_monitor_loop(),
+                name="Discovery_Monitor"
+            )
+            
+            # Liquidity Service
+            from src.services.liquidity_service import liquidity_cycle_loop
+            self.tasks["slow"]["liquidity"] = asyncio.create_task(
+                liquidity_cycle_loop(),
+                name="Liquidity_Manager"
+            )
+        else:
+            state.log("[Director] ⚡ Lite Mode Active: Skipping non-essential background daemons.")
         
         # 5. Start Supervisor Monitor
         asyncio.create_task(self.monitor_system(), name="Kernel_Monitor")
