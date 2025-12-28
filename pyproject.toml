@@ -28,6 +28,5 @@ dependencies = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-python-source = "." 
 module-name = "phantom_core"
 manifest-path = "src_rust/Cargo.toml"
