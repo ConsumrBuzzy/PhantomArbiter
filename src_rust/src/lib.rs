@@ -388,12 +388,12 @@ mod slot_consensus;
 mod tick_array_manager;
 
 // ------------------------------------------------------------------------
-// SECTION 12: WSS AGGREGATOR (THE WIRE V2)
+// SECTION 14: UNIFIED TRADE ROUTER (THE MUSCLE)
 // ------------------------------------------------------------------------
-mod wss_aggregator;
+pub mod router;
 
 // ------------------------------------------------------------------------
-// SECTION 13: MODULE REGISTRATION
+// SECTION 15: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
@@ -428,6 +428,10 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     
     // WSS Aggregator (The Wire v2)
     wss_aggregator::register_wss_aggregator_classes(m)?;
+    
+    // Unified Trade Router (The Muscle)
+    m.add_class::<router::ExecutionPath>()?;
+    m.add_class::<router::UnifiedTradeRouter>()?;
     
     Ok(())
 }
