@@ -6,6 +6,12 @@ import json
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from src.shared.execution.wallet import WalletManager
 from src.shared.infrastructure.token_registry import get_registry
 from src.core.shared_cache import SharedPriceCache
