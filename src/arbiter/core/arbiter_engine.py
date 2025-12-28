@@ -17,6 +17,7 @@ from src.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_s
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 from src.arbiter.ui.dashboard_formatter import DashboardFormatter
+from src.shared.state.app_state import state as app_state
 
 class ArbiterEngine:
     """
@@ -137,6 +138,21 @@ class ArbiterEngine:
                         pass  # Silent fail for ML logging
                     
                     self._last_spreads = current_spreads
+
+                    # ═══ V12.5: Push to TUI AppState ═══
+                    try:
+                        from src.shared.state.app_state import ArbOpportunity
+                        app_state.update_stat("cycles_per_sec", 1.0 / (self._last_duration / 1000.0) if self._last_duration > 0 else 0)
+                        app_state.opportunities = [
+                            ArbOpportunity(
+                                token=o.pair,
+                                route=f"{o.buy_dex}->{o.sell_dex}",
+                                profit_pct=o.spread_pct,
+                                est_profit_sol=o.net_profit_usd / 150.0 # Mock conversion for Sol
+                            ) for o in opportunities[:10]
+                        ]
+                    except:
+                        pass
 
                 except Exception as e:
                     Logger.error(f"Scan error: {e}")

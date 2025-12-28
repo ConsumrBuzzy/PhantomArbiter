@@ -713,6 +713,13 @@ class DataBroker:
                 
                 SharedPriceCache.write_batch(batch_prices, "BROKER")
                 
+                # ═══ V12.7: Push to TUI AppState Pulse ═══
+                try:
+                    from src.shared.state.app_state import state as app_state
+                    for sym, price in batch_prices.items():
+                        app_state.update_pulse(sym, price)
+                except: pass
+                
                 # Display
                 timestamp = time.strftime("%H:%M:%S")
                 # wss_stats cached above

@@ -352,6 +352,14 @@ class WebSocketListener:
                         self.stats["prices_updated"] += 1
                         self.stats["last_price_update"] = time.time()
                         wss_log(f"📈 {symbol} = ${price:.6f} (WSS)")
+                        
+                        # V12.2: Push to Dashboard Pulse
+                        try:
+                            from src.shared.state.app_state import state
+                            state.update_pulse(symbol, price)
+                        except:
+                            pass
+                            
                         return True
             
             return False

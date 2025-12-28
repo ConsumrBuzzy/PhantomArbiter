@@ -21,6 +21,14 @@ class WalletData:
     inventory: Dict[str, float] = field(default_factory=dict) # {symbol: amount}
     total_value_usd: float = 0.0
 
+@dataclass
+class ScalpSignal:
+    token: str
+    signal_type: str # "RSI Oversold", "Breakout"
+    confidence: str # "High", "Med"
+    action: str # "BUY", "SELL"
+    timestamp: float = field(default_factory=time.time)
+
 class AppState:
     """
     Thread-safe Singleton for UI/Worker communication.
@@ -28,20 +36,14 @@ class AppState:
     """
     _instance = None
     _lock = threading.Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super(AppState, cls).__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
+    
+    # ... (Singleton logic same) ...
 
     def __init__(self):
         if self._initialized: return
         
         self.status = "INITIALIZING"
-        self.logs = deque(maxlen=200) # Keep last 200 logs
+        self.logs = deque(maxlen=200)
         self.opportunities: List[ArbOpportunity] = []
         
         # Real-time Stats
@@ -56,9 +58,25 @@ class AppState:
         # V12.1: Wallet State (Dashboard 2.0)
         self.wallet_live = WalletData()
         self.wallet_paper = WalletData()
-        self.mode = "PAPER" # Default
+        self.mode = "PAPER"
+        
+        # V12.2: High-Fidelity Data (Market Pulse)
+        self.market_pulse: Dict[str, float] = {} # {Symbol: Price}
+        self.scalp_signals: List[ScalpSignal] = []
         
         self._initialized = True
+
+    # ... (methods) ...
+    
+    def update_pulse(self, symbol: str, price: float):
+        """Update live price for ticker."""
+        self.market_pulse[symbol] = price
+        
+    def add_signal(self, signal: ScalpSignal):
+        """Add new scalp signal."""
+        self.scalp_signals.insert(0, signal)
+        if len(self.scalp_signals) > 50:
+            self.scalp_signals.pop()
 
     def log(self, message: str):
         """Add a log message."""

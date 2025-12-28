@@ -17,5 +17,6 @@ class InventoryWidget(DataTable):
         if len(w_data.inventory) != self.row_count:
             self.clear()
             for symbol, amt in w_data.inventory.items():
-                val = 0.0 # Placeholder for price check
+                price = state.market_pulse.get(symbol, 0.0)
+                val = amt * price
                 self.add_row(symbol, f"{amt:.4f}", f"${val:.2f}")

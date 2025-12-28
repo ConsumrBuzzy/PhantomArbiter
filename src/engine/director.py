@@ -56,26 +56,31 @@ class Director:
         """Ignition."""
         self.is_running = True
         state.status = "STARTING_ENGINES"
-        state.log("[Director] Igniting Systems...")
+        state.log("[Director] Igniting Systems (REAL)...")
         
-        # 1. THE WIRE (Fast Lane)
+        # 1. THE WIRE (Fast Lane) - WSS
         self.fast_tasks.append(asyncio.create_task(self._run_wss()))
         state.update_stat("rust_core_active", True)
         
-        # 2. THE SCALPER (Mid Lane)
-        self.mid_tasks.append(asyncio.create_task(self._run_scalper_loop()))
+        # 2. THE ARBITER (Fast Lane) - Real Cycle
+        # We start the arbiter run loop in the background
+        self.fast_tasks.append(asyncio.create_task(
+            self.arbiter.run(duration_minutes=0, scan_interval=2)
+        ))
         
-        # 3. THE SCOUT (Slow Lane)
+        # 3. THE MERCHANT (Mid Lane) - Scalper
+        # The Scalper is integrated into the ArbiterEngine via signals 
+        # but we can also run a dedicated scalper loop if needed.
+        # For now, we've hooked ArbiterEngine and DataBroker.
+        
+        # 4. THE SCOUT (Slow Lane)
         self.slow_tasks.append(asyncio.create_task(self._run_scout_loop()))
         
-        # 4. THE WHALE (Slow Lane)
-        self.slow_tasks.append(asyncio.create_task(self._run_whale_loop()))
-        
-        # 5. STATE SYNC (Dashboard Data Feed)
+        # 5. STATE SYNC (Dashboard 2.1 Refresh)
         self.slow_tasks.append(asyncio.create_task(self._run_state_sync()))
         
         state.status = "OPERATIONAL"
-        state.log("[Director] All Systems Nominal.")
+        state.log("[Director] All Systems Nominal (Real Data Active).")
 
     async def stop(self):
         """Shutdown."""
@@ -102,14 +107,26 @@ class Director:
     async def _run_scalper_loop(self):
         """Mid Lane: Scalping Strategy."""
         state.log("[Director] Scalper: Active (Interval: 2s)")
+        from src.shared.state.app_state import ScalpSignal
+        import random
+        
         while self.is_running:
             try:
                 await asyncio.sleep(2)
-                # await self.scalper.run_cycle()
-                # Mock activity for TUI
-                if len(self.scalper.watchlist) > 0:
-                     # state.log(f"[Scalper] Analyzing {len(self.scalper.watchlist)} tokens...")
-                     pass
+                
+                # Mock Signal Generation for Dashboard Visualization
+                # In prod, this comes from self.scalper.run_cycle()
+                if random.random() < 0.3: # 30% chance every 2s
+                    sigs = [
+                        ("BONK", "RSI Oversold", "High", "BUY"),
+                        ("WIF", "Breakout", "Med", "BUY"),
+                        ("JUP", "MA Cross", "Low", "WAIT"),
+                        ("POPCAT", "Volume Spike", "High", "BUY")
+                    ]
+                    s = random.choice(sigs)
+                    signal = ScalpSignal(token=s[0], signal_type=s[1], confidence=s[2], action=s[3])
+                    state.add_signal(signal)
+                    
             except asyncio.CancelledError:
                 break
             except Exception as e:

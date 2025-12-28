@@ -248,6 +248,18 @@ class MerchantEnsemble(BaseStrategy):
                     self.pending_agent_signals.remove(sig)
                     
                     Logger.info(f"🎯 [ENSEMBLE] Agent-Only Trade: {source} {sig.symbol} @ {sig.confidence:.0%}")
+                    
+                    # ═══ V12.6: Push to TUI AppState ═══
+                    try:
+                        from src.shared.state.app_state import state as app_state, ScalpSignal
+                        app_state.add_signal(ScalpSignal(
+                            token=sig.symbol,
+                            signal_type=f"🎯 {source}",
+                            confidence="High" if sig.confidence > 0.8 else "Med",
+                            action="BUY"
+                        ))
+                    except: pass
+                    
                     return 'BUY', f"🎯 {source}: {sig.reason}", size
             
         return 'HOLD', '', 0.0
