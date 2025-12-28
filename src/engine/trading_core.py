@@ -650,7 +650,7 @@ class TradingCore:
         # This method is now purely for LOGGING side-effects
          
         # V12.2: Get volatility for log
-        from src.system.data_source_manager import DataSourceManager
+        from src.shared.system.data_source_manager import DataSourceManager
         dsm = DataSourceManager()
         volatility = dsm.get_volatility(symbol)
         
@@ -658,7 +658,7 @@ class TradingCore:
         if watcher: watcher.last_signal_time = time.time()
         
         # V51.0: Use Template
-        from src.system.telegram_templates import TradeTemplates
+        from src.shared.system.telegram_templates import TradeTemplates
         msg = TradeTemplates.entry(
             symbol=symbol,
             action="BUY",

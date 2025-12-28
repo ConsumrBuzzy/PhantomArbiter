@@ -8,7 +8,7 @@ Uses MACD (12/26/9) crossovers for entry signals.
 from config.settings import Settings
 import time
 from src.strategy.watcher import Watcher
-from src.system.priority_queue import priority_queue
+from src.shared.system.priority_queue import priority_queue
 from src.strategy.risk import PositionSizer, TrailingStopManager
 from src.strategy.metrics import Metrics
 from src.shared.system.logging import Logger
@@ -42,7 +42,7 @@ class LongtailLogic:
         if time.time() - self.last_mode_update < 300:
             return
             
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         self.win_rate = db_manager.get_win_rate(limit=20)
         self.last_mode_update = time.time()
         Logger.info(f"🔭 Longtail Mode: MACD 12/26/9 (Win Rate: {self.win_rate*100:.1f}%)")

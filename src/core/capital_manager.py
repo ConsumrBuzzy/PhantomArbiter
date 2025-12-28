@@ -457,7 +457,7 @@ class CapitalManager:
             stats["losses"] += 1
         
         # V46.1: Log trade with execution data for ML feedback loop
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         trade_record = {
             'symbol': symbol,
             'entry_price': avg_price,

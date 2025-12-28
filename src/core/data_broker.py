@@ -599,7 +599,7 @@ class DataBroker:
             print("   🔌 Bitquery Real-time Stream Started")
         
         # V77.0: Start Glass Cockpit Dashboard
-        from src.system.dashboard_service import get_dashboard_service
+        from src.shared.system.dashboard_service import get_dashboard_service
         self.dashboard = get_dashboard_service()
         self.dashboard.set_broker(self)
         self.dashboard.start()
@@ -920,7 +920,7 @@ class DataBroker:
                     from trainer_supervisor import run_retraining_pipeline
                     success = run_retraining_pipeline(force=True)
                     if success:
-                        from src.system.comms_daemon import send_telegram
+                        from src.shared.system.comms_daemon import send_telegram
                         send_telegram("✅ ML Retraining Complete! Reloading models...", source="ML", priority="HIGH")
                         # Force Reload
                         if hasattr(self, 'merchant_engines'):
@@ -934,7 +934,7 @@ class DataBroker:
             if cmd_type == CMD_PERFORMANCE:
                 Logger.info("📊 [BROKER] Generating Performance Report...")
                 from src.analysis.performance_reporter import get_performance_reporter
-                from src.system.comms_daemon import send_telegram
+                from src.shared.system.comms_daemon import send_telegram
                 
                 try:
                     reporter = get_performance_reporter()

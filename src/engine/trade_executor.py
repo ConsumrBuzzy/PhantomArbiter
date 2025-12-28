@@ -817,7 +817,7 @@ class TradeExecutor:
             pnl_pct = ((price - entry_price_log) / entry_price_log) * 100 if entry_price_log > 0 else 0
             
             # V51.0: Use Template
-            from src.system.telegram_templates import TradeTemplates
+            from src.shared.system.telegram_templates import TradeTemplates
             msg = TradeTemplates.exit(
                 symbol=watcher.symbol,
                 pnl=pnl_usd,
@@ -826,7 +826,7 @@ class TradeExecutor:
                 exit_reason=reason
             )
             
-            from src.system.comms_daemon import send_telegram
+            from src.shared.system.comms_daemon import send_telegram
             tg_priority = "HIGH" if self.live_mode else "LOW"
             send_telegram(msg, source="PRIMARY", priority=tg_priority)
             
