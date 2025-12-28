@@ -37,6 +37,10 @@ class Director:
         
         self.listener = WebSocketListener(self.price_cache, self.watched_mints)
         
+        # V9.0: Chaos Shield (Security)
+        from src.shared.system.chaos_shield import chaos_shield
+        self.chaos = chaos_shield
+        
         # 1. ARBITER (Atomic)
         arb_config = ArbiterConfig(live_mode=live_mode) 
         self.arbiter = PhantomArbiter(arb_config)
