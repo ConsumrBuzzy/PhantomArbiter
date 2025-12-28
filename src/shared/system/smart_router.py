@@ -39,7 +39,7 @@ class SmartRouter:
         
         # Load and clean API Key
         self.jupiter_api_key = os.getenv("JUPITER_API_KEY", "").strip("'\" ")
-        if self.jupiter_api_key.lower() in ["none", "null", ""]:
+        if self.jupiter_api_key.lower() in ["none", "null", ""] or len(self.jupiter_api_key) < 5:
             self.jupiter_api_key = ""
         
         self.current_rpc_index = 0
@@ -53,10 +53,8 @@ class SmartRouter:
             self._session.headers.update({"x-api-key": self.jupiter_api_key})
         
         Logger.info(f"🌐 SmartRouter initialized with {len(self.endpoints)} RPC endpoints.")
-        if self.jupiter_api_key and len(self.jupiter_api_key) > 5:
+        if self.jupiter_api_key:
              Logger.info("   🔑 Jupiter API Key loaded")
-        else:
-             self.jupiter_api_key = "" # Clear it if it's just a placeholder
 
     def _load_config(self):
         """Load rpc_pool.json or return defaults."""
