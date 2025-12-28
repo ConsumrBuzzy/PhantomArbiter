@@ -209,7 +209,7 @@ class ArbiterEngine:
                     pod_system.report_result(pod, success=found_opp, major_win=False)
 
                 # 6. EXECUTION PATHS (Fast vs Normal)
-                executed_this_cycle = await self._process_executions(opportunities, verified_opps, trade_size, last_trade_time, cooldown)
+                executed_this_cycle = await self._process_executions(opportunities, verified_opps, base_trade_size, last_trade_time, cooldown)
 
                 # 7. LANDLORD
                 if landlord and self.config.live_mode and not executed_this_cycle:
@@ -356,8 +356,6 @@ class ArbiterEngine:
         
         if fast_path_candidates:
             best_fast = sorted(fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True)[0]
-            print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
-            
             print(f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
             
             # Apply Smart Sizing
