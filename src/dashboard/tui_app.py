@@ -66,11 +66,9 @@ class PhantomDashboard(App):
         yield StatsPanel(id="stats_panel")
         
         # Arb Table (Right Side)
-        container = Container(id="arb_table_container")
         table = ArbTable(id="arb_table")
         table.add_columns("Token", "Route", "Profit %", "Est. SOL")
-        container.mount(table)
-        yield container
+        yield Container(table, id="arb_table_container")
         
         # Log Panel
         yield Log(id="log_panel")
