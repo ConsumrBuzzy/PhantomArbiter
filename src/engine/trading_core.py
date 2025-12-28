@@ -422,49 +422,7 @@ class TradingCore:
         """V133: Delegates to SignalScanner."""
         return self.signal_scanner.get_status_summary()
 
-    def _placeholder_end_scan_signals(self):
-        
-        for symbol, watcher in combined_watchers.items():
-            price = watcher.data_feed.get_last_price()
-            if price <= 0: continue
-            
-            # V45.6: Check exits for Paper Wallet assets (source of truth for paper holdings)
-            if not Settings.ENABLE_TRADING and symbol in self.paper_wallet.assets:
-                asset = self.paper_wallet.assets[symbol]
-                entry_price = asset.avg_price
-                if entry_price > 0:
-                    current_pnl_pct = (price - entry_price) / entry_price
-                    
-                    # Check Stop Loss
-                    if current_pnl_pct <= Settings.STOP_LOSS_PCT:
-                        signals.append({
-                            "engine": self.engine_name,
-                            "symbol": symbol,
-                            "action": "SELL",
-                            "reason": f"🚨 SCALPER CRITICAL EXIT: TSL HIT (${price:.4f}) (Net: {current_pnl_pct*100:.1f}%)",
-                            "size_usd": 0,
-                            "price": price,
-                            "confidence": 1.0,
-                            "watcher": watcher
-                        })
-                        continue  # Don't check for buy signals
-                    
-                    # Check Take Profit
-                    if current_pnl_pct >= Settings.TAKE_PROFIT_PCT:
-                        signals.append({
-                            "engine": self.engine_name,
-                            "symbol": symbol,
-                            "action": "SELL",
-                            "reason": f"💰 TAKE PROFIT (+{current_pnl_pct*100:.2f}%)",
-                            "size_usd": 0,
-                            "price": price,
-                            "confidence": 1.0,
-                            "watcher": watcher
-                        })
-                        continue
-            
-            # Analyze
-            action, reason, size_usd = self.decision_engine.analyze_tick(watcher, price)
+
             
             if action in ['BUY', 'SELL']:
                 # Calculate ML Confidence
