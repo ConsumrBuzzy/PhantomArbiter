@@ -54,6 +54,12 @@ from src.engine.watcher_manager import WatcherManager
 # V133: SignalScanner (SRP Refactor)
 from src.engine.signal_scanner import SignalScanner
 
+# V133: MaintenanceService (SRP Refactor)
+from src.engine.maintenance_service import MaintenanceService
+
+# V133: ConfigSyncService (SRP Refactor)
+from src.engine.config_sync_service import ConfigSyncService
+
 
 class TradingCore:
     """
@@ -259,6 +265,15 @@ class TradingCore:
             ml_model=self.ml_model
         )
         
+        # V133: MaintenanceService (SRP Refactor)
+        self.maintenance = MaintenanceService(engine_name=self.engine_name)
+        
+        # V133: ConfigSyncService (SRP Refactor)
+        self.config_sync = ConfigSyncService(
+            engine_name=self.engine_name,
+            portfolio=self.portfolio
+        )
+        
         # Phase 33: SignalBus Subscription (Scout-Fed Scalping)
         def handle_scout_signal(sig: Signal):
             token = sig.data.get("symbol")
@@ -362,39 +377,8 @@ class TradingCore:
         send_telegram(msg, source=self.engine_name, priority="HIGH")
 
     def _sync_global_state(self):
-        """V15.0: Read shared global state and update internal settings."""
-        state = GlobalState.read_state()
-        
-        # 1. Sync Mode (V39.9: Check LIVE_ENGINE_TARGET)
-        global_mode = state.get("MODE", "MONITOR")
-        live_target = state.get("LIVE_ENGINE_TARGET", None)
-        
-        # V39.9: Only enable live trading if I'm the targeted engine
-        if global_mode == "LIVE" and live_target:
-            should_be_live = (live_target == self.engine_name)
-        else:
-            should_be_live = False  # MONITOR mode or no target = paper trading
-        
-        if Settings.ENABLE_TRADING != should_be_live:
-             # State mismatch! Update local state
-             Settings.ENABLE_TRADING = should_be_live
-             if should_be_live:
-                 mode_str = f"🔴 LIVE (I am the target: {live_target})"
-             else:
-                 mode_str = f"🟢 MONITOR"
-             priority_queue.add(3, 'LOG', {'level': 'WARNING', 'message': f"🔄 SYNC: {mode_str}"})
-             
-        # 2. Sync Size
-        global_size = state.get("BASE_SIZE_USD", 50.0)
-        if Settings.POSITION_SIZE_USD != global_size:
-            Settings.POSITION_SIZE_USD = global_size
-            priority_queue.add(4, 'LOG', {'level': 'INFO', 'message': f"🔄 SYNC: Size -> ${global_size}"})
-            
-        # 3. Sync Budget
-        global_budget = state.get("MAX_EXPOSURE_USD", 1000.0)
-        if getattr(Settings, 'MAX_TOTAL_EXPOSURE_USD', 0) != global_budget:
-            Settings.MAX_TOTAL_EXPOSURE_USD = global_budget
-            self.portfolio.set_max_exposure(global_budget)
+        """V133: Delegates to ConfigSyncService."""
+        self.config_sync.sync()
 
     # ═══════════════════════════════════════════════════════════════════
     # V45.0: Unified Merchant Methods (Data Broker Integration)
