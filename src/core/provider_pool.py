@@ -33,6 +33,9 @@ class ProviderType(Enum):
     CHAINSTACK = "chainstack"
     TRITON = "triton"
     DRPC = "drpc"
+    NOWNODES = "nownodes"
+    ANKR = "ankr"
+    LAVA = "lava"
     PUBLIC = "public"  # No key required
 
 
@@ -145,6 +148,24 @@ PROVIDER_CONFIGS: dict[ProviderType, ProviderConfig] = {
         http_template="https://lb.drpc.org/ogrpc?network=solana&dkey={api_key}",
         wss_template="wss://lb.drpc.org/ogws?network=solana&dkey={api_key}",
         env_key_prefix="DRPC_API_KEY",
+    ),
+    ProviderType.NOWNODES: ProviderConfig(
+        provider=ProviderType.NOWNODES,
+        http_template="https://sol.nownodes.io/{api_key}",
+        wss_template="wss://sol.nownodes.io/{api_key}",
+        env_key_prefix="NOWNODES_API_KEY",
+    ),
+    ProviderType.ANKR: ProviderConfig(
+        provider=ProviderType.ANKR,
+        http_template="https://rpc.ankr.com/solana/{api_key}",
+        wss_template="wss://rpc.ankr.com/solana/ws/{api_key}",
+        env_key_prefix="ANKR_API_KEY",
+    ),
+    ProviderType.LAVA: ProviderConfig(
+        provider=ProviderType.LAVA,
+        http_template="https://solana.lava.build/rpc/v1/{api_key}",
+        wss_template="wss://solana.lava.build/rpc/v1/{api_key}",
+        env_key_prefix="LAVA_API_KEY",
     ),
 }
 
