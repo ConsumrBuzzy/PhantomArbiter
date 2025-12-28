@@ -271,55 +271,71 @@ class Director:
     # For this phase, we rely on Scout's internal .start() but monitor it loosely.
 
     async def _run_state_sync(self):
-        """Slow Lane: Wallet Sync."""
-        from src.shared.state.app_state import WalletData
+        """Slow Lane: Wallet Sync for BOTH Live and Paper modes."""
+        from src.shared.state.app_state import WalletData, InventoryItem
+        from src.core.shared_cache import SharedPriceCache
         
-        # Wait for arbiter initialization
-        while not hasattr(self.agents["arbiter"], 'executor') or not self.agents["arbiter"].executor:
+        # Wait for arbiter initialization (tracker must exist)
+        arb = self.agents["arbiter"]
+        while not hasattr(arb, 'tracker') or not arb.tracker:
             await asyncio.sleep(0.5)
+        
+        state.log("[WalletSync] Wallet sync loop started.")
             
         while self.is_running:
             try:
                 await asyncio.sleep(1.0) # 1Hz Refresh
                 
-                wallet_adapter = self.agents["arbiter"].executor.wallet
-                if not wallet_adapter: continue
-
-                from src.core.shared_cache import SharedPriceCache
+                is_live = arb.config.live_mode
                 sol_price, _ = SharedPriceCache.get_price("SOL")
                 if not sol_price: sol_price = 150.0
                 
-                # Fetch prices for all held tokens to ensure UI shows USD values
-                price_map = {'SOL': sol_price}
-                holdings = wallet_adapter.assets if hasattr(wallet_adapter, 'assets') else {}
-                
-                for symbol in holdings.keys():
-                    if symbol not in price_map:
-                        p, _ = SharedPriceCache.get_price(symbol)
-                        if p: price_map[symbol] = p
+                # ═══ LIVE MODE: Real Wallet ═══
+                if is_live and hasattr(arb, 'executor') and arb.executor and arb.executor.wallet:
+                    wallet_adapter = arb.executor.wallet
+                    
+                    price_map = {'SOL': sol_price}
+                    holdings = wallet_adapter.assets if hasattr(wallet_adapter, 'assets') else {}
+                    
+                    for symbol in holdings.keys():
+                        if symbol not in price_map:
+                            p, _ = SharedPriceCache.get_price(symbol)
+                            if p: price_map[symbol] = p
 
-                balance_data = wallet_adapter.get_detailed_balance(price_map)
-                
-                from src.shared.state.app_state import InventoryItem
-                inventory_items = []
-                for symbol, asset in holdings.items():
-                    price = price_map.get(symbol, 0.0)
-                    inventory_items.append(InventoryItem(
-                        symbol=symbol,
-                        amount=asset.balance,
-                        value_usd=asset.balance * price,
-                        price_change_24h=0.0 # Placeholder
-                    ))
+                    balance_data = wallet_adapter.get_detailed_balance(price_map)
+                    
+                    inventory_items = []
+                    for symbol, asset in holdings.items():
+                        price = price_map.get(symbol, 0.0)
+                        inventory_items.append(InventoryItem(
+                            symbol=symbol,
+                            amount=asset.balance,
+                            value_usd=asset.balance * price,
+                            price_change_24h=0.0
+                        ))
 
-                snapshot = WalletData(
-                    balance_usdc = balance_data.get('cash', 0.0),
-                    balance_sol = wallet_adapter.sol_balance,
-                    gas_sol = wallet_adapter.sol_balance,
-                    total_value_usd = balance_data.get('total_equity', 0.0),
-                    inventory = inventory_items
+                    live_snapshot = WalletData(
+                        balance_usdc = balance_data.get('cash', 0.0),
+                        balance_sol = wallet_adapter.sol_balance,
+                        gas_sol = wallet_adapter.sol_balance,
+                        total_value_usd = balance_data.get('total_equity', 0.0),
+                        inventory = inventory_items
+                    )
+                    state.update_wallet(True, live_snapshot)
+                
+                # ═══ PAPER MODE: Use TradeTracker balances ═══
+                tracker = arb.tracker
+                paper_balance = tracker.current_balance
+                paper_gas = tracker.gas_balance / sol_price if sol_price > 0 else 0.0
+                
+                paper_snapshot = WalletData(
+                    balance_usdc = paper_balance,
+                    balance_sol = paper_gas,
+                    gas_sol = paper_gas,
+                    total_value_usd = paper_balance + tracker.gas_balance,
+                    inventory = []  # Paper mode doesn't track individual tokens
                 )
-                
-                state.update_wallet(self.agents["arbiter"].config.live_mode, snapshot)
+                state.update_wallet(False, paper_snapshot)
                 
             except asyncio.CancelledError:
                 break
