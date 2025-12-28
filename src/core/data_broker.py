@@ -171,22 +171,22 @@ class DataBroker:
     # V133: SRP Refactor Properties (Bridging to EngineManager)
     # ═══════════════════════════════════════════════════════════════════
     @property
-    def merchant_engines((self)): return self.engine_mgr.merchant_engines
+    def merchant_engines(self): return self.engine_mgr.merchant_engines
     
     @property
-    def scout_agent((self)): return self.engine_mgr.scout_agent
+    def scout_agent(self): return self.engine_mgr.scout_agent
     
     @property
-    def whale_watcher((self)): return self.engine_mgr.whale_watcher
+    def whale_watcher(self): return self.engine_mgr.whale_watcher
     
     @property
-    def sauron((self)): return self.engine_mgr.sauron
+    def sauron(self): return self.engine_mgr.sauron
     
     @property
-    def sniper((self)): return self.engine_mgr.sniper
+    def sniper(self): return self.engine_mgr.sniper
     
     @property
-    def bitquery_adapter((self)): return self.engine_mgr.bitquery_adapter
+    def bitquery_adapter(self): return self.engine_mgr.bitquery_adapter
     
         """V45.2: Graceful shutdown."""
         self.running = False
