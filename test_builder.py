@@ -68,7 +68,7 @@ def test_atomic_builder():
     try:
         phantom_core.build_atomic_transaction(
             instruction_data,
-            payer_pubkey_str,
+            payer_key_b58,
             blockhash_str,
             rpc_slot=1000,
             jito_slot=1005 # Gap > 2
