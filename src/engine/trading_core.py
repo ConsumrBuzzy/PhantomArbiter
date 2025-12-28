@@ -225,6 +225,7 @@ class TradingCore:
         )
         
         # V48.0: Initialize HeartbeatReporter
+        self.heartbeat = HeartbeatReporter(
             dydx_adapter=getattr(self, 'dydx_adapter', None)
         )
         

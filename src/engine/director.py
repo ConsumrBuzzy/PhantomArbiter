@@ -5,6 +5,7 @@ from src.shared.state.app_state import state
 from src.shared.infrastructure.websocket_listener import WebSocketListener
 from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
 from src.strategy.ensemble import MerchantEnsemble
+from src.engine.trading_core import TradingCore
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 
 class Director:
