@@ -761,10 +761,10 @@ class TradeExecutor:
             'message': f"{icon} EXECUTING {mode_prefix} SELL: {watcher.symbol} ({reason})"
         })
         
-        # Capture state before exit
-        entry_price_log = watcher.entry_price
-        cost_basis_log = watcher.cost_basis
-        size_token_log = watcher.token_balance
+        # Capture state before exit (guard against None)
+        entry_price_log = watcher.entry_price or 0.0
+        cost_basis_log = watcher.cost_basis or 0.0
+        size_token_log = watcher.token_balance or 0.0
         
         # V63.0: SIMULATION INTERCEPT
         # V63.0: SIMULATION INTERCEPT
