@@ -169,8 +169,17 @@ class AppState:
                 value_usd: float = 0.0
                 pnl: float = 0.0
             
-            # TODO: Enrich with real price/pnl
-            items.append(InventoryItem(symbol, amount, 0.0, 0.0))
+            # Enrich with real price/pnl
+            try:
+                from src.core.shared_cache import SharedPriceCache
+                price, _ = SharedPriceCache.get_price(symbol)
+                if price:
+                    value_usd = price * amount
+                    items.append(InventoryItem(symbol, amount, value_usd, 0.0))
+                else:
+                    items.append(InventoryItem(symbol, amount, 0.0, 0.0))
+            except:
+                items.append(InventoryItem(symbol, amount, 0.0, 0.0))
         return items
 
 # Global Accessor

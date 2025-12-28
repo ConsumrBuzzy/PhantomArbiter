@@ -123,6 +123,12 @@ class Director:
         # 3. Launch MID TIER (Intelligence)
         self.tasks["mid"]["scalper"] = asyncio.create_task(self._run_scalper_loop(), name="Scalper_Engine")
         
+        # Wallet Sync (Robust Loop)
+        self.tasks["slow"]["wallet_sync"] = asyncio.create_task(
+            self._run_state_sync(),
+            name="Wallet_Sync"
+        )
+
         if not self.lite_mode:
             # Whale Watcher (Internal Loop)
             self.agents["whale"].start() 
@@ -231,7 +237,17 @@ class Director:
         state.log("[Director] Scalper: Active (Merchant Engine / 2s)")
         while self.is_running:
             try:
-                await asyncio.to_thread(self.agents["scalper"].scan_signals)
+                signals = await asyncio.to_thread(self.agents["scalper"].scan_signals)
+                # V12.6: Push to UI
+                if signals:
+                    from src.shared.state.app_state import ScalpSignal
+                    for s in signals[:5]: # Limit spam
+                        state.add_signal(ScalpSignal(
+                            token=s['symbol'],
+                            signal_type=f"🧠 {s['engine']}",
+                            confidence="High" if s['confidence'] > 0.8 else ("Med" if s['confidence'] > 0.5 else "Low"),
+                            action=s['action']
+                        ))
                 await asyncio.sleep(2)
             except asyncio.CancelledError:
                 break
