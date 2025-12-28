@@ -121,7 +121,8 @@ class PhantomArbiter:
         private_key = os.getenv("PHANTOM_PRIVATE_KEY") or os.getenv("SOLANA_PRIVATE_KEY")
         
         if not private_key:
-            print("   ❌ LIVE MODE FAILED: No private key found in .env!")
+            if not getattr(Settings, "SILENT_MODE", False):
+                print("   ❌ LIVE MODE FAILED: No private key found in .env!")
             Logger.error("❌ LIVE MODE FAILED: No private key found!")
             self.config.live_mode = False
             self._setup_paper_mode()
@@ -160,7 +161,8 @@ class PhantomArbiter:
                 self._unified_adapter = UnifiedEngineAdapter()
                 if self._unified_adapter.is_available():
                     Logger.info("⚡ Unified Engine: ENABLED (Meteora + Orca atomic)")
-                    print(f"   ⚡ Unified Engine: ENABLED")
+                    if not getattr(Settings, "SILENT_MODE", False):
+                        print(f"   ⚡ Unified Engine: ENABLED")
                 else:
                     Logger.warning("⚡ Unified Engine: NOT AVAILABLE (run: cd bridges && npm run build)")
                     self._unified_adapter = None
@@ -209,9 +211,10 @@ class PhantomArbiter:
                     
                 self.gas_balance = sol_balance * sol_price
             
-            print(f"   ✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
-            print(f"   💰 USDC: ${self.current_balance:.2f} | SOL (Gas): ${self.gas_balance:.2f}")
-            Logger.info(f"✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
+                if not getattr(Settings, "SILENT_MODE", False):
+                    print(f"   ✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
+                    print(f"   💰 USDC: ${self.current_balance:.2f} | SOL (Gas): ${self.gas_balance:.2f}")
+                Logger.info(f"✅ LIVE MODE ENABLED - Wallet: {self._wallet.get_public_key()[:8]}...")
             
             # Initialize TradeEngine
             self.trade_engine = TradeEngine(
@@ -221,7 +224,8 @@ class PhantomArbiter:
             )
             
         except Exception as e:
-            print(f"   ❌ LIVE MODE FAILED: {e}")
+            if not getattr(Settings, "SILENT_MODE", False):
+                print(f"   ❌ LIVE MODE FAILED: {e}")
             Logger.error(f"❌ LIVE MODE FAILED: {e}")
             self.config.live_mode = False
             self._setup_paper_mode()
@@ -428,7 +432,8 @@ class PhantomArbiter:
                 Logger.info(f"   🧠 SIGNAL: Added {symbol} (Trust: {score:.1f}) to Arbiter scan list")
                 
             if added_count > 0:
-                print(f"   🧠 Scraper Signal: Added {added_count} hot tokens to scan list.")
+                if not getattr(Settings, "SILENT_MODE", False):
+                    print(f"   🧠 Scraper Signal: Added {added_count} hot tokens to scan list.")
                 
         except Exception as e:
             Logger.debug(f"Signal check error: {e}")

@@ -8,7 +8,16 @@ The Data Broker writes, Trading Engines read.
 import os
 import json
 import time
-from filelock import FileLock
+try:
+    from filelock import FileLock
+except ImportError:
+    # V12.1: Robust fallback if filelock is missing (prevents boot crash)
+    class FileLock:
+        def __init__(self, *args, **kwargs): pass
+        def acquire(self, *args, **kwargs): return self
+        def release(self, *args, **kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *args, **kwargs): pass
 
 # Cache file locations
 CACHE_DIR = os.path.dirname(__file__)

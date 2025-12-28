@@ -564,7 +564,8 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     from src.dashboard.tui_app import PhantomDashboard
     from src.engine.director import Director
     
-    print("🚀 Launching Phantom Cockpit...")
+    from config.settings import Settings
+    Settings.SILENT_MODE = True
     
     # 1. Initialize Director (The Brain)
     director = Director()

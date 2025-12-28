@@ -85,7 +85,7 @@ class DashboardService:
     Collects state from all subsystems without blocking.
     """
     
-    print("   📊 [CMD] Processing STATUS_REPORT...")
+    # print("   📊 [CMD] Processing STATUS_REPORT...")
     
     def __init__(self, interval: int = 30):
         self.interval = interval
@@ -307,6 +307,11 @@ class DashboardService:
     
     def _print_dashboard(self, state: DashboardState):
         """Print the formatted dashboard to console."""
+        # 0. Check for Silent Mode to prevent TUI interference (V12.1)
+        # We check both Settings and Logger._silent_mode
+        if getattr(Settings, "SILENT_MODE", False) or getattr(Logger, "_silent_mode", False):
+            return
+
         uptime_seconds = int(time.time() - self.start_time)
         uptime_str = f"{uptime_seconds // 60}m {uptime_seconds % 60}s"
         timestamp = time.strftime("%H:%M:%S")

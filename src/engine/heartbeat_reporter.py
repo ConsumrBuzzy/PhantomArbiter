@@ -264,6 +264,10 @@ class HeartbeatReporter:
     
     def _log_to_console(self, data: HeartbeatData) -> None:
         """Print heartbeat to console."""
+        from src.shared.system.logging import Logger
+        if getattr(Settings, "SILENT_MODE", False) or getattr(Logger, "_silent_mode", False):
+            return
+
         print(f"\n────────────────────────────────────────────────────────────")
         print(f"💓 HEARTBEAT [{data.engine_name}] - {data.uptime_min}m Uptime")
         print(f"   • Ticks: {data.tick_count} | Mode: {data.dsa_mode}")
