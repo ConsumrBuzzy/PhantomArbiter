@@ -38,9 +38,9 @@ def test_atomic_builder():
         # Payer needs to be base58 string of the SECRET KEY for our Rust function
         # solders Keypair string representation is the JSON array usually, need explicit base58
         payer_key_b58 = str(payer) # Solders might default to something else, lets be specific
-        # Actually, solders.keypair.Keypair does not verify easily to base58 string in one go.
-        # Let's manually encode the secret bytes.
-        payer_key_b58 = base58.b58encode(bytes(payer.secret())).decode("ascii")
+        # Rust's Keypair::from_base58_string expects the full 64-byte keypair (32 seed + 32 pubkey)
+        # solders Keypair __bytes__ returns the 64 bytes.
+        payer_key_b58 = base58.b58encode(bytes(payer)).decode("ascii")
         
         tx_bytes = phantom_core.build_atomic_transaction(
             instruction_data,
