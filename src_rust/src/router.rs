@@ -66,6 +66,36 @@ impl UnifiedTradeRouter {
             },
         }
     }
+
+    /// Optimized path for pre-built transactions (e.g. from Jupiter)
+    pub fn route_transaction(
+        &self,
+        path: ExecutionPath,
+        tx_data: Vec<u8>, // Serialized VersionedTransaction
+        tip_lamports: u64
+    ) -> PyResult<String> {
+        let tx_base64 = base64::engine::general_purpose::STANDARD.encode(&tx_data);
+        let rt = get_runtime();
+
+        match path {
+            ExecutionPath::AtomicJito => {
+                match rt.block_on(async {
+                    submit_jito_async("https://ny.mainnet.block-engine.jito.wtf", &tx_base64, tip_lamports).await
+                }) {
+                    Ok(sig) => Ok(sig),
+                    Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e)),
+                }
+            },
+            ExecutionPath::SmartStandard => {
+                match rt.block_on(async {
+                    submit_rpc_async("https://api.mainnet-beta.solana.com", &tx_base64, true).await
+                }) {
+                    Ok(sig) => Ok(sig),
+                    Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e)),
+                }
+            }
+        }
+    }
 }
 
 impl UnifiedTradeRouter {
@@ -87,9 +117,6 @@ impl UnifiedTradeRouter {
             tip_lamports
         );
 
-        // For simplicity in this skeleton, we'll assume the instruction vector passed from Python 
-        // already includes needed ComputeBudget instructions if required, or we add them here.
-        
         // 3. Create Transaction
         let tx = Transaction::new_signed_with_payer(
             &[ix, tip_ix],

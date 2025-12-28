@@ -90,6 +90,36 @@ class UnifiedTradeRouter:
             Logger.error(f"❌ Execution Failed: {e}")
             return {"success": False, "error": str(e)}
 
+    def execute_transaction(
+        self,
+        path_type: str,
+        tx_bytes: bytes,
+        tip_lamports: int = 1000
+    ) -> Dict[str, Any]:
+        """
+        Execute a pre-built transaction through the Rust router.
+        Useful for Jupiter-provided transactions.
+        """
+        if not self.router:
+            return {"success": False, "error": "Router not initialized"}
+
+        path = ExecutionPath.AtomicJito if path_type == "ATOMIC" else ExecutionPath.SmartStandard
+        
+        try:
+            signature = self.router.route_transaction(
+                path,
+                tx_bytes,
+                tip_lamports
+            )
+            return {
+                "success": True,
+                "signature": signature,
+                "path": path_type
+            }
+        except Exception as e:
+            Logger.error(f"❌ Transaction Execution Failed: {e}")
+            return {"success": False, "error": str(e)}
+
     def get_session_exposure(self) -> float:
         """Read atomic session exposure from Rust."""
         if self.router:
