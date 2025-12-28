@@ -361,7 +361,12 @@ mod amm_math;
 mod instruction_builder;
 
 // ------------------------------------------------------------------------
-// SECTION 9: MODULE REGISTRATION
+// SECTION 9: NETWORK SUBMITTER (THE BLAST)
+// ------------------------------------------------------------------------
+mod network_submitter;
+
+// ------------------------------------------------------------------------
+// SECTION 10: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
@@ -384,6 +389,9 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     
     // Slab Decoder (The Ledger)
     slab_decoder::register_slab_functions(m)?;
+    
+    // Network Submitter (The Blast)
+    network_submitter::register_network_functions(m)?;
     
     Ok(())
 }
