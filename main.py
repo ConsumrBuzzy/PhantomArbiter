@@ -490,50 +490,28 @@ async def cmd_clean(args: argparse.Namespace) -> None:
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Run the TUI Dashboard with background workers."""
+    """Run the TUI Dashboard with the Director orchestrator."""
     from src.dashboard.tui_app import PhantomDashboard
-    from src.shared.infrastructure.websocket_listener import WebSocketListener
-    from src.shared.state.app_state import state
+    from src.engine.director import Director
     
     print("🚀 Launching Phantom Cockpit...")
     
-    # Initialize App
+    # 1. Initialize Director (The Brain)
+    director = Director()
+    
+    # 2. Initialize Dashboard (The Face)
     app = PhantomDashboard()
     
-    # We need to run the WSS Listener in the background.
-    # Textual's on_mount is good, but we want to confirm it starts here?
-    # Actually, we can just define the async task and pass it to the app or rely on asyncio.
-    # Since app.run() is async (if awaited?), wait. app.run() is synchronous wrapper usually?
-    # Textual 0.50+: app.run() can be async.
-    # But `main.py` is `async def main`.
+    # 3. Start Engines
+    # We start the Director in the background
+    await director.start()
     
-    # Let's try `await app.run_async()`.
-    
-    # Create background task for WSS
-    # Note: We need a valid WSS URL in .env
-    listener = WebSocketListener() 
-    
-    # We wrap listener.start() to be robust
-    async def run_listener():
-        state.log("[System] Connecting to Neural Network...")
-        try:
-            await listener.start()
-        except Exception as e:
-            state.log(f"[Error] WSS Failed: {e}")
-
-    # Inject the task into the app or run concurrently?
-    # If we run concurrently with `gather`, Textual might fight for the console if not careful?
-    # Textual takes over stdout/stdin.
-    # Proper way: app.run_async()
-    
-    task_wss = asyncio.create_task(run_listener())
-    
-    # Run UI
-    await app.run_async()
-    
-    # Cleanup
-    listener.stop()
-    task_wss.cancel()
+    # 4. Launch UI
+    try:
+        await app.run_async()
+    finally:
+        # 5. Cleanup
+        await director.stop()
 
 
 async def main() -> None:
