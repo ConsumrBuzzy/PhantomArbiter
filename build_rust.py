@@ -54,7 +54,7 @@ def build_rust():
         print("🔍 Verifying Rust extension import...")
         python_path = venv_dir / "Scripts" / "python" if sys.platform == "win32" else venv_dir / "bin" / "python"
         verify = subprocess.run(
-            [str(python_path), "-c", "import phantom_core; print('✅ phantom_core loaded successfully')"],
+            [str(python_path), "-c", "import phantom_core; print('SUCCESS: phantom_core loaded successfully')"],
             env=env, capture_output=True, text=True
         )
         if verify.returncode != 0:
