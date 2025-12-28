@@ -49,6 +49,9 @@ from src.core.signal_resolver import SignalResolver
 # V133: AlertPolicyChecker (SRP Refactor)
 from src.core.alert_policy_checker import AlertPolicyChecker
 
+# V133: BackgroundWorkerManager (SRP Refactor)
+from src.core.background_worker_manager import BackgroundWorkerManager
+
 class DataBroker:
     """
     Centralized data acquisition for dual-engine trading.
@@ -139,6 +142,9 @@ class DataBroker:
         
         # V133: AlertPolicyChecker (SRP Refactor) (Instantiated after market_aggregator)
         self.alert_checker = AlertPolicyChecker(market_aggregator=getattr(self, 'market_aggregator', None))
+        
+        # V133: BackgroundWorkerManager (SRP Refactor)
+        self.worker_mgr = BackgroundWorkerManager(self)
         
         # V11.5: Defer blocking calls to run() for instant launch
         # _backfill_history() and _validate_tokens() moved to background thread
