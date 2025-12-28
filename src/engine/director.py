@@ -4,16 +4,8 @@ from typing import Optional
 from src.shared.state.app_state import state
 from src.shared.infrastructure.websocket_listener import WebSocketListener
 from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
-from src.scalper.engine import ScalperConfig
-
-class PhantomScalperEngine:
-    def __init__(self, config):
-        self.config = config
-        self.watchlist = []
-    
-    async def run_cycle(self):
-        # Logic: Check watchlist -> Execute Strategy
-        pass
+from src.engine.trading_core import TradingCore
+from src.strategy.ensemble import MerchantEnsemble
 
 class Director:
     """
@@ -45,9 +37,9 @@ class Director:
         arb_config = ArbiterConfig(live_mode=live_mode) 
         self.arbiter = PhantomArbiter(arb_config)
         
-        # 2. SCALPER (Inventory)
-        scalp_config = ScalperConfig(live_mode=live_mode)
-        self.scalper = PhantomScalperEngine(scalp_config)
+        # 2. SCALPER (Merchant Mind)
+        # V12.8: Unified Merchant Engine (Scalper+Keltner+VWAP)
+        self.scalper = TradingCore(strategy_class=MerchantEnsemble, engine_name="SCALPER")
         
         # 3. SCOUT (Discovery)
         self.scout_active = True
@@ -69,9 +61,8 @@ class Director:
         ))
         
         # 3. THE MERCHANT (Mid Lane) - Scalper
-        # The Scalper is integrated into the ArbiterEngine via signals 
-        # but we can also run a dedicated scalper loop if needed.
-        # For now, we've hooked ArbiterEngine and DataBroker.
+        # Real-time scan and signal generation
+        self.mid_tasks.append(asyncio.create_task(self._run_scalper_loop()))
         
         # 4. THE SCOUT (Slow Lane)
         self.slow_tasks.append(asyncio.create_task(self._run_scout_loop()))
@@ -105,28 +96,16 @@ class Director:
             state.log(f"[Director] ❌ WSS Crash: {e}")
 
     async def _run_scalper_loop(self):
-        """Mid Lane: Scalping Strategy."""
-        state.log("[Director] Scalper: Active (Interval: 2s)")
-        from src.shared.state.app_state import ScalpSignal
-        import random
+        """Mid Lane: Real Scalper (Merchant Engine)."""
+        state.log("[Director] Scalper: Active (Merchant Engine / 2s)")
         
         while self.is_running:
             try:
+                # V12.8: Execute Sync Scan in Thread
+                # This triggers MerchantEnsemble.analyze_tick via TradingCore.scan_signals
+                await asyncio.to_thread(self.scalper.scan_signals)
                 await asyncio.sleep(2)
                 
-                # Mock Signal Generation for Dashboard Visualization
-                # In prod, this comes from self.scalper.run_cycle()
-                if random.random() < 0.3: # 30% chance every 2s
-                    sigs = [
-                        ("BONK", "RSI Oversold", "High", "BUY"),
-                        ("WIF", "Breakout", "Med", "BUY"),
-                        ("JUP", "MA Cross", "Low", "WAIT"),
-                        ("POPCAT", "Volume Spike", "High", "BUY")
-                    ]
-                    s = random.choice(sigs)
-                    signal = ScalpSignal(token=s[0], signal_type=s[1], confidence=s[2], action=s[3])
-                    state.add_signal(signal)
-                    
             except asyncio.CancelledError:
                 break
             except Exception as e:
