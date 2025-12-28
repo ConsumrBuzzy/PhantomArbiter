@@ -28,7 +28,14 @@ class Director:
         self.slow_tasks = []
         
         # Components
-        self.listener = WebSocketListener()
+        # V3.1: Inject dependencies for WebSocketListener
+        class MockPriceCache:
+            def update_price(self, mint, price): pass
+        
+        self.price_cache = MockPriceCache()
+        self.watched_mints = {"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC"}
+        
+        self.listener = WebSocketListener(self.price_cache, self.watched_mints)
         
         # 1. ARBITER (Atomic)
         arb_config = ArbiterConfig(live_mode=live_mode) 
