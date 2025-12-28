@@ -314,16 +314,23 @@ impl Graph {
 }
 
 // ------------------------------------------------------------------------
-// SECTION 5: MODULE REGISTRATION
+// SECTION 5: LOG PARSER (THE WIRE)
+// ------------------------------------------------------------------------
+mod log_parser;
+
+// ------------------------------------------------------------------------
+// SECTION 6: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
 #[pymodule]
 fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Graph>()?;
+    m.add_class::<log_parser::SwapEvent>()?;
     m.add_function(wrap_pyfunction!(calculate_net_profit, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
+    m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     Ok(())
 }
