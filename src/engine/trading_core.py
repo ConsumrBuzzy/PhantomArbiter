@@ -279,156 +279,28 @@ class TradingCore:
                 self.portfolio.initial_capital = 1000.0
         
     def _init_watchers(self):
-        """Initialize active watchers from config. V11.4: Scouts deferred to background."""
-        active, volatile, watch, scout, all_assets, raw_data, watcher_pairs = Settings.load_assets()
-        
-        # V32.1: Legacy Strategy Filtering Removed (V45.5 Unified)
-        # All Active assets are loaded for the MerchantEnsemble to manage.
-
-        # V11.4: Active tokens ONLY (P0 critical path - must wait for these)
-        for symbol, mint in active.items():
-            self.watchers[symbol] = Watcher(symbol, mint, validator=self.validator, is_critical=True)
-            Logger.info(f"   ✅ Watcher Loaded: {symbol}")
+        """Initialize active watchers from config. V133: Delegates to WatcherManager."""
+        self.watcher_mgr.init_watchers()
+        # Keep legacy references in sync
+        self.watchers = self.watcher_mgr.watchers
+        self.scout_watchers = self.watcher_mgr.scout_watchers
         
     def _process_discovery_watchlist(self):
-        """V132: Ingest tokens from discovery watchlist into scout_watchers."""
-        if not hasattr(self, 'watchlist') or not self.watchlist:
-            return
-            
-        from src.shared.infrastructure.token_scraper import get_token_scraper
-        scraper = get_token_scraper()
-        
-        # Limit processing to prevent blocking
-        to_process = self.watchlist[:5]
-        self.watchlist = self.watchlist[5:]
-        
-        for mint in to_process:
-            # Skip if already being watched
-            if any(w.mint == mint for w in {**self.watchers, **self.scout_watchers}.values()):
-                continue
-                
-            info = scraper.lookup(mint)
-            symbol = info.get("symbol", f"UNK_{mint[:4]}")
-            
-            # Add to scout watchers (Low priority tracking)
-            from src.strategy.watcher import Watcher
-            self.scout_watchers[symbol] = Watcher(symbol, mint, validator=self.validator, is_critical=False)
-            Logger.info(f"   🔭 [{self.engine_name}] Scout Watcher added: {symbol} ({mint[:8]})")
-        # V11.4: Scout tokens deferred to P2 background thread
-        # V45.4: Ensure Scouts are initialized even if invoked via DataBroker
-        self._pending_scouts = scout  # Dict of {symbol: mint}
-        if scout:
-            Logger.info(f"⏳ {len(scout)} Scout tokens queued for background init")
-            
-            def init_scouts_bg():
-                import time
-                time.sleep(2) # Wait for startup to settle
-                for symbol, mint in self._pending_scouts.items():
-                    if symbol in self.watchers: continue
-                    # Use lighter validation for scouts? Or standard?
-                    # V45.4: Scouts are full watchers but tracked separately
-                    self.scout_watchers[symbol] = Watcher(symbol, mint, validator=self.validator, is_critical=False)
-                    # Don't spam logs for every scout, do batch
-                    time.sleep(0.1)
-                
-                priority_queue.add(3, 'LOG', {'level': 'INFO', 'message': f"✅ {len(self.scout_watchers)} Scouts Initialized"})
-
-            import threading
-            t = threading.Thread(target=init_scouts_bg, daemon=True, name=f"ScoutInit-{getattr(self, 'engine_name', 'CORE')}")
-            t.start()
-        
-        # V47.6: Reconcile positions after watchers are created
+        """V133: Delegates to WatcherManager."""
+        self.watcher_mgr.process_discovery_watchlist()
+        # Sync legacy refs and trigger reconciliation
+        self.scout_watchers = self.watcher_mgr.scout_watchers
         self._reconcile_open_positions()
     
     def _reconcile_open_positions(self):
-        """
-        V47.6: Position Reconciliation on Startup.
-        
-        Syncs CapitalManager.positions with Watcher.in_position to prevent zombie bags.
-        For any position in CapitalManager that doesn't have a matching watcher with 
-        in_position=True, we either:
-        1. Find the watcher and set in_position=True
-        2. Create a temporary watcher for the orphaned position
-        """
-        try:
-            positions = self.capital_mgr.get_all_positions(self.engine_name)
-            
-            if not positions:
-                return
-            
-            reconciled_count = 0
-            orphan_count = 0
-            
-            for symbol, pos_data in positions.items():
-                if pos_data.get('balance', 0) <= 0:
-                    continue
-                    
-                # Try to find matching watcher
-                watcher = self.watchers.get(symbol) or self.scout_watchers.get(symbol)
-                
-                if watcher:
-                    # Watcher exists - ensure it knows about the position
-                    if not watcher.in_position:
-                        watcher.in_position = True
-                        watcher.entry_price = pos_data.get('avg_price', 0.0)
-                        watcher.cost_basis = pos_data.get('balance', 0) * watcher.entry_price
-                        watcher.entry_time = pos_data.get('entry_time', time.time())
-                        watcher.token_balance = pos_data.get('balance', 0)
-                        reconciled_count += 1
-                        priority_queue.add(3, 'LOG', {'level': 'INFO', 'message': f"[V47.6] Reconciled: {symbol} (Entry: ${watcher.entry_price:.6f})"})
-                else:
-                    # No watcher found - this is a true orphan
-                    # Create a scout watcher for it so it can be monitored and exited
-                    mint = pos_data.get('mint', '')
-                    if mint:
-                        try:
-                            new_watcher = Watcher(symbol, mint, validator=self.validator, is_critical=False, lazy_init=True)
-                            new_watcher.in_position = True
-                            new_watcher.entry_price = pos_data.get('avg_price', 0.0)
-                            new_watcher.cost_basis = pos_data.get('balance', 0) * new_watcher.entry_price
-                            new_watcher.entry_time = pos_data.get('entry_time', time.time())
-                            new_watcher.token_balance = pos_data.get('balance', 0)
-                            self.scout_watchers[symbol] = new_watcher
-                            orphan_count += 1
-                            priority_queue.add(3, 'LOG', {'level': 'WARN', 'message': f"[V47.6] Orphan Position Found: {symbol} - Created Scout Watcher"})
-                        except Exception as e:
-                            priority_queue.add(3, 'LOG', {'level': 'ERROR', 'message': f"[V47.6] Failed to create watcher for orphan {symbol}: {e}"})
-            
-            if reconciled_count > 0 or orphan_count > 0:
-                priority_queue.add(3, 'LOG', {'level': 'SUCCESS', 'message': f"[V47.6] Reconciliation Complete: {reconciled_count} synced, {orphan_count} orphans recovered"})
-                
-        except Exception as e:
-            priority_queue.add(3, 'LOG', {'level': 'ERROR', 'message': f"[V47.6] Reconciliation Error: {e}"})
-            
+        """V133: Delegates to WatcherManager."""
+        self.watcher_mgr.reconcile_open_positions()
+        # Sync scout_watchers in case orphans were added
+        self.scout_watchers = self.watcher_mgr.scout_watchers
 
     def _sync_active_positions(self):
-        """V12.5: Share active position state with Data Broker."""
-        active_list = []
-        
-        # Check all watchers (Primary + Scout)
-        # Note: Iterating values() is safe-ish in thread, but this is main thread anyway.
-        for watcher in list(self.watchers.values()) + list(self.scout_watchers.values()):
-            if watcher.in_position:
-                curr_price = watcher.get_price()
-                if watcher.entry_price > 0:
-                    pnl_pct = ((curr_price - watcher.entry_price) / watcher.entry_price) * 100
-                    pnl_usd = (curr_price * watcher.token_balance) - watcher.cost_basis
-                else:
-                    pnl_pct = 0.0
-                    pnl_usd = 0.0
-                    
-                active_list.append({
-                    "symbol": watcher.symbol,
-                    "entry": watcher.entry_price,
-                    "current": curr_price,
-                    "pnl_pct": pnl_pct,
-                    "pnl_usd": pnl_usd,
-                    "size_usd": watcher.cost_basis,
-                    "timestamp": time.time()
-                })
-        
-        # Write to shared cache
-        SharedPriceCache.write_active_positions(active_list)
+        """V133: Delegates to WatcherManager."""
+        self.watcher_mgr.sync_active_positions()
         
     def reload_ml_model(self):
         """V47.0: Hot-reload ML model if newer version exists."""
