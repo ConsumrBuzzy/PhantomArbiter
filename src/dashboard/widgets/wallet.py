@@ -57,8 +57,8 @@ class WalletWidget(Static):
         # Or just manually update here.
         
         # Update Paper
-        self.query_one(WalletDisplay).filter(lambda w: w.prefix == "paper").first().update_data(state.wallet_paper)
+        # Use query() to get DOMQuery, then filter
+        self.query(WalletDisplay).filter(lambda w: w.prefix == "paper").first().update_data(state.wallet_paper)
         
         # Update Live
-        # Only show live data if meaningful? Or always show 0.00?
-        self.query_one(WalletDisplay).filter(lambda w: w.prefix == "live").first().update_data(state.wallet_live)
+        self.query(WalletDisplay).filter(lambda w: w.prefix == "live").first().update_data(state.wallet_live)
