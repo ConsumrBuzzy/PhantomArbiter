@@ -186,6 +186,14 @@ def create_parser() -> argparse.ArgumentParser:
     )
     dash_parser.add_argument("--live", action="store_true", help="Enable LIVE trading in Dashboard")
 
+    # ═══════════════════════════════════════════════════════════════
+    # LIVE SUBCOMMAND (Shortcut for Dashboard --live)
+    # ═══════════════════════════════════════════════════════════════
+    live_parser = subparsers.add_parser(
+        "live",
+        help="LAUNCH LIVE MODE (Short for dashboard --live)"
+    )
+
     return parser
 
 
@@ -221,6 +229,12 @@ async def main() -> None:
     parser = create_parser()
     args = parser.parse_args()
     
+    # SHORTCUT: 'live' -> dashboard + live=True
+    if args.command == "live":
+        args.live = True
+        await cmd_dashboard(args)
+        return
+
     # DEFAULT TO DASHBOARD IF NO ARGS
     if args.command is None:
         # Manually invoke dashboard handler with default args
