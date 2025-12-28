@@ -458,7 +458,7 @@ class DataBroker:
         # Reload Settings from file
         try:
             from config.settings import Settings
-            a, v, w, s, all_a, meta = Settings.load_assets()
+            a, v, w, s, all_a, meta, wp = Settings.load_assets()
             Settings.ACTIVE_ASSETS = a
             Settings.SCOUT_ASSETS = s
             Settings.VOLATILE_ASSETS = v

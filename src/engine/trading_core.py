@@ -230,7 +230,7 @@ class TradingCore:
         
     def _init_watchers(self):
         """Initialize active watchers from config. V11.4: Scouts deferred to background."""
-        active, volatile, watch, scout, all_assets, raw_data = Settings.load_assets()
+        active, volatile, watch, scout, all_assets, raw_data, watcher_pairs = Settings.load_assets()
         
         # V32.1: Legacy Strategy Filtering Removed (V45.5 Unified)
         # All Active assets are loaded for the MerchantEnsemble to manage.

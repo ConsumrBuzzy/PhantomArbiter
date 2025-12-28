@@ -166,7 +166,7 @@ if not hasattr(Settings, '_reload_assets'):
         """Reload assets from disk."""
         try:
             # V9.7: Reload from unified watchlist location
-            a, v, w, s, all_a, meta = cls.load_assets()
+            a, v, w, s, all_a, meta, wp = cls.load_assets()
             cls.ACTIVE_ASSETS = a
             cls.VOLATILE_ASSETS = v
             cls.WATCH_ASSETS = w
