@@ -1,20 +1,45 @@
-import pytest
-from unittest.mock import MagicMock, patch
+"""
+Test Suite: Raydium Bridge Rust Execution (Phase 20.2)
+======================================================
+Verifies the plumbing of execute_swap_rust:
+- ATA Derivation
+- Vault Resolution
+- Rust Instruction Building Call
+- Atomic Transaction Signing
+"""
+
 import sys
 import os
-sys.path.append(os.getcwd()) # Ensure src is importable
+import pytest
+from unittest.mock import MagicMock
 
-# Mock phantom_core and solders/spl if needed
-sys.modules['phantom_core'] = MagicMock()
+# 1. Mock dependencies inside sys.modules BEFORE importing the module under test
+sys.path.append(os.getcwd())
 
-sys.modules['solders'] = MagicMock()
-sys.modules['solders.pubkey'] = MagicMock()
-sys.modules['solders.keypair'] = MagicMock()
-sys.modules['spl.token.instructions'] = MagicMock()
-sys.modules['requests'] = MagicMock() # Mock requests globally
+# Mock phantom_core
+mock_phantom = MagicMock()
+sys.modules['phantom_core'] = mock_phantom
 
-from src.shared.execution.raydium_bridge import RaydiumBridge, RaydiumSwapResult
-import requests # Get the mock
+# Mock solders
+mock_solders = MagicMock()
+sys.modules['solders'] = mock_solders
+mock_solders_pubkey = MagicMock()
+sys.modules['solders.pubkey'] = mock_solders_pubkey
+mock_solders_keypair = MagicMock()
+sys.modules['solders.keypair'] = mock_solders_keypair
+
+# Mock spl.token.instructions
+sys.modules['spl'] = MagicMock()
+sys.modules['spl.token'] = MagicMock()
+mock_spl_instructions = MagicMock()
+sys.modules['spl.token.instructions'] = mock_spl_instructions
+
+# Mock requests
+mock_requests = MagicMock()
+sys.modules['requests'] = mock_requests
+
+# 2. Import Module Under Test
+from src.shared.execution.raydium_bridge import RaydiumBridge
 
 # Fake data
 POOL_ADDR = "Pool111111111111111111111111111111111111111"
@@ -25,14 +50,15 @@ MINT_B = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" # USDC
 def bridge():
     return RaydiumBridge(bridge_path="dummy")
 
-@patch('src.shared.execution.raydium_bridge.phantom_core')
-@patch('src.shared.execution.raydium_bridge.Keypair')
-@patch('src.shared.execution.raydium_bridge.get_associated_token_address')
-def test_execute_swap_rust_success(mock_gata, mock_keypair, mock_core, bridge):
+def test_execute_swap_rust_success(bridge):
     """Verify successfully wired execution flow."""
-    # 1. Setup Mocks
-    mock_requests = sys.modules['requests'] # Access the global mock
-
+    # Reset mocks
+    mock_requests.reset_mock()
+    mock_phantom.reset_mock()
+    mock_solders_keypair.Keypair.reset_mock()
+    mock_spl_instructions.get_associated_token_address.reset_mock()
+    
+    # Setup Mocks logic
     mock_requests.post.side_effect = [
         # Pool Info Response
         MagicMock(json=lambda: {
@@ -65,18 +91,18 @@ def test_execute_swap_rust_success(mock_gata, mock_keypair, mock_core, bridge):
     pool_info_mock.mint_decimals_1 = 6
     pool_info_mock.get_price.return_value = 100.0
     
-    mock_core.parse_clmm_pool_state.return_value = pool_info_mock
-    mock_core.derive_tick_arrays.return_value = ("TickLower", "TickCurr", "TickUpper")
-    mock_core.build_raydium_clmm_swap_ix.return_value = b"instruction_bytes"
-    mock_core.build_atomic_transaction.return_value = b"transaction_bytes"
+    mock_phantom.parse_clmm_pool_state.return_value = pool_info_mock
+    mock_phantom.derive_tick_arrays.return_value = ("TickLower", "TickCurr", "TickUpper")
+    mock_phantom.build_raydium_clmm_swap_ix.return_value = b"instruction_bytes"
+    mock_phantom.build_atomic_transaction.return_value = b"transaction_bytes"
     
     # Mock Keys
     mock_kp_instance = MagicMock()
     mock_kp_instance.pubkey.return_value = "PayerPubkey"
-    mock_keypair.from_base58_string.return_value = mock_kp_instance
-    mock_gata.return_value = "ATA_Addr"
+    mock_solders_keypair.Keypair.from_base58_string.return_value = mock_kp_instance
+    mock_spl_instructions.get_associated_token_address.return_value = "ATA_Addr"
 
-    # 2. Execute
+    # Execute
     result = bridge.execute_swap_rust(
         pool_address=POOL_ADDR,
         input_mint=MINT_A, # Selling A -> B
@@ -84,19 +110,19 @@ def test_execute_swap_rust_success(mock_gata, mock_keypair, mock_core, bridge):
         payer_keypair="SecretKey123"
     )
     
-    # 3. Assertions
+    # Assertions
     assert result.success is True
     assert result.signature == "signature_ok_123"
     
     # Verify Rust calls
-    mock_core.parse_clmm_pool_state.assert_called_with(POOL_ADDR, "base64data==")
+    mock_phantom.parse_clmm_pool_state.assert_called_with(POOL_ADDR, "base64data==")
     
     # Verify Tick Arrays derived
-    mock_core.derive_tick_arrays.assert_called_once()
+    mock_phantom.derive_tick_arrays.assert_called_once()
     
     # Verify Instruction Build
-    mock_core.build_raydium_clmm_swap_ix.assert_called_once()
-    call_kwargs = mock_core.build_raydium_clmm_swap_ix.call_args.kwargs
+    mock_phantom.build_raydium_clmm_swap_ix.assert_called_once()
+    call_kwargs = mock_phantom.build_raydium_clmm_swap_ix.call_args.kwargs
     
     # Check Plumbing: Vaults for A->B
     assert call_kwargs['input_vault'] == "VaultA"
@@ -104,13 +130,13 @@ def test_execute_swap_rust_success(mock_gata, mock_keypair, mock_core, bridge):
     assert call_kwargs['amount'] == 1_000_000_000 # 1.0 * 10^9
     
     # Verify Atomic Transaction Build
-    mock_core.build_atomic_transaction.assert_called_once()
-    assert mock_core.build_atomic_transaction.call_args.kwargs['instruction_payload'] == b"instruction_bytes"
-    assert mock_core.build_atomic_transaction.call_args.kwargs['blockhash_b58'] == "hash123"
+    mock_phantom.build_atomic_transaction.assert_called_once()
+    assert mock_phantom.build_atomic_transaction.call_args.kwargs['instruction_payload'] == b"instruction_bytes"
+    assert mock_phantom.build_atomic_transaction.call_args.kwargs['blockhash_b58'] == "hash123"
 
-@patch('src.shared.execution.raydium_bridge.requests')
-def test_execute_swap_rust_rpc_failure(mock_requests, bridge):
+def test_execute_swap_rust_rpc_failure(bridge):
     """Verify RPC failure handling."""
+    mock_requests.reset_mock()
     mock_requests.post.return_value.json.return_value = {"error": "RPC Fail"}
     
     result = bridge.execute_swap_rust(
@@ -121,9 +147,7 @@ def test_execute_swap_rust_rpc_failure(mock_requests, bridge):
     )
     
     assert result.success is False
-    assert "Pool account not found" in result.error or "RPC Fail" in str(result.error) # Depends on where it fails
+    assert "Pool account not found" in result.error or "RPC Fail" in str(result.error)
 
 if __name__ == "__main__":
-    import unittest
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
-
+    pytest.main([__file__, "-v"])
