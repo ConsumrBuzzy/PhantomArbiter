@@ -218,18 +218,22 @@ class WebSocketListener:
             # ═══ V88.0: RUST FLASH DECRYPTION (PHASE 3: THE WIRE) ═══
             try:
                 import phantom_core
+                from src.shared.state.app_state import state as app_state
+                
+                # Update Core Status if not already
+                if not app_state.stats["rust_core_active"]:
+                    app_state.update_stat("rust_core_active", True)
+                
                 for log_str in logs:
                     # Instant zero-copy decoding in Rust
                     event = phantom_core.parse_raydium_log(log_str)
                     if event:
                         # Proof of Life: Log the flash decode
-                        # In the future, this feeds directly into the Graph
-                        # Note: We don't have decimals here, so these are raw u64 atomic units
-                        wss_log(f"⚡ FLASH SWAP: In={event.amount_in} Out={event.amount_out} Buy={event.is_buy}")
+                        msg = f"⚡ FLASH SWAP: In={event.amount_in} Out={event.amount_out} Buy={event.is_buy}"
+                        wss_log(msg)
+                        app_state.log(msg) # Push to TUI
+                        app_state.update_stat("wss_latency_ms", 10) # Mock metric for now, or measure time
                         
-                        # Optimization: If we found the swap in the logs, we MIGHT not need to poll RPC
-                        # But we still need the Token Mints (which are in the Transaction, not always the log)
-                        # So we keep the poll for now, but we KNOW the price delta instantly.
             except ImportError:
                 pass
             except Exception as e:
