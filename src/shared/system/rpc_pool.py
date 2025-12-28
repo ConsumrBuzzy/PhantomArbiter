@@ -31,7 +31,7 @@ class RPCPool:
     
     def __init__(self, config_path: str = None):
         self.config_path = config_path or os.path.join(
-            os.path.dirname(__file__), "..", "..", "config", "rpc_pool.json"
+            os.path.dirname(__file__), "..", "..", "..", "config", "rpc_pool.json"
         )
         self.endpoints: List[Dict] = []
         self.current_index = 0

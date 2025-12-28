@@ -50,7 +50,7 @@ class CapitalManager:
     """
     
     # Class-level constants with type hints
-    _CONFIG_DIR: ClassVar[str] = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../config"))
+    _CONFIG_DIR: ClassVar[str] = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../config"))
     STATE_FILE: ClassVar[str] = os.path.join(_CONFIG_DIR, "capital_state.json")
     
     # Engine configuration

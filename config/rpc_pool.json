@@ -13,6 +13,13 @@
             "note": "Requires HELIUS_API_KEY in .env - free tier available at helius.dev"
         },
         {
+            "name": "Alchemy",
+            "url": "${ALCHEMY_ENDPOINT}",
+            "priority": 1,
+            "enabled": true,
+            "note": "Requires ALCHEMY_ENDPOINT in .env"
+        },
+        {
             "name": "JITO Private",
             "url": "https://mainnet.block-engine.jito.wtf/api/v1/transactions",
             "priority": 0,
