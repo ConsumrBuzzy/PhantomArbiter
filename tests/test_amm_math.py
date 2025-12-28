@@ -272,5 +272,119 @@ def test_compute_clmm_swap_zero_input():
     assert new_sqrt_price == sqrt_price_x64
 
 
+# ============================================================================
+# PHASE 3: DLMM TESTS
+# ============================================================================
+
+def test_dlmm_imports():
+    """Verify DLMM functions are available."""
+    import phantom_core
+    
+    assert hasattr(phantom_core, 'dlmm_price_from_bin')
+    assert hasattr(phantom_core, 'dlmm_bin_from_price')
+    assert hasattr(phantom_core, 'compute_dlmm_swap_single_bin')
+    assert hasattr(phantom_core, 'compute_dlmm_swap')
+    assert hasattr(phantom_core, 'dlmm_get_effective_fee')
+
+
+def test_dlmm_price_from_bin_zero():
+    """Bin at offset (2^23) should give price = 1.0."""
+    import phantom_core
+    
+    bin_offset = 8388608  # 2^23
+    bin_step = 10  # 0.1% per bin
+    
+    price = phantom_core.dlmm_price_from_bin(bin_offset, bin_step)
+    
+    # Should be very close to 1.0
+    assert abs(price - 1.0) < 0.001, f"Bin offset price should be ~1.0, got {price}"
+
+
+def test_dlmm_bin_roundtrip():
+    """Converting price -> bin -> price should be stable."""
+    import phantom_core
+    
+    bin_step = 10  # 0.1% per bin
+    test_prices = [0.5, 1.0, 2.0, 10.0, 100.0]
+    
+    for price in test_prices:
+        bin_id = phantom_core.dlmm_bin_from_price(price, bin_step)
+        recovered_price = phantom_core.dlmm_price_from_bin(bin_id, bin_step)
+        
+        # Allow ~0.1% tolerance (one bin step)
+        error = abs(recovered_price - price) / price
+        assert error < 0.002, (
+            f"Price roundtrip failed: {price} -> bin {bin_id} -> {recovered_price}"
+        )
+
+
+def test_dlmm_swap_single_bin():
+    """Single bin swap should produce reasonable output."""
+    import phantom_core
+    
+    bin_offset = 8388608  # price = 1.0
+    bin_step = 10
+    reserve_x = 1_000_000  # 1M token X
+    reserve_y = 1_000_000  # 1M token Y
+    amount_in = 10_000     # 10k tokens
+    
+    amount_out, consumed, crossed = phantom_core.compute_dlmm_swap_single_bin(
+        amount_in, reserve_x, reserve_y, bin_offset, bin_step, 25, True
+    )
+    
+    # At price 1.0 with small fee, output should be close to input
+    assert amount_out > 9000, f"Expected ~9975, got {amount_out}"
+    assert amount_out < 10000, f"Output should be less than input due to fee"
+    assert consumed == amount_in, "All input should be consumed"
+    assert crossed == False, "Should not cross bin for small swap"
+    
+    print(f"\nDLMM Single Bin: {amount_in} in -> {amount_out} out, crossed={crossed}")
+
+
+def test_dlmm_swap_multi_bin():
+    """Multi-bin swap should traverse bins correctly."""
+    import phantom_core
+    
+    bin_offset = 8388608
+    bin_step = 10
+    
+    # Create 3 bins with liquidity
+    bin_reserves = [
+        (bin_offset, 1000, 1000),      # Bin 0
+        (bin_offset - 1, 1000, 1000),  # Bin -1 (lower price)
+        (bin_offset - 2, 1000, 1000),  # Bin -2 (even lower)
+    ]
+    
+    # Swap more than one bin can handle
+    amount_in = 5000
+    
+    total_out, final_bin = phantom_core.compute_dlmm_swap(
+        amount_in, bin_offset, bin_step, bin_reserves, 25, True
+    )
+    
+    # Should get output from multiple bins
+    assert total_out > 0, f"Expected positive output, got {total_out}"
+    
+    print(f"\nDLMM Multi-Bin: {amount_in} in -> {total_out} out, final_bin={final_bin}")
+
+
+def test_dlmm_effective_fee():
+    """Dynamic fee should increase with volatility."""
+    import phantom_core
+    
+    base_fee = 25  # 0.25%
+    
+    # No volatility
+    fee_low = phantom_core.dlmm_get_effective_fee(base_fee, 0)
+    assert fee_low == base_fee, f"Zero volatility should give base fee, got {fee_low}"
+    
+    # High volatility
+    fee_high = phantom_core.dlmm_get_effective_fee(base_fee, 500000)
+    assert fee_high > base_fee, f"High volatility should increase fee, got {fee_high}"
+    assert fee_high <= 1000, f"Fee should be capped at 10%, got {fee_high}"
+    
+    print(f"\nDLMM Fee: base={base_fee}, low_vol={fee_low}, high_vol={fee_high}")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

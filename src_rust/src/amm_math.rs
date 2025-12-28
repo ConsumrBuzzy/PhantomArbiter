@@ -374,10 +374,228 @@ pub fn price_from_sqrt_price(sqrt_price_x64: u128) -> PyResult<f64> {
 }
 
 // ============================================================================
-// PHASE 3: DLMM (Discrete Liquidity) - Placeholder
+// PHASE 3: DLMM (Discrete Liquidity Market Maker - Meteora)
 // ============================================================================
 
-// TODO: Implement compute_dlmm_swap for Meteora DLMM
+/// The "zero bin" offset used in Meteora DLMM.
+/// Bin IDs are stored as u24, with 2^23 representing price = 1.0
+const DLMM_BIN_OFFSET: i32 = 8388608; // 2^23
+
+/// Compute the price for a given bin ID.
+/// 
+/// Formula: price = (1 + bin_step/10000)^(bin_id - 2^23)
+/// 
+/// # Arguments
+/// * `bin_id` - The bin ID (typically around 2^23 for price = 1.0)
+/// * `bin_step` - The bin step in basis points (e.g., 10 = 0.1% per bin)
+/// 
+/// # Returns
+/// Price as f64
+#[pyfunction]
+pub fn dlmm_price_from_bin(bin_id: i32, bin_step: u16) -> PyResult<f64> {
+    let exponent = bin_id - DLMM_BIN_OFFSET;
+    let base = 1.0 + (bin_step as f64) / 10000.0;
+    let price = base.powi(exponent);
+    Ok(price)
+}
+
+/// Convert a price to the nearest bin ID.
+/// 
+/// Formula: bin_id = log(price) / log(1 + bin_step/10000) + 2^23
+/// 
+/// # Arguments
+/// * `price` - The target price
+/// * `bin_step` - The bin step in basis points
+/// 
+/// # Returns
+/// Bin ID (rounded down)
+#[pyfunction]
+pub fn dlmm_bin_from_price(price: f64, bin_step: u16) -> PyResult<i32> {
+    if price <= 0.0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "Price must be positive"
+        ));
+    }
+    
+    let base = 1.0 + (bin_step as f64) / 10000.0;
+    let exponent = price.ln() / base.ln();
+    let bin_id = (exponent.floor() as i32) + DLMM_BIN_OFFSET;
+    
+    Ok(bin_id)
+}
+
+/// Compute output amount for a DLMM swap within a single bin.
+/// 
+/// In a single bin, the swap behaves like a constant sum AMM (linear).
+/// 
+/// # Arguments
+/// * `amount_in` - Input token amount
+/// * `bin_reserve_in` - Reserve of input token in this bin
+/// * `bin_reserve_out` - Reserve of output token in this bin
+/// * `bin_id` - The bin ID (used for price calculation)
+/// * `bin_step` - Bin step in basis points
+/// * `fee_rate_bps` - Fee rate in basis points
+/// * `swap_for_y` - True if swapping X for Y (token A for token B)
+/// 
+/// # Returns
+/// Tuple of (amount_out, amount_in_consumed, bin_crossed)
+#[pyfunction]
+#[pyo3(signature = (amount_in, bin_reserve_in, bin_reserve_out, bin_id, bin_step, fee_rate_bps=25, swap_for_y=true))]
+pub fn compute_dlmm_swap_single_bin(
+    amount_in: u64,
+    bin_reserve_in: u64,
+    bin_reserve_out: u64,
+    bin_id: i32,
+    bin_step: u16,
+    fee_rate_bps: u64,
+    swap_for_y: bool,
+) -> PyResult<(u64, u64, bool)> {
+    if amount_in == 0 || bin_reserve_out == 0 {
+        return Ok((0, 0, false));
+    }
+    
+    // Calculate price for this bin
+    let price = dlmm_price_from_bin(bin_id, bin_step)?;
+    
+    // Apply fee
+    let fee_factor = (10000u64 - fee_rate_bps) as f64 / 10000.0;
+    let amount_in_after_fee = (amount_in as f64) * fee_factor;
+    
+    // In DLMM, within a bin, swap is at constant price
+    // amount_out = amount_in * price (for X->Y) or amount_in / price (for Y->X)
+    let amount_out_f64 = if swap_for_y {
+        amount_in_after_fee * price
+    } else {
+        amount_in_after_fee / price
+    };
+    
+    // Check if we can fully satisfy from this bin
+    let amount_out = amount_out_f64 as u64;
+    
+    if amount_out <= bin_reserve_out {
+        // Fully satisfied within this bin
+        Ok((amount_out, amount_in, false))
+    } else {
+        // Need to cross to next bin
+        // How much input does it take to drain this bin?
+        let max_out = bin_reserve_out;
+        let input_needed_f64 = if swap_for_y {
+            (max_out as f64) / price / fee_factor
+        } else {
+            (max_out as f64) * price / fee_factor
+        };
+        
+        let input_consumed = (input_needed_f64.ceil() as u64).min(amount_in);
+        
+        Ok((max_out, input_consumed, true))
+    }
+}
+
+/// Compute output for a DLMM swap across multiple bins.
+/// 
+/// This simulates traversing bins until all input is consumed or we run out of liquidity.
+/// 
+/// # Arguments
+/// * `amount_in` - Total input amount
+/// * `active_bin_id` - Starting bin ID
+/// * `bin_step` - Bin step in basis points
+/// * `bin_reserves` - Vec of (bin_id, reserve_x, reserve_y) tuples, sorted by bin_id
+/// * `fee_rate_bps` - Fee rate in basis points
+/// * `swap_for_y` - True if swapping X for Y
+/// 
+/// # Returns
+/// Tuple of (total_amount_out, final_bin_id)
+#[pyfunction]
+#[pyo3(signature = (amount_in, active_bin_id, bin_step, bin_reserves, fee_rate_bps=25, swap_for_y=true))]
+pub fn compute_dlmm_swap(
+    amount_in: u64,
+    active_bin_id: i32,
+    bin_step: u16,
+    bin_reserves: Vec<(i32, u64, u64)>, // (bin_id, reserve_x, reserve_y)
+    fee_rate_bps: u64,
+    swap_for_y: bool,
+) -> PyResult<(u64, i32)> {
+    if amount_in == 0 || bin_reserves.is_empty() {
+        return Ok((0, active_bin_id));
+    }
+    
+    let mut remaining_in = amount_in;
+    let mut total_out = 0u64;
+    let mut current_bin_id = active_bin_id;
+    
+    // Sort bins in the direction we're traversing
+    let mut sorted_bins = bin_reserves.clone();
+    if swap_for_y {
+        // Swapping X for Y: price decreases, traverse bins downward
+        sorted_bins.sort_by(|a, b| b.0.cmp(&a.0)); // Descending
+    } else {
+        // Swapping Y for X: price increases, traverse bins upward
+        sorted_bins.sort_by(|a, b| a.0.cmp(&b.0)); // Ascending
+    }
+    
+    // Find starting position
+    let start_idx = sorted_bins.iter().position(|(bid, _, _)| *bid == active_bin_id);
+    let start_idx = match start_idx {
+        Some(idx) => idx,
+        None => return Ok((0, active_bin_id)), // Active bin not found
+    };
+    
+    for i in start_idx..sorted_bins.len() {
+        if remaining_in == 0 {
+            break;
+        }
+        
+        let (bin_id, reserve_x, reserve_y) = sorted_bins[i];
+        current_bin_id = bin_id;
+        
+        // Determine reserves based on swap direction
+        let (reserve_in, reserve_out) = if swap_for_y {
+            (reserve_x, reserve_y)
+        } else {
+            (reserve_y, reserve_x)
+        };
+        
+        let (out, consumed, _crossed) = compute_dlmm_swap_single_bin(
+            remaining_in,
+            reserve_in,
+            reserve_out,
+            bin_id,
+            bin_step,
+            fee_rate_bps,
+            swap_for_y,
+        )?;
+        
+        total_out = total_out.saturating_add(out);
+        remaining_in = remaining_in.saturating_sub(consumed);
+    }
+    
+    Ok((total_out, current_bin_id))
+}
+
+/// Get composable swap fee for DLMM (used for MEV protection).
+/// 
+/// Meteora DLMM supports dynamic fees. This returns the base fee
+/// plus any volatility adjustments.
+/// 
+/// # Arguments
+/// * `base_fee_bps` - Base fee in basis points
+/// * `volatility_accumulator` - Current volatility accumulator value (0-1000000)
+/// 
+/// # Returns
+/// Effective fee in basis points
+#[pyfunction]
+#[pyo3(signature = (base_fee_bps, volatility_accumulator=0))]
+pub fn dlmm_get_effective_fee(
+    base_fee_bps: u64,
+    volatility_accumulator: u64,
+) -> PyResult<u64> {
+    // Meteora applies a volatility multiplier up to 10x base fee
+    let vol_multiplier = 1.0 + (volatility_accumulator as f64 / 100000.0);
+    let effective_fee = (base_fee_bps as f64 * vol_multiplier) as u64;
+    
+    // Cap at reasonable maximum (10% = 1000 bps)
+    Ok(effective_fee.min(1000))
+}
 
 // ============================================================================
 // MODULE EXPORTS
@@ -395,6 +613,13 @@ pub fn register_amm_functions(m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sqrt_price_from_tick, m)?)?;
     m.add_function(wrap_pyfunction!(tick_from_sqrt_price, m)?)?;
     m.add_function(wrap_pyfunction!(price_from_sqrt_price, m)?)?;
+    
+    // Phase 3: DLMM
+    m.add_function(wrap_pyfunction!(dlmm_price_from_bin, m)?)?;
+    m.add_function(wrap_pyfunction!(dlmm_bin_from_price, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_dlmm_swap_single_bin, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_dlmm_swap, m)?)?;
+    m.add_function(wrap_pyfunction!(dlmm_get_effective_fee, m)?)?;
     
     Ok(())
 }
