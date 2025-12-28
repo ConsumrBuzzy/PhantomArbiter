@@ -46,6 +46,9 @@ from src.shared.system.capital_manager import get_capital_manager
 # V133: SignalResolver (SRP Refactor)
 from src.core.signal_resolver import SignalResolver
 
+# V133: AlertPolicyChecker (SRP Refactor)
+from src.core.alert_policy_checker import AlertPolicyChecker
+
 class DataBroker:
     """
     Centralized data acquisition for dual-engine trading.
@@ -133,6 +136,9 @@ class DataBroker:
         
         # V133: SignalResolver (SRP Refactor)
         self.signal_resolver = SignalResolver()
+        
+        # V133: AlertPolicyChecker (SRP Refactor) (Instantiated after market_aggregator)
+        self.alert_checker = AlertPolicyChecker(market_aggregator=getattr(self, 'market_aggregator', None))
         
         # V11.5: Defer blocking calls to run() for instant launch
         # _backfill_history() and _validate_tokens() moved to background thread
@@ -273,81 +279,7 @@ class DataBroker:
             
         return status
     
-    def _check_alert_policies(self):
-        """V40.0: Check market metrics against alert thresholds and send notifications."""
-        import asyncio
-        from src.shared.system.comms_daemon import send_telegram
-        
-        # Check interval (every 60 seconds)
-        if not hasattr(self, '_last_alert_check'):
-            self._last_alert_check = 0
-            self._last_alert_sent = {}
-        
-        now = time.time()
-        if now - self._last_alert_check < 60:
-            return
-        
-        self._last_alert_check = now
-        
-        if not self.market_aggregator:
-            return
-        
-        try:
-            # Get raw metrics (async -> sync bridge)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                metrics = loop.run_until_complete(self.market_aggregator.get_raw_metrics())
-            finally:
-                loop.close()
-            
-            from config.settings import Settings
-            policies = getattr(Settings, 'ALERT_POLICIES', {})
-            cooldown = policies.get('ALERT_COOLDOWN_SECONDS', 300)
-            
-            alerts = []
-            
-            # Policy 1: DEX Volatility High
-            atr_threshold = policies.get('DEX_VOLATILITY_HIGH_ATR_PCT', 0.04)
-            if metrics['atr_pct'] > atr_threshold:
-                alert_key = 'dex_volatility'
-                if self._can_send_alert(alert_key, cooldown):
-                    alerts.append(f"🚨 **DEX ALERT:** Volatility HIGH! ATR: {metrics['atr_pct']*100:.2f}%")
-                    self._mark_alert_sent(alert_key)
-            
-            # Policy 2: DEX Trend Breakout
-            adx_threshold = policies.get('DEX_TREND_BREAKOUT_ADX', 30.0)
-            if metrics['adx'] > adx_threshold:
-                alert_key = 'dex_trend'
-                if self._can_send_alert(alert_key, cooldown):
-                    alerts.append(f"📈 **TREND ALERT:** Strong trend detected! ADX: {metrics['adx']:.1f}")
-                    self._mark_alert_sent(alert_key)
-            
-            # Policy 3: dYdX Margin Low
-            margin_threshold = policies.get('DYDX_MARGIN_LOW_RATIO', 0.30)
-            if metrics['dydx_margin_ratio'] < margin_threshold and metrics['dydx_equity'] > 0:
-                alert_key = 'dydx_margin'
-                if self._can_send_alert(alert_key, cooldown):
-                    alerts.append(f"⚠️ **dYdX RISK:** Margin low at {metrics['dydx_margin_ratio']*100:.1f}%!")
-                    self._mark_alert_sent(alert_key)
-            
-            # Send consolidated alerts
-            if alerts:
-                alert_msg = "🔔 **ALERT NOTIFICATION**\n" + "\n".join(alerts)
-                send_telegram(alert_msg, source="ALERT", priority="HIGH")
-                print(f"   ⚡ [ALERT] Sent {len(alerts)} notifications")
-                
-        except Exception as e:
-            Logger.warning(f"[BROKER] Alert check failed: {e}")
-    
-    def _can_send_alert(self, key: str, cooldown: int) -> bool:
-        """Check if we can send an alert (respects cooldown)."""
-        last_sent = self._last_alert_sent.get(key, 0)
-        return time.time() - last_sent >= cooldown
-    
-    def _mark_alert_sent(self, key: str):
-        """Mark an alert as sent."""
-        self._last_alert_sent[key] = time.time()
+    # Alert methods removed - see AlertPolicyChecker in alert_policy_checker.py
         
     def _handle_bitquery_update(self, data: dict):
         """
@@ -625,8 +557,8 @@ class DataBroker:
                     self.auditor.run_audit()
                     self._load_watchlist_config()  # Reload after demotions
                 
-                # V40.0: Periodic Alert Policy Check (Every 60 seconds)
-                self._check_alert_policies()
+                # V133: Periodic Alert Policy Check (Delegated to AlertPolicyChecker)
+                self.alert_checker.check()
                 
                 # V60.0: Update Market Regime (Every 60 seconds)
                 if self.batch_count % 120 == 0: # Approx 60s at 0.5s/tick
