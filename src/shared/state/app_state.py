@@ -55,6 +55,7 @@ class AppState:
         self.stats = {
             "cycles_per_sec": 0,
             "wss_latency_ms": 0,
+            "loop_lag_ms": 0.0, # V23 Supervisor Metric
             "total_pnl_sol": 0.0,
             "rust_core_active": False,
             "start_time": time.time()

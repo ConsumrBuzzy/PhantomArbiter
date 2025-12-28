@@ -41,8 +41,11 @@ async def liquidity_cycle_loop():
     
     first_run = True
     
-    while not SHUTDOWN_EVENT.is_set():
-        try:
+    first_run = True
+    
+    # V23: Use Supervisor Pattern (Task Cancellation)
+    try:
+        while True: # Run until cancelled
             cycle_start = "[LIQUIDITY] 🐋 " + ("Initial" if first_run else "Running") + " Liquidity Cycle..."
             Logger.info(cycle_start)
             
@@ -94,11 +97,12 @@ async def liquidity_cycle_loop():
             first_run = False
             await asyncio.sleep(CYCLE_INTERVAL)
             
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            Logger.error(f"[LIQUIDITY] ❌ Cycle failed: {e}")
-            await asyncio.sleep(60)
+    except asyncio.CancelledError:
+        Logger.info("[LIQUIDITY] 🛑 Cancellation received")
+        raise # Rethrow
+    except Exception as e:
+        Logger.error(f"[LIQUIDITY] ❌ Cycle failed: {e}")
+        await asyncio.sleep(60)
     
     # Graceful shutdown
     Logger.info("[LIQUIDITY] 🐋 Closing all positions on shutdown...")

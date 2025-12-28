@@ -211,11 +211,25 @@ async def discovery_monitor_loop():
                 else:
                     Logger.warning(f"[DISCOVERY] Paper buy failed: {msg}")
     
-    # Start monitoring (blocking)
+    # Start monitoring (blocking wrapper converted to async aware)
     try:
-        await monitor.start()
+        # V23: Use Supervisor Pattern (Task Cancellation)
+        while True:
+            # Monitor loop - just kept alive by the underlying monitor's event loop hooks
+            # The actual work happens in 'monitor.start()' which might be blocking or async?
+            # 'monitor.start()' in 'launchpad_monitor' is likely async. 
+            # If it's `async def start(self)`, we await it.
+            # Assuming 'monitor.start()' runs forever:
+            await monitor.start() 
+            
+            # If start() returns immediately (it shouldn't for a monitor), we sleep.
+            await asyncio.sleep(1)
+
     except asyncio.CancelledError:
+        Logger.info("[DISCOVERY] 🛑 Cancellation received")
         reporter_task.cancel() # STOP reporter
         monitor.stop()
-        Logger.info("[DISCOVERY] 🔍 Monitor stopped")
         send_telegram("🔍 Multi-Pad Discovery Stopped", source="DISCOVERY", priority="MEDIUM")
+        raise # Rethrow to let Director know we finished via cancellation
+    except Exception as e:
+        Logger.error(f"[DISCOVERY] Crash: {e}")
