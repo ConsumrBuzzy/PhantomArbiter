@@ -52,7 +52,13 @@ class BackgroundWorkerManager:
         if self.broker.bitquery_adapter:
             self._launch_thread("BitqueryAdapter", self._start_bitquery)
             
-        Logger.success("[WORKER_MGR] All background tasks launched")
+        # 5. Agent Wiring (V68.0+)
+        # Wire Sauron -> Sniper callback
+        self.broker.sauron.set_sniper_callback(self.broker.sniper.on_new_pool)
+        # Wire Scout -> Sniper for Flash Audit
+        self.broker.sniper.scout_agent = self.broker.scout_agent
+            
+        Logger.success("[WORKER_MGR] All background tasks launched and wired")
 
     def _launch_thread(self, name: str, target: Any):
         """Helper to launch a daemon thread."""
