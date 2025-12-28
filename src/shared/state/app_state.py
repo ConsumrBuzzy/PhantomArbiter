@@ -16,12 +16,22 @@ class ArbOpportunity:
     timestamp: float = field(default_factory=time.time)
 
 @dataclass
+class InventoryItem:
+    """Represents a held token with its value and pnl."""
+    symbol: str
+    amount: float
+    value_usd: float = 0.0
+    pnl: float = 0.0
+    price_change_24h: float = 0.0
+
+@dataclass
 class WalletData:
     """Snapshot of a wallet's state."""
     balance_sol: float = 0.0
     balance_usdc: float = 0.0
     gas_sol: float = 0.0
-    inventory: Dict[str, float] = field(default_factory=dict) # {symbol: amount}
+    # V12.6: Support both Dict (legacy) and List (V100) of InventoryItems
+    inventory: Any = field(default_factory=dict) 
     total_value_usd: float = 0.0
 
 @dataclass
@@ -152,34 +162,28 @@ class AppState:
         return list(self.logs)
 
     @property
-    def inventory(self) -> List[Any]:
+    def inventory(self) -> List[InventoryItem]:
         """Get inventory list for current mode (Compatible with Dashboard)."""
-        # Convert dict {symbol: amount} to list of objects or dicts for UI
-        # We need objects with .symbol, .value_usd, .pnl for the UI
         wallet = self.wallet_live if self.mode == "LIVE" else self.wallet_paper
+        
+        # If inventory is already a list of InventoryItems (V100 path), return it
+        if isinstance(wallet.inventory, list):
+            return wallet.inventory
+        
+        # Legacy path: Convert dict {symbol: amount} to list of objects
         items = []
-        for symbol, amount in wallet.inventory.items():
-            # Mock objects or simple dict access? 
-            # PulsedDashboard expects .symbol, .value_usd, .pnl
-            # We'll return a simple ad-hoc object
-            @dataclass
-            class InventoryItem:
-                symbol: str
-                amount: float
-                value_usd: float = 0.0
-                pnl: float = 0.0
-            
-            # Enrich with real price/pnl
-            try:
-                from src.core.shared_cache import SharedPriceCache
-                price, _ = SharedPriceCache.get_price(symbol)
-                if price:
-                    value_usd = price * amount
-                    items.append(InventoryItem(symbol, amount, value_usd, 0.0))
-                else:
-                    items.append(InventoryItem(symbol, amount, 0.0, 0.0))
-            except:
-                items.append(InventoryItem(symbol, amount, 0.0, 0.0))
+        if isinstance(wallet.inventory, dict):
+            for symbol, amount in wallet.inventory.items():
+                try:
+                    from src.core.shared_cache import SharedPriceCache
+                    price, _ = SharedPriceCache.get_price(symbol)
+                    if price:
+                        value_usd = price * amount
+                        items.append(InventoryItem(symbol=symbol, amount=amount, value_usd=value_usd))
+                    else:
+                        items.append(InventoryItem(symbol=symbol, amount=amount))
+                except:
+                    items.append(InventoryItem(symbol=symbol, amount=amount))
         return items
 
 # Global Accessor

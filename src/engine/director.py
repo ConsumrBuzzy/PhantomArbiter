@@ -238,16 +238,26 @@ class Director:
         while self.is_running:
             try:
                 signals = await asyncio.to_thread(self.agents["scalper"].scan_signals)
-                # V12.6: Push to UI
+                # V12.6: Push to UI and Execute
                 if signals:
                     from src.shared.state.app_state import ScalpSignal
                     for s in signals[:5]: # Limit spam
+                        # 1. Update UI
                         state.add_signal(ScalpSignal(
                             token=s['symbol'],
                             signal_type=f"🧠 {s['engine']}",
                             confidence="High" if s['confidence'] > 0.8 else ("Med" if s['confidence'] > 0.5 else "Low"),
                             action=s['action']
                         ))
+                        
+                        # 2. Execute (Simulation or Live)
+                        # V12.6: We actually call the engine to process the event
+                        # This triggers Paper trades in CapitalManager or Live trades via Swapper
+                        try:
+                            self.agents["scalper"].execute_signal(s)
+                        except Exception as e:
+                            state.log(f"[Director] Signal execution failed: {e}")
+                
                 await asyncio.sleep(2)
             except asyncio.CancelledError:
                 break
@@ -277,15 +287,34 @@ class Director:
                 sol_price, _ = SharedPriceCache.get_price("SOL")
                 if not sol_price: sol_price = 150.0
                 
-                price_map = {'SOL': sol_price} 
+                # Fetch prices for all held tokens to ensure UI shows USD values
+                price_map = {'SOL': sol_price}
+                holdings = wallet_adapter.assets if hasattr(wallet_adapter, 'assets') else {}
+                
+                for symbol in holdings.keys():
+                    if symbol not in price_map:
+                        p, _ = SharedPriceCache.get_price(symbol)
+                        if p: price_map[symbol] = p
+
                 balance_data = wallet_adapter.get_detailed_balance(price_map)
                 
+                from src.shared.state.app_state import InventoryItem
+                inventory_items = []
+                for symbol, asset in holdings.items():
+                    price = price_map.get(symbol, 0.0)
+                    inventory_items.append(InventoryItem(
+                        symbol=symbol,
+                        amount=asset.balance,
+                        value_usd=asset.balance * price,
+                        price_change_24h=0.0 # Placeholder
+                    ))
+
                 snapshot = WalletData(
                     balance_usdc = balance_data.get('cash', 0.0),
                     balance_sol = wallet_adapter.sol_balance,
                     gas_sol = wallet_adapter.sol_balance,
                     total_value_usd = balance_data.get('total_equity', 0.0),
-                    inventory = {s: a.balance for s, a in wallet_adapter.assets.items()}
+                    inventory = inventory_items
                 )
                 
                 state.update_wallet(self.agents["arbiter"].config.live_mode, snapshot)
