@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 
 from src.shared.system.logging import Logger
 from config.settings import Settings
-from src.arbiter.core.pod_engine import pod_manager, USDC_MINT, SOL_MINT
+from src.shared.core.pod_system import pod_system, USDC_MINT, SOL_MINT
 from src.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_spread
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
@@ -143,7 +143,7 @@ class ArbiterEngine:
                     # ═══ V12.5: Push to TUI AppState ═══
                     from src.shared.state.app_state import ArbOpportunity
                     app_state.update_stat("cycles_per_sec", 1.0 / (self._last_duration / 1000.0) if self._last_duration > 0 else 0)
-                    app_state.update_stat("pod_status", pod_manager.get_status())
+                    app_state.update_stat("pod_status", pod_system.get_status_string())
                     app_state.opportunities = [
                         ArbOpportunity(
                             token=o.pair,
@@ -203,7 +203,7 @@ class ArbiterEngine:
                 
                 for pod in active_pod_names:
                     # Logic: If pod was scanned and no top-tier opps found, penalize slightly to rotate
-                    pod_manager.report_result(pod, found_opp, executed=False, success=False)
+                    pod_system.report_result(pod, success=found_opp, major_win=False)
 
                 # 6. EXECUTION PATHS (Fast vs Normal)
                 executed_this_cycle = await self._process_executions(opportunities, verified_opps, trade_size, last_trade_time, cooldown)
@@ -286,8 +286,12 @@ class ArbiterEngine:
         """Update self.config.pairs based on pod rotation."""
         if not smart_pods: return []
         
-        active_pod_names = pod_manager.get_active_pods()
-        scan_pairs = pod_manager.get_pairs_for_pods(active_pod_names)
+        active_pods = pod_system.get_active_pods()
+        active_pod_names = [p.name for p in active_pods]
+        
+        scan_pairs = []
+        for pod in active_pods:
+            scan_pairs.extend(pod.get_pairs())
         
         # Filter for USDC speed initially (V91.0)
         self.config.pairs = [p for p in scan_pairs if p[2] == USDC_MINT]
@@ -367,8 +371,8 @@ class ArbiterEngine:
                 })
                 
                 # Report success to pod manager
-                for pod in pod_manager.get_pods_for_pair(best_fast.pair):
-                    pod_manager.report_result(pod, True, executed=True, success=True)
+                for pod in pod_system.get_pods_for_pair(best_fast.pair):
+                    pod_system.report_result(pod, success=True, major_win=True)
                 
                 print(DashboardFormatter.format_trade_announcement(trade, self.tracker.current_balance))
                 return True
@@ -404,8 +408,8 @@ class ArbiterEngine:
                 )
                 last_trade_time[best.pair] = time.time()
                 # Report success to pod manager
-                for pod in pod_manager.get_pods_for_pair(best.pair):
-                    pod_manager.report_result(pod, True, executed=True, success=True)
+                for pod in pod_system.get_pods_for_pair(best.pair):
+                    pod_system.report_result(pod, success=True, major_win=True)
                     
                 print(DashboardFormatter.format_trade_announcement(trade, self.tracker.current_balance))
                 return True
