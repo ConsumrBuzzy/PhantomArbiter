@@ -2,8 +2,8 @@
 import asyncio
 import base64
 import os
-from solders.transaction import VersionedTransaction
-from solana.rpc.api import Client
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from config.settings import Settings
 from src.shared.execution.unified_router import UnifiedTradeRouter
 from src.shared.config.risk import RiskConfig
@@ -37,13 +37,19 @@ async def test_mainnet_swap():
         return
 
     # 3. Get Swap Transaction
-    public_key = os.getenv("PHANTOM_PUBLIC_KEY") or str(Settings.PUBLIC_KEY) if hasattr(Settings, "PUBLIC_KEY") else "96g9sAg9CeGguRiYp9YmNTSUky1F9p7hYy1B52B7WAbA"
+    priv_key_str = os.getenv("PHANTOM_PRIVATE_KEY") or os.getenv("SOLANA_PRIVATE_KEY")
+    if not priv_key_str:
+        Logger.error("❌ No private key found in .env")
+        return
+        
+    signer = Keypair.from_base58_string(priv_key_str)
+    public_key = str(signer.pubkey())
     
     payload = {
         "quoteResponse": quote,
         "userPublicKey": public_key,
         "wrapAndUnwrapSol": True,
-        "computeUnitPriceMicroLamports": 5000 # Minimal
+        "computeUnitPriceMicroLamports": 10000 
     }
     
     swap_data = smart_router.get_swap_transaction(payload)
