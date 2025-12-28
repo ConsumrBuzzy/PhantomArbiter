@@ -4,7 +4,7 @@ import time
 import os
 import json
 from typing import Dict, Optional, Set, List
-from src.agents.base_agent import BaseAgent, AgentSignal
+from src.scraper.agents.base_agent import BaseAgent, AgentSignal
 from src.infrastructure.rpc_balancer import get_rpc_balancer
 from src.shared.system.logging import Logger
 
