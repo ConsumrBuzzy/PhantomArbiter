@@ -243,13 +243,12 @@ class SmartRouter:
             Logger.debug(f"Jupiter Price V2 Failed: {e}")
             return None
 
-    def get_jupiter_price(self, mint: str) -> Optional[float]:
-        """Legacy alias for get_jupiter_price_v2 (single token)."""
-        data = self.get_jupiter_price_v2(mint)
-        if data and mint in data:
-            price_str = data[mint].get("price", "0")
-            return float(price_str) if price_str else 0.0
-        return 0.0
+    def get_jupiter_price(self, ids: str, vs_token: str = None) -> Optional[Dict]:
+        """Legacy alias for get_jupiter_price_v2. Supports ids='mint1,mint2'."""
+        data = self.get_jupiter_price_v2(ids, vs_token)
+        if data:
+            return {"data": data}
+        return {"data": {}}
 
     def get_swap_transaction(self, payload):
         """

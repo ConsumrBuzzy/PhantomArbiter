@@ -247,6 +247,30 @@ class TradingCore:
             self.watchers[symbol] = Watcher(symbol, mint, validator=self.validator, is_critical=True)
             Logger.info(f"   ✅ Watcher Loaded: {symbol}")
         
+    def _process_discovery_watchlist(self):
+        """V132: Ingest tokens from discovery watchlist into scout_watchers."""
+        if not hasattr(self, 'watchlist') or not self.watchlist:
+            return
+            
+        from src.shared.infrastructure.token_scraper import get_token_scraper
+        scraper = get_token_scraper()
+        
+        # Limit processing to prevent blocking
+        to_process = self.watchlist[:5]
+        self.watchlist = self.watchlist[5:]
+        
+        for mint in to_process:
+            # Skip if already being watched
+            if any(w.mint == mint for w in {**self.watchers, **self.scout_watchers}.values()):
+                continue
+                
+            info = scraper.lookup(mint)
+            symbol = info.get("symbol", f"UNK_{mint[:4]}")
+            
+            # Add to scout watchers (Low priority tracking)
+            from src.strategy.watcher import Watcher
+            self.scout_watchers[symbol] = Watcher(symbol, mint, validator=self.validator, is_critical=False)
+            Logger.info(f"   🔭 [{self.engine_name}] Scout Watcher added: {symbol} ({mint[:8]})")
         # V11.4: Scout tokens deferred to P2 background thread
         # V45.4: Ensure Scouts are initialized even if invoked via DataBroker
         self._pending_scouts = scout  # Dict of {symbol: mint}
@@ -455,6 +479,9 @@ class TradingCore:
         V45.0: Generate signals without executing them.
         Used by DataBroker to collect and resolve conflicts.
         """
+        # V132: Ingest new tokens from Discovery before scanning
+        self._process_discovery_watchlist()
+
         signals = []
         combined_watchers = {**self.watchers, **self.scout_watchers}
         
