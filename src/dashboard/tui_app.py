@@ -49,7 +49,7 @@ class PhantomDashboard(App):
     }
     .horizontal_layout { layout: horizontal; }
     .wallet_header { color: cyan; text-style: bold; padding-left: 1; }
-    .wallet_total { color: green; text-style: bold; text-align: center; width: 100%; padding-bottom: 1; font-size: 200%; }
+    .wallet_total { color: green; text-style: bold; text-align: center; width: 100%; padding-bottom: 1; }
     .wallet_grid_inner { layout: grid; grid-size: 3 1; grid-gutter: 1; }
     
     /* Opportunity Panel */
