@@ -289,15 +289,26 @@ impl Graph {
 
     /// Scans for arbitrage cycles starting from multiple base tokens.
     /// Returns a list of paths (each path is a list of pool IDs).
+    /// Uses Rayon for parallel execution across CPU cores.
     fn find_all_cycles(&self, start_mints: Vec<String>) -> PyResult<Vec<Vec<String>>> {
-        let mut all_paths = Vec::new();
-        for mint in start_mints {
-            let path = self.find_arbitrage_loop(mint)?;
-            if !path.is_empty() {
-                all_paths.push(path);
-            }
-        }
-        Ok(all_paths)
+        use rayon::prelude::*;
+        
+        // Parallel Iterator
+        let results: Vec<Vec<String>> = start_mints.par_iter()
+            .map(|mint| {
+                // We typically need to handle errors inside map/fold
+                // Graph access is read-only, so ThreadSafe.
+                // However, `find_arbitrage_loop` returns PyResult.
+                // We unwrap or handle here.
+                match self.find_arbitrage_loop(mint.clone()) {
+                    Ok(path) => path,
+                    Err(_) => vec![],
+                }
+            })
+            .filter(|path| !path.is_empty())
+            .collect();
+            
+        Ok(results)
     }
 }
 

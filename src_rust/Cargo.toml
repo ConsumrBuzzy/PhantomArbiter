@@ -16,3 +16,4 @@ base64 = "0.21"
 borsh = "1.0"
 thiserror = "1.0"
 bytemuck = { version = "1.14", features = ["derive"] }
+rayon = "1.8"

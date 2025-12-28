@@ -1162,6 +1162,7 @@ dependencies = [
  "borsh 1.6.0",
  "bytemuck",
  "pyo3",
+ "rayon",
  "serde",
  "solana-sdk",
  "thiserror",
