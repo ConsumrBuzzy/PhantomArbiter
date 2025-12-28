@@ -2,6 +2,7 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
+from src.shared.infrastructure.token_registry import get_registry
 
 load_dotenv()
 
@@ -28,12 +29,14 @@ def audit():
     }
     resp = requests.post(rpc_url, json=payload, headers=headers).json()
     print("\nTokens (Legacy):")
+    registry = get_registry()
     for acc in resp.get("result", {}).get("value", []):
         info = acc["account"]["data"]["parsed"]["info"]
         mint = info["mint"]
         bal = info["tokenAmount"]["uiAmount"]
         if bal > 0:
-            print(f"  {mint}: {bal}")
+            symbol = registry.get_symbol(mint)
+            print(f"  {symbol:8} | {mint}: {bal}")
             
     # 3. Token Accounts (Token-2022)
     payload = {
@@ -47,7 +50,8 @@ def audit():
         mint = info["mint"]
         bal = info["tokenAmount"]["uiAmount"]
         if bal > 0:
-            print(f"  {mint}: {bal}")
+            symbol = registry.get_symbol(mint)
+            print(f"  {symbol:8} | {mint}: {bal}")
 
 if __name__ == "__main__":
     audit()
