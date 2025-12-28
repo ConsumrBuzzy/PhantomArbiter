@@ -81,18 +81,9 @@ class TradingCore:
         self.asset_manager = AssetManager()
         
         # V12.8: Live/Mocked Wallet Support
-        # In Monitor Mode, we fetch the REAL wallet balance to start the simulation.
-        initial_capital = None
-        initial_capital_data = None
-        if not Settings.ENABLE_TRADING:
-             Logger.info("🔧 MONITOR MODE: Calculating Live Mock Balance...")
-             try:
-                 initial_capital_data = self.wallet.get_current_live_usd_balance()
-                 initial_capital = initial_capital_data.get('total_usd', 0.0)
-             except Exception as e:
-                 Logger.error(f"❌ Failed to Mock Balance: {e}")
-                 initial_capital = 1000.0 # Fail safe default
-                 
+        # V13.0: Async Initialization (Avoids Startup Lag)
+        # We start with a default/safe value and update during async initialize()
+        initial_capital = 1000.0 if not Settings.ENABLE_TRADING else None
         self.portfolio = PortfolioManager(self.wallet, initial_capital=initial_capital)
         self.validator = TokenValidator()
         
@@ -132,12 +123,29 @@ class TradingCore:
         # Top-level import handles this.
         self.paper_wallet = PaperWallet(engine_name=engine_name)
         
-        # Initialize from real wallet if needed (CapitalManager handles this usually, but enforcing here)
-        if initial_capital_data:
-             mock_sol = initial_capital_data.get('breakdown', {}).get('SOL', 1.0)
-             mock_usdc = initial_capital
-             # Only init if empty? Or sync? CapitalManager.init_from_real handles logic.
-             self.paper_wallet.init_from_real(mock_usdc, mock_sol) # Sync
+    async def initialize(self):
+        """
+        Perform heavy initialization (network/RPC).
+        This is called by the Director to prevent blocking the TUI startup.
+        """
+        if not Settings.ENABLE_TRADING:
+            Logger.info(f"🔧 [{self.engine_name}] Initializing Paper Mode Capital...")
+            try:
+                # This is the blocking call being moved (V13.0)
+                initial_capital_data = await asyncio.to_thread(self.wallet.get_current_live_usd_balance)
+                initial_capital = initial_capital_data.get('total_usd', 1000.0)
+                
+                # Update Portfolio
+                self.portfolio.initial_capital = initial_capital
+                self.portfolio.current_cash = initial_capital
+                
+                # Sync Paper Wallet
+                mock_sol = initial_capital_data.get('breakdown', {}).get('SOL', 1.0)
+                self.paper_wallet.init_from_real(initial_capital, mock_sol)
+                
+                Logger.info(f"✅ [{self.engine_name}] Capital Initialized: ${initial_capital:,.2f}")
+            except Exception as e:
+                Logger.error(f"❌ [{self.engine_name}] Failed to Init Capital: {e}")
              
         self._last_paper_pnl = 0.0
         

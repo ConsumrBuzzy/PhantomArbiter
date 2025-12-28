@@ -62,6 +62,8 @@ class Director:
         
         # 3. THE MERCHANT (Mid Lane) - Scalper
         # Real-time scan and signal generation
+        # V13.0: Async Init to prevent lag
+        await self.scalper.initialize()
         self.mid_tasks.append(asyncio.create_task(self._run_scalper_loop()))
         
         # 4. THE SCOUT (Slow Lane)
