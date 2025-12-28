@@ -214,6 +214,26 @@ class WebSocketListener:
             # V77.0: Log occasionally for debug (every 5000 swaps)
             if self.stats["swaps_detected"] % 5000 == 0:
                 wss_log(f"📊 {self.stats['swaps_detected']} swaps detected (Raydium: {self.stats.get('raydium_swaps', 0)}, Orca: {self.stats.get('orca_swaps', 0)})")
+            
+            # ═══ V88.0: RUST FLASH DECRYPTION (PHASE 3: THE WIRE) ═══
+            try:
+                import phantom_core
+                for log_str in logs:
+                    # Instant zero-copy decoding in Rust
+                    event = phantom_core.parse_raydium_log(log_str)
+                    if event:
+                        # Proof of Life: Log the flash decode
+                        # In the future, this feeds directly into the Graph
+                        # Note: We don't have decimals here, so these are raw u64 atomic units
+                        wss_log(f"⚡ FLASH SWAP: In={event.amount_in} Out={event.amount_out} Buy={event.is_buy}")
+                        
+                        # Optimization: If we found the swap in the logs, we MIGHT not need to poll RPC
+                        # But we still need the Token Mints (which are in the Transaction, not always the log)
+                        # So we keep the poll for now, but we KNOW the price delta instantly.
+            except ImportError:
+                pass
+            except Exception as e:
+                pass # Don't crash the listener
                 
         except:
             pass
