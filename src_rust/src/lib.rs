@@ -161,12 +161,166 @@ fn build_atomic_transaction(
 }
 
 // ------------------------------------------------------------------------
-// SECTION 4: MODULE REGISTRATION
+// SECTION 4: PATHFINDER (GRAPH ENGINE)
+// ------------------------------------------------------------------------
+
+use std::collections::{HashMap, VecDeque};
+
+#[derive(Clone)]
+struct Edge {
+    target_id: usize, // Cache-friendly ID
+    pool_id: String,
+    weight: f64,      // -ln(price)
+}
+
+#[pyclass]
+struct Graph {
+    adjacency: Vec<Vec<Edge>>,
+    mint_to_id: HashMap<String, usize>,
+    id_to_mint: Vec<String>,
+}
+
+#[pymethods]
+impl Graph {
+    #[new]
+    fn new() -> Self {
+        Graph {
+            adjacency: Vec::new(),
+            mint_to_id: HashMap::new(),
+            id_to_mint: Vec::new(),
+        }
+    }
+
+    /// Adds or updates an edge in the graph.
+    /// Automatically interns new tokens to usize IDs.
+    /// Price is converted to -ln(price) for additive cycle detection.
+    fn update_edge(&mut self, source_mint: String, target_mint: String, pool_id: String, price: f64) {
+        // 1. Intern Source
+        let source_id = if let Some(&id) = self.mint_to_id.get(&source_mint) {
+            id
+        } else {
+            let id = self.id_to_mint.len();
+            self.mint_to_id.insert(source_mint.clone(), id);
+            self.id_to_mint.push(source_mint);
+            self.adjacency.push(Vec::new());
+            id
+        };
+
+        // 2. Intern Target
+        let target_id = if let Some(&id) = self.mint_to_id.get(&target_mint) {
+            id
+        } else {
+            let id = self.id_to_mint.len();
+            self.mint_to_id.insert(target_mint.clone(), id);
+            self.id_to_mint.push(target_mint);
+            self.adjacency.push(Vec::new());
+            id
+        };
+
+        // 3. Calculate Weight (-ln(price))
+        // Protect against <= 0 prices
+        let safe_price = if price <= 1e-9 { 1e-9 } else { price };
+        let weight = -safe_price.ln();
+
+        // 4. Upsert Edge
+        let edges = &mut self.adjacency[source_id];
+        // Check if edge exists to update it (O(k) where k is small degree)
+        if let Some(edge) = edges.iter_mut().find(|e| e.target_id == target_id) {
+            edge.weight = weight;
+            edge.pool_id = pool_id;
+        } else {
+            edges.push(Edge {
+                target_id,
+                pool_id,
+                weight,
+            });
+        }
+    }
+
+    /// SPFA (Shortest Path Faster Algorithm) for Negative Cycle Detection.
+    /// Returns a list of Pool IDs forming the arbitrage loop.
+    fn find_arbitrage_loop(&self, start_mint: String) -> PyResult<Vec<String>> {
+        let start_id = match self.mint_to_id.get(&start_mint) {
+            Some(&id) => id,
+            None => return Ok(vec![]), // Token not in graph
+        };
+
+        let n = self.id_to_mint.len();
+        let mut dist = vec![f64::INFINITY; n];
+        let mut parent_node = vec![None; n];
+        let mut parent_pool = vec![String::new(); n];
+        let mut count = vec![0; n];
+        let mut in_queue = vec![false; n];
+        let mut queue = VecDeque::new();
+
+        dist[start_id] = 0.0;
+        queue.push_back(start_id);
+        in_queue[start_id] = true;
+
+        while let Some(u) = queue.pop_front() {
+            in_queue[u] = false;
+
+            for edge in &self.adjacency[u] {
+                // Relaxation
+                if dist[u] + edge.weight < dist[edge.target_id] {
+                    dist[edge.target_id] = dist[u] + edge.weight;
+                    parent_node[edge.target_id] = Some(u);
+                    parent_pool[edge.target_id] = edge.pool_id.clone();
+
+                    if !in_queue[edge.target_id] {
+                        count[edge.target_id] += 1;
+                        
+                        // Negative Cycle Check (Limit iterations to avoid infinite loops)
+                        // In SPFA, visiting a node >= N times usually means a cycle.
+                        // For arbitrage, we can be more aggressive (e.g. depth > 3).
+                        if count[edge.target_id] > n {
+                            // Cycle detected! Reconstruct.
+                            return Ok(self.reconstruct_path(edge.target_id, &parent_node, &parent_pool));
+                        }
+
+                        queue.push_back(edge.target_id);
+                        in_queue[edge.target_id] = true;
+                    }
+                }
+            }
+        }
+        Ok(vec![])
+    }
+}
+
+impl Graph {
+    fn reconstruct_path(&self, end_id: usize, parent_node: &[Option<usize>], parent_pool: &[String]) -> Vec<String> {
+        let mut path = Vec::new();
+        let mut curr = end_id;
+        let mut visited = vec![false; self.id_to_mint.len()];
+
+        // Backtrack to find the cycle
+        while let Some(prev) = parent_node[curr] {
+            if visited[curr] {
+                 // We closed the loop. Now strictly record the pool IDs.
+                 // We need to trace forward from this point or just capture the segment.
+                 // Simplified: Just push pool IDs until we loop.
+                 break;
+            }
+            visited[curr] = true;
+            path.push(parent_pool[curr].clone());
+            curr = prev;
+        }
+
+        // The path is reversed (from end to start)
+        path.reverse();
+        path
+    }
+}
+
+// ------------------------------------------------------------------------
+// SECTION 5: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
 #[pymodule]
 fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Graph>()?;
     m.add_function(wrap_pyfunction!(calculate_net_profit, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
