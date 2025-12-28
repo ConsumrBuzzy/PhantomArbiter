@@ -3,7 +3,9 @@ from src.shared.system.database.core import DatabaseCore
 from src.shared.system.database.repositories.trade_repo import TradeRepository
 from src.shared.system.database.repositories.position_repo import PositionRepository
 from src.shared.system.database.repositories.market_repo import MarketRepository
+from src.shared.system.database.repositories.market_repo import MarketRepository
 from src.shared.system.database.repositories.wallet_repo import WalletRepository
+from src.shared.system.database.repositories.token_repo import TokenRepository
 
 class DBManager:
     """
@@ -33,6 +35,8 @@ class DBManager:
         self.positions.init_table()
         self.market.init_table()
         self.wallets.init_table()
+        self.tokens = TokenRepository(self.core)
+        self.tokens.init_table()
 
     def wait_for_connection(self, timeout=2.0) -> bool:
         return self.core.wait_for_connection(timeout)
@@ -83,6 +87,13 @@ class DBManager:
         
     def get_target_wallets(self) -> List[str]:
         return self.wallets.get_target_wallets()
+
+    # --- TOKENS (METADATA) ---
+    def save_token_metadata(self, identity, risk=None):
+        self.tokens.save_token(identity, risk)
+        
+    def get_token_metadata(self, mint: str):
+        return self.tokens.get_token(mint)
 
 # Global Instance
 db_manager = DBManager()
