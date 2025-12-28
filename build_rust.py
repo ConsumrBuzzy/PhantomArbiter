@@ -1,38 +1,58 @@
 import subprocess
 import sys
 import shutil
+import os
+from pathlib import Path
 
 def build_rust():
-    """Build the Rust extension using Maturin."""
+    """Build the Rust extension using Maturin targeting the local .venv."""
     print("🦀 Building Rust Extension (phantom_core)...")
     
-    # Check for maturin
-    maturin_executable = shutil.which("maturin") or "maturin"
+    # 1. Determine local venv path
+    venv_dir = Path.cwd() / ".venv"
+    if not venv_dir.exists():
+        print("❌ Error: .venv not found.")
+        print("Please run 'python build_venv.py' first.")
+        sys.exit(1)
+
+    # 2. Set environment variables to force Maturin to use this venv
+    env = os.environ.copy()
+    env["VIRTUAL_ENV"] = str(venv_dir)
     
+    # Add venv/Scripts or venv/bin to PATH to ensure we find the right python
+    if sys.platform == "win32":
+        path_insertion = venv_dir / "Scripts"
+    else:
+        path_insertion = venv_dir / "bin"
+        
+    env["PATH"] = str(path_insertion) + os.pathsep + env.get("PATH", "")
+
+    # 3. Choose Command
+    # If UV is available, 'uv run' is the most robust way to run commands in the venv context
+    if shutil.which("uv"):
+        # Explicitly invoke maturin via uv regardless of where current script is running
+        command = ["uv", "run", "maturin", "develop", "--release"]
+    else:
+        # Fallback: Try to find maturin inside the venv
+        maturin_executable = shutil.which("maturin", path=str(path_insertion))
+        if not maturin_executable:
+            # If not in venv, check global but keep env vars
+             maturin_executable = shutil.which("maturin")
+        
+        if not maturin_executable:
+             print("❌ 'maturin' executable not found. Ensure it is installed in the venv.")
+             sys.exit(1)
+
+        command = [maturin_executable, "develop", "--release"]
+
     try:
-        # Run maturin develop (builds and installs into current venv)
-        # Using the venv's python to ensure proper installation location if possible
-        # Or relying on maturin being active in the env.
-        # Ideally, we run this *inside* the active venv.
-        
-        # We assume the user runs this with the venv python: `python build_rust.py`
-        # If so, `maturin develop` works best if run as `maturin develop` (if maturin is in path)
-        # or `python -m maturin develop` if installed in the venv.
-        
-        command = [sys.executable, "-m", "maturin", "develop", "--release"]
-        
-        subprocess.run(command, check=True)
+        print(f"Running: {' '.join(command)}")
+        subprocess.run(command, check=True, env=env)
         print("✅ Rust Extension Built & Installed Successfully!")
         
     except subprocess.CalledProcessError:
         print("❌ Build Failed.")
-        print("Ensure you have activated the virtual environment and installed dependencies.")
-        print("Command: uv sync (or python build_venv.py)")
         sys.exit(1)
-    except FileNotFoundError:
-         print("❌ `maturin` not found.")
-         print("Please run `uv sync` first to install build dependencies.")
-         sys.exit(1)
 
 if __name__ == "__main__":
     build_rust()

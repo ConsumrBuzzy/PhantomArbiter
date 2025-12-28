@@ -1,56 +1,84 @@
 import subprocess
 import sys
 import shutil
+import os
+from pathlib import Path
 
-REQUIRED_PYTHON = (3, 12)
+REQUIRED_VERSION = "3.12"
 
-def check_python_version():
-    """Ensure the script is running with Python 3.12+."""
-    if sys.version_info[:2] < REQUIRED_PYTHON:
-        print(f"❌ Error: Python 3.12+ is required. Found {sys.version.split()[0]}")
-        sys.exit(1)
-    print(f"✅ Python Version Check: {sys.version.split()[0]}")
+def find_python_312():
+    """Attempt to find a Python 3.12 executable."""
+    # Check current interpreter
+    if sys.version_info[:2] == (3, 12):
+        return sys.executable
+
+    # Check 'py' launcher on Windows
+    if sys.platform == "win32" and shutil.which("py"):
+        try:
+            # Check if 3.12 is available via py
+            res = subprocess.run(["py", "-3.12", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode == 0:
+                print("✅ Found Python 3.12 via 'py' launcher.")
+                return "py -3.12" # We will use this style for commands, but for venv we might need full path if not using uv
+        except Exception:
+            pass
+            
+    # Check explicit binaries
+    candidates = ["python3.12", "python3.12.exe", "python-3.12"]
+    for cand in candidates:
+        path = shutil.which(cand)
+        if path:
+             return path
+             
+    return None
 
 def setup_venv():
-    """Initialize and sync the virtual environment using uv."""
+    """Initialize and sync the virtual environment using uv or standard venv."""
     uv_executable = shutil.which("uv")
     
     if uv_executable:
-        print("🚀 UV detected. Installing dependencies...")
+        print("🚀 UV detected. Enforcing Python 3.12...")
         try:
-            # Create venv if it doesn't exist (uv venv handles idempotency)
-            subprocess.run(["uv", "venv"], check=True)
-            # Sync dependencies from pyproject.toml
+            # Force creating specific python version venv
+            subprocess.run(["uv", "venv", "--python", REQUIRED_VERSION], check=True)
             subprocess.run(["uv", "sync"], check=True)
-            print("✅ Environment synced successfully using UV.")
+            print("✅ Environment synced successfully using UV with Python 3.12.")
+            return
         except subprocess.CalledProcessError as e:
             print(f"❌ UV Sync Failed: {e}")
-            sys.exit(1)
-    else:
-        print("⚠️ UV not found in PATH.")
-        print("   Recommendation: Install UV for instant setup (curl -LsSf https://astral.sh/uv/install.sh | sh)")
-        print("   Falling back to standard 'venv' and 'pip'...")
-        
-        # Fallback logic
-        venv_path = ".venv"
-        if not shutil.which("python3") and not shutil.which("python"):
-             print("❌ Python executable not found per shutil. This is unexpected.")
-             sys.exit(1)
+            # If uv fails to find python 3.12, we fall through to manual method or exit?
+            # UV usually manages python versions well. If it fails, likely network or strict missing version.
+            print("Attempting fallback...")
 
-        # Create venv
-        subprocess.run([sys.executable, "-m", "venv", venv_path], check=True)
+    print("⚠️ UV not found or failed. Falling back to standard 'venv'...")
+    
+    python_exe = find_python_312()
+    if not python_exe:
+        print(f"❌ Critical Error: Python {REQUIRED_VERSION} not found on this system.")
+        print("Please install Python 3.12 via python.org or standard package manager.")
+        sys.exit(1)
         
-        # Install deps (requires activation logic or direct path usage)
-        # On Windows, pip is in .venv/Scripts/pip
-        pip_path = f"{venv_path}\\Scripts\\pip" if sys.platform == "win32" else f"{venv_path}/bin/pip"
-        
-        try:
-            subprocess.run([pip_path, "install", "."], check=True) # Installs from pyproject.toml
-            print("✅ Environment setup complete using standard pip.")
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Pip Install Failed: {e}")
-            sys.exit(1)
+    venv_path = Path(".venv")
+    
+    # If using 'py -3.12' string, we need to handle it
+    cmd = []
+    if python_exe.startswith("py "):
+        cmd = python_exe.split() + ["-m", "venv", str(venv_path)]
+    else:
+        cmd = [python_exe, "-m", "venv", str(venv_path)]
+
+    print(f"Creating venv with: {cmd}")
+    subprocess.run(cmd, check=True)
+    
+    # Install dependencies
+    pip_path = venv_path / "Scripts" / "pip" if sys.platform == "win32" else venv_path / "bin" / "pip"
+    
+    try:
+        subprocess.run([str(pip_path), "install", "."], check=True)
+        print("✅ Environment setup complete using standard pip.")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Pip Install Failed: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    check_python_version()
     setup_venv()
