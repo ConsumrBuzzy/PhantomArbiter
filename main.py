@@ -194,6 +194,17 @@ def create_parser() -> argparse.ArgumentParser:
         help="LAUNCH LIVE MODE (Short for dashboard --live)"
     )
 
+    # ═══════════════════════════════════════════════════════════════
+    # PULSE SUBCOMMAND (Legacy CLI Dashboard)
+    # ═══════════════════════════════════════════════════════════════
+    pulse_parser = subparsers.add_parser(
+        "pulse",
+        help="Run legacy CLI Dashboard (Pulsed View)"
+    )
+    pulse_parser.add_argument("--live", action="store_true", help="Enable LIVE trading")
+    pulse_parser.add_argument("--budget", type=float, default=50.0, help="Strategies budget")
+    pulse_parser.add_argument("--interval", type=int, default=2, help="Scan speed (sec)")
+
     return parser
 
 
@@ -473,14 +484,51 @@ async def cmd_scout(args: argparse.Namespace) -> None:
 
 
 async def cmd_arbiter(args: argparse.Namespace) -> None:
-    """Handle monitor subcommand."""
-    try:
-        from run_profitability_monitor import ProfitabilityMonitor
-        monitor = ProfitabilityMonitor(budget=args.budget)
-        await monitor.run_loop(interval_seconds=args.interval)
-    except ImportError:
-        print("❌ Monitor module not available")
-        print("   Run: python run_profitability_monitor.py directly")
+    """Handle arbiter subcommand - Headless Execution."""
+    await run_arbiter(
+        budget=args.budget,
+        live=args.live,
+        duration=args.duration,
+        interval=args.interval,
+        min_spread=args.min_spread,
+        max_trade=args.max_trade,
+        full_wallet=args.full_wallet
+    )
+
+async def cmd_pulse(args: argparse.Namespace) -> None:
+    """Handle pulse subcommand - CLI Dashboard."""
+    from rich.console import Console
+    console = Console()
+    console.clear()
+    console.print("\n   [bold cyan]PHANTOM PULSE[/bold cyan] [green]CLI DASHBOARD[/green]\n")
+    
+    # Defaults for Pulse View
+    # Setup Config (Same as run_arbiter)
+    from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
+    from src.arbiter.ui.pulsed_dashboard import RichPulseReporter
+    
+    config = ArbiterConfig(
+        budget=args.budget,
+        live=args.live, # Respect flag (was hardcoded in previous step?)
+        max_trade=10.0,
+        min_spread=0.20
+    )
+    
+    # Initialize & Inject Rich Reporter
+    arbiter = PhantomArbiter(config)
+    
+    # Monkey-patch the reporter
+    # We pass the telegram manager we just created inside PhantomArbiter
+    arbiter.reporter = RichPulseReporter(arbiter.telegram)
+    
+    # Run loop
+    await arbiter.run(
+        duration_minutes=60, 
+        scan_interval=args.interval
+    )
+    
+    # Cleanup
+    arbiter.reporter.stop()
 
 
 async def cmd_monitor(args: argparse.Namespace) -> None:
@@ -638,6 +686,8 @@ async def main() -> None:
         "monitor": cmd_monitor,
         "clean": cmd_clean,
         "dashboard": cmd_dashboard,
+        "pulse": cmd_pulse,
+    }
     }
     
     handler = command_handlers.get(args.command)
