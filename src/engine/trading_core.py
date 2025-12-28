@@ -60,6 +60,9 @@ from src.engine.maintenance_service import MaintenanceService
 # V133: ConfigSyncService (SRP Refactor)
 from src.engine.config_sync_service import ConfigSyncService
 
+# V133: PositionSizer (SRP Refactor)
+from src.engine.position_sizer import PositionSizer
+
 
 class TradingCore:
     """
