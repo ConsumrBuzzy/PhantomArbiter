@@ -48,6 +48,9 @@ from src.core.shared_cache import SharedPriceCache
 # V133: Notification service
 from src.shared.notification.notifications import get_notifier
 
+# V133: WatcherManager (SRP Refactor)
+from src.engine.watcher_manager import WatcherManager
+
 
 class TradingCore:
     """
@@ -109,10 +112,12 @@ class TradingCore:
         else:
             self.decision_engine = DecisionEngine(self.portfolio)
         
-        # 4. Watchers (State)
-        self.watchers = {}
-        self.scout_watchers = {}
-        self.watchlist = []  # V132: Fix for Director / Scout Agent integration
+        # 4. Watchers (State) - V133: Delegated to WatcherManager
+        self.watcher_mgr = WatcherManager(validator=self.validator, engine_name=engine_name)
+        # Legacy accessors for backward compatibility
+        self.watchers = self.watcher_mgr.watchers
+        self.scout_watchers = self.watcher_mgr.scout_watchers
+        self.watchlist = self.watcher_mgr.watchlist
         
         # V11.15: Paper Trade Simulator (Monitor Mode)
         # self.paper_positions removed in V45.0 - using paper_wallet.assets
