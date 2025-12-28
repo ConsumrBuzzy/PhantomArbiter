@@ -18,7 +18,7 @@ class Director:
     Manages the lifecycle of Fast Lane (Arb) and Slow Lane (Scout/Whale) tasks.
     And now: Mid Lane (Scalper).
     """
-    def __init__(self):
+    def __init__(self, live_mode: bool = False):
         self.is_running = False
         self.fast_tasks = []
         self.mid_tasks = []
@@ -28,11 +28,11 @@ class Director:
         self.listener = WebSocketListener()
         
         # 1. ARBITER (Atomic)
-        arb_config = ArbiterConfig(live_mode=False) 
+        arb_config = ArbiterConfig(live_mode=live_mode) 
         self.arbiter = PhantomArbiter(arb_config)
         
         # 2. SCALPER (Inventory)
-        scalp_config = ScalperConfig(live_mode=False)
+        scalp_config = ScalperConfig(live_mode=live_mode)
         self.scalper = PhantomScalperEngine(scalp_config)
         
         # 3. SCOUT (Discovery)

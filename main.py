@@ -177,12 +177,57 @@ def create_parser() -> argparse.ArgumentParser:
     clean_parser.add_argument("--token", type=str, help="Token Symbol (BONK) or Mint Address")
     clean_parser.add_argument("--all", action="store_true", help="SELL EVERYTHING (Except USDC)")
     
+    # ═══════════════════════════════════════════════════════════════
+    # DASHBOARD SUBCOMMAND (The Cockpit)
+    # ═══════════════════════════════════════════════════════════════
+    dash_parser = subparsers.add_parser(
+        "dashboard",
+        help="Run the TUI Cockpit (Default)"
+    )
+    dash_parser.add_argument("--live", action="store_true", help="Enable LIVE trading in Dashboard")
+
     return parser
 
 
-async def cmd_arbiter(args: argparse.Namespace) -> None:
-    """Handle arbiter subcommand."""
-    from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
+async def cmd_dashboard(args: argparse.Namespace) -> None:
+    """Run the TUI Dashboard with the Director orchestrator."""
+    from src.dashboard.tui_app import PhantomDashboard
+    from src.engine.director import Director
+    
+    live_mode = getattr(args, 'live', False)
+    mode_str = "LIVE" if live_mode else "PAPER"
+    print(f"🚀 Launching Phantom Cockpit [{mode_str}]...")
+    
+    # 1. Initialize Director (The Brain)
+    director = Director(live_mode=live_mode)
+    
+    # 2. Initialize Dashboard (The Face)
+    app = PhantomDashboard()
+    
+    # 3. Start Engines
+    # We start the Director in the background
+    await director.start()
+    
+    # 4. Launch UI
+    try:
+        await app.run_async()
+    finally:
+        # 5. Cleanup
+        await director.stop()
+
+
+async def main() -> None:
+    """Main entry point."""
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    # DEFAULT TO DASHBOARD IF NO ARGS
+    if args.command is None:
+        # Manually invoke dashboard handler with default args
+        print("ℹ️  No command specified. Defaulting to Dashboard (Paper Mode).")
+        args.live = False
+        await cmd_dashboard(args)
+        return
     
     if args.live:
         confirm = input("\n   ⚠️ LIVE MODE - Type 'I UNDERSTAND' to proceed: ")
@@ -377,6 +422,17 @@ async def cmd_scout(args: argparse.Namespace) -> None:
         print("     python main.py scout --wallet <ADDRESS>")
     
     print("\n" + "="*60)
+
+
+async def cmd_arbiter(args: argparse.Namespace) -> None:
+    """Handle monitor subcommand."""
+    try:
+        from run_profitability_monitor import ProfitabilityMonitor
+        monitor = ProfitabilityMonitor(budget=args.budget)
+        await monitor.run_loop(interval_seconds=args.interval)
+    except ImportError:
+        print("❌ Monitor module not available")
+        print("   Run: python run_profitability_monitor.py directly")
 
 
 async def cmd_monitor(args: argparse.Namespace) -> None:
