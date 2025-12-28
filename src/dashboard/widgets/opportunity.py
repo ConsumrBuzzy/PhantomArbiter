@@ -7,9 +7,9 @@ class ArbWidget(Container):
     """Displays Arbitrage Opportunities (Pair/Trip)."""
     
     def compose(self) -> ComposeResult:
-        yield Static("🌀 ARBITRAGE PATHS (Triangular)", classes="panel_header")
+        yield Static("🔭 LIVE MARKET OBSERVER", classes="panel_header")
         t1 = DataTable(id="arb_table")
-        t1.add_columns("Token", "Route", "Profit %", "Est. SOL")
+        t1.add_columns("Token", "Route", "Spread %", "Est. Profit")
         t1.cursor_type = "row"
         t1.zebra_stripes = True
         yield t1
@@ -37,8 +37,13 @@ class ArbWidget(Container):
             profit_str = f"{opp.profit_pct:.2f}%"
             if opp.profit_pct > 0.5:
                 profit_str = f"[bold green]{profit_str}[/]"
-            elif opp.profit_pct < 0:
+            elif opp.profit_pct > 0.0:
+                profit_str = f"[green]{profit_str}[/]"
+            elif opp.profit_pct < -1.0:
                 profit_str = f"[red]{profit_str}[/]"
+            else:
+                 # Near zero / minor loss
+                profit_str = f"[white]{profit_str}[/]"
             
             t1.add_row(
                 opp.token, 

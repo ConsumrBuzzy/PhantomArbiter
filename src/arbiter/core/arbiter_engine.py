@@ -149,7 +149,7 @@ class ArbiterEngine:
                             route=f"{o.buy_dex}->{o.sell_dex}",
                             profit_pct=o.spread_pct,
                             est_profit_sol=o.net_profit_usd / 150.0 # Mock conversion for Sol
-                        ) for o in opportunities[:10]
+                        ) for o in sorted(all_spreads, key=lambda x: x.spread_pct, reverse=True)[:15]
                     ]
 
                 except Exception as e:
