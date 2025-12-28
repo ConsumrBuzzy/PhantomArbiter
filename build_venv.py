@@ -75,7 +75,7 @@ def setup_venv():
     
     try:
         # Added timeout to handle slow connections
-        subprocess.run([str(pip_path), "install", ".", "--default-timeout=1000"], check=True)
+        subprocess.run([str(pip_path), "install", "."], check=True)
         print("✅ Environment setup complete using standard pip.")
     except subprocess.CalledProcessError as e:
         print(f"❌ Pip Install Failed: {e}")
