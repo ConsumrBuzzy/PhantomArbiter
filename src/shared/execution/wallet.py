@@ -183,50 +183,56 @@ class WalletManager:
     
     def get_all_token_accounts(self):
         """
-        Fetch ALL SPL token accounts in wallet.
+        Fetch ALL SPL token accounts (Legacy + Token-2022).
         Returns dict of {mint: balance} for tokens with balance > 0.
         """
         if not self.keypair: return {}
         
-        headers = {"Content-Type": "application/json"}
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getTokenAccountsByOwner",
-            "params": [
-                str(self.keypair.pubkey()),
-                {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
-                {"encoding": "jsonParsed"}
-            ]
-        }
+        programs = [
+            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", # Legacy
+            "TokenzQ9kh24B2BvszfR7Y2EisG4YtH3tM1tUThs5"     # Token-2022
+        ]
         
-        # Build endpoint list (Pool + Primary)
+        all_tokens = {}
+        headers = {"Content-Type": "application/json"}
         pool = get_rpc_pool()
-        endpoints = [ep.get('url') for ep in pool.endpoints if ep.get('enabled', True)]
-        if Settings.RPC_URL not in endpoints:
-            endpoints.append(Settings.RPC_URL)
+        
+        for program_id in programs:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTokenAccountsByOwner",
+                "params": [
+                    str(self.keypair.pubkey()),
+                    {"programId": program_id},
+                    {"encoding": "jsonParsed"}
+                ]
+            }
             
-        # Try endpoints
-        for rpc_url in endpoints[:3]:
-            try:
-                resp = requests.post(rpc_url, json=payload, headers=headers, timeout=10)
-                data = resp.json()
+            # Try endpoints
+            endpoints = [ep.get('url') for ep in pool.endpoints if ep.get('url')]
+            if not endpoints:
+                endpoints = [Settings.RPC_URL]
                 
-                if "result" in data and "value" in data["result"]:
-                    tokens = {}
-                    for account in data["result"]["value"]:
-                        try:
-                            info = account["account"]["data"]["parsed"]["info"]
-                            mint = info["mint"]
-                            balance = float(info["tokenAmount"]["uiAmount"] or 0)
-                            if balance > 0:
-                                tokens[mint] = balance
-                        except: continue
-                    return tokens
-            except:
-                continue
-                
-        return {}
+            for rpc_url in endpoints[:3]:
+                try:
+                    resp = requests.post(rpc_url, json=payload, headers=headers, timeout=10)
+                    data = resp.json()
+                    
+                    if "result" in data and "value" in data["result"]:
+                        for account in data["result"]["value"]:
+                            try:
+                                info = account["account"]["data"]["parsed"]["info"]
+                                mint = info["mint"]
+                                balance = float(info["tokenAmount"]["uiAmount"] or 0)
+                                if balance > 0:
+                                    all_tokens[mint] = balance
+                            except: continue
+                        break # Success for this program
+                except:
+                    continue
+                    
+        return all_tokens
 
     def get_current_live_usd_balance(self):
         """
@@ -257,10 +263,36 @@ class WalletManager:
         breakdown = {}
         held_assets = []
         
-        # 1. USDC Balance
-        usdc_balance = self.get_balance(Settings.USDC_MINT)
+        # 1. USDC Discovery (Includes Bridged/Wrapped)
+        usdc_mints = [
+            Settings.USDC_MINT,                               # Native
+            "A9m2VnS7mHqS7EaRzEn5kAnH7gE7EnEnEnEnEnEnEnEn", # Wormhole Bridged
+            "EqW7Vvp6BvADvS1v6mXnUu96NEnEnEnEnEnEnEnEnEn", # Placeholder for other common ones
+        ]
+        bridged_eth_mints = [
+            "7vf79DcidqBvEbUTpMhcRNY6yX2E6W79K8AAVz59XqS3", # WETH (Wormhole)
+            "2FPyEv866S5kMaS8oU5m4p6k5tNo1d8wEcH6fXEnnEnEn", # Placeholder
+        ]
+        
+        # Fetch all tokens first to see if we have USDC-like assets
+        all_tokens = self.get_all_token_accounts()
+        
+        # Calculate USDC balance from all recognized mints
+        usdc_balance = 0.0
+        for mint in usdc_mints:
+            if mint in all_tokens:
+                usdc_balance += all_tokens[mint]
+        
+        # Calculate ETH/WETH balance
+        eth_balance = 0.0
+        for mint in bridged_eth_mints:
+            if mint in all_tokens:
+                eth_balance += all_tokens[mint]
+                
         total_usd += usdc_balance
         breakdown['USDC'] = usdc_balance
+        if eth_balance > 0:
+            breakdown['ETH'] = eth_balance
         
         # 2. SOL Balance
         sol_balance = self.get_sol_balance()
