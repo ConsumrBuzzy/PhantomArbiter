@@ -11,7 +11,7 @@ from config.settings import Settings
 from src.strategy.watcher import Watcher
 from src.strategy.risk import PositionSizer, TrailingStopManager
 from src.strategy.metrics import Metrics
-from src.system.priority_queue import priority_queue
+from src.shared.system.priority_queue import priority_queue
 from src.shared.system.logging import Logger
 
 
@@ -169,7 +169,7 @@ class BaseStrategy(ABC):
         if time.time() - self.last_mode_update < 300:
             return
             
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         self.win_rate = db_manager.get_win_rate(limit=20)
         self.last_mode_update = time.time()
     

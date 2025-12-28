@@ -6,7 +6,7 @@ from collections import deque
 # from .config import RiskConfig
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.system.smart_router import SmartRouter
+from src.shared.system.smart_router import SmartRouter
 import requests
 
 

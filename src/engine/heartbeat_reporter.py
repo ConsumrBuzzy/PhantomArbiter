@@ -17,10 +17,10 @@ from typing import Dict, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass
 
 from config.settings import Settings
-from src.system.priority_queue import priority_queue
+from src.shared.system.priority_queue import priority_queue
 
 if TYPE_CHECKING:
-    from src.execution.paper_wallet import PaperWallet
+    from src.shared.execution.paper_wallet import PaperWallet
 
 
 @dataclass
@@ -285,7 +285,7 @@ class HeartbeatReporter:
     
     def _send_to_telegram(self, data: HeartbeatData) -> None:
         """Send heartbeat to Telegram."""
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         
         heartbeat_msg = (
             f"💓 Heartbeat\n"

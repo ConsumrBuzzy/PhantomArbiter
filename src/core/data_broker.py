@@ -19,24 +19,15 @@ import sys
 import threading
 import signal
 from src.shared.system.logging import Logger
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from config.settings import Settings
-from src.core.shared_cache import SharedPriceCache
-from src.shared.infrastructure.websocket_listener import create_websocket_listener
-from src.core.data import batch_fetch_jupiter_prices
-from src.scout.manager import ScoutManager
-from src.scout.auditor import ActiveCoinAuditor
-from src.system.smart_router import SmartRouter
+from src.shared.system.smart_router import SmartRouter
 
 # V48.0: Universal Watcher
 from src.core.prices.dexscreener import DexScreenerProvider
 
 # V17.1: Centralized Command Queue
 import queue
-from src.system.telegram_listener import (
-    TelegramListenerDaemon, CMD_STATUS_REPORT, CMD_STOP_ENGINE,
+from src.shared.notification.telegram_manager import (
+    TelegramManager, CMD_STATUS_REPORT, CMD_STOP_ENGINE,
     CMD_SET_MODE, CMD_SET_SIZE, CMD_SET_BUDGET, CMD_RETRAIN_ML,
     CMD_PERFORMANCE
 )
@@ -90,14 +81,14 @@ class DataBroker:
         self.router = SmartRouter()
         
         # V10.13: Data Source Manager (Tiered Reliability)
-        from src.system.data_source_manager import DataSourceManager
+        from src.shared.system.data_source_manager import DataSourceManager
         self.dsm = DataSourceManager()
         
         # V48.0: Universal Watcher for rich market data
         self.universal_watcher = DexScreenerProvider()
         
         # Initialize execution for wallet scanning
-        from src.execution.wallet import WalletManager
+        from src.shared.execution.wallet import WalletManager
         self.wallet = WalletManager()
         self.wallet_scan_interval = 6
         
@@ -124,7 +115,7 @@ class DataBroker:
         
         # V17.1: Centralized Command Queue
         self.command_queue = queue.Queue()
-        self.telegram_listener = TelegramListenerDaemon(self.command_queue)
+        self.telegram_listener = TelegramManager(self.command_queue)
         print("   📡 Telegram Listener initialized (Central Hub)")
         
         # V9.7: Detect held bags and prioritize them
@@ -142,31 +133,31 @@ class DataBroker:
         # _backfill_history() and _validate_tokens() moved to background thread
     
         # V45.2: Command Processor
-        from src.system.command_processor import CommandProcessor
+        from src.shared.system.command_processor import CommandProcessor
         self.command_processor = CommandProcessor(self)
         self.forced_report_pending = False
         
         # V65.0: The Scout Agent (Swarm Architecture)
-        from src.agents.scout_agent import ScoutAgent
+        from src.scraper.agents.scout_agent import ScoutAgent
         self.scout_agent = ScoutAgent()
         
         # V66.0: The Whale Watcher
-        from src.agents.whale_watcher_agent import WhaleWatcherAgent
+        from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
         self.whale_watcher = WhaleWatcherAgent()
         
         # V67.0: Sauron Discovery (Omni-Monitor)
-        from src.discovery.sauron_discovery import SauronDiscovery
+        from src.scraper.discovery.sauron_discovery import SauronDiscovery
         self.sauron = SauronDiscovery()
         
         # V68.0: Sniper Agent (Fast-Entry)
-        from src.agents.sniper_agent import SniperAgent
+        from src.scraper.agents.sniper_agent import SniperAgent
         self.sniper = SniperAgent()
         
         # V64.0: Bitquery Adapter (Real-time Raydium)
         self.bitquery_adapter = None
         if Settings.BITQUERY_API_KEY:
             try:
-                from src.infrastructure.bitquery_adapter import BitqueryAdapter
+                from src.shared.infrastructure.bitquery_adapter import BitqueryAdapter
                 self.bitquery_adapter = BitqueryAdapter()
                 # Wire up callback
                 self.bitquery_adapter.add_callback(self._handle_bitquery_update)
@@ -201,7 +192,7 @@ class DataBroker:
             self.market_aggregator = MarketAggregator(dydx_adapter=dydx_adapter)
             
             # 3. Init Reporter (V45.1)
-            from src.system.reporter import MarketReporter
+            from src.shared.system.reporter import MarketReporter
             self.reporter = MarketReporter(self.dsm, self.market_aggregator)
             self.reporter.set_watched_mints(self.watched_mints)
             
@@ -211,7 +202,7 @@ class DataBroker:
             Logger.error(f"Failed to init components: {e}")
             self.market_aggregator = None
             # Fallback reporter
-            from src.system.reporter import MarketReporter
+            from src.shared.system.reporter import MarketReporter
             self.reporter = MarketReporter(self.dsm, None)
 
     # ═══════════════════════════════════════════════════════════════════
@@ -295,7 +286,7 @@ class DataBroker:
     def _check_alert_policies(self):
         """V40.0: Check market metrics against alert thresholds and send notifications."""
         import asyncio
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         
         # Check interval (every 60 seconds)
         if not hasattr(self, '_last_alert_check'):
@@ -510,7 +501,7 @@ class DataBroker:
         Logger.success("[BROKER] DATA BROKER IS LIVE")
         
         # V11.12: Send Broker init to Telegram via CommsDaemon
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         send_telegram("🔴 Data Broker is LIVE", source="BROKER", priority="HIGH")
         
         # V11.5: Defer P2 tasks to background thread
@@ -617,12 +608,12 @@ class DataBroker:
         self.dashboard.start()
         
         # V77.0: Start Metadata Background Resolver
-        from src.discovery.metadata_resolver import get_metadata_resolver
+        from src.scraper.discovery.metadata_resolver import get_metadata_resolver
         self.metadata_resolver = get_metadata_resolver()
         self.metadata_resolver.start()
         
         # V84.0: Start Swap Intelligence (Solscan scraper)
-        from src.discovery.scrape_intelligence import get_scrape_intelligence
+        from src.shared.infrastructure.smart_scraper import get_scrape_intelligence
         self.scrape_intel = get_scrape_intelligence()
         self.scrape_intel.start()
         print("   🔍 Swap Intelligence (Solscan Scraper) Started")
@@ -667,7 +658,7 @@ class DataBroker:
 
     def _run_tick(self):
         """Run one data collection tick."""
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         self.batch_count += 1
         
         # V17.1: Process Command Queue (Central Hub)

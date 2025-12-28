@@ -9,7 +9,7 @@ import os
 from config.settings import Settings
 from src.shared.infrastructure.validator import TokenValidator
 from src.strategy.portfolio import PortfolioManager
-from src.execution.wallet import WalletManager
+from src.shared.execution.wallet import WalletManager
 
 class SmartScout:
     def __init__(self):

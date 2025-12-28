@@ -190,9 +190,14 @@ class DashboardService:
                 state.sol_is_cached = True  # V78.1: Mark as cached
             else:
                 # Fallback 1: Try Jupiter direct
-                from src.data_source.smart_router import get_jupiter_price
-                sol_price = get_jupiter_price("So11111111111111111111111111111111111111112")  # SOL mint
-                state.sol_price = sol_price if sol_price else 150.0  # Fallback: $150
+                from src.shared.system.smart_router import SmartRouter
+                router = SmartRouter()
+                sol_price = router.get_jupiter_price("So11111111111111111111111111111111111111112", Settings.USDC_MINT)
+                if sol_price and 'data' in sol_price:
+                    sol_price = sol_price['data'].get("So11111111111111111111111111111111111111112", {}).get('price', 150.0)
+                else:
+                    sol_price = 150.0
+                state.sol_price = sol_price
                 state.sol_is_cached = False if sol_price else True  # Live if Jupiter worked
         except:
             state.sol_price = 150.0  # Conservative fallback
@@ -283,7 +288,7 @@ class DashboardService:
         
         # V85.1: Get intelligence stats
         try:
-            from src.discovery.scrape_intelligence import get_scrape_intelligence
+            from src.scraper.discovery.scrape_intelligence import get_scrape_intelligence
             scrape = get_scrape_intelligence()
             intel_stats = scrape.get_stats()
             state.whale_alerts = intel_stats.get("whales_detected", 0)

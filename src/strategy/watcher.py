@@ -9,7 +9,7 @@ Delegates logic to:
 """
 
 from src.core.data import DataFeed
-from src.execution.position_manager import PositionManager
+from src.shared.execution.position_manager import PositionManager
 
 from src.strategy.signals import TechnicalAnalysis
 

@@ -5,13 +5,13 @@ from collections import defaultdict
 from src.shared.system.logging import Logger
 from config.settings import Settings
 from src.utils.boot_utils import BootTimer
-from src.system.comms_daemon import send_telegram
+from src.shared.system.comms_daemon import send_telegram
 
 # Imports for loop
-from src.discovery.launchpad_monitor import get_launchpad_monitor, LaunchEvent, MigrationEvent
-from src.discovery.migration_sniffer import get_migration_sniffer, MigrationOpportunity, SnipeConfidence
+from src.scraper.discovery.launchpad_monitor import get_launchpad_monitor, LaunchEvent, MigrationEvent
+from src.scraper.discovery.migration_sniffer import get_migration_sniffer, MigrationOpportunity, SnipeConfidence
 from src.shared.system.capital_manager import get_capital_manager
-from src.system.telegram_templates import DiscoveryTemplates
+from src.shared.system.telegram_templates import DiscoveryTemplates
 
 SHUTDOWN_EVENT = asyncio.Event()
 discovery_trades = {} # Local tracking
@@ -49,7 +49,7 @@ async def discovery_monitor_loop():
         """
         Periodically process silent queue, retry metadata, and report.
         """
-        from src.infrastructure.token_scraper import get_token_scraper
+        from src.shared.infrastructure.token_scraper import get_token_scraper
         scraper = get_token_scraper()
         
         while True:
@@ -172,7 +172,7 @@ async def discovery_monitor_loop():
                 # V54.0: Try to get symbol from registry if missing in opp
                 symbol = opp.symbol
                 if not symbol:
-                    from src.discovery.token_registry import get_token_registry
+                    from src.scraper.discovery.token_registry import get_token_registry
                     reg = get_token_registry()
                     token = reg.get_token(opp.mint)
                     symbol = token.symbol if token else f"NEW_{opp.mint[:6]}"
@@ -181,7 +181,7 @@ async def discovery_monitor_loop():
                 
                 # Fetch current price via DSM (or use 0 for simulation)
                 try:
-                    from src.system.data_source_manager import DataSourceManager
+                    from src.shared.system.data_source_manager import DataSourceManager
                     dsm = DataSourceManager()
                     price = dsm.get_price(opp.mint)
                 except:

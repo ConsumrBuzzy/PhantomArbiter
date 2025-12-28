@@ -9,7 +9,7 @@ from config.settings import Settings
 import time
 from src.strategy.base_strategy import BaseStrategy
 from src.strategy.watcher import Watcher
-from src.system.priority_queue import priority_queue
+from src.shared.system.priority_queue import priority_queue
 from src.strategy.risk import PositionSizer, TrailingStopManager
 from src.strategy.metrics import Metrics
 from src.shared.system.logging import Logger
@@ -32,7 +32,7 @@ class DecisionEngine(BaseStrategy):
         Queries DBManager.
         """
         import time
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         
         if time.time() - self.last_mode_update < self.MODE_UPDATE_INTERVAL:
             return
@@ -110,7 +110,7 @@ class DecisionEngine(BaseStrategy):
             print(f"   🎯 {watcher.symbol}: PASSED validation, checking entry conditions...")
         
         # V12.1: Slippage Filter (Hard reject >2%, soft filter >1%)
-        from src.system.data_source_manager import DataSourceManager
+        from src.shared.system.data_source_manager import DataSourceManager
         dsm = DataSourceManager()
         passes, slippage, action = dsm.check_slippage_filter(watcher.mint)
         

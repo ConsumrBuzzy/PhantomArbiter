@@ -9,7 +9,7 @@ from datetime import datetime
 from config.settings import Settings
 from src.core.shared_cache import SharedPriceCache
 from src.tools.asset_manager import AssetManager
-from src.execution.wallet import WalletManager
+from src.shared.execution.wallet import WalletManager
 
 class StatusReporter:
     def __init__(self):

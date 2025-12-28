@@ -9,7 +9,7 @@ Responsibility:
 """
 
 from src.core.data import batch_fetch_jupiter_prices
-from src.system.priority_queue import priority_queue
+from src.shared.system.priority_queue import priority_queue
 from src.strategy.watcher import Watcher
 
 class DataFeedManager:

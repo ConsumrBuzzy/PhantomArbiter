@@ -34,7 +34,7 @@ class KeltnerLogic(BaseStrategy):
         if time.time() - self.last_mode_update < 300:
             return
             
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         self.win_rate = db_manager.get_win_rate(limit=20)
         self.last_mode_update = time.time()
         Logger.info(f"🌊 Keltner Mode: EMA 20 / ATR 10 (Win Rate: {self.win_rate*100:.1f}%)")
