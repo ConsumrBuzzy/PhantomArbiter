@@ -21,11 +21,49 @@
             "note": "V12.3: JITO public block engine for front-running protection. No API key required."
         },
         {
-            "name": "Ankr Public",
-            "url": "https://rpc.ankr.com/solana",
-            "priority": 99,
+            "name": "JITO NY",
+            "url": "https://ny.mainnet.block-engine.jito.wtf/api/v1/transactions",
+            "priority": 1,
+            "enabled": true,
+            "execution_only": true,
+            "note": "Minimizes latency for East Coast / NY region"
+        },
+        {
+            "name": "JITO Frankfurt",
+            "url": "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions",
+            "priority": 1,
+            "enabled": true,
+            "execution_only": true,
+            "note": "Minimizes latency for Europe/EMEA region"
+        },
+        {
+            "name": "JITO Tokyo",
+            "url": "https://tokyo.mainnet.block-engine.jito.wtf/api/v1/transactions",
+            "priority": 1,
+            "enabled": true,
+            "execution_only": true,
+            "note": "Minimizes latency for Asia-Pacific region"
+        },
+        {
+            "name": "NOWNodes",
+            "url": "https://sol.nownodes.io/${NOWNODES_API_KEY}",
+            "priority": 2,
             "enabled": false,
-            "note": "V11.9: Disabled - public endpoint is unreliable/rate-limited"
+            "note": "Unmetered RPS for heavy queries. Requires NOWNODES_API_KEY"
+        },
+        {
+            "name": "Ankr",
+            "url": "https://rpc.ankr.com/solana/${ANKR_API_KEY}",
+            "priority": 2,
+            "enabled": false,
+            "note": "Decentralized Failover. Requires ANKR_API_KEY"
+        },
+        {
+            "name": "Lava",
+            "url": "https://solana.lava.build/rpc/v1/${LAVA_API_KEY}",
+            "priority": 2,
+            "enabled": false,
+            "note": "Privacy & Aggregation. Requires LAVA_API_KEY"
         },
         {
             "name": "Solana Mainnet",

@@ -128,9 +128,19 @@ class SmartRouter:
     def get_jito_execution_url(self):
         """
         V12.3: Get JITO block engine URL for private transaction execution.
-        Returns None if JITO is not configured.
+        Supports regional pinning via JITO_REGION env var.
         """
+        region = os.getenv("JITO_REGION", "").lower()
         config = self._load_config()
+        
+        # If region is specified, try to find matching regional Jito
+        if region:
+            for endpoint in config.get('endpoints', []):
+                if endpoint.get('execution_only') and endpoint.get('enabled'):
+                    if region in endpoint.get('name', '').lower():
+                        return endpoint.get('url')
+        
+        # Fallback to first enabled Jito endpoint
         for endpoint in config.get('endpoints', []):
             if endpoint.get('execution_only') and endpoint.get('enabled'):
                 return endpoint.get('url')
