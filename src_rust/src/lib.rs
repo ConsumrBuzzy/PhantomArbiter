@@ -20,6 +20,15 @@ fn calculate_arb_opportunity(
     Ok(spread > fee_impact)
 }
 
+/// Go/No-Go Decision Engine for Net Profit.
+/// Moves float math to Rust to avoid GIL and precision overhead.
+#[pyfunction]
+fn calculate_net_profit(spread_raw: f64, trade_size: f64, jito_tip: f64, route_friction: f64) -> PyResult<f64> {
+    let gross = trade_size * (spread_raw / 100.0);
+    let net = gross - jito_tip - route_friction;
+    Ok(net)
+}
+
 /// Batch processing to eliminate FFI overhead.
 /// Processes thousands of trades in a single Rust call.
 #[pyfunction]
