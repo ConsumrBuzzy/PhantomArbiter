@@ -19,8 +19,8 @@ import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
-# V9.7: Ensure logs directory exists
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+# V9.7: Ensure logs directory exists - Fixed path to project root (4 levels up)
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs")
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 

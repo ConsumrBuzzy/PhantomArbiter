@@ -49,11 +49,18 @@ def enable_windows_ansi():
             pass
 
 def get_log_files(max_files: int = 5) -> List[Path]:
-    """Get the most recent log files sorted by modification time."""
-    if not LOG_DIR.exists():
-        return []
+    """Get the most recent log files from multiple possible locations."""
+    log_dirs = [LOG_DIR, SCRIPT_DIR / "src" / "logs"]
+    log_files = []
     
-    log_files = list(LOG_DIR.glob("phantom_*.log"))
+    for d in log_dirs:
+        if d.exists():
+            log_files.extend(list(d.glob("phantom_*.log")))
+            # Also include the legacy static phantom.log if it exists and has content
+            static_log = d / "phantom.log"
+            if static_log.exists() and static_log.stat().st_size > 0:
+                log_files.append(static_log)
+    
     # Sort by modification time (newest first)
     log_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
     return log_files[:max_files]
