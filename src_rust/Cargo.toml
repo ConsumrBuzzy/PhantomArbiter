@@ -26,3 +26,9 @@ futures = "0.3"
 
 # Phase 19: Tick Array Manager
 bs58 = "0.5"
+
+# Phase 17.5: Rust WSS Aggregator
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+url = "2.5"
+crossbeam-channel = "0.5"

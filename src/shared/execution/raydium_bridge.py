@@ -444,6 +444,173 @@ class RaydiumBridge:
             Logger.debug(f"[RAYDIUM] Trade API error: {e}")
             return None
 
+    def execute_swap_rust(
+        self,
+        pool_address: str,
+        input_mint: str,
+        amount: float,
+        slippage_bps: int = 50,
+        rpc_url: str = "https://api.mainnet-beta.solana.com",
+        payer_keypair: str = None  # Base58 private key
+    ) -> RaydiumSwapResult:
+        """
+        Execute CLMM swap using native Rust implementation (Phase 20.2).
+        
+        Steps:
+        1. Parse Pool State (Rust)
+        2. Derive plumbing (ATAs, Vaults)
+        3. Build Instruction (Rust)
+        4. Sign & Serialize (Rust Atomic Builder)
+        5. Send via RPC
+        """
+        import base64
+        import requests
+        import phantom_core
+        from solders.pubkey import Pubkey
+        from solders.keypair import Keypair
+        from spl.token.instructions import get_associated_token_address
+        
+        try:
+            # 0. Payer Setup
+            if not payer_keypair:
+                from dotenv import load_dotenv
+                load_dotenv()
+                payer_keypair = os.getenv("PHANTOM_PRIVATE_KEY")
+            
+            if not payer_keypair:
+                return RaydiumSwapResult(False, None, input_mint, "", amount, 0, "No Payer Keypair")
+
+            payer_kp = Keypair.from_base58_string(payer_keypair)
+            payer_pk = payer_kp.pubkey()
+
+            # 1. Fetch Pool Account & Blockhash (Parallel-ish via Session?)
+            # For simplicity, sequential requests
+            
+            # A. Get Pool Account
+            payload_pool = {
+                "jsonrpc": "2.0", "id": 1, "method": "getAccountInfo", 
+                "params": [pool_address, {"encoding": "base64"}]
+            }
+            # B. Get Blockhash
+            payload_hash = {
+                "jsonrpc": "2.0", "id": 2, "method": "getLatestBlockhash", 
+                "params": [{"commitment": "confirmed"}]
+            }
+            
+            # Batch request? Simple sequential for robustness first.
+            resp_pool = requests.post(rpc_url, json=payload_pool, timeout=5).json()
+            if not resp_pool.get("result") or not resp_pool["result"]["value"]:
+                return RaydiumSwapResult(False, None, input_mint, "", amount, 0, "Pool account not found")
+                
+            account_data_b64 = resp_pool["result"]["value"]["data"][0]
+            
+            # 2. Parse State (Rust)
+            pool_info = phantom_core.parse_clmm_pool_state(pool_address, account_data_b64)
+            
+            # 3. Determine Plumbing
+            is_a_to_b = (input_mint == pool_info.token_mint_0)
+            
+            # Vaults logic:
+            # If A->B (Input=Mint0): Input=Vault0, Output=Vault1
+            # If B->A (Input=Mint1): Input=Vault1, Output=Vault0
+            if is_a_to_b:
+                input_vault = pool_info.token_vault_0
+                output_vault = pool_info.token_vault_1
+                output_mint = pool_info.token_mint_1
+            else:
+                input_vault = pool_info.token_vault_1
+                output_vault = pool_info.token_vault_0
+                output_mint = pool_info.token_mint_0
+            
+            # ATAs
+            input_mint_pk = Pubkey.from_string(input_mint)
+            output_mint_pk = Pubkey.from_string(output_mint)
+            
+            input_ata = get_associated_token_address(payer_pk, input_mint_pk)
+            output_ata = get_associated_token_address(payer_pk, output_mint_pk)
+            
+            # 4. Derive Tick Arrays (Rust)
+            tick_arrays = phantom_core.derive_tick_arrays(
+                pool_address, 
+                pool_info.tick_current, 
+                pool_info.tick_spacing, 
+                is_a_to_b
+            )
+            
+            # 5. Build Instruction (The Forge)
+            decimals = pool_info.mint_decimals_0 if is_a_to_b else pool_info.mint_decimals_1
+            amount_in_atomic = int(amount * (10 ** decimals))
+            
+            # Slippage Estimation
+            price = pool_info.get_price()
+            if not is_a_to_b and price > 0:
+                price = 1.0 / price
+            
+            estimated_out = amount * price
+            min_out_ui = estimated_out * (1.0 - (slippage_bps / 10000.0))
+            
+            out_decimals = pool_info.mint_decimals_1 if is_a_to_b else pool_info.mint_decimals_0
+            min_amount_out_atomic = int(min_out_ui * (10 ** out_decimals))
+            
+            # Instruction Data Builder (Rust) 
+            ix_bytes = phantom_core.build_raydium_clmm_swap_ix(
+                payer=str(payer_pk),
+                amm_config=pool_info.amm_config,
+                pool_state=pool_address,
+                input_token_account=str(input_ata),
+                output_token_account=str(output_ata),
+                input_vault=input_vault,
+                output_vault=output_vault,
+                observation_state=pool_info.observation_key,
+                tick_array_lower=tick_arrays[0],
+                tick_array_current=tick_arrays[1],
+                tick_array_upper=tick_arrays[2],
+                input_token_mint=input_mint,
+                output_token_mint=output_mint,
+                amount=amount_in_atomic,
+                other_amount_threshold=min_amount_out_atomic,
+                sqrt_price_limit_x64=0,
+                by_amount_in=True
+            )
+            
+            # 6. Sign & Serialize (The Blast)
+            resp_hash = requests.post(rpc_url, json=payload_hash, timeout=5).json()
+            blockhash = resp_hash["result"]["value"]["blockhash"]
+            slot = resp_hash["result"]["context"]["slot"]
+            
+            tx_bytes = phantom_core.build_atomic_transaction(
+                instruction_payload=bytes(ix_bytes),
+                payer_key_b58=payer_keypair,
+                blockhash_b58=blockhash,
+                rpc_slot=slot,
+                jito_slot=0 
+            )
+            
+            # 7. Send (RPC)
+            b64_tx = base64.b64encode(bytes(tx_bytes)).decode('utf-8')
+            
+            payload_send = {
+                "jsonrpc": "2.0", "id": 3, 
+                "method": "sendTransaction", 
+                "params": [
+                    b64_tx, 
+                    {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}
+                ]
+            }
+            resp_send = requests.post(rpc_url, json=payload_send, timeout=5).json()
+            
+            if "error" in resp_send:
+                return RaydiumSwapResult(False, None, input_mint, output_mint, amount, 0, f"RPC Error: {resp_send['error']}")
+                
+            signature = resp_send.get("result")
+            return RaydiumSwapResult(True, signature, input_mint, output_mint, amount, 0, None)
+
+        except Exception as e:
+            Logger.debug(f"[RAYDIUM-RUST] Critical error: {e}")
+            return RaydiumSwapResult(False, None, input_mint, "", amount, 0, str(e))
+
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # KNOWN RAYDIUM CLMM POOLS (Verified on 2025-12-20)

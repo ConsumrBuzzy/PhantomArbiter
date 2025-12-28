@@ -114,31 +114,42 @@ fn verify_slot_sync(rpc_slot: u64, jito_slot: u64) -> PyResult<()> {
 
 /// Atomic V0 Transaction Builder.
 /// Constructs, Signs, and Serializes in one Rust call.
+/// 
+/// # Arguments
+/// * `instruction_payload` - Bincode-serialized `solana_sdk::instruction::Instruction`
+/// * `payer_key_b58` - Base58 private key of payer
+/// * `blockhash_b58` - Recent blockhash
+/// * `rpc_slot` - Current RPC slot for liveness check
+/// * `jito_slot` - Last Jito bundle slot (optional, pass 0 to skip)
+/// 
+/// # Returns
+/// Serialized VersionedTransaction (bincode)
 #[pyfunction]
+#[pyo3(signature = (instruction_payload, payer_key_b58, blockhash_b58, rpc_slot, jito_slot=0))]
 fn build_atomic_transaction(
-    instruction_data_b64: String, // Placeholder for real instruction building
+    instruction_payload: Vec<u8>, 
     payer_key_b58: String,
     blockhash_b58: String,
     rpc_slot: u64,
     jito_slot: u64
 ) -> PyResult<Vec<u8>> {
     
-    // 1. Safety Check: Liveness
-    verify_slot_sync(rpc_slot, jito_slot)?;
+    // 1. Safety Check: Liveness (if Jito slot provided)
+    if jito_slot > 0 {
+        verify_slot_sync(rpc_slot, jito_slot)?;
+    }
 
     // 2. Parsers (Fast Rust Parsing)
     let payer = Keypair::from_base58_string(&payer_key_b58);
     let blockhash = Hash::from_str(&blockhash_b58)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
-    // 3. Instruction Assembly (Simplified Logic for Prototype)
-    // For now, we mock a "Memo" instruction to prove the builder works.
-    let memo_program_id = Pubkey::from_str("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcQb").unwrap();
-    let instruction = Instruction::new_with_bytes(
-        memo_program_id, 
-        instruction_data_b64.as_bytes(), 
-        vec![]
-    );
+    // 3. Instruction Deserialization
+    // We expect a valid, fully constructed Instruction from "The Forge"
+    let instruction: Instruction = bincode::deserialize(&instruction_payload)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Failed to deserialize instruction: {}", e)
+        ))?;
 
     // 4. Message V0 Construction
     let message = v0::Message::try_compile(
@@ -159,6 +170,7 @@ fn build_atomic_transaction(
 
     Ok(serialized)
 }
+
 
 // ------------------------------------------------------------------------
 // SECTION 4: PATHFINDER (GRAPH ENGINE)
@@ -376,7 +388,12 @@ mod slot_consensus;
 mod tick_array_manager;
 
 // ------------------------------------------------------------------------
-// SECTION 12: MODULE REGISTRATION
+// SECTION 12: WSS AGGREGATOR (THE WIRE V2)
+// ------------------------------------------------------------------------
+mod wss_aggregator;
+
+// ------------------------------------------------------------------------
+// SECTION 13: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
 /// A Python module implemented in Rust.
@@ -409,7 +426,11 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // Tick Array Manager (CLMM Correctness)
     tick_array_manager::register_tick_array_functions(m)?;
     
+    // WSS Aggregator (The Wire v2)
+    wss_aggregator::register_wss_aggregator_classes(m)?;
+    
     Ok(())
 }
+
 
 
