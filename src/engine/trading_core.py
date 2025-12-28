@@ -580,7 +580,28 @@ class TradingCore:
             "signals": len(signals),
             "best_play": None
         }
+
+        # V90.0: Live Dashboard Feed (Price Watch)
+        # We assume 'state' is available globally
+        from src.shared.state.app_state import state
+        # Batch update pulse
+        pulse_data = {}
+        for s, w in combined_watchers.items():
+            price = w.get_price()
+            rsi = w.get_rsi()
+            pulse_data[s] = {"price": price, "rsi": rsi, "conf": 0.0}
+            
+            # Enrich with signal info if available
+            # (Matches are expensive, we do it in dashboard usually, but we can hint here)
         
+        # Merge signal confidences
+        for s in signals:
+            if s['symbol'] in pulse_data:
+                pulse_data[s['symbol']]['conf'] = s['confidence']
+                pulse_data[s['symbol']]['action'] = s['action']
+
+        state.update_pulse_batch(pulse_data)
+
         # Find best candidate (even if not a signal yet, or just the best signal)
         best_conf = 0
         best_sym = None
