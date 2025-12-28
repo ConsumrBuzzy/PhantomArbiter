@@ -332,5 +332,6 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
+    m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;
     Ok(())
 }
