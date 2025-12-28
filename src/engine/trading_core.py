@@ -102,10 +102,9 @@ class TradingCore:
             self.decision_engine = DecisionEngine(self.portfolio)
         
         # 4. Watchers (State)
-        
-        # 4. Watchers (State)
         self.watchers = {}
         self.scout_watchers = {}
+        self.watchlist = []  # V132: Fix for Director / Scout Agent integration
         
         # V11.15: Paper Trade Simulator (Monitor Mode)
         # self.paper_positions removed in V45.0 - using paper_wallet.assets
