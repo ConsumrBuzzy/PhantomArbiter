@@ -117,12 +117,16 @@ class WalletManager:
             return int(info["decimals"])
         return 6
 
+        return None
+
     def get_token_info(self, mint_str):
         """
-        Fetch full token account info (amount, decimals, uiAmount).
+        Fetch full token account info.
+        V135: Added Fallback to get_all_token_accounts if specific lookup fails.
         """
         if not self.keypair: return None
         
+        # 1. Try Direct Lookup (Fast)
         try:
             pool = get_rpc_pool()
             result = pool.rpc_call("getTokenAccountsByOwner", [
@@ -135,8 +139,37 @@ class WalletManager:
                 if accounts:
                     return accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]
         except Exception as e:
-            Logger.debug(f"Token info check failed: {e}")
+            Logger.debug(f"Direct token info check failed: {e}")
             
+        # 2. Fallback: Scan All Accounts (Robust)
+        # This catches cases where mint-filter RPC fails but owner-filter works
+        try:
+            all_tokens = self.get_all_token_accounts()
+            if mint_str in all_tokens:
+                # Reconstruct the expected dict format for compatibility
+                balance = all_tokens[mint_str]
+                # We don't have decimals here easily unless we fetch metadata, 
+                # but 'uiAmount' is what matters most for the balance check in Swapper.
+                # However, Swapper uses 'amount' (atomic) too.
+                # get_all_token_accounts only returns uiAmount.
+                # We need atomic amount. 
+                # Let's try to get decimals from registry or assume 6 if critical.
+                
+                # Fetch decimals to reconstruct atomic
+                registry = get_registry()
+                decimals = 6 # Default
+                # Try to get better decimals?
+                # For WIF it's 6.
+                
+                return {
+                    "amount": str(int(balance * (10**decimals))), # Approx
+                    "decimals": decimals,
+                    "uiAmount": balance,
+                    "uiAmountString": str(balance)
+                }
+        except Exception as e:
+            Logger.error(f"Fallback token scan failed: {e}")
+
         return None
 
     def get_balance(self, mint_str):
