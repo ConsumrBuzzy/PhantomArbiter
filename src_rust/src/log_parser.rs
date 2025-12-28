@@ -17,6 +17,11 @@ pub struct SwapEvent {
 // For now we will detect "Program data: " and look for common patterns or just enable Raydium first.
 // Actually, let's implement the generic Anchor parser structure.
 
+// Anchor Event Discriminators (calculated via sha256("event:<Name>")[..8])
+const DISC_SWAP: [u8; 8] = [81, 108, 227, 190, 205, 208, 10, 196];       // "Swap" (Meteora?)
+const DISC_TRADE: [u8; 8] = [24, 254, 218, 152, 253, 43, 18, 81];        // "Trade" (Orca?)
+const DISC_SWAP_EVENT: [u8; 8] = [64, 198, 205, 232, 38, 8, 113, 226];   // "SwapEvent" (Generic)
+
 #[pyfunction]
 pub fn parse_raydium_log(log_str: String) -> PyResult<Option<SwapEvent>> {
     parse_universal_log(log_str)
@@ -52,15 +57,24 @@ pub fn parse_universal_log(log_str: String) -> PyResult<Option<SwapEvent>> {
         if let Ok(data) = general_purpose::STANDARD.decode(b64_clean) {
             if data.len() < 8 { return Ok(None); }
             
-            // Discriminator check (First 8 bytes)
-            // Orca Whirlpool Trade: [0xdd, 0xaf, 0xd9, 0xfd, 0x6e, 0xd0, 0x76, 0x5a] (Example)
-            // We need to implement specific checks. For this MVP, we will stick to Raydium 
-            // but structure this to allow easy addition.
+            let disc: [u8; 8] = data[0..8].try_into().unwrap();
             
-            // Pseudo-code for future expansion:
-            // let disc = &data[0..8];
-            // if disc == ORCA_TRADE_DISCRIMINATOR { ... }
-            // if disc == METEORA_SWAP_DISCRIMINATOR { ... }
+            if disc == DISC_SWAP {
+                 // Meteora DLMM "Swap" (Hypothesis)
+                 // Layout: [8 disc] + [32 lbPair] + [32 userX] + [32 userY] + [32 resX] + [32 resY] + [8 amtIn] + [8 amtInUi] ...
+                 // AmtIn Offset = 8 + 32*5 = 168? That's deep.
+                 // Let's safe-guess for now or correct in V2. 
+                 // Actually, let's just Log it for calibration first.
+                 // println!("[Rust] Caught Meteora Swap!");
+            } else if disc == DISC_TRADE {
+                 // Orca "Trade"
+                 // println!("[Rust] Caught Orca Trade!");
+            } else if disc == DISC_SWAP_EVENT {
+                 // Generic
+            } else {
+                 // Unknown - Print for Debugging
+                 // println!("[Rust] Unknown Anchor Event: {:?}", disc);
+            }
         }
     }
 
