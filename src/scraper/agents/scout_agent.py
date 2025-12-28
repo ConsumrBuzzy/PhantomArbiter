@@ -123,6 +123,11 @@ class ScoutAgent(BaseAgent):
                 ))
                 
                 return self._create_signal(
+                    symbol=symbol,
+                    action="BUY",
+                    confidence=min(0.5 + momentum * 10, 0.9),
+                    reason=f"PRE_PUMP: {momentum*100:.1f}% momentum"
+                )
         
         # V100: Whale Probe Detection
         # Check if the market data includes signer/signer-value (parsed from logs)
@@ -160,6 +165,11 @@ class ScoutAgent(BaseAgent):
                 ))
                 
                 return self._create_signal(
+                    symbol=symbol,
+                    action="ALERT",
+                    confidence=0.95,
+                    reason=f"WHALE_PROBE: Alpha activity detected on {symbol}"
+                )
              
         return None
     
