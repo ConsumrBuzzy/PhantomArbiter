@@ -51,6 +51,9 @@ from src.shared.notification.notifications import get_notifier
 # V133: WatcherManager (SRP Refactor)
 from src.engine.watcher_manager import WatcherManager
 
+# V133: SignalScanner (SRP Refactor)
+from src.engine.signal_scanner import SignalScanner
+
 
 class TradingCore:
     """
@@ -246,6 +249,14 @@ class TradingCore:
             wallet=self.wallet,
             decision_engine=self.decision_engine,
             dydx_adapter=getattr(self, 'dydx_adapter', None)
+        )
+        
+        # V133: SignalScanner (SRP Refactor)
+        self.signal_scanner = SignalScanner(
+            engine_name=self.engine_name,
+            decision_engine=self.decision_engine,
+            paper_wallet=self.paper_wallet,
+            ml_model=self.ml_model
         )
         
         # Phase 33: SignalBus Subscription (Scout-Fed Scalping)
