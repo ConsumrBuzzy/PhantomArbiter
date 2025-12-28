@@ -52,6 +52,9 @@ from src.core.alert_policy_checker import AlertPolicyChecker
 # V133: BackgroundWorkerManager (SRP Refactor)
 from src.core.background_worker_manager import BackgroundWorkerManager
 
+# V133: EngineManager (SRP Refactor)
+from src.core.engine_manager import EngineManager
+
 class DataBroker:
     """
     Centralized data acquisition for dual-engine trading.
@@ -146,6 +149,14 @@ class DataBroker:
         # V133: BackgroundWorkerManager (SRP Refactor)
         self.worker_mgr = BackgroundWorkerManager(self)
         
+        # V133: EngineManager (SRP Refactor)
+        self.engine_mgr = EngineManager()
+        self.engine_mgr.initialize_all()
+        
+        # Connect Bitquery callback if enabled
+        if self.engine_mgr.bitquery_adapter:
+             self.engine_mgr.bitquery_adapter.add_callback(self._handle_bitquery_update)
+        
         # V11.5: Defer blocking calls to run() for instant launch
         # _backfill_history() and _validate_tokens() moved to background thread
     
@@ -154,36 +165,29 @@ class DataBroker:
         self.command_processor = CommandProcessor(self)
         self.forced_report_pending = False
         
-        # V65.0: The Scout Agent (Swarm Architecture)
-        from src.scraper.agents.scout_agent import ScoutAgent
-        self.scout_agent = ScoutAgent()
-        
-        # V66.0: The Whale Watcher
-        from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
-        self.whale_watcher = WhaleWatcherAgent()
-        
-        # V67.0: Sauron Discovery (Omni-Monitor)
-        from src.scraper.discovery.sauron_discovery import SauronDiscovery
-        self.sauron = SauronDiscovery()
-        
-        # V68.0: Sniper Agent (Fast-Entry)
-        from src.scraper.agents.sniper_agent import SniperAgent
-        self.sniper = SniperAgent()
-        
-        # V64.0: Bitquery Adapter (Real-time Raydium)
-        self.bitquery_adapter = None
-        if Settings.BITQUERY_API_KEY:
-            try:
-                from src.shared.infrastructure.bitquery_adapter import BitqueryAdapter
-                self.bitquery_adapter = BitqueryAdapter()
-                # Wire up callback
-                self.bitquery_adapter.add_callback(self._handle_bitquery_update)
-                Logger.info("🔌 [BROKER] Bitquery Adapter Configured")
-            except ImportError:
-                 Logger.warning("⚠️ [BROKER] Bitquery Adapter Import Failed")
-
-        
-    def stop(self):
+        # V133: Agents and Bitquery moved to EngineManager
+        pass
+    # ═══════════════════════════════════════════════════════════════════
+    # V133: SRP Refactor Properties (Bridging to EngineManager)
+    # ═══════════════════════════════════════════════════════════════════
+    @property
+    def merchant_engines((self)): return self.engine_mgr.merchant_engines
+    
+    @property
+    def scout_agent((self)): return self.engine_mgr.scout_agent
+    
+    @property
+    def whale_watcher((self)): return self.engine_mgr.whale_watcher
+    
+    @property
+    def sauron((self)): return self.engine_mgr.sauron
+    
+    @property
+    def sniper((self)): return self.engine_mgr.sniper
+    
+    @property
+    def bitquery_adapter((self)): return self.engine_mgr.bitquery_adapter
+    
         """V45.2: Graceful shutdown."""
         self.running = False
         Logger.info("[BROKER] Stop signal received.")
@@ -226,28 +230,7 @@ class DataBroker:
     # ORCHESTRATION & LOGIC
     # ═══════════════════════════════════════════════════════════════════
     
-    def _init_merchant_engines(self):
-        """
-        V45.0: Initialize the Unified Merchant Engine (Ensemble Strategy).
-        Replaces legacy multi-engine setup with a single 'Mind'.
-        """
-        self.merchant_engines = {}
-        
-        try:
-            from src.strategy.ensemble import MerchantEnsemble
-            
-            # 1. The Unified Merchant
-            merchant = TradingCore(strategy_class=MerchantEnsemble, engine_name="MERCHANT")
-            self.merchant_engines["MERCHANT"] = merchant
-            
-            print(f"   🧠 [MERCHANT] Unified Mind Initialized (Scalper+Keltner+VWAP)")
-            Logger.info("✅ Unified Merchant Engine Started")
-            
-        except Exception as e:
-            Logger.critical(f"🛑 Failed to init Merchant Engines: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
+    # Engine initialization moved to EngineManager.initialize_all()
     
     def _resolve_signals(self, signals: list) -> list:
         """V133: Delegates to SignalResolver."""
