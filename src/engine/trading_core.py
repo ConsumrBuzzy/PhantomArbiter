@@ -3,9 +3,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 from config.settings import Settings
-from src.execution.wallet import WalletManager
-from src.execution.swapper import JupiterSwapper
-from src.system.priority_queue import priority_queue
+from src.shared.execution.wallet import WalletManager
+from src.shared.execution.swapper import JupiterSwapper
+from src.shared.system.priority_queue import priority_queue
 from src.strategy.watcher import Watcher
 from src.tools.asset_manager import AssetManager
 from src.strategy.portfolio import PortfolioManager
@@ -21,12 +21,12 @@ from src.engine.decision_engine import DecisionEngine
 
 # V14.0: Remote Control
 import queue
-from src.system.telegram_listener import (
-    TelegramListenerDaemon, CMD_STATUS_REPORT, CMD_STOP_ENGINE,
+from src.shared.notification.telegram_manager import (
+    TelegramManager, CMD_STATUS_REPORT, CMD_STOP_ENGINE,
     CMD_SET_MODE, CMD_SET_SIZE, CMD_SET_BUDGET
 )
 from src.core.global_state import GlobalState
-from src.execution.paper_wallet import PaperWallet
+from src.shared.execution.paper_wallet import PaperWallet
 
 # V40.0: Centralized Capital Management
 from src.shared.system.capital_manager import get_capital_manager
@@ -100,7 +100,7 @@ class TradingCore:
         self.data_manager = DataFeedManager()
         
         # V11.6: Ensure DB is ready before DecisionEngine queries win rate
-        from src.system.db_manager import db_manager
+        from src.shared.system.db_manager import db_manager
         db_manager.wait_for_connection(timeout=2.0)
         
         # V17.0: Allow custom strategy injection
@@ -159,6 +159,7 @@ class TradingCore:
         
         if self.execution_mode == "DYDX" or dydx_enabled:
             try:
+                from src.shared.infrastructure.dydx_adapter import DydxAdapter
                 self.dydx_adapter = DydxAdapter(getattr(Settings, 'DYDX_NETWORK', 'testnet'))
                 # Only pass mnemonic for full trading; otherwise HTTP-only mode
                 mnemonic = getattr(Settings, 'DYDX_MNEMONIC', '') if self.execution_mode == "DYDX" else ''
@@ -173,7 +174,7 @@ class TradingCore:
         self.notifier = get_notifier()
         
         # V30.1: System Monitor
-        from src.system.monitor import SystemMonitor
+        from src.shared.system.monitor import SystemMonitor
         self.monitor = SystemMonitor()
         
         # V36.0: ML Predictive Filter
@@ -400,7 +401,7 @@ class TradingCore:
         # V15.0: Sync happens automatically next tick via _sync_global_state
         # But for command feedback we notify here.
         
-        from src.system.comms_daemon import send_telegram
+        from src.shared.system.comms_daemon import send_telegram
         send_telegram(msg, source=self.engine_name, priority="HIGH")
 
     def _sync_global_state(self):
@@ -519,7 +520,7 @@ class TradingCore:
                 
                 # V85.1: Apply Whale Vouch Bonus
                 try:
-                    from src.discovery.scrape_intelligence import get_scrape_intelligence
+                    from src.shared.infrastructure.smart_scraper import get_scrape_intelligence
                     scrape = get_scrape_intelligence()
                     if hasattr(watcher, 'mint') and scrape.has_whale_vouch(watcher.mint):
                         bonus = getattr(Settings, 'WHALE_VOUCH_BONUS', 0.15)
