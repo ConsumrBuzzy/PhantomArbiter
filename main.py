@@ -573,15 +573,16 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     # 2. Initialize Dashboard (The Face)
     app = PhantomDashboard()
     
-    # 3. Start Engines
-    # We start the Director in the background
-    await director.start()
+    # 3. Start Engines in Background (V13.0)
+    # This prevents the initial balance fetch and system setup from delaying the UI.
+    engine_task = asyncio.create_task(director.start())
     
-    # 4. Launch UI
+    # 4. Launch UI (Instant)
     try:
         await app.run_async()
     finally:
         # 5. Cleanup
+        engine_task.cancel()
         await director.stop()
 
 
