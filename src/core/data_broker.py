@@ -42,6 +42,9 @@ from src.strategy.keltner_logic import KeltnerLogic
 from src.strategy.vwap_logic import VwapLogic
 from src.shared.system.capital_manager import get_capital_manager
 
+# V133: SignalResolver (SRP Refactor)
+from src.core.signal_resolver import SignalResolver
+
 class DataBroker:
     """
     Centralized data acquisition for dual-engine trading.
@@ -126,6 +129,9 @@ class DataBroker:
         
         # V45.0: Unified Merchant Logic
         self._init_merchant_engines()
+        
+        # V133: SignalResolver (SRP Refactor)
+        self.signal_resolver = SignalResolver()
         
         # V11.5: Defer blocking calls to run() for instant launch
         # _backfill_history() and _validate_tokens() moved to background thread
@@ -231,22 +237,8 @@ class DataBroker:
             raise
     
     def _resolve_signals(self, signals: list) -> list:
-        """
-        Consensus and Conflict Resolution Logic.
-        Decides which signals to execute from the unified pool.
-        """
-        if not signals: return []
-        
-        final_signals = []
-        
-        # Group by symbol
-        by_symbol = {}
-        for s in signals:
-            sym = s['symbol']
-            if sym not in by_symbol: by_symbol[sym] = []
-            by_symbol[sym].append(s)
-            
-        return signals # Pass through for now (Ensemble Strategy handles conflict internally)
+        """V133: Delegates to SignalResolver."""
+        return self.signal_resolver.resolve(signals)
     
     def _get_unified_status(self) -> str:
         """V40.0: Get unified dual-market status for Telegram."""
