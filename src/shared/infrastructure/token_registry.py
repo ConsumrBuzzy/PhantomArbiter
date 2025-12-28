@@ -13,7 +13,9 @@ import time
 import requests
 from typing import Dict, Optional, Tuple
 from config.settings import Settings
+from config.settings import Settings
 from src.shared.system.logging import Logger
+from src.shared.state.app_state import TokenIdentity, TokenRisk, TokenMarket
 
 try:
     import httpx
@@ -59,6 +61,11 @@ class TokenRegistry:
         # Dynamic cache for discovered tokens
         self._dynamic: Dict[str, str] = {}  # mint -> symbol
         self._confidence: Dict[str, Tuple[float, str]] = {}  # mint -> (confidence, source)
+        
+        # V134: Full Metadata Cache (3-Tier)
+        self._identity_cache: Dict[str, TokenIdentity] = {}
+        self._risk_cache: Dict[str, TokenRisk] = {}
+        self._market_cache: Dict[str, TokenMarket] = {}
         
         # Throttle DexScreener lookups
         self._last_lookup: float = 0
@@ -228,6 +235,62 @@ class TokenRegistry:
         self._dynamic[mint] = fallback
         self._confidence[mint] = (CONFIDENCE_UNKNOWN, "fallback")
         return (fallback, CONFIDENCE_UNKNOWN, "fallback")
+    
+    def get_full_metadata(self, mint: str) -> Dict[str, Any]:
+        """
+        V134: Get comprehensive 3-tier metadata.
+        Returns a dict containing identity, risk, and market data.
+        """
+        # 1. Identity (Static)
+        identity = self._identity_cache.get(mint)
+        if not identity:
+            symbol, _, _ = self.get_symbol_with_confidence(mint)
+            identity = TokenIdentity(
+                mint=mint,
+                symbol=symbol,
+                decimals=6, # Default, should fetch for accuracy
+                name=symbol
+            )
+            self._identity_cache[mint] = identity
+            
+        # 2. Risk (Slow-Changing)
+        risk = self._risk_cache.get(mint)
+        if not risk:
+            # Default low-risk assumption until vetted
+            risk = TokenRisk()
+            self._risk_cache[mint] = risk
+            
+        # 3. Market (Fast-Changing)
+        market = self._market_cache.get(mint)
+        if not market:
+            market = TokenMarket()
+            self._market_cache[mint] = market
+            
+        return {
+            "identity": identity,
+            "risk": risk,
+            "market": market
+        }
+    
+    def update_risk_data(self, mint: str, data: Dict):
+        """Update risk tier for a token."""
+        if mint not in self._risk_cache:
+            self._risk_cache[mint] = TokenRisk()
+            
+        risk = self._risk_cache[mint]
+        if 'mint_authority' in data: risk.mint_authority = data['mint_authority']
+        if 'freeze_authority' in data: risk.freeze_authority = data['freeze_authority']
+        if 'safety_score' in data: risk.safety_score = float(data['safety_score'])
+        
+    def update_market_data(self, mint: str, data: Dict):
+        """Update market tier for a token."""
+        if mint not in self._market_cache:
+            self._market_cache[mint] = TokenMarket()
+            
+        mk = self._market_cache[mint]
+        if 'price_usd' in data: mk.price_usd = float(data['price_usd'])
+        if 'volume_1h' in data: mk.volume_1h = float(data['volume_1h'])
+        mk.last_updated = time.time()
     
     def _fetch_from_dexscreener(self, mint: str) -> Optional[str]:
         """

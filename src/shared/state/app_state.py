@@ -46,6 +46,38 @@ class ScalpSignal:
     price: float = 0.0  # V133: Current price at signal time
     timestamp: float = field(default_factory=time.time)
 
+@dataclass
+class TokenIdentity:
+    """Tier 1: Static Identity (Fetched Once)"""
+    mint: str
+    symbol: str
+    decimals: int
+    program_id: str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" # SPL Token
+    name: str = ""
+    logo_uri: Any = None # Optional[str]
+
+@dataclass
+class TokenRisk:
+    """Tier 2: Risk & Security (Slow-Changing)"""
+    mint_authority: Any = None # Optional[str] - None means fixed supply
+    freeze_authority: Any = None # Optional[str] - If set, high risk
+    is_mutable: bool = True
+    is_renounced: bool = False
+    transfer_fee_bps: int = 0
+    safety_score: float = 50.0 # 0-100
+
+@dataclass
+class TokenMarket:
+    """Tier 3: Market & Liquidity (Fast-Changing)"""
+    price_usd: float = 0.0
+    volume_5m: float = 0.0
+    volume_1h: float = 0.0
+    tvl_usd: float = 0.0
+    price_impact_10sol: float = 0.0
+    lp_locked_pct: float = 0.0
+    top_pools: List[Any] = field(default_factory=list)
+    last_updated: float = field(default_factory=time.time)
+
 class AppState:
     """
     Thread-safe Singleton for UI/Worker communication.

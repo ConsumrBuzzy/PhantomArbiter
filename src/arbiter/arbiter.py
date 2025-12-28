@@ -21,6 +21,7 @@ from typing import Optional, Dict, List, Any, Tuple
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
+from src.shared.infrastructure.metadata_proxy import get_metadata_proxy  # V134: Unified Metadata
 from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
 from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
