@@ -332,6 +332,26 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
+// ------------------------------------------------------------------------
+// SECTION 7: SLAB DECODER (PHASE 4)
+// ------------------------------------------------------------------------
+mod slab_decoder;
+
+// ------------------------------------------------------------------------
+// SECTION 8: MODULE REGISTRATION
+// ------------------------------------------------------------------------
+
+/// A Python module implemented in Rust.
+#[pymodule]
+fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Graph>()?;
+    m.add_class::<log_parser::SwapEvent>()?;
+    m.add_function(wrap_pyfunction!(calculate_net_profit, m)?)?;
+    m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
+    m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
+    m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;
+    m.add_function(wrap_pyfunction!(slab_decoder::decode_phoenix_header, m)?)?;
     Ok(())
 }
