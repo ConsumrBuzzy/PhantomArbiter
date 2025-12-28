@@ -232,6 +232,11 @@ class TradingCore:
         
         # V48.0: Initialize HeartbeatReporter
         self.heartbeat = HeartbeatReporter(
+            engine_name=self.name,
+            paper_wallet=self.paper_wallet,
+            portfolio=self.portfolio,
+            wallet=self.wallet,
+            decision_engine=self.decision_engine,
             dydx_adapter=getattr(self, 'dydx_adapter', None)
         )
         
