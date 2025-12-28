@@ -78,6 +78,9 @@ class TradingCore:
         """
         # priority_queue.add(3, 'LOG', {'level': 'INFO', 'message': "⚡ TRADING CORE INITIALIZING..."})
         
+        # Store engine name for later use
+        self.engine_name = engine_name
+        
         # 1. Execution Layer
         self.wallet = WalletManager()
         self.swapper = JupiterSwapper(self.wallet)
@@ -232,7 +235,7 @@ class TradingCore:
         
         # V48.0: Initialize HeartbeatReporter
         self.heartbeat = HeartbeatReporter(
-            engine_name=engine_name,
+            engine_name=self.engine_name,
             paper_wallet=self.paper_wallet,
             portfolio=self.portfolio,
             wallet=self.wallet,
