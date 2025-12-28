@@ -351,6 +351,11 @@ mod log_parser;
 mod slab_decoder;
 
 // ------------------------------------------------------------------------
+// SECTION 7: AMM MATH ENGINE (THE ORACLE)
+// ------------------------------------------------------------------------
+mod amm_math;
+
+// ------------------------------------------------------------------------
 // SECTION 7: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
@@ -366,5 +371,9 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;
     m.add_function(wrap_pyfunction!(slab_decoder::decode_phoenix_header, m)?)?;
+    
+    // AMM Math (The Oracle)
+    amm_math::register_amm_functions(m)?;
+    
     Ok(())
 }
