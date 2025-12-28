@@ -13,17 +13,30 @@ class StatsPanel(Static):
         yield Static("WSS Latency: 4ms", id="stat_latency")
         yield Static("Total PnL: 0.00 SOL", id="stat_pnl")
 
-class ArbTable(DataTable):
-    """Table for active opportunities."""
+class WalletWidget(Static):
+    """Displays Wallet Balance and Gas."""
+    def compose(self) -> ComposeResult:
+        yield Static("💼 WALLET", classes="panel_title")
+        yield Static("Total Value: $0.00", id="wallet_total", classes="big_stat")
+        
+        yield Grid(
+            Static("USDC: $0.00", id="wallet_usdc"),
+            Static("SOL: 0.000", id="wallet_sol"),
+            Static("Gas: 0.000 SOL", id="wallet_gas"),
+            id="wallet_grid"
+        )
+
+class InventoryWidget(DataTable):
+    """Displays Held Bags (Inventory)."""
     pass
 
 class PhantomDashboard(App):
     CSS = """
     Screen {
         layout: grid;
-        grid-size: 2 3;
-        grid-rows: 1fr 3fr 2fr;
-        grid-columns: 1fr 2fr;
+        grid-size: 3 3;
+        grid-rows: 1fr 4fr 2fr;
+        grid-columns: 1fr 1fr 1fr;
     }
     
     #stats_panel {
@@ -34,18 +47,48 @@ class PhantomDashboard(App):
         padding: 1;
     }
     
-    #arb_table_container {
-        row-span: 3;
-        column-span: 1;
+    #wallet_panel {
+        row-span: 1;
+        column-span: 2;
         background: $surface;
-        border: solid blue;
+        border: solid cyan;
+        padding: 1;
+    }
+    
+    .panel_title {
+        text-style: bold;
+        color: cyan;
+    }
+    
+    .big_stat {
+        text-style: bold;
+        color: green;
+        text-align: center;
+        width: 100%; 
+        padding-bottom: 1;
+    }
+    
+    #wallet_grid {
+        layout: grid;
+        grid-size: 3 1;
+        grid-gutter: 1;
     }
 
+    #inventory_container {
+        row-span: 1;
+        column-span: 3;
+        background: $surface;
+        border: solid magenta;
+        height: 100%;
+        min-height: 10;
+    }
+    
     #log_panel {
-        row-span: 2;
-        column-span: 1;
+        row-span: 1;
+        column-span: 3;
         background: $surface;
         border: solid yellow;
+        height: 100%;
     }
     
     .status_ok {
@@ -62,81 +105,86 @@ class PhantomDashboard(App):
     def compose(self) -> ComposeResult:
         yield Header()
         
-        # Grid items
+        # Row 1: Core Stats (Left) + Wallet (Right)
         yield StatsPanel(id="stats_panel")
+        yield WalletWidget(id="wallet_panel")
         
-        # Arb Table (Right Side)
-        table = ArbTable(id="arb_table")
-        table.add_columns("Token", "Route", "Profit %", "Est. SOL")
-        yield Container(table, id="arb_table_container")
+        # Row 2: Inventory (Full Width)
+        # Note: We wrap DataTable in a Container for styling/sizing
+        inv = InventoryWidget(id="inventory_table")
+        inv.add_columns("Token", "Amount", "Value (USD)")
+        yield Container(inv, id="inventory_container")
         
-        # Log Panel
+        # Row 3: Log Panel (Full Width)
         yield Log(id="log_panel")
         
         yield Footer()
 
     def on_mount(self) -> None:
-        self.title = "Phantom Arbiter [Rust Edition]"
+        self.title = "Phantom Arbiter [Dashboard 2.0]"
         self.sub_title = "Cycle: --μs | State: CONNECTING"
         
         # Start Polling
-        self.set_interval(0.1, self.update_ui)
+        self.set_interval(0.25, self.update_ui)
         
     def update_ui(self) -> None:
         from src.shared.state.app_state import state
         
-        # 1. Update Stats
+        # 1. Update Core Stats
         core_status = "ONLINE" if state.stats["rust_core_active"] else "OFFLINE"
         self.query_one("#status_core", Static).update(f"Rust Core: {core_status}")
         self.query_one("#stat_cycles", Static).update(f"Pathfinder: {state.stats['cycles_per_sec']} cycles/sec")
         self.query_one("#stat_latency", Static).update(f"WSS Latency: {state.stats['wss_latency_ms']}ms")
         self.query_one("#stat_pnl", Static).update(f"Total PnL: {state.stats['total_pnl_sol']:.4f} SOL")
         
-        # 2. Update Logs
-        # We check if there are new logs. 
-        # For efficiency, we might just write the last one if it's new, 
-        # but let's just drain the deque for now or keep a pointer.
-        # Simplest Strategy for TUI: Clear and re-populate is too slow.
-        # Append-only strategy:
-        # We need a cursor.
+        # 2. Update Wallet Stats
+        # Use valid wallet based on mode (default to PAPER for visual if not set)
+        w_data = state.wallet_live if state.mode == "LIVE" else state.wallet_paper
+        mode_label = "[LIVE]" if state.mode == "LIVE" else "[PAPER]"
+        
+        # Update Title to reflect mode
+        self.query_one("#wallet_panel Static.panel_title").update(f"💼 WALLET {mode_label}")
+        
+        self.query_one("#wallet_total", Static).update(f"${w_data.total_value_usd:,.2f}")
+        self.query_one("#wallet_usdc", Static).update(f"USDC: ${w_data.balance_usdc:,.2f}")
+        self.query_one("#wallet_sol", Static).update(f"SOL: {w_data.balance_sol:.4f}")
+        self.query_one("#wallet_gas", Static).update(f"Gas: {w_data.gas_sol:.4f} SOL")
+        
+        # 3. Update Inventory Table
+        table = self.query_one(InventoryWidget)
+        
+        # Simple diffing logic: if item count differs, rebuild
+        # Real logic should update individual cells, but this is fine for dashboard
+        current_rows = table.row_count
+        target_rows = len(w_data.inventory)
+        
+        # For simplicity, clear and redraw if counts differ OR periodically force refresh?
+        # Let's just redraw if not empty to ensure values update.
+        # Ideally we track a hash of inventory to see if it changed.
+        
+        # HACK: Clear and redraw every N cycles involves flickering.
+        # Better: Iterate keys.
+        if target_rows != current_rows:
+            table.clear()
+            for symbol, amt in w_data.inventory.items():
+                # Mock value calculation if not in wallet data yet
+                val = 0.0 # Placeholder
+                table.add_row(symbol, f"{amt:.4f}", f"${val:.2f}")
+        
+        # 4. Update Logs (Append only)
         log_widget = self.query_one(Log)
-        # Hack: Just write everything that isn't written? 
-        # Textual Log doesn't expose its content easily for diffing.
-        # Let's just write the last 10 lines from state? No, that duplicates.
+        current_len = len(state.logs)
+        last_len = getattr(self, "_last_log_len", 0)
         
-        # Better: AppState has a `get_new_logs(cursor)` or we just push continuously.
-        # But we are polling.
-        # Let's clear and write the last 50 lines? No, flicker.
-        
-        # Let's try to just write the *latest* log if it changed.
-        if state.logs:
-            last_log = state.logs[-1]
-            # We assume if we haven't seen it, write it.
-            # Ideally we use a message bus, but for polling:
-            if not hasattr(self, "_last_log_seen"):
-                self._last_log_seen = ""
-                
-            if last_log != self._last_log_seen:
-                # Potential issue: multiple logs in 100ms.
-                # Only writes the very last one. Misses intermediates.
-                # FIX: Check length.
-                current_len = len(state.logs)
-                last_len = getattr(self, "_last_log_len", 0)
-                
-                if current_len > last_len:
-                    # Write all new items
-                    # logs is a deque. list(state.logs) gives all.
-                    all_logs = list(state.logs)
-                    new_items = all_logs[last_len:]
-                    for item in new_items:
-                        log_widget.write_line(item)
-                    
-                    self._last_log_len = current_len
-                    self._last_log_seen = last_log
+        if current_len > last_len:
+            all_logs = list(state.logs)
+            new_items = all_logs[last_len:]
+            for item in new_items:
+                log_widget.write_line(item)
+            self._last_log_len = current_len
 
     def action_clear_logs(self) -> None:
         self.query_one(Log).clear()
-        # Also reset state tracking
         self._last_log_len = 0
 
 if __name__ == "__main__":

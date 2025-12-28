@@ -12,6 +12,15 @@ class ArbOpportunity:
     est_profit_sol: float
     timestamp: float = field(default_factory=time.time)
 
+@dataclass
+class WalletData:
+    """Snapshot of a wallet's state."""
+    balance_sol: float = 0.0
+    balance_usdc: float = 0.0
+    gas_sol: float = 0.0
+    inventory: Dict[str, float] = field(default_factory=dict) # {symbol: amount}
+    total_value_usd: float = 0.0
+
 class AppState:
     """
     Thread-safe Singleton for UI/Worker communication.
@@ -44,24 +53,33 @@ class AppState:
             "start_time": time.time()
         }
         
+        # V12.1: Wallet State (Dashboard 2.0)
+        self.wallet_live = WalletData()
+        self.wallet_paper = WalletData()
+        self.mode = "PAPER" # Default
+        
         self._initialized = True
 
     def log(self, message: str):
         """Add a log message."""
-        # Simple timestamp prefix? Textual Log handles it? 
-        # Let's just store the raw string, the UI can format.
         self.logs.append(message)
 
     def add_opportunity(self, opp: ArbOpportunity):
         """Register a new arbitrage opportunity."""
         self.opportunities.insert(0, opp)
-        # Keep list trim
         if len(self.opportunities) > 50:
             self.opportunities.pop()
 
     def update_stat(self, key: str, value: Any):
         """Update a specific stat."""
         self.stats[key] = value
+
+    def update_wallet(self, is_live: bool, data: WalletData):
+        """Update wallet snapshot."""
+        if is_live:
+            self.wallet_live = data
+        else:
+            self.wallet_paper = data
 
     def get_logs(self) -> List[str]:
         return list(self.logs)

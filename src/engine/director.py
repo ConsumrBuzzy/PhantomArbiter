@@ -67,6 +67,9 @@ class Director:
         # 4. THE WHALE (Slow Lane)
         self.slow_tasks.append(asyncio.create_task(self._run_whale_loop()))
         
+        # 5. STATE SYNC (Dashboard Data Feed)
+        self.slow_tasks.append(asyncio.create_task(self._run_state_sync()))
+        
         state.status = "OPERATIONAL"
         state.log("[Director] All Systems Nominal.")
 
@@ -84,7 +87,11 @@ class Director:
     async def _run_wss(self):
         """Fast Lane: WebSocket Listener."""
         try:
-            await self.listener.start()
+            self.listener.start()
+            # Keep the task alive to monitor the thread? 
+            # Logic: Just sleep forever while checking is_running
+            while self.is_running:
+                 await asyncio.sleep(1)
         except Exception as e:
             state.log(f"[Director] ❌ WSS Crash: {e}")
 
@@ -137,3 +144,46 @@ class Director:
                 break
             except Exception as e:
                 state.log(f"[Whale] Error: {e}")
+
+    async def _run_state_sync(self):
+        """
+        Dashboard 2.0: Synchronize Wallet & Inventory State.
+        Polls underlying CapitalManager (via PaperWallet adapter) and pushes to AppState.
+        """
+        from src.shared.state.app_state import WalletData
+        
+        while self.is_running:
+            try:
+                await asyncio.sleep(1.0) # 1Hz Refresh
+                
+                # 1. Fetch from Arbiter's Wallet Adapter (Primary Source)
+                # Note: Arbiter uses PaperWallet which wraps CapitalManager
+                wallet_adapter = self.arbiter.executor.wallet
+                
+                # We need a mock price map for value calculation
+                # In real V2, we'd use Oracle prices.
+                price_map = {'SOL': 150.0} # Mock SOL Price
+                
+                # 2. Get Detailed Balance
+                # This returns: {'cash': ..., 'gas_usd': ..., 'assets_usd': ...}
+                balance_data = wallet_adapter.get_detailed_balance(price_map)
+                
+                # 3. Construct WalletData Snapshot
+                snapshot = WalletData(
+                    balance_usdc = balance_data.get('cash', 0.0),
+                    balance_sol = wallet_adapter.sol_balance,
+                    gas_sol = wallet_adapter.sol_balance, # Same for now
+                    total_value_usd = balance_data.get('total_equity', 0.0),
+                    # Construct simple inventory dict {Symbol: Amt}
+                    inventory = {s: a.balance for s, a in wallet_adapter.assets.items()}
+                )
+                
+                # 4. Push to State
+                # Using arbiter.config.live_mode to determine target slot
+                state.update_wallet(self.arbiter.config.live_mode, snapshot)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                # Silent fail to avoid log spam, but maybe log once?
+                pass
