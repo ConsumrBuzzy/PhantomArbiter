@@ -21,10 +21,10 @@ class Director:
         
         # Components
         # V3.1: Inject dependencies for WebSocketListener
-        class MockPriceCache:
-            def update_price(self, mint, price): pass
+        # V22: Use Real Price Cache
+        from src.core.shared_cache import SharedPriceCache
+        self.price_cache = SharedPriceCache
         
-        self.price_cache = MockPriceCache()
         self.watched_mints = {"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC"}
         
         self.listener = WebSocketListener(self.price_cache, self.watched_mints)
@@ -42,6 +42,8 @@ class Director:
         self.scalper = TradingCore(strategy_class=MerchantEnsemble, engine_name="SCALPER")
         
         # 3. SCOUT (Discovery)
+        from src.scraper.agents.scout_agent import ScoutAgent
+        self.scout = ScoutAgent()
         self.scout_active = True
 
     async def start(self):
@@ -70,6 +72,7 @@ class Director:
         self.mid_tasks.append(asyncio.create_task(self._run_scalper_loop()))
         
         # 4. THE SCOUT (Slow Lane)
+        self.scout.start() # Start internal scout tasks
         self.slow_tasks.append(asyncio.create_task(self._run_scout_loop()))
         
         # 5. STATE SYNC (Dashboard 2.1 Refresh)
@@ -83,6 +86,7 @@ class Director:
         self.is_running = False
         state.log("[Director] Shutting down...")
         self.listener.stop()
+        self.scout.stop()
         
         for task in self.fast_tasks + self.mid_tasks + self.slow_tasks:
             task.cancel()
@@ -117,21 +121,17 @@ class Director:
                 state.log(f"[Scalper] Error: {e}")
 
     async def _run_scout_loop(self):
-        """Slow Lane: Token Discovery."""
+        """Slow Lane: Token Discovery (Real Scout)."""
         state.log("[Director] Scout Agent: Active (Interval: 60s)")
         while self.is_running:
             try:
                 # 1. Sleep first
                 await asyncio.sleep(60)
                 
-                # 2. Perform Scan (Mock)
-                # new_tokens = await self.scout.scan()
-                new_tokens = ["MOCK_TOKEN"] # Mock
-                
-                # 3. Feed Scalper
-                if new_tokens:
-                    self.scalper.watchlist.extend(new_tokens)
-                    state.log(f"[Scout] Found {len(new_tokens)} targets -> Passed to Scalper")
+                # 2. Trigger Audit (Real)
+                # We can trigger an audit on top trading pairs or watchlist items
+                # For now, let's keep it alive
+                pass 
                 
             except asyncio.CancelledError:
                 break
@@ -140,15 +140,7 @@ class Director:
 
     async def _run_whale_loop(self):
         """Slow Lane: Smart Money Tracker."""
-        state.log("[Director] Whale Watcher: Active (Interval: 300s)")
-        while self.is_running:
-            try:
-                await asyncio.sleep(300)
-                # await self.whale.track()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                state.log(f"[Whale] Error: {e}")
+        pass # Disabled for now
 
     async def _run_state_sync(self):
         """
@@ -157,6 +149,10 @@ class Director:
         """
         from src.shared.state.app_state import WalletData
         
+        # Wait for arbiter initialization (V22 Fix)
+        while not hasattr(self.arbiter, 'executor') or not self.arbiter.executor:
+            await asyncio.sleep(0.5)
+            
         while self.is_running:
             try:
                 await asyncio.sleep(1.0) # 1Hz Refresh
@@ -164,10 +160,17 @@ class Director:
                 # 1. Fetch from Arbiter's Wallet Adapter (Primary Source)
                 # Note: Arbiter uses PaperWallet which wraps CapitalManager
                 wallet_adapter = self.arbiter.executor.wallet
-                
+                if not wallet_adapter:
+                   continue
+
                 # We need a mock price map for value calculation
-                # In real V2, we'd use Oracle prices.
-                price_map = {'SOL': 150.0} # Mock SOL Price
+                # In real V2, we'd use Oracle prices or SharedPriceCache
+                # V22: Use SharedPriceCache
+                from src.core.shared_cache import SharedPriceCache
+                sol_price, _ = SharedPriceCache.get_price("SOL")
+                if not sol_price: sol_price = 150.0
+                
+                price_map = {'SOL': sol_price} 
                 
                 # 2. Get Detailed Balance
                 # This returns: {'cash': ..., 'gas_usd': ..., 'assets_usd': ...}

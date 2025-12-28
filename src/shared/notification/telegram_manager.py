@@ -137,7 +137,7 @@ class TelegramManager:
                 if not self.application.initialized:
                     self.loop.run_until_complete(self.application.initialize())
                 
-                print(f"   ✅ Telegram Manager READY (Polling...)")
+                Logger.info(f"✅ Telegram Manager READY (Polling...)")
                 self.application.run_polling(
                     stop_signals=None, 
                     drop_pending_updates=True,
