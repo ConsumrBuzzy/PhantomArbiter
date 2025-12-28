@@ -109,5 +109,27 @@ class AppState:
     def get_logs(self) -> List[str]:
         return list(self.logs)
 
+    @property
+    def inventory(self) -> List[Any]:
+        """Get inventory list for current mode (Compatible with Dashboard)."""
+        # Convert dict {symbol: amount} to list of objects or dicts for UI
+        # We need objects with .symbol, .value_usd, .pnl for the UI
+        wallet = self.wallet_live if self.mode == "LIVE" else self.wallet_paper
+        items = []
+        for symbol, amount in wallet.inventory.items():
+            # Mock objects or simple dict access? 
+            # PulsedDashboard expects .symbol, .value_usd, .pnl
+            # We'll return a simple ad-hoc object
+            @dataclass
+            class InventoryItem:
+                symbol: str
+                amount: float
+                value_usd: float = 0.0
+                pnl: float = 0.0
+            
+            # TODO: Enrich with real price/pnl
+            items.append(InventoryItem(symbol, amount, 0.0, 0.0))
+        return items
+
 # Global Accessor
 state = AppState()
