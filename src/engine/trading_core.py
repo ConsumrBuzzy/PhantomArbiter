@@ -83,7 +83,7 @@ class TradingCore:
         # V12.8: Live/Mocked Wallet Support
         # In Monitor Mode, we fetch the REAL wallet balance to start the simulation.
         initial_capital = None
-        initial_capital = None
+        initial_capital_data = None
         if not Settings.ENABLE_TRADING:
              Logger.info("🔧 MONITOR MODE: Calculating Live Mock Balance...")
              try:
