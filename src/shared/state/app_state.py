@@ -58,7 +58,8 @@ class AppState:
             "loop_lag_ms": 0.0, # V23 Supervisor Metric
             "total_pnl_sol": 0.0,
             "rust_core_active": False,
-            "start_time": time.time()
+            "start_time": time.time(),
+            "pod_status": "Starting..." # V27: Pod Rotation Status
         }
         
         # V12.1: Wallet State (Dashboard 2.0)

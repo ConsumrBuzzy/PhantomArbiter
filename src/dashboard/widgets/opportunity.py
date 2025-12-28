@@ -51,3 +51,7 @@ class ArbWidget(Container):
                 profit_str, 
                 f"{opp.est_profit_sol:.4f}"
             )
+            
+        # Update Pod Status
+        pod_status = state.stats.get("pod_status", "Initializing...")
+        self.border_title = f"🔭 OBSERVER | {pod_status}"

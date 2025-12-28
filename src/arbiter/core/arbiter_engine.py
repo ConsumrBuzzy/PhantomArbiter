@@ -143,6 +143,7 @@ class ArbiterEngine:
                     # ═══ V12.5: Push to TUI AppState ═══
                     from src.shared.state.app_state import ArbOpportunity
                     app_state.update_stat("cycles_per_sec", 1.0 / (self._last_duration / 1000.0) if self._last_duration > 0 else 0)
+                    app_state.update_stat("pod_status", pod_manager.get_status())
                     app_state.opportunities = [
                         ArbOpportunity(
                             token=o.pair,
