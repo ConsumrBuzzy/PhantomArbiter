@@ -7,6 +7,7 @@ from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.system.rpc_pool import get_rpc_pool
 from src.shared.infrastructure.token_registry import get_registry
+from src.core.token_standards import SPL_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID
 
 class WalletManager:
     """
@@ -190,8 +191,8 @@ class WalletManager:
         if not self.keypair: return {}
         
         programs = [
-            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", # Legacy
-            "TokenzQ9kh24B2BvszfR7Y2EisG4YtH3tM1tUThs5"     # Token-2022
+            SPL_TOKEN_PROGRAM_ID,   # Legacy
+            TOKEN_2022_PROGRAM_ID   # Token-2022
         ]
         
         all_tokens = {}
