@@ -393,7 +393,7 @@ class ScoutAgent(BaseAgent):
     async def trigger_audit(self, token_mint: str):
         """Public trigger: Find buyers of this successful token."""
         # V67.8: Resolve symbol using TokenScraper
-        from src.infrastructure.token_scraper import get_token_scraper
+        from src.shared.infrastructure.token_scraper import get_token_scraper
         scraper = get_token_scraper()
         info = scraper.lookup(token_mint)
         symbol = info.get("symbol", token_mint[:8])

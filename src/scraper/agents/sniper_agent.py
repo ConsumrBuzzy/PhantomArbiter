@@ -3,7 +3,7 @@ import asyncio
 import time
 from typing import Dict, Optional, Callable
 from src.scraper.agents.base_agent import BaseAgent, AgentSignal
-from src.infrastructure.token_scraper import get_token_scraper
+from src.shared.infrastructure.token_scraper import get_token_scraper
 from src.core.threshold_manager import get_threshold_manager
 from src.shared.system.logging import Logger
 
