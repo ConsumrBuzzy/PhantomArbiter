@@ -23,7 +23,8 @@ dependencies = [
     "anchorpy>=0.18.0",
     "loguru>=0.7.0",
     "rich>=13.0.0",
-    "httpx",  # Added as per user request snippet
+    "httpx",
+    "textual>=0.50.0",
 ]
 
 [tool.maturin]
