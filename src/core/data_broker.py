@@ -188,6 +188,7 @@ class DataBroker:
     @property
     def bitquery_adapter(self): return self.engine_mgr.bitquery_adapter
     
+    def stop(self):
         """V45.2: Graceful shutdown."""
         self.running = False
         Logger.info("[BROKER] Stop signal received.")
