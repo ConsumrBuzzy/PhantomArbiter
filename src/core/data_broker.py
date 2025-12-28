@@ -432,35 +432,9 @@ class DataBroker:
         from src.shared.system.comms_daemon import send_telegram
         send_telegram("🔴 Data Broker is LIVE", source="BROKER", priority="HIGH")
         
-        # V11.5: Defer P2 tasks to background thread
-        def deferred_startup():
-            """P2 background initialization tasks."""
-            time.sleep(0.1)  # V88.0: Minimal pause (was 2s)
-            
-            # V88.0: Parallel Execution for Speed
-            
-            # Task A: Backfill
-            def run_backfill():
-                self._backfill_history()
-            
-            t_backfill = threading.Thread(target=run_backfill, daemon=True, name="BackfillHistory")
-            t_backfill.start()
-            
-            # Task B: Validation
-            def run_validation():
-                self._validate_tokens()
-                
-            t_validate = threading.Thread(target=run_validation, daemon=True, name="ValidateTokens")
-            t_validate.start()
-            
-            # Wait for both (optional, or just let them run)
-            # We log individually inside them.
-            
-            Logger.success("[BROKER] P2 TASKS LAUNCHED IN BACKGROUND")
+        # V133: Background Workers Management (Delegated to BackgroundWorkerManager)
+        self.worker_mgr.start_all()
         
-        startup_thread = threading.Thread(target=deferred_startup, daemon=True, name="DeferredStartup")
-        startup_thread.start()
-        print("   ⏳ [BROKER] P2 tasks (backfill, validation) launching parallel...")
         
         # Start Hunter Thread (V9.0) - DELAYED START (V10.6)
         # V88.0: Reduce delay from 45s to 5s
@@ -478,13 +452,7 @@ class DataBroker:
         self._scan_and_cache_wallet()
         
         # V65.0: Start Scout Agent
-        def start_scout():
-            import asyncio
-            asyncio.run(self.scout_agent.start())
-            
-        scout_thread = threading.Thread(target=start_scout, daemon=True, name="ScoutAgent")
-        scout_thread.start()
-        print("   🕵️ Scout Agent Started (The Navigator)")
+
         
         # V66.0: Start Whale Watcher
         def start_whales():
