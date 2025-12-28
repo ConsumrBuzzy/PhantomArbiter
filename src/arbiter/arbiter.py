@@ -87,12 +87,11 @@ class PhantomArbiter:
         from src.arbiter.core.trade_tracker import TradeTracker
         self.tracker = TradeTracker(budget=config.budget, gas_budget=config.gas_budget)
         
-        # 2. Communication Layer
+        # 2. Communication Layer (Initialize but don't start)
         from src.shared.notification.telegram_manager import TelegramManager
         from src.arbiter.core.reporter import ArbiterReporter
         self.command_queue = queue.Queue()
         self.telegram = TelegramManager(command_queue=self.command_queue)
-        self.telegram.start()
         self.reporter = ArbiterReporter(self.telegram)
         
         # 3. lazy-loaded Components
@@ -101,11 +100,23 @@ class PhantomArbiter:
         self._triangular_scanner = None
         self._engine = None # ArbiterEngine (Lazy)
         
+        # Initialization State
+        self._initialized = False
+        
+    async def initialize(self):
+        """Async initialization to prevent blocking startup."""
+        if self._initialized: return
+        
+        # Start Telegram Async
+        self.telegram.start()
+        
         # Initialize based on mode
-        if config.live_mode:
-            self._setup_live_mode()
+        if self.config.live_mode:
+            await self._setup_live_mode_async()
         else:
             self._setup_paper_mode()
+            
+        self._initialized = True
     
     def _setup_paper_mode(self) -> None:
         """Initialize paper trading components."""
@@ -115,8 +126,8 @@ class PhantomArbiter:
         self.trade_engine = TradeEngine(executor=self._executor)
         Logger.info("📄 Paper mode initialized")
     
-    def _setup_live_mode(self) -> None:
-        """Initialize live trading components."""
+    async def _setup_live_mode_async(self) -> None:
+        """Initialize live trading components (Async)."""
         import os
         private_key = os.getenv("PHANTOM_PRIVATE_KEY") or os.getenv("SOLANA_PRIVATE_KEY")
         
@@ -178,29 +189,30 @@ class PhantomArbiter:
                 sol_price = None
                 
                 # Try cache first (5 minute max age for SOL price)
+                # Note: get_cached_price defaults to cache, so it's fast
                 try:
                     from src.core.shared_cache import get_cached_price
                     sol_price, _ = get_cached_price("SOL", max_age=300.0)
                 except:
                     pass
                 
-                # If cache stale, fetch fresh from Jupiter
+                # If cache stale, fetch fresh from Jupiter (ASYNC)
                 if not sol_price:
                     try:
                         import httpx
-                        resp = httpx.get(
-                            "https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112",
-                            timeout=5.0
-                        )
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            sol_price = float(data.get("data", {}).get("So11111111111111111111111111111111111111112", {}).get("price", 0))
-                            Logger.debug(f"Fresh SOL price: ${sol_price:.2f}")
-                            
-                            # Write back to cache for other processes
-                            if sol_price > 0:
-                                from src.core.shared_cache import SharedPriceCache
-                                SharedPriceCache.write_price("SOL", sol_price, source="ARBITER")
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            resp = await client.get(
+                                "https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112"
+                            )
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                sol_price = float(data.get("data", {}).get("So11111111111111111111111111111111111111112", {}).get("price", 0))
+                                Logger.debug(f"Fresh SOL price: ${sol_price:.2f}")
+                                
+                                # Write back to cache for other processes
+                                if sol_price > 0:
+                                    from src.core.shared_cache import SharedPriceCache
+                                    SharedPriceCache.write_price("SOL", sol_price, source="ARBITER")
                     except Exception as e:
                         Logger.debug(f"SOL price fetch failed: {e}")
                 
@@ -229,6 +241,7 @@ class PhantomArbiter:
             Logger.error(f"❌ LIVE MODE FAILED: {e}")
             self.config.live_mode = False
             self._setup_paper_mode()
+
     
     def _get_detector(self) -> SpreadDetector:
         """Lazy-load spread detector with DEX feeds."""

@@ -55,6 +55,9 @@ class Director:
         state.update_stat("rust_core_active", True)
         
         # 2. THE ARBITER (Fast Lane) - Real Cycle
+        # V21: Async Init to prevent startup lag (loading weights/tg/keys)
+        await self.arbiter.initialize()
+        
         # We start the arbiter run loop in the background
         self.fast_tasks.append(asyncio.create_task(
             self.arbiter.run(duration_minutes=0, scan_interval=2)
