@@ -74,21 +74,60 @@ class PulsedDashboard:
             )
         return Panel(table, title="[bold]Live Market Observer[/bold]", border_style="blue")
         
-    def generate_scalper_panel(self, signals: List[Any]):
-        """Show active scalp signals/trades."""
+    def generate_scalper_panel(self, signals: List[Any], market_pulse: Dict[str, Any] = None):
+        """Show active scalp signals AND Price Watch."""
+        # V90.0: Unified Price Watch + Signal View
         table = Table(box=box.SIMPLE, expand=True)
         table.add_column("Token", style="magenta")
-        table.add_column("Type")
-        table.add_column("Confidence")
+        table.add_column("Price", justify="right")
+        table.add_column("RSI", justify="right")
+        table.add_column("Conf")
         
-        if not signals:
-            table.add_row("-", "Scanning...", "-")
-        else:
-            for s in signals[:5]: # Top 5
+        # 1. Prioritize Signals
+        rows = []
+        if signals:
+            for s in signals[:3]:
                 conf_color = "green" if s.confidence > 0.8 else "yellow"
-                table.add_row(s.token, s.signal_type, f"[{conf_color}]{s.confidence:.0%}[/{conf_color}]")
+                rows.append([
+                    f"⚡ {s.token}", 
+                    f"${s.price:.4f}", 
+                    "SIG", 
+                    f"[{conf_color}]{s.confidence:.0%}[/{conf_color}]"
+                ])
+        
+        # 2. Fill with Market Pulse (Top watched)
+        if market_pulse:
+            # Sort by RSI urgency (close to 30 or 70)
+            def rsi_urgency(item):
+                rsi = item.get('rsi', 50)
+                return abs(rsi - 50)
                 
-        return Panel(table, title="Scalper Signals (Trend)", border_style="magenta")
+            sorted_pulse = sorted(market_pulse.items(), key=lambda x: rsi_urgency(x[1]), reverse=True)
+            
+            for symbol, data in sorted_pulse[:7]: # Limit to fit
+                price = data.get('price', 0)
+                rsi = data.get('rsi', 50)
+                conf = data.get('conf', 0)
+                
+                # RSI Color
+                rsi_str = f"{rsi:.1f}"
+                if rsi > 70: rsi_str = f"[red]{rsi:.0f}[/red]"
+                elif rsi < 30: rsi_str = f"[green]{rsi:.0f}[/green]"
+                elif rsi == 0: rsi_str = "-"
+                else: rsi_str = f"[dim]{rsi:.0f}[/dim]"
+                
+                # Deduplicate if already shown as signal
+                if any(r[0] == f"⚡ {symbol}" for r in rows): continue
+                
+                rows.append([symbol, f"${price:.4f}", rsi_str, f"{conf:.0%}"])
+                
+        if not rows:
+             table.add_row("-", "Initializing...", "-", "-")
+        else:
+            for r in rows[:10]:
+                table.add_row(*r)
+                
+        return Panel(table, title="[magenta]Scalper & Price Watch[/magenta]", border_style="magenta")
 
     def generate_inventory_panel(self, inventory: List[Any]):
         """Show held bags."""
@@ -150,8 +189,9 @@ class RichPulseReporter(ArbiterReporter):
         )
         
         # 3. Scalper (Right Top)
+        # Pass both signals and market_pulse
         self.dashboard.layout["scalper"].update(
-            self.dashboard.generate_scalper_panel(app_state.scalp_signals)
+            self.dashboard.generate_scalper_panel(app_state.scalp_signals, app_state.market_pulse)
         )
         
         # 4. Inventory (Right Mid)
