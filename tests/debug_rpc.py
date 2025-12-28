@@ -1,7 +1,12 @@
+import sys
 import os
 import requests
 import json
 from dotenv import load_dotenv
+
+# Add src to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from src.shared.infrastructure.token_registry import get_registry
 
 load_dotenv()
