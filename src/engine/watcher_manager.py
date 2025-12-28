@@ -177,10 +177,14 @@ class WatcherManager:
         
         for watcher in all_watchers:
             if watcher.in_position:
-                curr_price = watcher.get_price()
-                if watcher.entry_price > 0:
-                    pnl_pct = ((curr_price - watcher.entry_price) / watcher.entry_price) * 100
-                    pnl_usd = (curr_price * watcher.token_balance) - watcher.cost_basis
+                curr_price = watcher.get_price() or 0.0
+                entry_price = watcher.entry_price or 0.0
+                cost_basis = watcher.cost_basis or 0.0
+                token_balance = watcher.token_balance or 0.0
+                
+                if entry_price > 0:
+                    pnl_pct = ((curr_price - entry_price) / entry_price) * 100
+                    pnl_usd = (curr_price * token_balance) - cost_basis
                 else:
                     pnl_pct = 0.0
                     pnl_usd = 0.0

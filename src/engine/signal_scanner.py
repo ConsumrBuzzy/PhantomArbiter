@@ -130,7 +130,7 @@ class SignalScanner:
             return None
             
         asset = self.paper_wallet.assets[symbol]
-        entry_price = asset.avg_price
+        entry_price = asset.avg_price or 0.0
         
         if entry_price <= 0:
             return None
