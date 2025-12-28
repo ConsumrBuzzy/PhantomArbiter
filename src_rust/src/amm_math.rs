@@ -384,10 +384,18 @@ pub fn price_from_sqrt_price(sqrt_price_x64: u128) -> PyResult<f64> {
 // ============================================================================
 
 pub fn register_amm_functions(m: &PyModule) -> PyResult<()> {
+    // Phase 1: Constant Product AMM
     m.add_function(wrap_pyfunction!(compute_amm_out, m)?)?;
     m.add_function(wrap_pyfunction!(compute_amm_in, m)?)?;
     m.add_function(wrap_pyfunction!(compute_amm_out_batch, m)?)?;
     m.add_function(wrap_pyfunction!(compute_price_impact, m)?)?;
+    
+    // Phase 2: CLMM
+    m.add_function(wrap_pyfunction!(compute_clmm_swap, m)?)?;
+    m.add_function(wrap_pyfunction!(sqrt_price_from_tick, m)?)?;
+    m.add_function(wrap_pyfunction!(tick_from_sqrt_price, m)?)?;
+    m.add_function(wrap_pyfunction!(price_from_sqrt_price, m)?)?;
+    
     Ok(())
 }
 
