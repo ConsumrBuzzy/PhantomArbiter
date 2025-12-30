@@ -399,6 +399,10 @@ class TradingCore:
         self.tick_count += 1
         self._perform_maintenance_and_heartbeat()
         
+        # V134: Safety check - signal_scanner may not be initialized yet
+        if not hasattr(self, 'signal_scanner') or self.signal_scanner is None:
+            return []
+        
         # Delegate to SignalScanner
         return self.signal_scanner.scan_signals(
             watchers=self.watchers,
@@ -410,6 +414,8 @@ class TradingCore:
 
     def get_status_summary(self) -> str:
         """V133: Delegates to SignalScanner."""
+        if not hasattr(self, 'signal_scanner') or self.signal_scanner is None:
+            return "Initializing..."
         return self.signal_scanner.get_status_summary()
 
 
