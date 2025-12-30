@@ -311,14 +311,24 @@ class CapitalManager:
         # 2. Impact Slippage (Price Impact)
         impact = Settings.SLIPPAGE_IMPACT_MULTIPLIER * (trade_size_usd / safe_liquidity)
         
-        # 3. Volatility Multiplier
-        vol_mult = Settings.SLIPPAGE_VOLATILITY_MULTIPLIER if is_volatile else 1.0
+        # 3. Volatility Multiplier (V50.0: Dynamic Scaling)
+        # If volatile, we assume market is moving fast against us.
+        # Scale base slippage by 2.0x to 3.0x based on liquidity depth check (simulated)
+        vol_mult = 1.0
+        if is_volatile:
+            # Low liquidity + Volatility = Extreme Slippage (3x)
+            if liquidity_usd < 50000:
+                vol_mult = 3.0 
+            # High liquidity + Volatility = Moderate Slippage (1.5x)
+            else:
+                vol_mult = 1.5
         
         # Total
         total_slippage_pct = (base + impact) * vol_mult
         
-        # Cap at reasonable max (e.g. 50%) to prevent arithmetic explosions
-        total_slippage_pct = min(total_slippage_pct, 0.50)
+        # Cap at MAX_TOTAL_SLIPPAGE (5% to prevent exploitation/bugs)
+        MAX_TOTAL_SLIPPAGE = 0.05
+        total_slippage_pct = min(total_slippage_pct, MAX_TOTAL_SLIPPAGE)
         
         slippage_cost = trade_size_usd * total_slippage_pct
         return total_slippage_pct, slippage_cost
