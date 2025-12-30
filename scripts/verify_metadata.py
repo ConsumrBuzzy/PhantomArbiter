@@ -23,6 +23,7 @@ def main():
     meta.spread_bps = 10
     meta.order_imbalance = 2.0 # Boost
     meta.ema_cross = True # Boost
+    meta.rsi_1m = 50.0 # Prevent reversion trigger
     
     print(f"   ✅ Created Metadata: {meta.mint} (Vel: {meta.velocity_1m})")
     
