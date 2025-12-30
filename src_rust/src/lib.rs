@@ -392,6 +392,9 @@ mod tick_array_manager;
 pub mod router;
 pub mod wss_aggregator;
 
+mod metadata;
+mod scalper_logic;
+
 // ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
 // ------------------------------------------------------------------------
@@ -432,6 +435,10 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // Unified Trade Router (The Muscle)
     m.add_class::<router::ExecutionPath>()?;
     m.add_class::<router::UnifiedTradeRouter>()?;
+    
+    // Shared Metadata Layer (V40.0)
+    metadata::register_metadata_classes(m)?;
+    scalper_logic::register_scalper_classes(m)?;
     
     Ok(())
 }

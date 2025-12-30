@@ -43,6 +43,16 @@ class Director:
         from src.shared.system.chaos_shield import chaos_shield
         self.chaos = chaos_shield
         
+        # V40.0: Shared Token Metadata Layer (Rust-Powered)
+        try:
+            from phantom_core import SharedTokenMetadata, SignalScanner
+            self.signal_scanner = SignalScanner()
+            self.token_registry = {} # Dict[str, SharedTokenMetadata]
+        except ImportError:
+            print("⚠️ Rust Extension (phantom_core) not found or outdated. Shared Metadata disabled.")
+            self.signal_scanner = None
+            self.token_registry = {}
+            
         # 2. FAST TIER AGENTS
         arb_config = ArbiterConfig(live_mode=live_mode) 
         self.agents["arbiter"] = PhantomArbiter(arb_config)
