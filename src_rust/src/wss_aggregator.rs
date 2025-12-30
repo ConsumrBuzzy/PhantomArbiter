@@ -17,7 +17,7 @@ use futures_util::{StreamExt, SinkExt};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use crossbeam_channel::{bounded, Receiver, Sender};
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize}; // Removed unused import causing build error
 use serde_json::json;
 
 // ============================================================================
