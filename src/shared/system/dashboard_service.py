@@ -82,6 +82,11 @@ class DashboardState:
     slippage_bps: int = 300      # Current max slippage tolerance
     slippage_gauge: str = "GREEN" # GREEN / YELLOW / RED
     
+    # V67.0: Congestion Multiplier (Phase 5D)
+    jito_tip: int = 10000        # Current Jito tip in lamports
+    jito_multiplier: float = 1.0 # Current tip multiplier
+    jito_lag: float = 0.0        # Last measured lag
+    
     def __post_init__(self):
         if self.positions_list is None:
             self.positions_list = []
@@ -346,6 +351,18 @@ class DashboardService:
                 state.slippage_gauge = status.get("gauge", "GREEN")
         except:
             pass
+            
+        # V67.0: Get congestion monitor status (Phase 5D)
+        try:
+            from src.engine.congestion_monitor import get_congestion_monitor
+            monitor = get_congestion_monitor()
+            if monitor:
+                status = monitor.get_status()
+                state.jito_tip = status.get("tip_lamports", 10000)
+                state.jito_multiplier = status.get("multiplier", 1.0)
+                state.jito_lag = status.get("avg_lag_ms", 0.0)
+        except:
+            pass
         
         return state
     
@@ -391,7 +408,7 @@ class DashboardService:
             f"│ 🧠 INTELLIGENCE (PAPER_AGGRESSIVE: {'ON' if getattr(Settings, 'PAPER_AGGRESSIVE_MODE', False) else 'OFF'})                    │",
             f"│ Whales: {state.whale_alerts:<7}  │ Queue: {state.scrape_queue:<8}  │ Today: ${state.paper_pnl_today:<+10.2f}              │",
             f"│ 🎯 DRIFT: {state.drift_status:<4} │ Avg: {state.avg_drift_pct:+.2f}%  │ Last: {state.last_drift_pct:+.2f}% │ 🐋Boost: {state.whale_boosts:<3}  │",
-            f"│ ⚙️ SLIP: {state.slippage_bps:>3}bps ({state.slippage_gauge:<6})                                            │",
+            f"│ ⚙️ SLIP: {state.slippage_bps:>3}bps ({state.slippage_gauge:<6}) │ 🔥 JITO: {state.jito_tip // 1000}k (x{state.jito_multiplier:.1f}) │ Lag: {state.jito_lag:.0f}ms   │",
             "├" + "─" * 68 + "┤",
             "│ 📊 MARKET SNAPSHOT                                               │",
             "├─────────────────────────────────┬────────────────────────────────┤",

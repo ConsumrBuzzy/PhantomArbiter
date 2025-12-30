@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from src.shared.infrastructure.jito_adapter import JitoAdapter
     from src.shared.execution.execution_backend import ExecutionBackend
     from src.engine.slippage_calibrator import SlippageCalibrator
+    from src.engine.congestion_monitor import CongestionMonitor
 
 
 @dataclass
@@ -111,6 +112,9 @@ class TradeExecutor:
         
         # V67.0: Auto-Slippage Calibrator (Phase 5C)
         self.slippage_calibrator: Optional['SlippageCalibrator'] = None
+        
+        # V67.0: Congestion Multiplier (Phase 5D)
+        self.congestion_monitor: Optional['CongestionMonitor'] = None
         
         # Tracking
         self._last_paper_pnl = 0.0
@@ -894,6 +898,10 @@ class TradeExecutor:
             # V67.0: Trigger slippage recalibration after trade
             if self.slippage_calibrator:
                 self.slippage_calibrator.maybe_recalibrate()
+            
+            # V67.0: Trigger congestion check after trade
+            if self.congestion_monitor:
+                self.congestion_monitor.maybe_adjust_tip()
             
             return ExecutionResult(True, f"SELL {watcher.symbol}", tx_id, pnl_usd)
         else:

@@ -57,6 +57,7 @@ from src.engine.signal_scanner import SignalScanner
 # V67.0: Phase 5 - Institutional Realism
 from src.engine.shadow_manager import ShadowManager
 from src.engine.slippage_calibrator import SlippageCalibrator
+from src.engine.congestion_monitor import CongestionMonitor
 
 # V133: MaintenanceService (SRP Refactor)
 from src.engine.maintenance_service import MaintenanceService
@@ -288,6 +289,20 @@ class TradingCore:
         except Exception as e:
             Logger.warn(f"⚙️ [CORE] SlippageCalibrator init skipped: {e}")
             self.slippage_calibrator = None
+            
+        # V67.0: Phase 5D - Congestion Multiplier
+        # Wire monitor to executor for dynamic Jito tipping
+        try:
+            self.congestion_monitor = CongestionMonitor(
+                shadow_manager=self.shadow_manager,
+                jito_adapter=self.jito_adapter,
+                base_tip_lamports=getattr(Settings, 'JITO_TIP_LAMPORTS', 10000)
+            )
+            self.executor.congestion_monitor = self.congestion_monitor
+            Logger.info("🔥 [CORE] CongestionMonitor wired to TradeExecutor")
+        except Exception as e:
+            Logger.warn(f"🔥 [CORE] CongestionMonitor init skipped: {e}")
+            self.congestion_monitor = None
         
         # V48.0: Initialize HeartbeatReporter
         self.heartbeat = HeartbeatReporter(
