@@ -12,10 +12,10 @@
 
 | Priority | Task | Status | Owner | Linked Doc |
 | :--- | :--- | :--- | :--- | :--- |
-| **P0** | **PumpFunMonitor** (Rust/Python WSS) | 📋 Plan | Rust | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
-| **P0** | **RaydiumStandardBridge** (675k... Initialization) | 📋 Plan | Python | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
-| **P1** | **Hierarchical Scout Logic** (Graduation Alerts) | 📋 Plan | Scout | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
-| **P1** | **Bonding Curve Math** (Metadata Schema) | ✅ Done | Rust | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **P0** | **PumpFunMonitor** (6EF8... Monitoring) | 📋 Plan | Rust/Py | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
+| **P0** | **RaydiumStandardBridge** (675k... Initialization) | 📋 Plan | Python | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
+| **P1** | **Hierarchical Scout Logic** (Graduation Alerts) | 📋 Plan | Scout | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
+| **P1** | **Bonding Curve Math** (Metadata Schema) | ✅ Done | Rust | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
 | **P2** | **Full PnL Auditor** (Shadow vs. Live) | ⚪ Planned | QA | `PHASE_7_AUDIT.md` |
 
 ---
@@ -26,7 +26,7 @@
 | :--- | :--- | :--- | :--- |
 | **Phase 4** | **Optimization & Realism** (Rust, Latency) | ✅ Complete | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` |
-| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | 🟡 Active | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | 🟡 Active | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
 | **Phase 7** | **PnL Audit & Risk Hardening** | ⚪ Upcoming | `PHASE_7_AUDIT.md` |
 
 ---
