@@ -246,7 +246,7 @@ class ScrapeIntelligence:
         
         # Queue for MetadataResolver with HIGH PRIORITY (whale vouch)
         try:
-            from src.discovery.metadata_resolver import get_metadata_resolver
+            from src.scraper.discovery.metadata_resolver import get_metadata_resolver
             resolver = get_metadata_resolver()
             if intel.token_out:
                 # V85.1: Prioritize whale-spotted tokens
@@ -257,7 +257,7 @@ class ScrapeIntelligence:
         
         # Feed to Scout Agent for OFI analysis
         try:
-            from src.discovery.scout_agent import get_scout_agent
+            from src.scraper.agents.scout_agent import ScoutAgent
             scout = get_scout_agent()
             if scout and hasattr(scout, 'trigger_audit'):
                 # Async trigger in thread
