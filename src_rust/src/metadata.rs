@@ -75,7 +75,6 @@ impl SharedTokenMetadata {
         SharedTokenMetadata {
             mint,
             symbol: "UNKNOWN".to_string(),
-            symbol: "UNKNOWN".to_string(),
             program_id: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA".to_string(), // Default SPL
             market_stage: "UNKNOWN".to_string(),
             bonding_curve_progress: 0.0,

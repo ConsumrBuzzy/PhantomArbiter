@@ -456,6 +456,8 @@ mod tests {
             last_updated_slot: 100,
             transfer_fee_bps: 0,
             whale_confidence_bonus: 0.0, // V3: Phase 5A
+            market_stage: "UNKNOWN".to_string(),
+            bonding_curve_progress: 0.0,
         }
     }
 

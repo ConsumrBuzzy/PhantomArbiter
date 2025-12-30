@@ -6,6 +6,7 @@ import websockets
 import os
 from typing import Dict, Optional, List, Callable
 from src.shared.system.logging import Logger
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 from config.settings import Settings
 
 class SauronDiscovery:
@@ -213,6 +214,13 @@ class SauronDiscovery:
                     # V68.0: Notify Sniper Agent
                     if hasattr(self, 'sniper_callback') and self.sniper_callback:
                         self.sniper_callback(mint, source)
+                        
+                    # V140: Emit to Global SignalBus for Scout Metadata Analytics
+                    signal_bus.emit(Signal(
+                        type=SignalType.NEW_TOKEN,
+                        source=f"SAURON_{source}",
+                        data={"mint": mint, "platform": source}
+                    ))
                 else:
                     # V75.0: Count unnamed by platform for lumped reporting
                     self.discovery_count += 1

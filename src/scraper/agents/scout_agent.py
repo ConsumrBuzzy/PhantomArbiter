@@ -9,8 +9,9 @@ from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 import os
 import json
 from config.settings import Settings
-from src.core.shared_cache import SharedPriceCache
 from src.scraper.agents.probe_analytic import ProbeAnalytic
+from src.shared.execution.raydium_standard_bridge import RaydiumStandardBridge
+from src.scraper.discovery.pump_fun_monitor import PumpFunMonitor
 
 class ScoutAgent(BaseAgent):
     """
@@ -52,6 +53,10 @@ class ScoutAgent(BaseAgent):
         # V100: Probe Detection
         self.probe_detector = ProbeAnalytic()
         
+        # V140: Lifecycle Tracking
+        self.raydium_std = RaydiumStandardBridge()
+        self.pump_monitor = PumpFunMonitor()
+        
         Logger.info(f"[{self.name}] Agent Initialized (Watchlist: {len(self.watchlist)})")
 
     def _load_watchlist(self) -> Dict:
@@ -76,7 +81,18 @@ class ScoutAgent(BaseAgent):
         self.running = True
         asyncio.create_task(self._process_audit_queue())
         asyncio.create_task(self._scan_active_tokens_job())
+        
+        # V140: Subscribe to global discoveries
+        signal_bus.subscribe(SignalType.NEW_TOKEN, self._handle_new_token)
+        
         Logger.info(f"[{self.name}] Background tasks started")
+
+    async def _handle_new_token(self, sig: Signal):
+        """V140: Event handler for NEW_TOKEN signal."""
+        mint = sig.data.get("mint")
+        if mint:
+            # Trigger deep metadata scan (Hierarchical check)
+            await self.deep_scan_metadata(mint)
 
     def stop(self):
         self.running = False
@@ -581,6 +597,34 @@ class ScoutAgent(BaseAgent):
         meta.order_imbalance = 1.0
         meta.price_usd = 0.0
         meta.last_updated_slot = 0 # Will be considered stale until updated
+
+        # 4b. Lifecycle Hierarchical Check (V140)
+        # 1. Check Pump.fun (Bonding Curve)
+        pump_info = self.pump_monitor.check_status(mint)
+        if pump_info["active"] and pump_info["progress_pct"] < 100:
+            meta.market_stage = "PUMP"
+            meta.bonding_curve_progress = pump_info["progress_pct"]
+            Logger.debug(f"🍼 [SCOUT] Lifecycle: {mint[:8]} is in INFANCY (Pump.fun {meta.bonding_curve_progress:.1f}%)")
+        else:
+            # 2. Check Raydium Standard (Adolescence)
+            std_pool = self.raydium_std.find_pool(mint, Settings.USDC_MINT)
+            if std_pool:
+                meta.market_stage = "STD"
+                meta.bonding_curve_progress = 100.0 # Graduated
+                Logger.info(f"🎓 [SCOUT] Lifecycle: {mint[:8]} is in ADOLESCENCE (Standard AMM)")
+            else:
+                # 3. Check Raydium CLMM (Maturity)
+                # We reuse the existing bridge logic or assume if not above, it might be CLMM (or unknown)
+                from src.shared.execution.raydium_bridge import RaydiumBridge
+                bridge = RaydiumBridge()
+                clmm_pool = bridge.discover_pool(mint, Settings.USDC_MINT)
+                if clmm_pool:
+                    meta.market_stage = "CLMM"
+                    meta.bonding_curve_progress = 100.0
+                    Logger.debug(f"🏛️ [SCOUT] Lifecycle: {mint[:8]} is in MATURITY (CLMM)")
+                else:
+                    meta.market_stage = "UNKNOWN"
+                    meta.bonding_curve_progress = 0.0
 
         # 5. Populate initial price/liquidity if known from cache
         price, _ = SharedPriceCache.get_price(mint)

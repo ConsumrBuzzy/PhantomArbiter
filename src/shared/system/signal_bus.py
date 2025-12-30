@@ -14,6 +14,7 @@ class SignalType(Enum):
     MARKET_UPDATE = "MARKET_UPDATE"  # V134: Price changes for Global Feed
     METADATA = "METADATA"         # V40.0: Shared Token Metadata Updates
     STRATEGY_TIP = "STRATEGY_TIP" # V41.0: Cross-Strategy Hints (e.g. Scalper -> Arbiter)
+    NEW_TOKEN = "NEW_TOKEN"       # V140: Sauron Discovery -> Scout Metadata Scan
 
 @dataclass
 class Signal:
