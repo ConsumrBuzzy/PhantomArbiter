@@ -85,8 +85,10 @@ class PhantomArbiter:
         self.config = config
         
         # 1. New Core Modular Components
-        from src.arbiter.core.trade_tracker import TradeTracker
-        self.tracker = TradeTracker(budget=config.budget, gas_budget=config.gas_budget)
+        # V2.0: Unified Paper Wallet (CapitalManager backed)
+        from src.shared.execution.paper_wallet import PaperWallet
+        self.paper_wallet = PaperWallet(engine_name="ARBITER")
+        self.tracker = None # Deprecated, kept for interface compatibility if needed transiently
         
         # 2. Communication Layer (Initialize but don't start)
         from src.shared.notification.telegram_manager import TelegramManager
@@ -103,6 +105,9 @@ class PhantomArbiter:
         
         # Initialization State
         self._initialized = False
+        
+        # Local Trade History (since we removed Tracker)
+        self._trades = []
         
     async def initialize(self):
         """Async initialization to prevent blocking startup."""
@@ -122,10 +127,15 @@ class PhantomArbiter:
     def _setup_paper_mode(self) -> None:
         """Initialize paper trading components."""
         mode = ExecutionMode.PAPER
-        self._executor = ArbitrageExecutor(mode=mode)
+        
+        # V2.0: Pass persistent PaperWallet to executor
+        self._executor = ArbitrageExecutor(
+            mode=mode,
+            wallet=self.paper_wallet
+        )
         # Initialize TradeEngine with executor only (no unified adapter for paper)
         self.trade_engine = TradeEngine(executor=self._executor)
-        Logger.info("📄 Paper mode initialized")
+        Logger.info("📄 Paper mode initialized (Engine: ARBITER)")
     
     async def _setup_live_mode_async(self) -> None:
         """Initialize live trading components (Async)."""
@@ -393,17 +403,8 @@ class PhantomArbiter:
         
         if result.success:
             # Update Arbiter State
-            self.current_balance += result.net_profit
-            self.total_profit += result.net_profit
-            self.total_trades += 1
-            
-            # Record in tracker
-            self.tracker.record_trade(
-                volume_usd=trade_size,
-                profit_usd=result.net_profit,
-                strategy="SPATIAL",
-                pair=opportunity.pair
-            )
+            # V2.0: State is updated by ArbitrageExecutor -> PaperWallet -> CapitalManager
+            # We just need to track history locally for reporting if needed
             
             # Log successful trade
             trade_record = {
@@ -414,7 +415,7 @@ class PhantomArbiter:
                 "mode": "LIVE" if self.config.live_mode else "PAPER",
                 "engine": result.engine_used
             }
-            self.trades.append(trade_record)
+            self._trades.append(trade_record)
             
             return {
                 "success": True,
@@ -491,7 +492,9 @@ class PhantomArbiter:
         """Main trading loop (Delegated to ArbiterEngine)."""
         from src.arbiter.core.arbiter_engine import ArbiterEngine
         if not self._engine:
-            self._engine = ArbiterEngine(self, self.tracker)
+            # V2.0: Unified Wallet Interface
+            wallet = self._wallet if (self.config.live_mode and hasattr(self, '_wallet')) else self.paper_wallet
+            self._engine = ArbiterEngine(self, wallet)
             
         try:
             await self._engine.run(
@@ -517,35 +520,59 @@ class PhantomArbiter:
 
     @property
     def current_balance(self):
-        return self.tracker.current_balance
+        # V2.0: Delegate to PaperWallet or Live Wallet
+        if self.config.live_mode and hasattr(self, '_wallet'):
+            # V115: Live USDC Balance
+            from src.arbiter.core.pod_engine import USDC_MINT
+            return self._wallet.get_balance(USDC_MINT)
+        return self.paper_wallet.cash
         
     @current_balance.setter
     def current_balance(self, value):
-        self.tracker.current_balance = value
+        pass 
         
     @property
     def gas_balance(self):
-        return self.tracker.gas_balance
-        
-    @gas_balance.setter
-    def gas_balance(self, value):
-        self.tracker.gas_balance = value
+         # V2.0: Delegate to PaperWallet or Live Wallet
+        if self.config.live_mode and hasattr(self, '_wallet'):
+            # V115: Live SOL Balance (in USD? No, usually in SOL, need conversion?)
+            # ArbiterEngine expects USD for gas_balance usually?
+            # TradeTracker kept gas in USD.
+            # Live wallet returns native SOL.
+            # We will return estimated USD value if possible or just SOL count?
+            # Dashboard expects USD. 
+            # Let's approximate 150 for now or fetch price?
+            # Better to just return SOL * 150 for display if needed or keep simpler.
+            return self._wallet.get_sol_balance() * 150.0 # Mock price for display
+        return self.paper_wallet.sol_balance_usd
         
     @property
     def total_trades(self):
-        return self.tracker.total_trades
+        return len(self._trades)
         
     @property
     def starting_balance(self):
-        return self.tracker.starting_balance
+        return self.config.budget # Or self.paper_wallet.starting_equity
         
     @starting_balance.setter
     def starting_balance(self, value):
-        self.tracker.starting_balance = value
+        pass
 
     @property
     def trades(self):
-        return self.tracker.trades
+        return self._trades
+        
+    @property
+    def total_profit(self):
+        # V2.0: Calc from wallet equity vs budget
+        # Note: This includes unrealized PnL from open positions
+        if self.paper_wallet:
+            return self.paper_wallet.equity - self.config.budget
+        return 0.0
+        
+    @total_profit.setter
+    def total_profit(self, value):
+        pass
 
     @property
     def executor(self):

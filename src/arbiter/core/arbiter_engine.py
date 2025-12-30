@@ -24,9 +24,9 @@ class ArbiterEngine:
     Orchestrates the continuous trade cycle.
     """
     
-    def __init__(self, arbiter: Any, tracker: Any):
+    def __init__(self, arbiter: Any, wallet: Any):
         self.arbiter = arbiter # Reference to PhantomArbiter (orchestrator)
-        self.tracker = tracker # TradeTracker
+        self.wallet = wallet # PaperWallet or WalletManager
         self.config = arbiter.config
         
         # Internal Loop State
@@ -175,17 +175,17 @@ class ArbiterEngine:
                 verified_opps = await self._verify_top_candidates(opportunities, base_trade_size, last_trade_time, cooldown)
                 
                 # 5. DASHBOARD
-                stats = self.tracker.get_stats()
+                # V2.0: Unified Interface
                 self.arbiter.reporter.print_dashboard(
                     spreads=all_spreads,
                     verified_opps=verified_opps,
                     pod_names=active_pod_names,
-                    balance=self.tracker.current_balance,
-                    gas=self.tracker.gas_balance,
-                    daily_profit=self.tracker.total_profit,
-                    total_trades=self.tracker.total_trades,
-                    volume=self.tracker.tracker.daily_volume,
-                    turnover=self.tracker.tracker.turnover_ratio
+                    balance=self.arbiter.current_balance,
+                    gas=self.arbiter.gas_balance,
+                    daily_profit=self.arbiter.total_profit,
+                    total_trades=self.arbiter.total_trades,
+                    volume=0.0, # Not tracked in V2.0 yet
+                    turnover=0.0 # Not tracked in V2.0 yet
                 )
 
                 # Update Pod Manager state for rotation
@@ -224,7 +224,7 @@ class ArbiterEngine:
 
                 # 7. LANDLORD
                 if landlord and self.config.live_mode and not executed_this_cycle:
-                    await landlord.tick(self.tracker.current_balance, arb_opportunity=False)
+                    await landlord.tick(self.arbiter.current_balance, arb_opportunity=False)
 
                 # 8. SLEEP
                 try:

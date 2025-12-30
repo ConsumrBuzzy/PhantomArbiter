@@ -365,25 +365,70 @@ class ArbitrageExecutor:
             # 4. Mode-specific Execution
             legs = []
             if self.mode == ExecutionMode.PAPER:
-                # ═══ PAPER MODE: Simulated Execution ═══
+                # ═══ PAPER MODE: Persistent Execution via CapitalManager ═══
+                # If we have a PaperWallet (Arbiter V2 execution), use it.
+                # Otherwise fallback to legacy stateless simulation (if wallet is None/Mock)
+                
+                # Default values if no wallet
+                real_entry_price = opportunity.buy_price
+                real_exit_price = opportunity.sell_price
+                buy_fee = 0.01
+                sell_fee = 0.01
+                pnl = 0.0
+                
+                # Check if wallet is valid PaperWallet (has simulate_buy)
+                has_paper_wallet = self.wallet and hasattr(self.wallet, 'simulate_buy')
+                
+                if has_paper_wallet:
+                    # A. BUY LEG
+                    # Note: simulate_buy updates cash/positions in CapitalManager
+                    buy_success = self.wallet.simulate_buy(
+                        symbol=opportunity.pair.split("/")[0],
+                        mint=buy_quote.get('outputMint', ''),
+                        price=opportunity.buy_price,
+                        size_usd=trade_size,
+                        liquidity_usd=50000.0 # Mock liquidity for now
+                    )
+                    
+                    if not buy_success:
+                         return self._error_result("Paper Buy Failed (Insufficient API/Cash)", start_time)
+                         
+                    # B. SELL LEG
+                    # simulate_sell updates cash/positions and returns PnL
+                    pnl = self.wallet.simulate_sell(
+                        symbol=opportunity.pair.split("/")[0],
+                        price=opportunity.sell_price,
+                        reason=f"ARB {opportunity.buy_dex}->{opportunity.sell_dex}",
+                        liquidity_usd=50000.0,
+                        is_volatile=False
+                    )
+                    # Recalculate fees/net based on what CapitalManager did? 
+                    # Actually CapitalManager handles it internally, but we need to populate TradeResult
+                    # We can use the quote values as "expected" and PnL as actual result.
+                
+                # Construct Legs (Visual representation)
                 legs = [
                     TradeResult(
                         success=True, trade_type="BUY",
                         input_token="USDC", output_token=opportunity.pair.split("/")[0],
                         input_amount=trade_size,
                         output_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
-                        price=opportunity.buy_price, fee_usd=0.01,
-                        signature="PAPER_" + str(int(time.time())), timestamp=time.time(), execution_time_ms=250
+                        price=opportunity.buy_price, fee_usd=buy_fee,
+                        signature="PAPER_BUY_" + str(int(time.time())), timestamp=time.time(), execution_time_ms=250
                     ),
                     TradeResult(
                         success=True, trade_type="SELL",
                         input_token=opportunity.pair.split("/")[0], output_token="USDC",
-                        input_amount=int(buy_quote.get('outAmount', 0)) / 1e9,
+                        input_amount=int(buy_quote.get('outAmount', 0)) / 1e9, # Assuming full sell
                         output_amount=expected_usdc_back / 1_000_000,
-                        price=opportunity.sell_price, fee_usd=0.01,
-                        signature="PAPER_" + str(int(time.time())+1), timestamp=time.time(), execution_time_ms=250
+                        price=opportunity.sell_price, fee_usd=sell_fee,
+                        signature="PAPER_SELL_" + str(int(time.time())+1), timestamp=time.time(), execution_time_ms=250
                     )
                 ]
+                
+                if has_paper_wallet:
+                    Logger.info(f"[EXEC] 📝 Paper Trade Recorded: PnL ${pnl:.2f}")
+
             elif self.mode == ExecutionMode.LIVE:
                 # ═══ LIVE MODE: Atomic Bundled Execution ═══
                 jito_status = "READY" if self.jito and await self.jito.is_available() else ("MISSING" if not self.jito else "OFFLINE")
