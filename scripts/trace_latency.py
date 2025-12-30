@@ -14,6 +14,7 @@ Steps:
 import time
 import requests
 import asyncio
+import os
 from src.shared.system.capital_manager import CapitalManager
 from src.shared.system.logging import Logger
 
@@ -53,11 +54,20 @@ def trace():
     
     # 3. ACT (Execution Simulation)
     print("3. [EXE] CapitalManager Lock & Write...", end="", flush=True)
-    # Execute a dummy check (read lock) + write (simulate buy)
-    cm.get_available_cash(ENGINE)
-    # Simulate write overhead (fake buy logic without committing to disk to spoil state)
-    # We'll just call a method that takes a lock
-    cm.update_position(ENGINE, "SOL", 150.0, 1.0) 
+    # Simulate write overhead safely
+    # We force the CM to use a test file to measure disk I/O
+    original_file = cm.STATE_FILE
+    cm.STATE_FILE = "latency_state.json"
+    
+    # Trigger a write
+    try:
+        cm._save_state()
+    finally:
+        # Cleanup
+        if os.path.exists("latency_state.json"):
+            os.remove("latency_state.json")
+        cm.STATE_FILE = original_file
+        
     t3 = current_ms()
     act_lag = t3 - t2
     print(f" DONE ({act_lag:.1f}ms)")
