@@ -12,6 +12,7 @@ from config.settings import Settings
 from src.scraper.agents.probe_analytic import ProbeAnalytic
 from src.shared.execution.raydium_standard_bridge import RaydiumStandardBridge
 from src.scraper.discovery.pump_fun_monitor import PumpFunMonitor
+from src.core.price_cache import SharedPriceCache
 
 class ScoutAgent(BaseAgent):
     """
@@ -571,13 +572,12 @@ class ScoutAgent(BaseAgent):
         data = resp.get("value", {}).get("data", {}).get("parsed", {}).get("info", {})
         if not data:
             owner = resp.get("value", {}).get("owner") if resp and resp.get("value") else "Unknown"
-            Logger.warning(f"⚠️ [SCOUT] No parsed info for {mint[:8]} (Owner: {owner})")
-            return False
+            Logger.debug(f"ℹ️ [SCOUT] No parsed info for {mint[:8]}. Proceeding to lifecycle check (Owner: {owner})")
             
         # 2. Extract Data
-        decimals = data.get("decimals", 9)
-        mint_authority = data.get("mintAuthority")
-        freeze_authority = data.get("freezeAuthority")
+        decimals = data.get("decimals", 9) if data else 9
+        mint_authority = data.get("mintAuthority") if data else None
+        freeze_authority = data.get("freezeAuthority") if data else None
         is_initialized = data.get("isInitialized", True)
         
         # 3. Create Rust Struct
