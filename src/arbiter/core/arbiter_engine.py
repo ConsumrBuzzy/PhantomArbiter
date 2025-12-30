@@ -374,14 +374,7 @@ class ArbiterEngine:
             result = await self.arbiter.execute_trade(best_fast, trade_size=smart_size)
             if result.get("success"):
                 trade = result["trade"]
-                self.tracker.record_trade(
-                    pair=best_fast.pair, 
-                    net_profit=trade['net_profit'], 
-                    fees=trade.get('fees', 0.02), 
-                    mode="LIVE" if self.config.live_mode else "PAPER", 
-                    engine="FAST", 
-                    trade_size=smart_size
-                )
+
                 last_trade_time[best_fast.pair] = time.time()
                 
                 # Log to DB
@@ -420,14 +413,7 @@ class ArbiterEngine:
             result = await self.arbiter.execute_trade(best, trade_size=exec_size)
             if result.get("success"):
                 trade = result["trade"]
-                self.tracker.record_trade(
-                    pair=best.pair, 
-                    net_profit=trade['net_profit'], 
-                    fees=trade.get('fees', 0.02), 
-                    mode="LIVE" if self.config.live_mode else "PAPER", 
-                    engine="SCALPER", 
-                    trade_size=exec_size
-                )
+
                 last_trade_time[best.pair] = time.time()
                 # Report success to pod manager
                 for pod in pod_system.get_pods_for_pair(best.pair):

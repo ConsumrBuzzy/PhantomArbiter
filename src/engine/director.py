@@ -395,17 +395,24 @@ class Director:
                                 price_change_24h=0.0
                             ))
                             
-                    # 2. Arbiter (TradeTracker)
-                    # Arbiter usually just tracks PnL added to a float, not held assets.
-                    # If Arbiter is ALSO running, we should add its balance? 
-                    # Usually they share the same 'Budget' conceptualization. 
-                    # For now, if Scalper is present, we trust it more for "Positions".
-                    # If Scalper is NOT present, we fall back to Tracker.
-                    elif arb and hasattr(arb, 'tracker') and arb.tracker:
-                        t = arb.tracker
-                        paper_balance = t.current_balance
-                        paper_gas = t.gas_balance / sol_price if sol_price > 0 else 0.0
-                        paper_equity = paper_balance # Tracker doesn't really hold assets in same way
+                    # 2. Arbiter (PaperWallet V2)
+                    elif arb and hasattr(arb, 'paper_wallet') and arb.paper_wallet:
+                        pw = arb.paper_wallet
+                        paper_balance = pw.cash
+                        paper_gas = pw.sol_balance
+                        paper_equity = pw.equity
+                        
+                        # Add Arbiter assets if any (usually empty for pure spatial arb)
+                        # But if we did hold positions, add them
+                        price_map = {sym: SharedPriceCache.get_price(sym)[0] or 0.0 for sym in pw.assets.keys()}
+                        for sym, asset in pw.assets.items():
+                             p = price_map.get(sym, asset.avg_price)
+                             inventory_items.append(InventoryItem(
+                                symbol=sym,
+                                amount=asset.balance,
+                                value_usd=asset.balance * p,
+                                price_change_24h=0.0
+                            ))
                     
                     paper_snapshot = WalletData(
                         balance_usdc = paper_balance,
