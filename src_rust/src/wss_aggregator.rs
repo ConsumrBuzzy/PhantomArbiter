@@ -172,38 +172,51 @@ impl WssAggregator {
 
         self.running.store(true, Ordering::SeqCst);
 
-        let tx = self.event_tx.clone().unwrap();
-        let running = self.running.clone();
-        let msg_received = self.msg_received.clone();
-        let msg_accepted = self.msg_accepted.clone();
-        let msg_dropped = self.msg_dropped.clone();
-        let active_conns = self.active_conns.clone();
-        let commitment = commitment.to_string();
+        // 1. Setup Channels
+        // Providers -> Raw
+        let raw_tx = self.raw_tx.clone().unwrap();
+        let raw_rx = self.raw_rx.take().unwrap(); // Move receiver to aggregator thread
 
-        // Spawn connection tasks
+        // Aggregator -> Python
+        let event_tx = self.event_tx.clone().unwrap(); // Get sender to Python
+
+        // Clone shared state for threads
+        let running_arc = self.running.clone();
+        let msg_received_arc = self.msg_received.clone();
+        let msg_accepted_arc = self.msg_accepted.clone();
+        let msg_dropped_arc = self.msg_dropped.clone();
+        let active_conns_arc = self.active_conns.clone();
+        let commitment_str = commitment.to_string();
+
+        // 2. Spawn Aggregator Loop
+        runtime.spawn(run_aggregator(
+            raw_rx,
+            event_tx,
+            running_arc.clone(),
+            msg_accepted_arc.clone(),
+            msg_dropped_arc.clone(),
+        ));
+
+        // 3. Spawn Connection Tasks
         for (idx, endpoint) in endpoints.into_iter().enumerate() {
-            let tx = tx.clone();
-            let running = running.clone();
-            let msg_received = msg_received.clone();
-            let msg_accepted = msg_accepted.clone();
-            let msg_dropped = msg_dropped.clone();
-            let active_conns = active_conns.clone();
-            let program_ids = program_ids.clone();
-            let commitment = commitment.clone();
+            let provider_raw_tx = raw_tx.clone(); // Each provider gets a sender to the raw channel
+            let running_conn = running_arc.clone();
+            let msg_received_conn = msg_received_arc.clone();
+            let active_conns_conn = active_conns_arc.clone();
+            let program_ids_conn = program_ids.clone();
+            let commitment_conn = commitment_str.clone();
             let provider_name = format!("provider_{}", idx);
 
             runtime.spawn(async move {
                 run_connection(
                     endpoint,
                     provider_name,
-                    program_ids,
-                    commitment,
-                    tx,
-                    running,
-                    msg_received,
-                    msg_accepted,
-                    msg_dropped,
-                    active_conns,
+                    program_ids_conn,
+                    commitment_conn,
+                    provider_raw_tx, // Send to raw channel
+                    running_conn,
+                    msg_received_conn,
+                    active_conns_conn,
                 )
                 .await;
             });
