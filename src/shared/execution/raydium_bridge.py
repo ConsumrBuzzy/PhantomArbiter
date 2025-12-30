@@ -359,8 +359,35 @@ class RaydiumBridge:
             return data
             
         except Exception as e:
-            Logger.error(f"[RAYDIUM] Discover error: {e}")
-            return None
+            Logger.debug(f"[RAYDIUM] CLMM Discover error: {e}")
+            
+        # Fallback: Check for Standard AMM via Raydium Trade API (Synchronous)
+        # This catches "graduated" pump.fun tokens that are on Standard AMM (not CLMM)
+        try:
+            # We need a small amount to test route (1 token unit)
+            # Decimals don't matter much for existence check
+            api_url = (
+                f"https://transaction-v1.raydium.io/compute/swap-base-in"
+                f"?inputMint={mint_a}&outputMint={mint_b}&amount=1000000&slippageBps=50&txVersion=V0"
+            )
+            import requests # Lazy import
+            resp = requests.get(api_url, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("success"):
+                     Logger.debug(f"[RAYDIUM] Found Standard/AMMX Route via API for {mint_a[:6]}")
+                     # Return a mock pool structure that satisfies PoolIndex
+                     return {
+                         "success": True,
+                         "poolId": "RAYDIUM_STANDARD_AMM", # Placeholder
+                         "type": "Standard",
+                         "liquidity": "1000", # Dummy, API doesn't return liquidity easily
+                         "marketId": "UNKNOWN"
+                     }
+        except Exception as e:
+            pass
+            
+        return None
     
     async def fetch_api_quote(
         self,
