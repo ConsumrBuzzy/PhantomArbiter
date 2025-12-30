@@ -22,6 +22,7 @@
 | **P2** | **Drift Dashboard** (Execution Monitor) | ✅ Done | Python | [PHASE_DRIFT_DASHBOARD.md](./PHASE_DRIFT_DASHBOARD.md) |
 | **P1** | **Dashboard Overhaul** (Observability) | 📋 Plan | Mixed | [PHASE_DASHBOARD_OVERHAUL.md](./PHASE_DASHBOARD_OVERHAUL.md) |
 | **P1** | **Auto-Slippage** (Drift-Reactive) | ✅ Done | Python | [PHASE_AUTO_SLIPPAGE.md](./PHASE_AUTO_SLIPPAGE.md) |
+| **P1** | **Congestion Multiplier** (Jito Tips) | 📋 Plan | Python | [PHASE_CONGESTION_MULTIPLIER.md](./PHASE_CONGESTION_MULTIPLIER.md) |
 | **P2** | **Full Backtest Suite** (Verify PnL Impact) | ⏳ Pending | QA | [TRADING_STRATEGIES.md](./TRADING_STRATEGIES.md) |
 
 ---
