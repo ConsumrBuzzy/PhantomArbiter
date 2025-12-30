@@ -58,8 +58,15 @@ class PaperWallet:
         
     @sol_balance.setter
     def sol_balance(self, value):
-        if engine := self.cm.state.get("engines", {}).get(self.engine_name):
             engine["sol_balance"] = value
+
+    @property
+    def sol_balance_usd(self) -> float:
+        """Calculate value of SOL balance in USD."""
+        from src.core.shared_cache import SharedPriceCache
+        sol_price, _ = SharedPriceCache.get_price("SOL")
+        if not sol_price: sol_price = 150.0 
+        return self.sol_balance * sol_price
 
     @property
     def equity(self) -> float:
