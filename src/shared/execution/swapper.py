@@ -10,6 +10,7 @@ from solana.rpc.commitment import Confirmed
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
+from src.shared.system.smart_router import SmartRouter
 from src.shared.execution.wallet import WalletManager
 
 from src.shared.infrastructure.rpc_balancer import get_rpc_balancer

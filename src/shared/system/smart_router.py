@@ -27,10 +27,13 @@ class SmartRouter:
         return cls._instance
     
     def __init__(self):
-        if self._initialized: return
         self._initialized = True
         
         self.config = self._load_config()
+        self.enabled = getattr(Settings, 'ENABLE_SMART_ROUTING', True)
+        self.endpoints = getattr(Settings, 'jito_endpoints', [])
+        self.health_map = {}
+        self.latency_map = {}
         
         # V11.9: Load and filter endpoints (skip disabled, filter missing keys)
         # DEPRECATED: self.endpoints = self._get_valid_endpoints()

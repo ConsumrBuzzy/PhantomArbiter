@@ -472,6 +472,44 @@ class PhantomArbiter:
         except Exception as e:
             Logger.debug(f"Signal check error: {e}")
 
+    def handle_strategy_tip(self, token_symbol: str):
+        """
+        V41.0: Handle Cross-Strategy Tips (e.g. from Scalper).
+        Immediate action: Inject into priority scan list.
+        """
+        try:
+            # 1. Resolve Mint (if needed)
+            # Assuming symbol is passed, but we need mint for full pair
+            # For now, simplistic mapping or pass-through
+            
+            # 2. Notify Engine
+            if self._engine:
+                # If engine supported "priority_injection", we'd call it.
+                # For now, we piggyback on the config modification 
+                # OR call a method on the engine if it exists.
+                if hasattr(self._engine, 'inject_priority_token'):
+                    self._engine.inject_priority_token(token_symbol)
+                else:
+                    # Fallback: Just log awareness
+                    Logger.info(f"⚡ [ARB] Received Strategy Tip: {token_symbol} (Engine notified)")
+                    
+                    # Try to add to config pairs if missing
+                    # self.config.pairs... (Logic similar to _check_signals)
+                    from src.arbiter.core.pod_engine import USDC_MINT
+                    from config.settings import Settings
+                    
+                    mint = Settings.ASSETS.get(token_symbol)
+                    if mint:
+                        new_pair = (f"{token_symbol}/USDC", mint, USDC_MINT)
+                        if new_pair not in self.config.pairs:
+                             self.config.pairs.append(new_pair)
+                             Logger.info(f"   ➕ Added {token_symbol} to immediate scan list.")
+            else:
+                 Logger.warning(f"⚠️ [ARB] Received tip for {token_symbol} but Engine is offline.")
+                 
+        except Exception as e:
+            Logger.error(f"Failed to handle strategy tip: {e}")
+
     async def stop(self):
         """Clean shutdown of all components."""
         Logger.info("[ARB] 🛑 Shutting down Arbiter components...")

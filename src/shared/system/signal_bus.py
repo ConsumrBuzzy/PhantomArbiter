@@ -13,6 +13,7 @@ class SignalType(Enum):
     CONFIG_CHANGE = "CONFIG_CHANGE"
     MARKET_UPDATE = "MARKET_UPDATE"  # V134: Price changes for Global Feed
     METADATA = "METADATA"         # V40.0: Shared Token Metadata Updates
+    STRATEGY_TIP = "STRATEGY_TIP" # V41.0: Cross-Strategy Hints (e.g. Scalper -> Arbiter)
 
 @dataclass
 class Signal:

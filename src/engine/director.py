@@ -120,6 +120,22 @@ class Director:
                     state.log(f"🔓 [Director] Metadata Validated: {meta.symbol}")
                     
         self.signal_bus.subscribe(SignalType.METADATA, handle_metadata)
+        
+        # V41.0: Strategy Bridge (Cross-Strategy Signal Bus)
+        def handle_scalp_routing(sig: Signal):
+            # Only route High Confidence signals to Arbiter to avoid noise
+            # Data format from Scalper: {'symbol': 'SOL', 'confidence': 0.9, ...}
+            confidence = sig.data.get("confidence", 0.0)
+            symbol = sig.data.get("symbol")
+            
+            if symbol and confidence > 0.8:
+                arb = self.agents.get("arbiter")
+                if arb:
+                    # Direct "Tip" Injection
+                    state.log(f"🚌 [Bus] Routing Scalp Tip for {symbol} to Arbiter (Conf: {confidence:.2f})")
+                    arb.handle_strategy_tip(symbol)
+                    
+        self.signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_scalp_routing)
 
     async def start(self):
         """Ignition: The Supervisor Kernel Start (Non-blocking)."""
