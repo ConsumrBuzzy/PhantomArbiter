@@ -142,41 +142,79 @@ class PaperWallet:
     def check_drawdown_status(self, current_equity: float) -> tuple:
         return self.cm.check_drawdown(self.engine_name, current_equity)
 
-    def simulate_buy(
-        self, 
-        symbol: str, 
-        mint: str, 
-        price: float, 
-        size_usd: float, 
-        liquidity_usd: float = 100000.0,
-        is_volatile: bool = False,
-        latency_ms: int = 0
-    ) -> bool:
-        """Delegate execution to CapitalManager."""
-        
-        # V40.1: Latency Penalty for Scalper Simulation
-        effective_price = price
-        if latency_ms > 0:
-            import random
-            # Simulate 1bps adverse move per 100ms + noise
-            drift = (latency_ms / 1000.0) * 0.1 * random.random()
-            effective_price = price * (1 + drift)
-            if drift > 0.001:
-                Logger.debug(f"🐢 [PAPER] Latency Impact: {latency_ms}ms -> Price {price} to {effective_price:.4f} (+{drift*100:.2f}%)")
-        
-        success, msg = self.cm.execute_buy(
-            self.engine_name, 
-            symbol, 
-            mint, 
-            effective_price, 
-            size_usd,
-            liquidity_usd=liquidity_usd,
-            is_volatile=is_volatile
-        )
-        if not success:
-            Logger.warning(f"⚠️ [PAPER] Buy Failed: {msg}")
-        return success
 
+    def simulate_buy(self, symbol: str, amount_usd: float, price: float, 
+                    simulated_latency_ms: int = 0, 
+                    liquidity_usd: float = 50000.0,
+                    velocity_1m: float = 0.0) -> dict:
+        """
+        Simulate a BUY order with realistic HFT constraints.
+        
+        Hardening V40.0:
+        - Liquidity-based Slippage: Lower liq = higher slippage.
+        - Latency Penalty: High velocity + latency = worse entry.
+        """
+        engine_state = self.cm.state.get("engines", {}).get(self.engine_name)
+        if not engine_state:
+            return {"success": False, "reason": f"Engine {self.engine_name} not found"}
+
+        if engine_state["cash_balance"] < amount_usd:
+            return {"success": False, "reason": "Insufficient cash"}
+        
+        # 1. Calculate Slippage
+        # Base slippage 50bps, scales up for low liquidity
+        slippage_bps = 50
+        if liquidity_usd < 10000: slippage_bps = 200
+        elif liquidity_usd < 50000: slippage_bps = 100
+        elif liquidity_usd > 200000: slippage_bps = 25
+        
+        # 2. Calculate Latency Penalty (The "Tax" of Lag)
+        # If price is moving FAST (high velocity) and we are SLOW (latency),
+        # we pay a penalty.
+        # Penalty = Velocity * (Latency/60s)
+        # E.g. 5% vel * (200ms / 60000ms) = 0.016% (Small but adds up)
+        # Wait, usually it catches the top of the candle.
+        latency_penalty_pct = 0.0
+        if velocity_1m > 0.0:
+            latency_sec = simulated_latency_ms / 1000.0
+            # Assume we catch the "tail" of the move
+            latency_penalty_pct = velocity_1m * (latency_sec / 60.0) * 2.0 
+            
+        total_penalty_pct = (slippage_bps / 10000.0) + latency_penalty_pct
+        effective_price = price * (1.0 + total_penalty_pct)
+        
+        # Determine quantity
+        quantity = amount_usd / effective_price
+        
+        # Deduct cash & Gas est
+        gas_fee = 0.005 # SOL approx
+        fee_usd = gas_fee * 150.0 # Stub SOL price
+        
+        engine_state["cash_balance"] -= amount_usd
+        engine_state["stats"]["fees_paid_usd"] += fee_usd
+        
+        # Record Asset
+        if symbol not in engine_state["positions"]:
+            engine_state["positions"][symbol] = PaperAsset(symbol=symbol, mint="", balance=0.0, avg_price=0.0)
+        
+        asset_data = engine_state["positions"][symbol]
+        # Avg Price calc
+        total_val = (asset_data.balance * asset_data.avg_price) + amount_usd
+        new_bal = asset_data.balance + quantity
+        asset_data.avg_price = total_val / new_bal if new_bal > 0 else effective_price
+        asset_data.balance = new_bal
+        
+        engine_state["stats"]['wins'] = engine_state["stats"].get('wins', 0) # Just to ensure key exists
+        
+        log_msg = f"📝 [PAPER] BUY {symbol} | Price: ${price:.4f} -> ${effective_price:.4f} (Slip: {slippage_bps}bps, Lag: {simulated_latency_ms}ms)"
+        Logger.info(log_msg)
+        
+        return {
+            "success": True, 
+            "price": effective_price, 
+            "quantity": quantity,
+            "slippage_pct": total_penalty_pct * 100
+        }
     def simulate_sell(
         self, 
         symbol: str, 

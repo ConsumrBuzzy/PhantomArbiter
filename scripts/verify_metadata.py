@@ -22,15 +22,17 @@ def main():
     meta.price_usd = 1.0
     meta.spread_bps = 10
     meta.order_imbalance = 2.0 # Boost
-    meta.ema_cross = True # Boost
-    meta.rsi_1m = 50.0 # Prevent reversion trigger
+    meta.program_id = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    meta.last_updated_slot = 1000
     
     print(f"   ✅ Created Metadata: {meta.mint} (Vel: {meta.velocity_1m})")
     
     # 2. Scanner
     print("2️⃣ Testing SignalScanner (Rust)...")
     scanner = SignalScanner()
-    signals = scanner.scan_scalp_opportunities([meta])
+    # Mock current slot close to update so it's not stale
+    current_slot = 1005 
+    signals = scanner.scan_scalp_opportunities([meta], current_slot)
     
     # 3. Verify
     if len(signals) == 1:

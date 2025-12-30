@@ -561,15 +561,27 @@ class ScoutAgent(BaseAgent):
         # 3. Create Rust Struct
         meta = SharedTokenMetadata(mint)
         meta.decimals = decimals
-        meta.mint_authority = mint_authority
+        meta.symbol = "UNK" # TODO: Fetch Symbol
+        
+        # New Fields (String & Bool)
+        # Default to SPL if not found (or check owner in data)
+        owner_program = data.get("owner", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+        meta.program_id = str(owner_program)
+        
         meta.freeze_authority = freeze_authority
-        meta.is_mutable = True # Assume mutable unless metadata pointer checked (TODO)
+        meta.has_mint_auth = (mint_authority is not None)
+        meta.is_mutable = True 
         
         # 4. Check LP Lock (Simulated/Stub for now or use bitquery if available)
-        # For MVP, we assume unlocked if not known
         meta.lp_locked_pct = 0.0
-        meta.is_rug_safe = (mint_authority is None and freeze_authority is None)
+        meta.is_rug_safe = (not meta.has_mint_auth and freeze_authority is None)
         
+        # Initialize fast fields to avoid Rust unwrap errors or zeros
+        meta.velocity_1m = 0.0
+        meta.order_imbalance = 1.0
+        meta.price_usd = 0.0
+        meta.last_updated_slot = 0 # Will be considered stale until updated
+
         # 5. Populate initial price/liquidity if known from cache
         price, _ = SharedPriceCache.get_price(mint)
         if price:
