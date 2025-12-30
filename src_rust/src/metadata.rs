@@ -60,6 +60,12 @@ pub struct SharedTokenMetadata {
     // V3: Whale-Pulse Confidence Bonus (Phase 5A)
     #[pyo3(get, set)]
     pub whale_confidence_bonus: f32, // 0.0 to 0.5 based on whale activity
+
+    // Lifecycle (Phase 6 Universal Discovery)
+    #[pyo3(get, set)]
+    pub market_stage: String, // "PUMP", "STD", "CLMM"
+    #[pyo3(get, set)]
+    pub bonding_curve_progress: f32, // 0-100%
 }
 
 #[pymethods]
@@ -69,7 +75,10 @@ impl SharedTokenMetadata {
         SharedTokenMetadata {
             mint,
             symbol: "UNKNOWN".to_string(),
+            symbol: "UNKNOWN".to_string(),
             program_id: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA".to_string(), // Default SPL
+            market_stage: "UNKNOWN".to_string(),
+            bonding_curve_progress: 0.0,
             ..Default::default()
         }
     }
