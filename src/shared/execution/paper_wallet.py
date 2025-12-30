@@ -58,6 +58,7 @@ class PaperWallet:
         
     @sol_balance.setter
     def sol_balance(self, value):
+        if engine := self.cm.state.get("engines", {}).get(self.engine_name):
             engine["sol_balance"] = value
 
     @property
