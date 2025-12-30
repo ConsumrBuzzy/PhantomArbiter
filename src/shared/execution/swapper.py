@@ -12,18 +12,23 @@ from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.execution.wallet import WalletManager
 
-from src.shared.system.smart_router import SmartRouter
+from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
 
 class JupiterSwapper:
     """
     V9.7: SRP-compliant Swap Executor.
     V12.3: Uses JITO private RPC for front-running protection.
+    V140: Uses RPC Balancer for robust transaction submission.
     Responsibility: Quoting and Executing Swaps via Jupiter.
     """
     
     def __init__(self, wallet_manager: WalletManager):
         self.wallet = wallet_manager
-        self.client = Client(Settings.RPC_URL)
+        # Initialize with a robust provider from Balancer
+        self.balancer = get_rpc_balancer()
+        winner = self.balancer.get_winner()
+        self.client = Client(winner.url if winner else Settings.RPC_URL)
+        
         self.router = SmartRouter()
         
         # V12.3: JITO tip for block inclusion (1000 lamports = 0.000001 SOL)
@@ -132,11 +137,17 @@ class JupiterSwapper:
                         tx_sig = self.jito_client.send_transaction(signed_tx, opts=opts)
                         Logger.success(f"✅ JITO Tx Sent: https://solscan.io/tx/{tx_sig.value}")
                     except Exception as jito_err:
-                        Logger.warning(f"   ⚠️ JITO failed, falling back to standard: {jito_err}")
-                        tx_sig = self.client.send_transaction(signed_tx, opts=opts)
+                        Logger.warning(f"   ⚠️ JITO failed, falling back to robust RPC: {jito_err}")
+                        # Fallback to Balancer
+                        winner = self.balancer.get_winner()
+                        robust_client = Client(winner.url if winner else Settings.RPC_URL)
+                        tx_sig = robust_client.send_transaction(signed_tx, opts=opts)
                         Logger.success(f"✅ Tx Sent (Standard): https://solscan.io/tx/{tx_sig.value}")
                 else:
-                    tx_sig = self.client.send_transaction(signed_tx, opts=opts)
+                    # Robust Send using Balancer
+                    winner = self.balancer.get_winner()
+                    robust_client = Client(winner.url if winner else Settings.RPC_URL)
+                    tx_sig = robust_client.send_transaction(signed_tx, opts=opts)
                     Logger.success(f"✅ Tx Sent: https://solscan.io/tx/{tx_sig.value}")
                 
                 # Invalidate Cache

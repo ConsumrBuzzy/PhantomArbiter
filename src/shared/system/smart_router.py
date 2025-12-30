@@ -33,7 +33,7 @@ class SmartRouter:
         self.config = self._load_config()
         
         # V11.9: Load and filter endpoints (skip disabled, filter missing keys)
-        self.endpoints = self._get_valid_endpoints()
+        # DEPRECATED: self.endpoints = self._get_valid_endpoints()
         # V12.0: Use official api.jup.ag endpoint (resolvable)
         self.jupiter_url = self.config.get("JUPITER_API_BASE", "https://api.jup.ag/swap/v1")
         
@@ -42,7 +42,6 @@ class SmartRouter:
         if self.jupiter_api_key.lower() in ["none", "null", ""] or len(self.jupiter_api_key) < 5:
             self.jupiter_api_key = ""
         
-        self.current_rpc_index = 0
         self.jupiter_cooldown_until = 0
         
         # V131: Persistent HTTP session with connection pooling
@@ -68,62 +67,12 @@ class SmartRouter:
         return {}
     
     def _get_valid_endpoints(self):
-        """V11.9: Filter endpoints - only enabled with valid env vars."""
-        import re
-        
-        def substitute_env_vars(text: str) -> str:
-            """Replace ${VAR} patterns with environment variable values."""
-            pattern = r'\$\{([^}]+)\}'
-            def replacer(match):
-                var_name = match.group(1)
-                return os.getenv(var_name, '')
-            return re.sub(pattern, replacer, text)
-        
-        valid = []
-        
-        # Check for 'endpoints' key (new format) or 'PUBLIC_RPC_POOL' key (legacy)
-        raw_endpoints = self.config.get("endpoints", [])
-        if not raw_endpoints:
-            # Legacy format: just an array of URLs
-            legacy = self.config.get("PUBLIC_RPC_POOL", [])
-            if legacy:
-                return legacy if legacy else [Settings.RPC_URL]
-        
-        for ep in raw_endpoints:
-            # Skip disabled endpoints
-            if not ep.get("enabled", True):
-                continue
-            
-            # V12.3-FIX: Skip execution_only endpoints (JITO) from main pool
-            # These are reserved exclusively for transaction submission
-            if ep.get("execution_only", False):
-                Logger.debug(f"   🛡️ {ep.get('name', 'Unknown')} reserved for execution only")
-                continue
-            
-            url = ep.get("url", "")
-            
-            # Substitute env vars
-            resolved_url = substitute_env_vars(url)
-            
-            # Skip if env var wasn't resolved (still has empty key part)
-            if "api-key=" in url and "api-key=" in resolved_url:
-                key_part = resolved_url.split("api-key=")[-1].split("&")[0]
-                if not key_part:
-                    Logger.debug(f"   ⚠️ Skipping {ep.get('name', 'Unknown')} - missing API key")
-                    continue
-            
-            valid.append(resolved_url)
-        
-        if not valid:
-            Logger.warning("   ⚠️ No valid RPC endpoints - using default Solana Mainnet")
-            return [Settings.RPC_URL]
-        
-        return valid
+        """Deprecated: Logic moved to RPCBalancer."""
+        return []
 
     def get_rpc_url(self):
-        """Get current RPC URL (Round Robin)."""
-        url = self.endpoints[self.current_rpc_index]
-        return url
+        """Deprecated: Use RPCBalancer."""
+        return Settings.RPC_URL
     
     def get_jito_execution_url(self):
         """
@@ -147,11 +96,8 @@ class SmartRouter:
         return None
 
     def rotate_rpc(self):
-        """Switch to next RPC endpoint on failure."""
-        old = self.endpoints[self.current_rpc_index]
-        self.current_rpc_index = (self.current_rpc_index + 1) % len(self.endpoints)
-        new = self.endpoints[self.current_rpc_index]
-        Logger.warning(f"♻️ Rotating RPC: {old} -> {new}")
+        """Deprecated: Handled by RPCBalancer."""
+        pass
         
     def check_jupiter_cooldown(self):
         """Raise exception if in cool-down."""
@@ -165,36 +111,21 @@ class SmartRouter:
         self.jupiter_cooldown_until = time.time() + seconds
         Logger.warning(f"🛑 Jupiter Rate Limit Hit! Cooling down for {seconds}s...")
 
-    def json_rpc_call(self, method, params, retries=3):
+    def json_rpc_call(self, method, params, retries=None):
         """
-        Execute a standard JSON-RPC call with failover.
+        Execute a standard JSON-RPC call via RPCBalancer.
         """
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": method,
-            "params": params
-        }
-        headers = {"Content-Type": "application/json"}
+        # Delegate to the shared RPC Balancer
+        from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
+        balancer = get_rpc_balancer()
         
-        for i in range(retries):
-            endpoint = self.get_rpc_url()
-            try:
-                resp = self._session.post(endpoint, json=payload, timeout=5)
-                if resp.status_code == 429:
-                    Logger.warning(f"⚠️ RPC 429 (Rate Limit) on {endpoint}")
-                    self.rotate_rpc()
-                    time.sleep(1)
-                    continue
-                    
-                resp.raise_for_status()
-                return resp.json()
-                
-            except Exception as e:
-                Logger.warning(f"⚠️ RPC Fail ({endpoint}): {str(e)[:50]}")
-                self.rotate_rpc()
+        result, error = balancer.call(method, params, retries=retries)
         
-        return None # Failed all retries
+        if error:
+            Logger.warning(f"⚠️ RPC Fail: {error}")
+            return None
+            
+        return result.get("result") if result else None
 
     def get_jupiter_quote(self, input_mint, output_mint, amount, slippage_bps=50):
         """
