@@ -1,12 +1,12 @@
+use pyo3::prelude::*;
 use solana_sdk::{
-    signature::{Keypair, Signer},
     hash::Hash,
     instruction::Instruction,
-    transaction::VersionedTransaction,
     message::{v0, VersionedMessage},
+    signature::{Keypair, Signer},
+    transaction::VersionedTransaction,
 };
 use std::str::FromStr;
-use pyo3::prelude::*;
 
 // ------------------------------------------------------------------------
 // SECTION 1: ARBITRAGE LOGIC (HOT PATH)
@@ -15,7 +15,12 @@ use pyo3::prelude::*;
 /// Go/No-Go Decision Engine for Net Profit.
 /// Moves float math to Rust to avoid GIL and precision overhead.
 #[pyfunction]
-fn calculate_net_profit(spread_raw: f64, trade_size: f64, jito_tip: f64, route_friction: f64) -> PyResult<f64> {
+fn calculate_net_profit(
+    spread_raw: f64,
+    trade_size: f64,
+    jito_tip: f64,
+    route_friction: f64,
+) -> PyResult<f64> {
     let gross = trade_size * (spread_raw / 100.0);
     let net = gross - jito_tip - route_friction;
     Ok(net)
@@ -28,7 +33,7 @@ fn calculate_net_profit_batch(
     spreads: Vec<f64>,
     trade_size: f64,
     jito_tip: f64,
-    route_friction: f64
+    route_friction: f64,
 ) -> PyResult<Vec<f64>> {
     let mut results = Vec::with_capacity(spreads.len());
     for spread in spreads {
@@ -51,9 +56,9 @@ fn estimate_compute_units(
     ops: Vec<String>,
     num_accounts: u32,
     num_signers: u32,
-    safety_margin_percent: f64
+    safety_margin_percent: f64,
 ) -> PyResult<u32> {
-    let mut estimated_cu: f64 = 0.0; 
+    let mut estimated_cu: f64 = 0.0;
 
     // 1. Signature Cost
     estimated_cu += (num_signers as f64) * 1_500.0;
@@ -100,9 +105,10 @@ fn verify_slot_sync(rpc_slot: u64, jito_slot: u64) -> PyResult<()> {
     };
 
     if gap > 2 {
-        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-            format!("State Desync: Gap is {} slots. Aborting to prevent Ghost Trade.", gap)
-        ));
+        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "State Desync: Gap is {} slots. Aborting to prevent Ghost Trade.",
+            gap
+        )));
     }
     Ok(())
 }
@@ -113,26 +119,25 @@ fn verify_slot_sync(rpc_slot: u64, jito_slot: u64) -> PyResult<()> {
 
 /// Atomic V0 Transaction Builder.
 /// Constructs, Signs, and Serializes in one Rust call.
-/// 
+///
 /// # Arguments
 /// * `instruction_payload` - Bincode-serialized `solana_sdk::instruction::Instruction`
 /// * `payer_key_b58` - Base58 private key of payer
 /// * `blockhash_b58` - Recent blockhash
 /// * `rpc_slot` - Current RPC slot for liveness check
 /// * `jito_slot` - Last Jito bundle slot (optional, pass 0 to skip)
-/// 
+///
 /// # Returns
 /// Serialized VersionedTransaction (bincode)
 #[pyfunction]
 #[pyo3(signature = (instruction_payload, payer_key_b58, blockhash_b58, rpc_slot, jito_slot=0))]
 fn build_atomic_transaction(
-    instruction_payload: Vec<u8>, 
+    instruction_payload: Vec<u8>,
     payer_key_b58: String,
     blockhash_b58: String,
     rpc_slot: u64,
-    jito_slot: u64
+    jito_slot: u64,
 ) -> PyResult<Vec<u8>> {
-    
     // 1. Safety Check: Liveness (if Jito slot provided)
     if jito_slot > 0 {
         verify_slot_sync(rpc_slot, jito_slot)?;
@@ -145,18 +150,21 @@ fn build_atomic_transaction(
 
     // 3. Instruction Deserialization
     // We expect a valid, fully constructed Instruction from "The Forge"
-    let instruction: Instruction = bincode::deserialize(&instruction_payload)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Failed to deserialize instruction: {}", e)
-        ))?;
+    let instruction: Instruction = bincode::deserialize(&instruction_payload).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "Failed to deserialize instruction: {}",
+            e
+        ))
+    })?;
 
     // 4. Message V0 Construction
     let message = v0::Message::try_compile(
-        &payer.pubkey(), 
-        &[instruction], 
+        &payer.pubkey(),
+        &[instruction],
         &[], // Address Lookup Tables (Empty for now)
-        blockhash
-    ).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+        blockhash,
+    )
+    .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
     // 5. Signing
     let versioned_msg = VersionedMessage::V0(message);
@@ -170,7 +178,6 @@ fn build_atomic_transaction(
     Ok(serialized)
 }
 
-
 // ------------------------------------------------------------------------
 // SECTION 4: PATHFINDER (GRAPH ENGINE)
 // ------------------------------------------------------------------------
@@ -181,7 +188,7 @@ use std::collections::{HashMap, VecDeque};
 struct Edge {
     target_id: usize, // Cache-friendly ID
     pool_id: String,
-    weight: f64,      // -ln(price)
+    weight: f64, // -ln(price)
 }
 
 #[pyclass]
@@ -205,7 +212,13 @@ impl Graph {
     /// Adds or updates an edge in the graph.
     /// Automatically interns new tokens to usize IDs.
     /// Price is converted to -ln(price) for additive cycle detection.
-    fn update_edge(&mut self, source_mint: String, target_mint: String, pool_id: String, price: f64) {
+    fn update_edge(
+        &mut self,
+        source_mint: String,
+        target_mint: String,
+        pool_id: String,
+        price: f64,
+    ) {
         // 1. Intern Source
         let source_id = if let Some(&id) = self.mint_to_id.get(&source_mint) {
             id
@@ -280,13 +293,17 @@ impl Graph {
 
                     if !in_queue[edge.target_id] {
                         count[edge.target_id] += 1;
-                        
+
                         // Negative Cycle Check (Limit iterations to avoid infinite loops)
                         // In SPFA, visiting a node >= N times usually means a cycle.
                         // For arbitrage, we can be more aggressive (e.g. depth > 3).
                         if count[edge.target_id] > n {
                             // Cycle detected! Reconstruct.
-                            return Ok(self.reconstruct_path(edge.target_id, &parent_node, &parent_pool));
+                            return Ok(self.reconstruct_path(
+                                edge.target_id,
+                                &parent_node,
+                                &parent_pool,
+                            ));
                         }
 
                         queue.push_back(edge.target_id);
@@ -303,9 +320,10 @@ impl Graph {
     /// Uses Rayon for parallel execution across CPU cores.
     fn find_all_cycles(&self, start_mints: Vec<String>) -> PyResult<Vec<Vec<String>>> {
         use rayon::prelude::*;
-        
+
         // Parallel Iterator
-        let results: Vec<Vec<String>> = start_mints.par_iter()
+        let results: Vec<Vec<String>> = start_mints
+            .par_iter()
             .map(|mint| {
                 // We typically need to handle errors inside map/fold
                 // Graph access is read-only, so ThreadSafe.
@@ -318,13 +336,18 @@ impl Graph {
             })
             .filter(|path| !path.is_empty())
             .collect();
-            
+
         Ok(results)
     }
 }
 
 impl Graph {
-    fn reconstruct_path(&self, end_id: usize, parent_node: &[Option<usize>], parent_pool: &[String]) -> Vec<String> {
+    fn reconstruct_path(
+        &self,
+        end_id: usize,
+        parent_node: &[Option<usize>],
+        parent_pool: &[String],
+    ) -> Vec<String> {
         let mut path = Vec::new();
         let mut curr = end_id;
         let mut visited = vec![false; self.id_to_mint.len()];
@@ -332,10 +355,10 @@ impl Graph {
         // Backtrack to find the cycle
         while let Some(prev) = parent_node[curr] {
             if visited[curr] {
-                 // We closed the loop. Now strictly record the pool IDs.
-                 // We need to trace forward from this point or just capture the segment.
-                 // Simplified: Just push pool IDs until we loop.
-                 break;
+                // We closed the loop. Now strictly record the pool IDs.
+                // We need to trace forward from this point or just capture the segment.
+                // Simplified: Just push pool IDs until we loop.
+                break;
             }
             visited[curr] = true;
             path.push(parent_pool[curr].clone());
@@ -394,6 +417,7 @@ pub mod wss_aggregator;
 
 mod metadata;
 mod scalper_logic;
+mod scorer;
 
 // ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
@@ -410,38 +434,38 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;
-    
+
     // AMM Math (The Oracle)
     amm_math::register_amm_functions(m)?;
-    
+
     // Instruction Builder (The Forge)
     instruction_builder::register_instruction_functions(m)?;
-    
+
     // Slab Decoder (The Ledger)
     slab_decoder::register_slab_functions(m)?;
-    
+
     // Network Submitter (The Blast)
     network_submitter::register_network_functions(m)?;
-    
+
     // Slot Consensus (The Accuracy Guard)
     slot_consensus::register_consensus_classes(m)?;
-    
+
     // Tick Array Manager (CLMM Correctness)
     tick_array_manager::register_tick_array_functions(m)?;
-    
+
     // WSS Aggregator (The Wire v2)
     wss_aggregator::register_wss_aggregator_classes(m)?;
-    
+
     // Unified Trade Router (The Muscle)
     m.add_class::<router::ExecutionPath>()?;
     m.add_class::<router::UnifiedTradeRouter>()?;
-    
+
     // Shared Metadata Layer (V40.0)
     metadata::register_metadata_classes(m)?;
     scalper_logic::register_scalper_classes(m)?;
-    
+
+    // SignalScorer (Phase 4: Institutional Realism)
+    scorer::register_scorer_classes(m)?;
+
     Ok(())
 }
-
-
-
