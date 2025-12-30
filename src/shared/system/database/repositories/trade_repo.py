@@ -35,6 +35,16 @@ class TradeRepository(BaseRepository):
             c.execute("CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_trades_timestamp ON trades(timestamp)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_trades_engine ON trades(engine_name)")
+            
+            # V134: Migration - add trigger_wallet if missing (for existing DBs)
+            try:
+                c.execute("SELECT trigger_wallet FROM trades LIMIT 1")
+            except Exception:
+                try:
+                    c.execute("ALTER TABLE trades ADD COLUMN trigger_wallet TEXT")
+                    Logger.info("[DB] Migrated trades table: added trigger_wallet column")
+                except Exception as e:
+                    Logger.debug(f"[DB] Migration skipped: {e}")
 
     def log_trade(self, trade_data: dict):
         """Insert a completed trade record."""
