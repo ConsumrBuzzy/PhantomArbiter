@@ -834,7 +834,7 @@ class TradeExecutor:
                 symbol=watcher.symbol,
                 pnl=pnl_usd,
                 pnl_pct=pnl_pct,
-                hold_time_mins=(time.time() - watcher.entry_time) / 60 if hasattr(watcher, 'entry_time') else 0,
+                hold_time_mins=(time.time() - watcher.entry_time) / 60 if (hasattr(watcher, 'entry_time') and watcher.entry_time is not None) else 0,
                 exit_reason=reason
             )
             
