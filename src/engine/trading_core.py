@@ -237,6 +237,14 @@ class TradingCore:
         # V48.0: Initialize TradeExecutor with all dependencies
         self.pyth_adapter = PythAdapter()  # V48.0: Low-latency oracle
         self.jito_adapter = JitoAdapter()  # V48.0: Priority execution
+        
+        # V49.0: Unified Execution Backend (Paper = Live parity)
+        from src.shared.execution.execution_backend import PaperBackend, LiveBackend
+        if Settings.ENABLE_TRADING:
+            self.execution_backend = LiveBackend(swapper=self.swapper, engine_name=self.engine_name)
+        else:
+            self.execution_backend = PaperBackend(capital_manager=self.capital_mgr, engine_name=self.engine_name)
+        
         self.executor = TradeExecutor(
             engine_name=self.engine_name,
             capital_mgr=self.capital_mgr,
@@ -248,7 +256,8 @@ class TradingCore:
             scout_watchers=self.scout_watchers,
             validator=self.validator,
             pyth_adapter=self.pyth_adapter,
-            jito_adapter=self.jito_adapter  # V48.0: Tipped bundle submission
+            jito_adapter=self.jito_adapter,  # V48.0: Tipped bundle submission
+            execution_backend=self.execution_backend  # V49.0: Unified backend
         )
         
         # V48.0: Initialize HeartbeatReporter

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from src.shared.infrastructure.validator import TokenValidator
     from src.core.prices.pyth_adapter import PythAdapter, PythPrice
     from src.shared.infrastructure.jito_adapter import JitoAdapter
+    from src.shared.execution.execution_backend import ExecutionBackend
 
 
 @dataclass
@@ -67,7 +68,8 @@ class TradeExecutor:
         scout_watchers: Optional[Dict] = None,
         validator: Optional['TokenValidator'] = None,
         pyth_adapter: Optional['PythAdapter'] = None,
-        jito_adapter: Optional['JitoAdapter'] = None
+        jito_adapter: Optional['JitoAdapter'] = None,
+        execution_backend: Optional['ExecutionBackend'] = None
     ):
         """
         Initialize TradeExecutor with all required dependencies.
@@ -102,6 +104,9 @@ class TradeExecutor:
         # V48.0: Jito settings
         self.JITO_ENABLED = getattr(Settings, 'JITO_ENABLED', True)
         self.JITO_TIP_LAMPORTS = getattr(Settings, 'JITO_TIP_LAMPORTS', 10000)
+        
+        # V49.0: Unified Execution Backend (Paper/Live parity)
+        self.execution_backend = execution_backend
         
         # Tracking
         self._last_paper_pnl = 0.0

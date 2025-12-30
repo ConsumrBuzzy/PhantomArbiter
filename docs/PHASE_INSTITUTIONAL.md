@@ -74,6 +74,21 @@ Most bots fail because they optimize for a fantasy.
 
 ---
 
+## 🔧 Execution Backend Architecture (V1.0)
+
+Phase 4 introduces unified Paper/Live execution to ensure **parity**:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `ExecutionBackend` | `execution_backend.py` | Protocol defining `execute_buy/sell()` |
+| `PaperBackend` | `execution_backend.py` | Simulated execution with shared slippage |
+| `LiveBackend` | `execution_backend.py` | Real Jito/Jupiter execution |
+| `calculate_slippage()` | `execution_backend.py` | **Shared** math for both backends |
+
+**Key Principle**: Both backends use identical slippage calculation. Paper simulates the result; Live submits to network.
+
+---
+
 ## 📅 Execution Roadmap (Next Steps)
 
 1. **Step 1**: Implement `SignalScorer` in Rust (`src_rust/src/scorer.rs`).
