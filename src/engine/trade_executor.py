@@ -552,7 +552,7 @@ class TradeExecutor:
             # PAPER EXECUTION
             if is_paper_aggressive:
                 print(f"      📝 Calling _execute_paper_buy()...")
-            tx_id = self._execute_paper_buy(watcher, price, reason, liq, decision_engine)
+            tx_id = self._execute_paper_buy(watcher, price, reason, liq, decision_engine, size_usd=size_usd)
             if is_paper_aggressive:
                 print(f"      📋 Paper buy returned: {tx_id}")
         
@@ -594,7 +594,8 @@ class TradeExecutor:
         price: float,
         reason: str,
         liq: float,
-        decision_engine: Optional[Any]
+        decision_engine: Optional[Any],
+        size_usd: float = 0.0  # V135: Accept passed size
     ) -> Optional[str]:
         """
         Execute paper buy with realistic simulation.
@@ -610,13 +611,17 @@ class TradeExecutor:
             current_price_map[s] = w.get_price()
         
         total_equity = self.paper_wallet.get_total_value(current_price_map)
-        risk_amount = total_equity * Settings.RISK_PER_TRADE_PCT
         
-        sl_dist_pct = abs(Settings.STOP_LOSS_PCT)
-        if sl_dist_pct == 0:
-            sl_dist_pct = 0.03
-        
-        calculated_size = risk_amount / sl_dist_pct
+        # V135: Use passed size if available, else derive
+        if size_usd > 0:
+            calculated_size = size_usd
+        else:
+            # Fallback to internal risk calc
+            risk_amount = total_equity * Settings.RISK_PER_TRADE_PCT
+            sl_dist_pct = abs(Settings.STOP_LOSS_PCT)
+            if sl_dist_pct == 0: sl_dist_pct = 0.03
+            calculated_size = risk_amount / sl_dist_pct
+            
         max_allowed = total_equity * Settings.MAX_CAPITAL_PER_TRADE_PCT
         final_size = min(calculated_size, max_allowed, self.paper_wallet.cash_balance)
         
