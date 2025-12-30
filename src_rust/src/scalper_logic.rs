@@ -1,4 +1,4 @@
-use pyo3.prelude::*;
+use pyo3::prelude::*;
 use crate::metadata::SharedTokenMetadata;
 
 #[pyclass]
@@ -47,7 +47,7 @@ impl SignalScanner {
                 
                 if confidence > 0.7 {
                     signals.push(ScalpSignal {
-                        token: token.mint,
+                        token: token.mint.clone(),
                         confidence,
                         direction: "BUY".to_string(),
                         expected_exit: token.price_usd * 1.015

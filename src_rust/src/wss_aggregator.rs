@@ -11,7 +11,7 @@
 
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc;
+// use tokio::sync::mpsc; // Removed unused import
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{StreamExt, SinkExt};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
