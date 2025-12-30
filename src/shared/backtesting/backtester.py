@@ -1,7 +1,9 @@
+
 """
-V8.0 Backtester - "The Time Machine"
-=====================================
-Replay historical price data to prove strategy profitability.
+V9.0 Backtester - "The Time Machine" (Unified Logic)
+=====================================================
+Replay historical price data using REAL simulation logic.
+Uses CapitalManager (V40.0) for accurate Fees, Gas, and Slippage.
 
 Usage:
     python backtester.py                    # All cached tokens
@@ -13,13 +15,53 @@ import json
 import os
 import argparse
 import requests
+import time
+import tempfile
 from collections import deque
 from dataclasses import dataclass
 from typing import List, Optional
 
-# Path to price cache
-CACHE_PATH = os.path.join(os.path.dirname(__file__), "data", "price_cache.json")
+# V9.0: Import Real Logic Components
+from src.shared.system.capital_manager import CapitalManager
+from src.shared.system.logging import Logger
 
+# Path to price cache
+CACHE_PATH = os.path.join(os.path.dirname(__file__), "../../data/price_cache.json")
+
+
+class BacktestCapitalManager(CapitalManager):
+    """
+    Isolated CapitalManager for Backtesting.
+    Overrides persistence to use a temporary file.
+    """
+    def __init__(self, initial_capital: float = 1000.0):
+        # Create temp file for isolated state
+        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.json')
+        self.temp_db.close()
+        
+        # Override class-level constant for this instance (trick)
+        # We need to monkeypatch the instance's access to STATE_FILE
+        self.STATE_FILE = self.temp_db.name
+        
+        # Reset Singleton for this thread/process context if needed, 
+        # but since we are inheriting, we just run __init__ logic.
+        # CapitalManager is a Singleton, so we must be careful.
+        # Ideally, we bypass the Singleton check for testing.
+        self._initialized = False
+        self.default_capital = initial_capital
+        self.mode = "BACKTEST"
+        self.state = {}
+        
+        # Initialize
+        self._load_state()
+        self._initialize_defaults_if_missing()
+        self._initialized = True
+        
+    def cleanup(self):
+        """Remove temp file."""
+        if os.path.exists(self.STATE_FILE):
+            try: os.remove(self.STATE_FILE)
+            except: pass
 
 @dataclass
 class TradeResult:
@@ -29,20 +71,22 @@ class TradeResult:
     exit_price: float
     entry_ts: float
     exit_ts: float
+    pnl_usd: float
     pnl_pct: float
+    fees_usd: float
+    slippage_usd: float
     exit_reason: str
-
 
 class Backtester:
     """
-    V8.0: Strategy backtester using historical price data.
+    V9.0: Strategy backtester using Real Market Logic.
     
-    Simulates the trading rules:
-    - BUY: RSI < 30 AND price > SMA-50
-    - SELL: Take Profit (+3%) OR Stop Loss (-1%) OR RSI > 70
+    Simulates:
+    - Mechanics: Gas, Slippage (Dynamic), Fees
+    - Strategy: RSI < 30 & Price > SMA-50
     """
     
-    # Strategy Parameters (match live engine)
+    # Strategy Parameters
     RSI_OVERSOLD = 30
     RSI_OVERBOUGHT = 70
     TAKE_PROFIT_PCT = 0.03  # +3%
@@ -50,308 +94,279 @@ class Backtester:
     SMA_PERIOD = 50
     RSI_PERIOD = 14
     
-    def __init__(self, force_entry: bool = False):
+    def __init__(self, force_entry: bool = False, capital: float = 1000.0):
+        self.cm = BacktestCapitalManager(initial_capital=capital)
+        self.engine_name = "BACKTESTER"
         self.trades: List[TradeResult] = []
         self.cache_data = self._load_cache()
         self.force_entry = force_entry
-        if self.force_entry:
-            print("⚠️ WARNING: Trend filter DISABLED (Force Entry Mode)")
+        self.capital = capital
+        
+        # Ensure engine exists in CM
+        if self.engine_name not in self.cm.state["engines"]:
+            self.cm._add_engine(self.engine_name)
+            
+        print(f"   🧪 Engine Initialized: ${self.cm.get_available_cash(self.engine_name):.2f}")
+
+    def __del__(self):
+        if hasattr(self, 'cm'):
+            self.cm.cleanup()
     
     def _load_cache(self) -> dict:
         """Load price cache from disk."""
         if not os.path.exists(CACHE_PATH):
             print(f"❌ Cache not found: {CACHE_PATH}")
             return {}
-        
         with open(CACHE_PATH, 'r') as f:
             return json.load(f)
     
     def _calculate_rsi(self, prices: List[float], period: int = 14) -> float:
-        """
-        Calculate RSI using Wilder smoothing (matches live engine).
-        """
-        if len(prices) < period + 1:
-            return 50.0  # Neutral if insufficient data
-        
+        """Calculate RSI (Wilder)."""
+        if len(prices) < period + 1: return 50.0
         changes = [prices[i] - prices[i-1] for i in range(1, len(prices))]
-        
-        # Initial averages
         gains = [c if c > 0 else 0 for c in changes[:period]]
         losses = [-c if c < 0 else 0 for c in changes[:period]]
-        
         avg_gain = sum(gains) / period
         avg_loss = sum(losses) / period
         
-        # Wilder smoothing for remaining periods
         for i in range(period, len(changes)):
             change = changes[i]
-            gain = change if change > 0 else 0
-            loss = -change if change < 0 else 0
-            
+            gain = max(0, change)
+            loss = max(0, -change)
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
-        
-        if avg_loss == 0:
-            return 100.0 if avg_gain > 0 else 50.0
-        
+            
+        if avg_loss == 0: return 100.0 if avg_gain > 0 else 50.0
         rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        return round(rsi, 1)
+        return round(100 - (100 / (1 + rs)), 1)
     
     def _calculate_sma(self, prices: List[float], period: int = 50) -> float:
-        """Calculate Simple Moving Average."""
-        if len(prices) < period:
-            return 0.0
+        if len(prices) < period: return 0.0
         return sum(prices[-period:]) / period
     
     def backtest_symbol(self, symbol: str, history: List[dict]) -> List[TradeResult]:
-        """
-        Run backtest simulation for a single symbol.
-        
-        Args:
-            symbol: Token symbol
-            history: List of {"price": float, "ts": float}
-            
-        Returns:
-            List of trade results
-        """
         if len(history) < self.SMA_PERIOD + 10:
             print(f"   ⚠️ {symbol}: Insufficient data ({len(history)} points)")
             return []
         
         trades = []
-        prices = deque(maxlen=200)  # Rolling window
+        prices = deque(maxlen=200)
         
-        # Simulation state
+        # Reset Engine for clean symbol test
+        # (Optional: In reality, we might want portfolio test, but let's do per-symbol isolation)
+        # For simplicity, we keep accumulating PnL in the engine to test survival.
+        
         in_position = False
-        entry_price = 0.0
         entry_ts = 0.0
         
-        # Diagnostics
-        min_rsi = 100.0
-        max_rsi = 0.0
+        # Metrics
         buy_signals = 0
-        blocked_signals = 0
         
         for point in history:
             price = point["price"]
             ts = point["ts"]
             prices.append(price)
             
-            if len(prices) < self.SMA_PERIOD:
-                continue
+            if len(prices) < self.SMA_PERIOD: continue
             
             price_list = list(prices)
             rsi = self._calculate_rsi(price_list, self.RSI_PERIOD)
             sma = self._calculate_sma(price_list, self.SMA_PERIOD)
             
-            # Track RSI range
-            min_rsi = min(min_rsi, rsi)
-            max_rsi = max(max_rsi, rsi)
+            # Volatility Penalty (V9.0)
+            # Calculate simple volatility (std dev proxy) of last 5 candles
+            local_volatility = 0.0
+            if len(prices) >= 5:
+                recent = list(prices)[-5:]
+                avg = sum(recent) / 5
+                variance = sum((x - avg) ** 2 for x in recent) / 5
+                local_volatility = (variance ** 0.5) / avg
             
+            # Penalty Multiplier (If vol > 0.2%, assume 0.5% spread penalty)
+            penalty_mult = 0.0
+            is_volatile = False
+            if local_volatility > 0.002:
+                penalty_mult = 0.005 # 0.5% Penalty
+                is_volatile = True
+
             if not in_position:
-                # BUY signal: RSI < 30 
-                # Safety check: Price > SMA (uptrend) unless forced
+                # BUY CONDITION
                 is_oversold = rsi < self.RSI_OVERSOLD
                 is_uptrend = price > sma
                 
-                if is_oversold:
+                if is_oversold or self.force_entry:
                     if is_uptrend or self.force_entry:
-                        in_position = True
-                        entry_price = price
-                        entry_ts = ts
-                        buy_signals += 1
-                    else:
-                        # Track blocked signals (downtrend)
-                        blocked_signals += 1
+                        # EXECUTE BUY VIA CM
+                        # Size: $100 fixed or 10% of equity
+                        cash = self.cm.get_available_cash(self.engine_name)
+                        size = min(cash, 100.0)
+                        
+                        if size < 10: continue # Broke
+                        
+                        # Apply Volatility Penalty to Price (Worse Entry)
+                        exec_price = price * (1 + penalty_mult)
+                        
+                        success, msg = self.cm.execute_buy(
+                            engine_name=self.engine_name,
+                            symbol=symbol,
+                            mint="UNKNOWN",
+                            price=exec_price,
+                            size_usd=size,
+                            liquidity_usd=100000.0, # Assumed liq
+                            is_volatile=is_volatile # CM adds extra slippage
+                        )
+                        
+                        if success:
+                            in_position = True
+                            entry_ts = ts
+                            buy_signals += 1
+                        else:
+                            print(f"   ⚠️ Buy rejected: {msg}")
+                        
             else:
-                # Check exit conditions
+                # SELL CONDITION
+                # Check position using CM
+                pos = self.cm.get_position(self.engine_name, symbol)
+                if not pos: 
+                    in_position = False # Should not happen unless liquidation
+                    continue
+                    
+                entry_price = pos['avg_price'] # Inc. slippage
                 pnl_pct = (price - entry_price) / entry_price
-                exit_reason = None
                 
-                if pnl_pct >= self.TAKE_PROFIT_PCT:
-                    exit_reason = "TAKE_PROFIT"
-                elif pnl_pct <= self.STOP_LOSS_PCT:
-                    exit_reason = "STOP_LOSS"
-                elif rsi > self.RSI_OVERBOUGHT and pnl_pct > 0.005:
-                    exit_reason = "FAST_SCALP"
+                exit_reason = None
+                if pnl_pct >= self.TAKE_PROFIT_PCT: exit_reason = "TAKE_PROFIT"
+                elif pnl_pct <= self.STOP_LOSS_PCT: exit_reason = "STOP_LOSS"
+                elif rsi > self.RSI_OVERBOUGHT and pnl_pct > 0.005: exit_reason = "FAST_SCALP"
                 
                 if exit_reason:
-                    trade = TradeResult(
+                    # EXECUTE SELL VIA CM
+                    pre_sell_stats = self.cm.get_stats(self.engine_name).copy()
+                    
+                    # Apply Volatility Penalty to Price (Worse Exit)
+                    exec_price = price * (1 - penalty_mult)
+                    
+                    success, msg, pnl = self.cm.execute_sell(
+                        engine_name=self.engine_name,
                         symbol=symbol,
-                        entry_price=entry_price,
-                        exit_price=price,
-                        entry_ts=entry_ts,
-                        exit_ts=ts,
-                        pnl_pct=pnl_pct,
-                        exit_reason=exit_reason
+                        price=exec_price,
+                        reason=exit_reason,
+                        liquidity_usd=100000.0,
+                        is_volatile=is_volatile
                     )
-                    trades.append(trade)
-                    in_position = False
-        
-        # Close open position at end
-        if in_position and len(prices) > 0:
-            final_price = prices[-1]
-            pnl_pct = (final_price - entry_price) / entry_price
-            trade = TradeResult(
-                symbol=symbol,
-                entry_price=entry_price,
-                exit_price=final_price,
-                entry_ts=entry_ts,
-                exit_ts=history[-1]["ts"],
-                pnl_pct=pnl_pct,
-                exit_reason="OPEN"
-            )
-            trades.append(trade)
-        
-        # Print diagnostic summary
-        blocked_str = f" | {blocked_signals} blocked" if blocked_signals > 0 else ""
-        print(f"   {symbol}: {len(history)} pts | RSI {min_rsi:.0f}-{max_rsi:.0f} | {len(trades)} trades{blocked_str}")
-        
+                    
+                    if success:
+                        # Capture accurate metrics from CM stats delta
+                        post_stats = self.cm.get_stats(self.engine_name)
+                        fees = post_stats['fees_paid_usd'] - pre_sell_stats.get('fees_paid_usd', 0)
+                        slip = post_stats['slippage_usd'] - pre_sell_stats.get('slippage_usd', 0)
+                        
+                        trade = TradeResult(
+                            symbol=symbol,
+                            entry_price=entry_price,
+                            exit_price=price, # Approx (doesn't account for exit slippage in this var, but PnL does)
+                            entry_ts=entry_ts,
+                            exit_ts=ts,
+                            pnl_usd=pnl,
+                            pnl_pct=pnl_pct, # Gross PnL %, Net PnL is in USD
+                            fees_usd=fees,
+                            slippage_usd=slip,
+                            exit_reason=exit_reason
+                        )
+                        trades.append(trade)
+                        in_position = False
+
+        # Close open positions
+        if in_position:
+            self.cm.execute_sell(self.engine_name, symbol, prices[-1], "END_OF_DATA")
+
+        print(f"   {symbol}: {len(history)} pts | {len(trades)} trades")
         return trades
-    
+
     def fetch_and_backtest_mint(self, mint: str, symbol: str = "UNKNOWN") -> List[TradeResult]:
-        """
-        Fetch historical data from CoinGecko for any mint address.
-        
-        Uses contract endpoint to fetch data for tokens not in our config.
-        """
+        """Fetch historical data from CoinGecko."""
         print(f"\n🔍 Fetching history for {mint[:8]}...")
-        
         try:
+            # V9.1: Use shared DataFetcher or requests
             url = f"https://api.coingecko.com/api/v3/coins/solana/contract/{mint}/market_chart"
             params = {"vs_currency": "usd", "days": "1"}
-            
             resp = requests.get(url, params=params, timeout=15)
-            
-            if resp.status_code == 429:
-                print("   ⚠️ CoinGecko rate limited - try again later")
-                return []
             
             if resp.status_code != 200:
                 print(f"   ⚠️ CoinGecko error: {resp.status_code}")
                 return []
-            
+                
             data = resp.json()
             prices = data.get("prices", [])
+            if not prices: return []
             
-            if not prices:
-                print("   ⚠️ No price data returned")
-                return []
-            
-            # Convert to our format
             history = [{"price": p[1], "ts": p[0] / 1000} for p in prices]
             print(f"   ✅ Fetched {len(history)} price points")
-            
             return self.backtest_symbol(symbol, history)
             
         except Exception as e:
             print(f"   ❌ Fetch failed: {e}")
             return []
-    
+
     def run(self, symbol: str = None, mint: str = None):
-        """
-        Run the backtester.
-        
-        Args:
-            symbol: Optional specific symbol from cache
-            mint: Optional mint address to fetch and test
-        """
         all_trades = []
-        
         if mint:
-            # Fetch and test external token
-            trades = self.fetch_and_backtest_mint(mint)
-            all_trades.extend(trades)
+            all_trades.extend(self.fetch_and_backtest_mint(mint))
         elif symbol:
-            # Test specific cached symbol
-            prices_data = self.cache_data.get("prices", {}).get(symbol, {})
-            history = prices_data.get("history", [])
-            if history:
-                trades = self.backtest_symbol(symbol, history)
-                all_trades.extend(trades)
+            # Load from cache
+            data = self.cache_data.get("prices", {}).get(symbol, {})
+            if data and "history" in data:
+                all_trades.extend(self.backtest_symbol(symbol, data["history"]))
             else:
                 print(f"❌ No data for {symbol}")
         else:
-            # Test all cached symbols
+            # Test all
             for sym, data in self.cache_data.get("prices", {}).items():
-                history = data.get("history", [])
-                if history:
-                    trades = self.backtest_symbol(sym, history)
-                    all_trades.extend(trades)
-        
+                if "history" in data:
+                    all_trades.extend(self.backtest_symbol(sym, data["history"]))
+                    
         self.trades = all_trades
         self._print_results()
-    
+        
     def _print_results(self):
-        """Print backtest results in a formatted table."""
-        print("\n" + "=" * 60)
-        print("📊 V8.0 BACKTEST RESULTS")
-        print("=" * 60)
+        print("\n" + "=" * 80)
+        print("📊 V9.0 REAL-LOGIC SIMULATION RESULTS")
+        print("=" * 80)
         
         if not self.trades:
             print("   No trades generated.")
             return
-        
-        # Group by symbol
-        by_symbol = {}
-        for trade in self.trades:
-            if trade.symbol not in by_symbol:
-                by_symbol[trade.symbol] = []
-            by_symbol[trade.symbol].append(trade)
-        
-        print(f"\n{'Symbol':<12} | {'Trades':>6} | {'Win%':>6} | {'Avg P/L':>8} | {'Best':>8} | {'Worst':>8}")
-        print("-" * 60)
-        
-        total_trades = 0
-        total_wins = 0
-        total_pnl = 0.0
-        
-        for symbol, trades in sorted(by_symbol.items()):
-            wins = sum(1 for t in trades if t.pnl_pct > 0)
-            win_rate = (wins / len(trades) * 100) if trades else 0
-            avg_pnl = sum(t.pnl_pct for t in trades) / len(trades) if trades else 0
-            best = max(t.pnl_pct for t in trades) if trades else 0
-            worst = min(t.pnl_pct for t in trades) if trades else 0
-            
-            print(f"{symbol:<12} | {len(trades):>6} | {win_rate:>5.1f}% | {avg_pnl*100:>+7.2f}% | {best*100:>+7.2f}% | {worst*100:>+7.2f}%")
-            
-            total_trades += len(trades)
-            total_wins += wins
-            total_pnl += sum(t.pnl_pct for t in trades)
-        
-        print("-" * 60)
-        
-        overall_win_rate = (total_wins / total_trades * 100) if total_trades else 0
-        overall_avg_pnl = (total_pnl / total_trades * 100) if total_trades else 0
-        
-        print(f"{'TOTAL':<12} | {total_trades:>6} | {overall_win_rate:>5.1f}% | {overall_avg_pnl:>+7.2f}%")
-        print("=" * 60)
-        
-        # Show trade breakdown
-        print(f"\n📈 Exit Reasons:")
-        reasons = {}
-        for t in self.trades:
-            reasons[t.exit_reason] = reasons.get(t.exit_reason, 0) + 1
-        for reason, count in sorted(reasons.items(), key=lambda x: -x[1]):
-            print(f"   {reason}: {count}")
 
+        print(f"{'Symbol':<10} | {'P/L $':>8} | {'Fees':>6} | {'Slip':>6} | {'Reason':<12}")
+        print("-" * 80)
+        
+        total_pnl = 0.0
+        total_fees = 0.0
+        total_slip = 0.0
+        
+        for t in self.trades:
+            print(f"{t.symbol:<10} | {t.pnl_usd:>+8.2f} | {t.fees_usd:>6.2f} | {t.slippage_usd:>6.2f} | {t.exit_reason:<12}")
+            total_pnl += t.pnl_usd
+            total_fees += t.fees_usd
+            total_slip += t.slippage_usd
+            
+        print("-" * 80)
+        print(f"TOTAL PnL:  ${total_pnl:.2f}")
+        print(f"TOTAL FEES: ${total_fees:.2f}")
+        print(f"TOTAL SLIP: ${total_slip:.2f}")
+        print(f"NET RESULT: ${(total_pnl - total_fees):.2f}")
+        print("=" * 80)
 
 def main():
-    parser = argparse.ArgumentParser(description="V8.0 Backtester - Prove Strategy Profitability")
-    parser.add_argument("--symbol", "-s", type=str, help="Specific symbol to test (from cache)")
-    parser.add_argument("--mint", "-m", type=str, help="Mint address to fetch and test (any token)")
-    parser.add_argument("--force", "-f", action="store_true", help="Force entry during downtrends (disable safety)")
-    
+    parser = argparse.ArgumentParser(description="V9.0 Unified Backtester")
+    parser.add_argument("--symbol", "-s", type=str, help="Specific symbol")
+    parser.add_argument("--mint", "-m", type=str, help="Mint address")
+    parser.add_argument("--force", "-f", action="store_true", help="Force entry")
     args = parser.parse_args()
     
-    print("\n" + "=" * 60)
-    print("🕰️  V8.0 BACKTESTER - The Time Machine")
-    print("=" * 60)
-    
-    backtester = Backtester(force_entry=args.force)
-    backtester.run(symbol=args.symbol, mint=args.mint)
-
+    bt = Backtester(force_entry=args.force)
+    bt.run(symbol=args.symbol, mint=args.mint)
 
 if __name__ == "__main__":
     main()
+

@@ -23,7 +23,7 @@
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
 | **CapitalManager** | `src/shared/system/capital_manager.py` | 🟢 Active | **Source of Truth** for PnL, Positions, and Equity. |
-| **PaperWallet** | `src/shared/execution/paper_wallet.py` | 🟢 Active | V45 Adapter. Wraps CapitalManager for backward compatibility. |
+| **PaperWallet** | `src/shared/execution/paper_wallet.py` | 🟢 Active | V45 Adapter. Wraps CapitalManager (Live). |
 | **PortfolioManager**| `src/strategy/portfolio.py` | 🟡 Legacy | Superseded by CapitalManager (V40.0). refactor planned. |
 | **CapitalManager (Dup)**| `src/core/capital_manager.py` | 💀 Deleted | removed as duplicate of `shared/system` (V40.0 matched). |
 | **JupiterSwapper** | `src/shared/execution/swapper.py` | 🟢 Active | Handles Jito tips, Smart Routing, and Jupiter V6 API. |
@@ -41,8 +41,8 @@
 
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **Backtester** | `src/backtesting/backtester.py` | 🟣 Restorable | comprehensive backtesting suite user recalled. Currently manually invoked. |
-| **DataFetcher** | `src/backtesting/data_fetcher.py` | 🟣 Restorable | Historical data integration. |
+| **Backtester** | `src/shared/backtesting/backtester.py` | 🟢 Active | **V9.0 Unified**: Uses `CapitalManager` for realistic PnL/Fee simulation. |
+| **DataFetcher** | `src/shared/backtesting/data_fetcher.py` | 🟣 Restorable | Historical data integration. |
 | **Adapters** | `src/backtesting/adapters.py` | 🟣 Restorable | Bridges for strategy logic to run in backtest mode. |
 
 ## 🧹 Housekeeping Actions
