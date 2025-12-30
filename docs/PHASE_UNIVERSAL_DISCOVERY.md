@@ -49,7 +49,8 @@ Replace or Augment `SauronDiscovery` with a logic that:
 
 ## Tasks
 
-- [ ] **Infrastructure**: Create `src/shared/execution/raydium_standard_bridge.py`.
-- [ ] **Infrastructure**: Create `src/scraper/discovery/pump_fun_monitor.py`.
-- [ ] **Core**: Update `SauronDiscovery` to use the hierarchical check.
-- [ ] **Data**: Update `SharedTokenMetadata` schema.
+- [x] **Infrastructure**: Create `src/shared/execution/raydium_standard_bridge.py`.
+- [x] **Infrastructure**: Create `src/scraper/discovery/pump_fun_monitor.py`.
+- [/] **Core**: Update `SauronDiscovery` to use the hierarchical check (via `NEW_TOKEN` signal).
+- [x] **Data**: Update `SharedTokenMetadata` schema.
+- [ ] **Verification**: Finalize `scripts/verify_lifecycle.py` and fix runtime errors.

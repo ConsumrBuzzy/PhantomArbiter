@@ -633,8 +633,9 @@ class ScoutAgent(BaseAgent):
                     meta.bonding_curve_progress = 0.0
 
         # 5. Populate initial price/liquidity if known from cache
-        price, _ = SharedPriceCache.get_price(mint)
-        if price:
+        from src.core.price_cache import price_cache
+        price = price_cache.get_price(mint)
+        if price > 0:
             meta.price_usd = price
             
         # 6. Emit to Director

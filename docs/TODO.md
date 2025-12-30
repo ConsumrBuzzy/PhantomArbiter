@@ -10,19 +10,10 @@
 
 **Goal**: Eliminate the "Backtest Trap" by enforcing realistic execution costs and reducing latency to sub-60ms.
 
-| Priority | Task | Status | Owner | Linked Doc |
-| :--- | :--- | :--- | :--- | :--- |
-| **P0** | **Refactor Backtester** (Use `CapitalManager`) | ✅ Done | Shared | [EXECUTION.md](./EXECUTION.md) |
-| **P0** | **Dynamic Slippage** (Volatility Scaling) | ✅ Done | CapMan | [RISK_MANAGEMENT.md](./RISK_MANAGEMENT.md) |
-| **P0** | **Fast-Path** (Rust WSS Aggregator) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **P1** | **Race-to-First** (Deduplication) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **P1** | **Signal Scorer** (Move Logic to Rust) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **P1** | **Shadow Mode** (Paper/Live Parity) | ✅ Done | Python | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **P1** | **Whale-Pulse** (Confidence Boost) | ✅ Done | Rust+Py | [PHASE_WHALE_PULSE.md](./PHASE_WHALE_PULSE.md) |
-| **P2** | **Drift Dashboard** (Execution Monitor) | ✅ Done | Python | [PHASE_DRIFT_DASHBOARD.md](./PHASE_DRIFT_DASHBOARD.md) |
 | **P1** | **Dashboard Overhaul** (Observability) | 📋 Plan | Mixed | [PHASE_DASHBOARD_OVERHAUL.md](./PHASE_DASHBOARD_OVERHAUL.md) |
 | **P1** | **Auto-Slippage** (Drift-Reactive) | ✅ Done | Python | [PHASE_AUTO_SLIPPAGE.md](./PHASE_AUTO_SLIPPAGE.md) |
 | **P1** | **Congestion Multiplier** (Jito Tips) | ✅ Done | Python | [PHASE_CONGESTION_MULTIPLIER.md](./PHASE_CONGESTION_MULTIPLIER.md) |
+| **P0** | **Universal Discovery** (V140 Hierarchical) | 🟡 Active | Scout | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
 | **P2** | **Full Backtest Suite** (Verify PnL Impact) | ⏳ Pending | QA | [TRADING_STRATEGIES.md](./TRADING_STRATEGIES.md) |
 
 ---
@@ -34,8 +25,9 @@
 | **Phase 1** | **Foundation** (Scraper, Basic Arb) | ✅ Complete | [DATA_PIPELINE.md](./DATA_PIPELINE.md) |
 | **Phase 2** | **Paper Trading** (Wallets, Simulation) | ✅ Complete | [EXECUTION.md](./EXECUTION.md) |
 | **Phase 3** | **Refactor & Cleanup** (Inventory, SRP) | ✅ Complete | [INVENTORY.md](./INVENTORY.md) |
-| **Phase 4** | **Optimization & Realism** (Rust, Latency) | 🟡 In Progress | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
+| **Phase 4** | **Optimization & Realism** (Rust, Latency) | ✅ Complete | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` (Todo) |
+| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | 🟡 Active | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
 
 ---
 
