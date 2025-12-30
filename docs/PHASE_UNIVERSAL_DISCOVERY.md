@@ -9,7 +9,7 @@ Implement a hierarchical market discovery system to track tokens across their en
 Instead of blindly checking for a CLMM pool, we determine the token's **Market Stage**:
 
 | Stage | Platform | Program ID | Alpha Opportunity |
-|-------|----------|------------|-------------------|
+| :--- | :--- | :--- | :--- |
 | 1. Infancy | **Pump.fun** | `6EF8...` | Bonding Curve Sniping (High Risk/Reward) |
 | 2. Adolescence | **Raydium Standard** | `675k...` | **The Migration Gap** (Golden Window for Volume) |
 | 3. Maturity | **Raydium CLMM** | `CAMM...` | Efficient Arbitrage & Whale Following |
