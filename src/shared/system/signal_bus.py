@@ -11,6 +11,7 @@ class SignalType(Enum):
     SCALP_SIGNAL = "SCALP_SIGNAL"
     SYSTEM_ALERT = "SYSTEM_ALERT"
     CONFIG_CHANGE = "CONFIG_CHANGE"
+    MARKET_UPDATE = "MARKET_UPDATE"  # V134: Price changes for Global Feed
 
 @dataclass
 class Signal:

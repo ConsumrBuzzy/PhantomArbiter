@@ -86,6 +86,7 @@ class Director:
         self.signal_bus.subscribe(SignalType.SCOUT, log_signal)
         self.signal_bus.subscribe(SignalType.SCALP_SIGNAL, log_signal)
         self.signal_bus.subscribe(SignalType.ARB_OPP, log_signal)
+        self.signal_bus.subscribe(SignalType.MARKET_UPDATE, log_signal)  # V134: Price updates
         
         # V35: Reactive Mode Toggle
         def handle_config_change(sig: Signal):
@@ -251,6 +252,19 @@ class Director:
                             confidence="High" if s['confidence'] > 0.8 else ("Med" if s['confidence'] > 0.5 else "Low"),
                             action=s['action'],
                             price=s.get('price', 0)  # V133: Include price in signal
+                        ))
+                        
+                        # V134: Emit to Global Feed
+                        self.signal_bus.emit(Signal(
+                            type=SignalType.SCALP_SIGNAL,
+                            source="Scalper",
+                            data={
+                                "symbol": s['symbol'],
+                                "action": s['action'],
+                                "price": s.get('price', 0),
+                                "confidence": s['confidence'],
+                                "message": f"{s['action']} {s['symbol']} @ ${s.get('price', 0):.4f}"
+                            }
                         ))
                         
                         # 2. Execute (Simulation or Live)

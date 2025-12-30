@@ -746,6 +746,12 @@ class TradeExecutor:
         Returns:
             ExecutionResult with success status, message, and PnL
         """
+        # V134: Null safety for price
+        if price is None or price <= 0:
+            price = watcher.get_price() if hasattr(watcher, 'get_price') else 0.0
+            if price is None or price <= 0:
+                return ExecutionResult(False, "No valid price for sell")
+        
         # Guard - only sell assets we hold
         if not self.live_mode:
             if watcher.symbol not in self.paper_wallet.assets:

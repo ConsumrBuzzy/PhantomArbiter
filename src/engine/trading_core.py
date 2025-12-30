@@ -556,6 +556,7 @@ class TradingCore:
         """V45.0: Execute a resolved signal (called by DataBroker).
         V48.0: Delegates to TradeExecutor.
         V79.0: Confidence-based position sizing.
+        V134: Added null safety checks.
         """
         action = signal.get("action")
         watcher = signal.get("watcher")
@@ -563,6 +564,25 @@ class TradingCore:
         reason = signal.get("reason")
         size_usd = signal.get("size_usd") or Settings.POSITION_SIZE_USD  # V133: Default if None
         confidence = signal.get("confidence", 0.5)  # V79.0: Get confidence
+        
+        # V134: Null safety - skip if critical values are missing
+        if not watcher:
+            from src.shared.system.logging import Logger
+            Logger.debug(f"🛑 REJECTED: No watcher in signal")
+            return
+        if price is None or price <= 0:
+            # Try to get price from watcher
+            price = watcher.get_price() if hasattr(watcher, 'get_price') else 0.0
+            if price is None or price <= 0:
+                from src.shared.system.logging import Logger
+                Logger.debug(f"🛑 REJECTED: No valid price for {getattr(watcher, 'symbol', 'unknown')}")
+                return
+        
+        # V134: Ensure executor is initialized
+        if not hasattr(self, 'executor') or self.executor is None:
+            from src.shared.system.logging import Logger
+            Logger.debug(f"🛑 REJECTED: Executor not initialized")
+            return
         
         # V85.1: Enforce Dynamic Confidence Thresholds
         is_live = Settings.ENABLE_TRADING
