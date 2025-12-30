@@ -1,7 +1,8 @@
-
 # 📝 PhantomArbiter Master TODO
 
-**Purpose**: This document serves as the central "Switchboard" for tracking active development, future roadmaps, and architectural pivots. It ties together specific Phase Documents to ensure continuity between AI sessions and workstations.
+**Purpose**: This document serves as the central "Switchboard" for tracking active development, future roadmaps, and architectural pivots.
+
+> **Newcomers**: Start with [STARTHERE.md](../STARTHERE.md) | **Agents**: Read [AGENT.md](./AGENT.md)
 
 ---
 
@@ -13,9 +14,9 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **P0** | **Refactor Backtester** (Use `CapitalManager`) | ✅ Done | Shared | [EXECUTION.md](./EXECUTION.md) |
 | **P0** | **Dynamic Slippage** (Volatility Scaling) | ✅ Done | CapMan | [RISK_MANAGEMENT.md](./RISK_MANAGEMENT.md) |
-| **P0** | **Fast-Path** (Rust WSS Aggregator) | ✅ Done | Rust | [PHASE_OPTIMIZATION.md](./PHASE_OPTIMIZATION.md) |
-| **P1** | **Race-to-First** (Deduplication) | ✅ Done | Rust | [PHASE_OPTIMIZATION.md](./PHASE_OPTIMIZATION.md) |
-| **P1** | **Signal Scorer** (Move Logic to Rust) | ⏳ Pending | Rust | [PHASE_OPTIMIZATION.md](./PHASE_OPTIMIZATION.md) |
+| **P0** | **Fast-Path** (Rust WSS Aggregator) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
+| **P1** | **Race-to-First** (Deduplication) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
+| **P1** | **Signal Scorer** (Move Logic to Rust) | ⏳ Pending | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **P2** | **Full Backtest Suite** (Verify PnL Impact) | ⏳ Pending | QA | [TRADING_STRATEGIES.md](./TRADING_STRATEGIES.md) |
 
 ---
@@ -27,7 +28,7 @@
 | **Phase 1** | **Foundation** (Scraper, Basic Arb) | ✅ Complete | [DATA_PIPELINE.md](./DATA_PIPELINE.md) |
 | **Phase 2** | **Paper Trading** (Wallets, Simulation) | ✅ Complete | [EXECUTION.md](./EXECUTION.md) |
 | **Phase 3** | **Refactor & Cleanup** (Inventory, SRP) | ✅ Complete | [INVENTORY.md](./INVENTORY.md) |
-| **Phase 4** | **Optimization & Realism** (Rust, Latency) | 🟡 In Progress | [PHASE_OPTIMIZATION.md](./PHASE_OPTIMIZATION.md) |
+| **Phase 4** | **Optimization & Realism** (Rust, Latency) | 🟡 In Progress | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` (Todo) |
 
 ---
