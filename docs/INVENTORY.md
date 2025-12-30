@@ -35,7 +35,9 @@
 | **SignalBus** | `src/shared/system/signal_bus.py` | 🟢 Active | Cross-Strategy Nerve Link (`SCALP`, `ARB`, `TIP`). |
 | **SmartRouter** | `src/shared/system/smart_router.py` | 🟢 Active | RPC Load Balancing & Rate Limit management. |
 | **SharedPriceCache** | `src/core/shared_cache.py` | 🟢 Active | Atomic IPC lock for price sharing between Broker and Engines. |
-| **PhantomCore** | `src_rust/` | 🟢 Active | Rust Extension for heavy calculation (RSI, EMAs). |
+| **PhantomCore** | `src_rust/` | 🟢 Active | Rust Extension for heavy calculation (RSI, EMAs) & WSS Race-to-First. |
+| **FastClient** | `src/shared/system/fast_client.py` | 🟢 Active | Python-side Bridge for Rust WSS Aggregator. |
+| **RaceSpeedometer** | `src/dashboard/race_tracker.py` | 🟢 Active | Real-time RPC Performance Dashboard (Rich TUI). |
 
 ## 🧪 Backtesting & Simulation (The "Extensive System")
 
@@ -43,7 +45,17 @@
 | :--- | :--- | :--- | :--- |
 | **Backtester** | `src/shared/backtesting/backtester.py` | 🟢 Active | **V9.0 Unified**: Uses `CapitalManager` for realistic PnL/Fee simulation. |
 | **DataFetcher** | `src/shared/backtesting/data_fetcher.py` | 🟣 Restorable | Historical data integration. |
-| **Adapters** | `src/backtesting/adapters.py` | 🟣 Restorable | Bridges for strategy logic to run in backtest mode. |
+| **Adapters** | `src/shared/backtesting/adapters.py` | 🟢 Active | Bridges for strategy logic to run in backtest mode. |
+| **WSS Monitor** | `scripts/monitor_race.py` | 🟢 Active | Standalone visualizer for WSS latency stats. |
+| **Latency Trace** | `scripts/trace_latency.py` | 🟢 Active | Signal-to-Execution lag measurement utility. |
+
+## 📚 Documentation
+
+| Component | Path | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| **Master TODO** | `docs/TODO.md` | 🟢 Active | Central project tracking and sprint planning. |
+| **Optimization** | `docs/PHASE_OPTIMIZATION.md` | 🟢 Active | Details on "Institutional Realism" phase (Rust, Latency). |
+| **Inventory** | `docs/INVENTORY.md` | 🟢 Active | This file. |
 
 ## 🧹 Housekeeping Actions
 
