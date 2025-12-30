@@ -31,7 +31,12 @@ class SmartRouter:
         
         self.config = self._load_config()
         self.enabled = getattr(Settings, 'ENABLE_SMART_ROUTING', True)
+        
+        # V41.1: Hybrid loading - Prefers Settings, falls back to JSON config
         self.endpoints = getattr(Settings, 'jito_endpoints', [])
+        if not self.endpoints and self.config:
+            self.endpoints = self.config.get("endpoints", [])
+            
         self.health_map = {}
         self.latency_map = {}
         
@@ -60,7 +65,7 @@ class SmartRouter:
 
     def _load_config(self):
         """Load rpc_pool.json or return defaults."""
-        config_path = os.path.join(os.path.dirname(__file__), "../../config/rpc_pool.json")
+        config_path = os.path.join(os.path.dirname(__file__), "../../../config/rpc_pool.json")
         try:
             if os.path.exists(config_path):
                 with open(config_path, 'r') as f:
