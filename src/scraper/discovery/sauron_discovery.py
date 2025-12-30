@@ -231,7 +231,7 @@ class SauronDiscovery:
                     
                     # V77.0: Queue for delayed metadata resolution
                     try:
-                        from src.discovery.metadata_resolver import get_metadata_resolver
+                        from src.scraper.discovery.metadata_resolver import get_metadata_resolver
                         resolver = get_metadata_resolver()
                         resolver.queue_token(mint, source)
                     except:

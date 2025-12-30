@@ -205,7 +205,7 @@ class WebSocketListener:
             
             # V84.0: Queue signature for Solscan scraping
             try:
-                from src.discovery.scrape_intelligence import get_scrape_intelligence
+                from src.scraper.discovery.scrape_intelligence import get_scrape_intelligence
                 scraper = get_scrape_intelligence()
                 scraper.add_signature(signature, dex=dex)
             except:
