@@ -83,7 +83,7 @@ class TradingCore:
         watchers (dict): Active asset state containers.
     """
     
-    def __init__(self, strategy_class=None, engine_name="PRIMARY"):
+    def __init__(self, strategy_class=None, engine_name="PRIMARY", registry: Dict = None):
         """Initialize TradingCore.
         
         Args:
@@ -95,6 +95,7 @@ class TradingCore:
         
         # Store engine name for later use
         self.engine_name = engine_name
+        self.registry = registry or {}
         
         # 1. Execution Layer
         self.wallet = WalletManager()
@@ -265,7 +266,8 @@ class TradingCore:
             engine_name=self.engine_name,
             decision_engine=self.decision_engine,
             paper_wallet=self.paper_wallet,
-            ml_model=self.ml_model
+            ml_model=self.ml_model,
+            registry=self.registry
         )
         
         # V133: MaintenanceService (SRP Refactor)

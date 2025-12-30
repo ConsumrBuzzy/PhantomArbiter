@@ -527,6 +527,61 @@ class ScoutAgent(BaseAgent):
                  
         if smart_hits >= 3: return 1.0
         if smart_hits == 2: return 0.8
-        if smart_hits == 1: return 0.5
-        return 0.0
+    # ═══════════════════════════════════════════════════════════════════════
+    # V40.0: SHARED METADATA LAYER INTEGRATION
+    # ═══════════════════════════════════════════════════════════════════════
+    
+    async def deep_scan_metadata(self, mint: str) -> bool:
+        """
+        Deep scan for the Shared Token Metadata Registry.
+        Fetches authorities, liquidity status, and initial risk checks.
+        """
+        try:
+            from phantom_core import SharedTokenMetadata
+        except ImportError:
+            Logger.warning("⚠️ Rust Extension not available for metadata scan.")
+            return False
+            
+        # 1. Fetch Mint & Account Info
+        # Using a batched call if possible, or individual key
+        resp, err = self.rpc.call("getAccountInfo", [mint, {"encoding": "jsonParsed"}])
+        if err or not resp:
+            return False
+            
+        data = resp.get("value", {}).get("data", {}).get("parsed", {}).get("info", {})
+        if not data:
+            return False
+            
+        # 2. Extract Data
+        decimals = data.get("decimals", 9)
+        mint_authority = data.get("mintAuthority")
+        freeze_authority = data.get("freezeAuthority")
+        is_initialized = data.get("isInitialized", True)
+        
+        # 3. Create Rust Struct
+        meta = SharedTokenMetadata(mint)
+        meta.decimals = decimals
+        meta.mint_authority = mint_authority
+        meta.freeze_authority = freeze_authority
+        meta.is_mutable = True # Assume mutable unless metadata pointer checked (TODO)
+        
+        # 4. Check LP Lock (Simulated/Stub for now or use bitquery if available)
+        # For MVP, we assume unlocked if not known
+        meta.lp_locked_pct = 0.0
+        meta.is_rug_safe = (mint_authority is None and freeze_authority is None)
+        
+        # 5. Populate initial price/liquidity if known from cache
+        price, _ = SharedPriceCache.get_price(mint)
+        if price:
+            meta.price_usd = price
+            
+        # 6. Emit to Director
+        signal_bus.emit(Signal(
+            type=SignalType.METADATA,
+            source=self.name,
+            data={"metadata": meta, "mint": mint}
+        ))
+        
+        Logger.info(f"🔍 [SCOUT] Metadata Updated for {mint[:8]} (RugSafe: {meta.is_rug_safe})")
+        return True
 

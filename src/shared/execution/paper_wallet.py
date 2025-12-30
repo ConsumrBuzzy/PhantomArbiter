@@ -149,14 +149,26 @@ class PaperWallet:
         price: float, 
         size_usd: float, 
         liquidity_usd: float = 100000.0,
-        is_volatile: bool = False
+        is_volatile: bool = False,
+        latency_ms: int = 0
     ) -> bool:
         """Delegate execution to CapitalManager."""
+        
+        # V40.1: Latency Penalty for Scalper Simulation
+        effective_price = price
+        if latency_ms > 0:
+            import random
+            # Simulate 1bps adverse move per 100ms + noise
+            drift = (latency_ms / 1000.0) * 0.1 * random.random()
+            effective_price = price * (1 + drift)
+            if drift > 0.001:
+                Logger.debug(f"🐢 [PAPER] Latency Impact: {latency_ms}ms -> Price {price} to {effective_price:.4f} (+{drift*100:.2f}%)")
+        
         success, msg = self.cm.execute_buy(
             self.engine_name, 
             symbol, 
             mint, 
-            price, 
+            effective_price, 
             size_usd,
             liquidity_usd=liquidity_usd,
             is_volatile=is_volatile

@@ -33,7 +33,8 @@ class SignalScanner:
         engine_name: str,
         decision_engine: Any,
         paper_wallet: Any,
-        ml_model: Optional[Any] = None
+        ml_model: Optional[Any] = None,
+        registry: Dict = None
     ):
         """
         Initialize SignalScanner.
@@ -43,12 +44,23 @@ class SignalScanner:
             decision_engine: DecisionEngine for trade analysis
             paper_wallet: PaperWallet for exit checks
             ml_model: Optional sklearn model for confidence scoring
+            registry: Shared Token Metadata Registry (Rust)
         """
         self.engine_name = engine_name
         self.decision_engine = decision_engine
         self.paper_wallet = paper_wallet
         self.ml_model = ml_model
+        self.registry = registry or {}
         
+        # V40.0: Rust Acceleration
+        self.rust_scanner = None
+        try:
+            from phantom_core import SignalScanner as RustScanner
+            self.rust_scanner = RustScanner()
+            Logger.info(f"🚀 [{engine_name}] Rust SignalScanner: ACTIVE")
+        except ImportError:
+            pass # Fallback to pure Python if missing
+
         # Cached results for status reporting
         self._last_scan_results: Dict = {}
     
@@ -80,6 +92,30 @@ class SignalScanner:
         # Update prices and portfolio
         portfolio.update_cash(watchers)
         data_manager.update_prices(watchers, scout_watchers)
+        
+        # V40.0: Rust-Powered Metadata Scanning (Microstructure)
+        if self.rust_scanner and self.registry:
+            try:
+                # 1. Zero-Copy passing of Registry Values (Vec<SharedTokenMetadata>)
+                # Note: list(dict.values()) creates a shallow list, acceptable for now.
+                meta_list = list(self.registry.values())
+                rust_signals = self.rust_scanner.scan_scalp_opportunities(meta_list)
+                
+                for sig in rust_signals:
+                    # Convert Rust ScalpSignal to Unified Dict
+                    signals.append({
+                        "engine": self.engine_name,
+                        "symbol": getattr(sig, 'token', 'UNK')[:4], # Using Mint as Symbol if unknown
+                        "mint": getattr(sig, 'token', ''), 
+                        "action": sig.direction,
+                        "reason": f"⚡ SCALP_RUST (Conf: {sig.confidence:.2f})",
+                        "size_usd": Settings.POSITION_SIZE_USD,
+                        "price": 0.0, # Will be filled by execution/oracle
+                        "confidence": sig.confidence,
+                        "watcher": None # Created on fly if needed
+                    })
+            except Exception as e:
+                Logger.error(f"⚠️ [{self.engine_name}] Rust Scan Failed: {e}")
         
         for symbol, watcher in combined_watchers.items():
             price = watcher.data_feed.get_last_price()

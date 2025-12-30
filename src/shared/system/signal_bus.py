@@ -12,6 +12,7 @@ class SignalType(Enum):
     SYSTEM_ALERT = "SYSTEM_ALERT"
     CONFIG_CHANGE = "CONFIG_CHANGE"
     MARKET_UPDATE = "MARKET_UPDATE"  # V134: Price changes for Global Feed
+    METADATA = "METADATA"         # V40.0: Shared Token Metadata Updates
 
 @dataclass
 class Signal:

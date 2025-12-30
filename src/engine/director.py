@@ -106,6 +106,20 @@ class Director:
                 self._sync_execution_mode(value)
                 
         self.signal_bus.subscribe(SignalType.CONFIG_CHANGE, handle_config_change)
+        
+        # V40.0: Metadata Sync
+        def handle_metadata(sig: Signal):
+            meta = sig.data.get("metadata")
+            mint = sig.data.get("mint")
+            if meta and mint:
+                # Update Registry (Zero-Copy Ref)
+                self.token_registry[mint] = meta
+                
+                # If Rug Safe flipped to True, notify Scalper
+                if meta.is_rug_safe:
+                    state.log(f"🔓 [Director] Metadata Validated: {meta.symbol}")
+                    
+        self.signal_bus.subscribe(SignalType.METADATA, handle_metadata)
 
     async def start(self):
         """Ignition: The Supervisor Kernel Start (Non-blocking)."""
