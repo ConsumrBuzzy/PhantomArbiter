@@ -14,6 +14,7 @@ use tokio::runtime::Runtime;
 // use tokio::sync::mpsc; // Removed unused import
 use crossbeam_channel::{bounded, Receiver, Sender};
 use futures_util::{SinkExt, StreamExt};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -88,6 +89,7 @@ pub struct WssStats {
 pub struct WssAggregator {
     /// Event channel (Rust → Python)
     event_rx: Option<Receiver<WssEvent>>,
+    event_tx: Option<Sender<WssEvent>>, // Added back to store the sender for the aggregator loop
 
     /// Internal raw channel (Providers → Aggregator Thread)
     raw_tx: Option<Sender<WssEvent>>,
@@ -130,6 +132,7 @@ impl WssAggregator {
 
         Ok(Self {
             event_rx: Some(rx),
+            event_tx: Some(tx), // Storing the sender for the aggregator loop
             raw_tx: Some(raw_tx),
             raw_rx: Some(raw_rx),
             // We need to store the final_tx temporarily to pass it to the aggregator loop
@@ -178,7 +181,7 @@ impl WssAggregator {
         let raw_rx = self.raw_rx.take().unwrap(); // Move receiver to aggregator thread
 
         // Aggregator -> Python
-        let event_tx = self.event_tx.clone().unwrap(); // Get sender to Python
+        let event_tx = self.event_tx.take().unwrap(); // Get sender to Python
 
         // Clone shared state for threads
         let running_arc = self.running.clone();
@@ -284,6 +287,87 @@ impl WssAggregator {
 }
 
 // ============================================================================
+// AGGREGATOR LOOP (RACE-TO-FIRST LOGIC)
+// ============================================================================
+
+async fn run_aggregator(
+    raw_rx: Receiver<WssEvent>,
+    event_tx: Sender<WssEvent>,
+    running: Arc<AtomicBool>,
+    msg_accepted: Arc<AtomicU64>,
+    msg_dropped: Arc<AtomicU64>,
+    // TODO: Add metrics sender?
+) {
+    let mut seen_signatures: HashSet<String> = HashSet::new();
+    let mut signature_order: VecDeque<String> = VecDeque::new();
+    const MAX_HISTORY: usize = 2000;
+
+    // We check raw_rx in a blocking loop?
+    // No, this is an async function, better to spawn a blocking thread OR use blocking iterator inside spawn_blocking?
+    // crossbeam_channel is blocking.
+    // If we use it in async tokio context, we might block the worker thread.
+    // However, for high perf, a dedicated thread is fine.
+    // But we are inside `runtime.spawn`.
+    // Ideally we use `tokio::sync::mpsc` for async.
+    // Since we use crossbeam (which is fast but blocking), we should use `try_recv` with sleep or `recv` in a separate `std::thread`.
+    // But `start` spawns tasks on `runtime`.
+    // Let's use `try_recv` + sleep loop to be cooperative, or just `block_in_place`.
+    // Given the "Fast-Path" goal, polling with small sleep is acceptable or blocking if we have dedicated core.
+
+    // Optimization: Since we are in a Tokio runtime, we should loop with `yield_now` or `sleep` if empty.
+    let mut check_interval = tokio::time::interval(tokio::time::Duration::from_millis(1));
+    check_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    while running.load(Ordering::SeqCst) {
+        // Drain currently available messages
+        loop {
+            match raw_rx.try_recv() {
+                Ok(event) => {
+                    // DEDUPLICATION (Race-to-First)
+                    if seen_signatures.contains(&event.signature) {
+                        msg_dropped.fetch_add(1, Ordering::Relaxed);
+                        continue; // Drop duplicate
+                    }
+
+                    // Mark seen
+                    seen_signatures.insert(event.signature.clone());
+                    signature_order.push_back(event.signature.clone());
+
+                    // Cleanup history
+                    if float_cleanup_needed(&seen_signatures, MAX_HISTORY) {
+                        if let Some(old_sig) = signature_order.pop_front() {
+                            seen_signatures.remove(&old_sig);
+                        }
+                    }
+
+                    // Forward to Python
+                    match event_tx.send(event) {
+                        Ok(_) => {
+                            msg_accepted.fetch_add(1, Ordering::Relaxed);
+                        }
+                        Err(_) => {
+                            // Channel closed (Python stopped?)
+                            msg_dropped.fetch_add(1, Ordering::Relaxed);
+                            // If python closed, maybe we should stop?
+                        }
+                    }
+                }
+                Err(_) => {
+                    // Empty or Disconnected
+                    break;
+                }
+            }
+        }
+
+        check_interval.tick().await;
+    }
+}
+
+fn float_cleanup_needed(set: &HashSet<String>, max: usize) -> bool {
+    set.len() > max
+}
+
+// ============================================================================
 // CONNECTION LOGIC
 // ============================================================================
 
@@ -292,11 +376,9 @@ async fn run_connection(
     provider_name: String,
     program_ids: Vec<String>,
     commitment: String,
-    tx: Sender<WssEvent>,
+    tx: Sender<WssEvent>, // Raw TX
     running: Arc<AtomicBool>,
     msg_received: Arc<AtomicU64>,
-    msg_accepted: Arc<AtomicU64>,
-    msg_dropped: Arc<AtomicU64>,
     active_conns: Arc<AtomicU64>,
 ) {
     let mut backoff_ms = 100u64;
@@ -311,8 +393,6 @@ async fn run_connection(
             &tx,
             &running,
             &msg_received,
-            &msg_accepted,
-            &msg_dropped,
             &active_conns,
         )
         .await
@@ -339,8 +419,6 @@ async fn connect_and_subscribe(
     tx: &Sender<WssEvent>,
     running: &Arc<AtomicBool>,
     msg_received: &Arc<AtomicU64>,
-    msg_accepted: &Arc<AtomicU64>,
-    msg_dropped: &Arc<AtomicU64>,
     active_conns: &Arc<AtomicU64>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Connect
@@ -373,18 +451,18 @@ async fn connect_and_subscribe(
     while running.load(Ordering::SeqCst) {
         match tokio::time::timeout(tokio::time::Duration::from_secs(30), read.next()).await {
             Ok(Some(Ok(Message::Text(text)))) => {
-                msg_received.fetch_add(1, Ordering::Relaxed);
+                // We count raw receive here
+                // Note: We don't parse it fully here to save CPU?
+                // No, we parse here to extract signature for dedupe in aggregator.
+                // It's better to verify it IS a log notification before sending.
+                // So parsing stays here.
 
                 // Parse the message
                 if let Some(event) = parse_log_notification(&text, provider_name) {
-                    match tx.try_send(event) {
-                        Ok(_) => {
-                            msg_accepted.fetch_add(1, Ordering::Relaxed);
-                        }
-                        Err(_) => {
-                            msg_dropped.fetch_add(1, Ordering::Relaxed);
-                        }
-                    }
+                    msg_received.fetch_add(1, Ordering::Relaxed);
+                    // Send to raw channel for dedupe
+                    let _ = tx.try_send(event);
+                    // We don't track accept/drop here, that's aggregator job
                 }
             }
             Ok(Some(Ok(Message::Ping(data)))) => {
