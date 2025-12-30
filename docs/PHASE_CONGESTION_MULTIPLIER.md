@@ -112,7 +112,38 @@ class CongestionMonitor:
 
 ## Verification
 
-- [ ] Unit test: lag > 1000ms → 5x tip
-- [ ] Unit test: lag < 100ms → base tip
-- [ ] Integration: tips actually change in JitoAdapter
-- [ ] Dashboard: shows current tip multiplier
+- [x] Unit test: lag > 1000ms → 5x tip
+- [x] Unit test: lag < 100ms → base tip
+- [x] Integration: tips actually change in JitoAdapter
+- [x] Dashboard: shows current tip multiplier
+
+---
+
+## Auto-Abort Logic (Added)
+
+Prevents trades when Jito tip exceeds 50% of expected profit:
+
+```python
+def should_abort_trade(expected_profit_usd: float) -> bool:
+    """Returns True if tip > 50% of profit."""
+    tip_usd = (tip_lamports / 1e9) * sol_price
+    ratio = tip_usd / expected_profit_usd
+    return ratio > 0.50
+```
+
+---
+
+## Stress Test
+
+Run `scripts/stress_test_adaptive.py` to simulate:
+
+1. **Baseline**: Normal network (50ms lag, 0.3% drift)
+2. **Congestion**: JUP Airdrop (1500ms lag, 2.5% drift, 4x volatility)
+3. **Recovery**: Return to normal
+
+Validates:
+
+- Jito tip escalates to 5x during congestion
+- Slippage widens to 800bps during high drift
+- Auto-abort engages when tip > 50% of profit
+- Systems recover after congestion clears
