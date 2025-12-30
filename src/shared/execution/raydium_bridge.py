@@ -336,6 +336,11 @@ class RaydiumBridge:
             )
             
             output = result.stdout.strip()
+            
+            # Empty output is common for new pump.fun tokens with no CLMM pool yet
+            if not output:
+                return {"success": False, "error": "No Raydium pool found"}
+            
             # Handle noise in output (e.g. warnings)
             json_line = None
             for line in output.split('\n'):
@@ -344,7 +349,8 @@ class RaydiumBridge:
                     break
             
             if not json_line:
-                Logger.warning(f"[RAYDIUM] Invalid discovery output: {output}")
+                # Only log if there was actual output but no JSON (unusual)
+                Logger.debug(f"[RAYDIUM] Non-JSON discovery output: {output[:100]}")
                 return {"success": False, "error": "Invalid output from bridge"}
                 
             data = json.loads(json_line)
