@@ -610,7 +610,7 @@ class ScoutAgent(BaseAgent):
         if pump_info["active"] and pump_info["progress_pct"] < 100:
             meta.market_stage = "PUMP"
             meta.bonding_curve_progress = pump_info["progress_pct"]
-            Logger.debug(f"🍼 [SCOUT] Lifecycle: {mint[:8]} is in INFANCY (Pump.fun {meta.bonding_curve_progress:.1f}%)")
+            Logger.info(f"🍼 [SCOUT] Lifecycle: {mint[:8]} is in INFANCY (Pump.fun {meta.bonding_curve_progress:.1f}%)")
         else:
             # 2. Check Raydium Standard (Adolescence)
             std_pool = self.raydium_std.find_pool(mint, Settings.USDC_MINT)
@@ -627,10 +627,10 @@ class ScoutAgent(BaseAgent):
                 if clmm_pool:
                     meta.market_stage = "CLMM"
                     meta.bonding_curve_progress = 100.0
-                    Logger.debug(f"🏛️ [SCOUT] Lifecycle: {mint[:8]} is in MATURITY (CLMM)")
+                    Logger.info(f"🏛️ [SCOUT] Lifecycle: {mint[:8]} is in MATURITY (CLMM)")
                 else:
-                    meta.market_stage = "UNKNOWN"
                     meta.bonding_curve_progress = 0.0
+                    Logger.info(f"❓ [SCOUT] Lifecycle: {mint[:8]} stage UNKNOWN")
 
         # 5. Populate initial price/liquidity if known from cache
         from src.core.price_cache import price_cache
