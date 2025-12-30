@@ -156,7 +156,7 @@ class Settings:
 
     # Execution Settings
     SLIPPAGE_BPS = 750  # 7.5% (Increased for low-liquidity memecoins)
-    ENABLE_TRADING = True
+    ENABLE_TRADING = False
     
     # Gas Management
     GAS_CRITICAL_SOL = 0.01    # ~1.50 USD (Increased buffer to prevent dust lock)
@@ -228,7 +228,7 @@ class Settings:
     ENABLE_VALIDATION = True    # Check win rate before buyinggle for all safety checks
     
     # V14.0/V15.0 REMOTE CONTROL & SYNC
-    ENABLE_TRADING = True       # ENABLED for Live Trading
+    ENABLE_TRADING = False       # DISABLED for safety (Monitor/Paper by default)
     POSITION_SIZE_USD = 15.0    # V79.0: Base size for HIGH confidence trades
     MAX_TOTAL_EXPOSURE_USD = 50.0 # V79.0: $50 Budget ceiling
     
