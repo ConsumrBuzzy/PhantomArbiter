@@ -22,16 +22,18 @@ Most bots fail because they optimize for a fantasy.
 
 ### 1. ⚡ Network Latency (The "Fast-Path")
 
-* [x] **Rust WebSocket Aggregator**: Parallel connections to Helius, QuickNode, Triton.
+- [x] **Rust WebSocket Aggregator**: Parallel connections to Helius, QuickNode, Triton.
+
 - [x] **Race-to-First Deduplication**: Process the *first* packet, drop the rest.
-- [ ] **Signal Scoring (Rust)**: Move logic from Python to Rust.
+- [x] **Signal Scoring (Rust)**: Move logic from Python to Rust.
   - *Input*: Raw Price Updates (Tickers).
   - *Logic*: `Spread > Fee + Slippage + MinProfit`.
   - *Output*: Validated Signals only.
 
 ### 2. 🛡️ Execution Fidelity (The "Truth-Path")
 
-* [x] **Dynamic Slippage Model**: `Slippage = Base + (Vol * Impact)`.
+- [x] **Dynamic Slippage Model**: `Slippage = Base + (Vol * Impact)`.
+
 - [x] **Volatility Penalty**: Forbid entry if standard deviation > threshold.
 - [ ] **Shadow Mode**:
   - Run `Live` and `Paper` engines on the *exact same signals* in parallel.
@@ -40,9 +42,10 @@ Most bots fail because they optimize for a fantasy.
 
 ### 3. 🧠 Smart Valuation (The "Alpha-Path")
 
-* [ ] **Whale Watcher Integration**:
+- [ ] **Whale Watcher Integration**:
   - Track "Smart Money" wallet accumulation.
   - Boost Signal Confidence if Top 10 Holders are buying.
+
 - [ ] **MEV Protection**:
   - Use JITO bundles for ALL swaps (Live).
   - Simulate JITO "Tips" in Paper mode (Cost of Business).
@@ -53,7 +56,8 @@ Most bots fail because they optimize for a fantasy.
 
 ### A. The "Pulse" Test
 
-* **Command**: `main.py pulse`
+- **Command**: `main.py pulse`
+
 - **Criteria**:
     1. Logs show proper "Race" stats (e.g., "Helius won 40%, Triton 60%").
     2. Paper Trades show realistic costs (Gas + Slippage + Jito Tip).
@@ -61,7 +65,8 @@ Most bots fail because they optimize for a fantasy.
 
 ### B. The "Backtest" Test
 
-* **Command**: `scripts/run_backtest.py`
+- **Command**: `scripts/run_backtest.py`
+
 - **Criteria**:
     1. PnL graph must NOT look like a straight line up.
     2. Drawdowns must align with known market dumps (e.g., SOL crashes).

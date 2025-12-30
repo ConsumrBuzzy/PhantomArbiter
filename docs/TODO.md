@@ -16,7 +16,7 @@
 | **P0** | **Dynamic Slippage** (Volatility Scaling) | ✅ Done | CapMan | [RISK_MANAGEMENT.md](./RISK_MANAGEMENT.md) |
 | **P0** | **Fast-Path** (Rust WSS Aggregator) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **P1** | **Race-to-First** (Deduplication) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **P1** | **Signal Scorer** (Move Logic to Rust) | ⏳ Pending | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
+| **P1** | **Signal Scorer** (Move Logic to Rust) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **P2** | **Full Backtest Suite** (Verify PnL Impact) | ⏳ Pending | QA | [TRADING_STRATEGIES.md](./TRADING_STRATEGIES.md) |
 
 ---
