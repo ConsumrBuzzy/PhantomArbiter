@@ -1,7 +1,7 @@
 from backtesting import Strategy
 from backtesting.lib import crossover
 import pandas as pd
-from src.backtesting.ta_lib import TA as ta
+from src.shared.backtesting.ta_lib import TA as ta
 
 class PhantomScalper(Strategy):
     """

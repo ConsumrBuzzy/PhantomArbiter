@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from src.strategy.signals import TechnicalAnalysis
-from src.backtesting.ta_lib import TA 
+from src.shared.backtesting.ta_lib import TA 
 from config.settings import Settings
 
 class VwapLogic:
