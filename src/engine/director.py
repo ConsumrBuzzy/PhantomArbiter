@@ -289,14 +289,16 @@ class Director:
     # For this phase, we rely on Scout's internal .start() but monitor it loosely.
 
     async def _run_state_sync(self):
-        """Slow Lane: Wallet Sync for BOTH Live and Paper modes."""
+        """
+        Slow Lane: Wallet Sync for BOTH Live and Paper modes.
+        Aggregates state from Arbiter and Scalper.
+        """
         from src.shared.state.app_state import WalletData, InventoryItem
         from src.core.shared_cache import SharedPriceCache
         
-        # Wait for arbiter initialization (tracker must exist)
-        arb = self.agents["arbiter"]
-        while not hasattr(arb, 'tracker') or not arb.tracker:
-            await asyncio.sleep(0.5)
+        # Wait for engines to be ready
+        state.log("[WalletSync] Waiting for engines...")
+        await asyncio.sleep(2.0)
         
         state.log("[WalletSync] Wallet sync loop started.")
             
@@ -304,61 +306,121 @@ class Director:
             try:
                 await asyncio.sleep(1.0) # 1Hz Refresh
                 
-                is_live = arb.config.live_mode
+                # Determine Primary Source (Prefer Real Wallet if Live, else Paper)
+                # We check Arbiter config for "Live Mode" flag as master switch
+                arb = self.agents.get("arbiter")
+                scalper = self.agents.get("scalper")
+                
+                is_live = False
+                if arb and hasattr(arb, 'config'):
+                    is_live = arb.config.live_mode
+                elif scalper and hasattr(scalper, 'executor'):
+                    is_live = scalper.executor.live_mode
+                
                 sol_price, _ = SharedPriceCache.get_price("SOL")
                 if not sol_price: sol_price = 150.0
                 
                 # ═══ LIVE MODE: Real Wallet ═══
-                if is_live and hasattr(arb, 'executor') and arb.executor and arb.executor.wallet:
+                wallet_adapter = None
+                
+                # Try to get wallet adapter from ANY agent
+                if arb and hasattr(arb, 'executor') and arb.executor and arb.executor.wallet:
                     wallet_adapter = arb.executor.wallet
+                elif scalper and hasattr(scalper, 'wallet'):
+                    wallet_adapter = scalper.wallet
                     
+                if is_live and wallet_adapter:
                     price_map = {'SOL': sol_price}
                     holdings = wallet_adapter.assets if hasattr(wallet_adapter, 'assets') else {}
                     
-                    for symbol in holdings.keys():
-                        if symbol not in price_map:
-                            p, _ = SharedPriceCache.get_price(symbol)
-                            if p: price_map[symbol] = p
-
-                    balance_data = wallet_adapter.get_detailed_balance(price_map)
+                    # If wallet_adapter doesn't have 'assets' property exposed directly (depending on version),
+                    # we might need to fetch live balance.
+                    # WalletManager.get_current_live_usd_balance() is the robust way.
+                    live_data = wallet_adapter.get_current_live_usd_balance()
+                    
+                    balance_usdc = live_data.get('breakdown', {}).get('USDC', 0.0)
+                    balance_sol = live_data.get('breakdown', {}).get('SOL', 0.0)
+                    total_value = live_data.get('total_usd', 0.0)
                     
                     inventory_items = []
-                    for symbol, asset in holdings.items():
-                        price = price_map.get(symbol, 0.0)
+                    for asset in live_data.get('assets', []):
                         inventory_items.append(InventoryItem(
-                            symbol=symbol,
-                            amount=asset.balance,
-                            value_usd=asset.balance * price,
+                            symbol=asset['symbol'],
+                            amount=asset['amount'],
+                            value_usd=asset['usd_value'],
                             price_change_24h=0.0
                         ))
 
                     live_snapshot = WalletData(
-                        balance_usdc = balance_data.get('cash', 0.0),
-                        balance_sol = wallet_adapter.sol_balance,
-                        gas_sol = wallet_adapter.sol_balance,
-                        total_value_usd = balance_data.get('total_equity', 0.0),
+                        balance_usdc = balance_usdc,
+                        balance_sol = balance_sol,
+                        gas_sol = balance_sol,
+                        total_value_usd = total_value,
                         inventory = inventory_items
                     )
                     state.update_wallet(True, live_snapshot)
                 
-                # ═══ PAPER MODE: Use TradeTracker balances ═══
-                tracker = arb.tracker
-                paper_balance = tracker.current_balance
-                paper_gas = tracker.gas_balance / sol_price if sol_price > 0 else 0.0
-                
-                paper_snapshot = WalletData(
-                    balance_usdc = paper_balance,
-                    balance_sol = paper_gas,
-                    gas_sol = paper_gas,
-                    total_value_usd = paper_balance + tracker.gas_balance,
-                    inventory = []  # Paper mode doesn't track individual tokens
-                )
-                state.update_wallet(False, paper_snapshot)
+                # ═══ PAPER MODE: Aggregate Paper Wallets ═══
+                # We prioritize Scalper's PaperWallet if active, as it tracks positions more granularly
+                else:
+                    paper_balance = 0.0
+                    paper_gas = 0.0
+                    paper_equity = 0.0
+                    inventory_items = []
+                    
+                    # 1. Scalper (TradingCore) Paper Wallet
+                    if scalper and hasattr(scalper, 'paper_wallet'):
+                        # Calculate total value
+                        # Need current prices for assets
+                        pw = scalper.paper_wallet
+                        price_map = {}
+                        for sym in pw.assets.keys():
+                             p, _ = SharedPriceCache.get_price(sym)
+                             if p: price_map[sym] = p
+                        
+                        pw_details = pw.get_detailed_balance(price_map)
+                        paper_balance += pw_details['cash']
+                        paper_equity += pw_details['total_equity']
+                        # Gas is tracked in SOL locally in paper wallet? 
+                        # PaperWallet.sol_balance is reliable
+                        paper_gas += pw.sol_balance
+                        
+                        # Add stats to inventory
+                        for sym, asset in pw.assets.items():
+                            p = price_map.get(sym, asset.avg_price)
+                            inventory_items.append(InventoryItem(
+                                symbol=sym,
+                                amount=asset.balance,
+                                value_usd=asset.balance * p,
+                                price_change_24h=0.0
+                            ))
+                            
+                    # 2. Arbiter (TradeTracker)
+                    # Arbiter usually just tracks PnL added to a float, not held assets.
+                    # If Arbiter is ALSO running, we should add its balance? 
+                    # Usually they share the same 'Budget' conceptualization. 
+                    # For now, if Scalper is present, we trust it more for "Positions".
+                    # If Scalper is NOT present, we fall back to Tracker.
+                    elif arb and hasattr(arb, 'tracker') and arb.tracker:
+                        t = arb.tracker
+                        paper_balance = t.current_balance
+                        paper_gas = t.gas_balance / sol_price if sol_price > 0 else 0.0
+                        paper_equity = paper_balance # Tracker doesn't really hold assets in same way
+                    
+                    paper_snapshot = WalletData(
+                        balance_usdc = paper_balance,
+                        balance_sol = paper_gas,
+                        gas_sol = paper_gas,
+                        total_value_usd = paper_equity,
+                        inventory = inventory_items
+                    )
+                    state.update_wallet(False, paper_snapshot)
                 
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                state.log(f"[WalletSync] Error: {e}")
+                # state.log(f"[WalletSync] Error: {e}")
+                # Don't spam logs
                 await asyncio.sleep(5)
 
     def _sync_execution_mode(self, mode: str):
