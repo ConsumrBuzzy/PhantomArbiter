@@ -36,26 +36,30 @@ pub struct SharedTokenMetadata {
     #[pyo3(get, set)]
     pub volume_5m: f64,
     #[pyo3(get, set)]
-    pub velocity_1m: f64,    // Price change % / min
+    pub velocity_1m: f64, // Price change % / min
     #[pyo3(get, set)]
     pub order_imbalance: f32, // Buy vol vs Sell vol
     #[pyo3(get, set)]
     pub buy_sell_ratio: f32,
     #[pyo3(get, set)]
     pub spread_bps: u32,
-    
+
     // Launchpad Info
     #[pyo3(get, set)]
     pub is_pump_fun: bool,
     #[pyo3(get, set)]
-    pub graduated: bool,     // True if migrated to Raydium
+    pub graduated: bool, // True if migrated to Raydium
 
     #[pyo3(get, set)]
     pub last_updated_slot: u64,
-    
+
     // V2: Token-2022
     #[pyo3(get, set)]
     pub transfer_fee_bps: u16,
+
+    // V3: Whale-Pulse Confidence Bonus (Phase 5A)
+    #[pyo3(get, set)]
+    pub whale_confidence_bonus: f32, // 0.0 to 0.5 based on whale activity
 }
 
 #[pymethods]
@@ -73,11 +77,11 @@ impl SharedTokenMetadata {
     pub fn is_stale(&self, current_slot: u64) -> bool {
         current_slot.saturating_sub(self.last_updated_slot) > 10 // Stale if > 4-5 seconds
     }
-    
+
     fn is_valid_scalp_candidate(&self) -> bool {
         self.is_rug_safe && self.liquidity_usd > 500.0 && !self.has_mint_auth
     }
-    
+
     // Token-2022 Logic placeholder
     fn has_transfer_tax(&self) -> bool {
         self.transfer_fee_bps > 0

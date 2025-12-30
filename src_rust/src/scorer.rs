@@ -393,6 +393,10 @@ impl SignalScorer {
             confidence += 0.05;
         }
 
+        // 6. Whale-Pulse Bonus (Phase 5A)
+        // If a whale is buying, boost confidence by up to 0.2
+        confidence += metadata.whale_confidence_bonus;
+
         // Cap at 1.0
         confidence.min(1.0)
     }
@@ -451,6 +455,7 @@ mod tests {
             graduated: true,
             last_updated_slot: 100,
             transfer_fee_bps: 0,
+            whale_confidence_bonus: 0.0, // V3: Phase 5A
         }
     }
 
