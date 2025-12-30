@@ -90,6 +90,8 @@ class ScoutAgent(BaseAgent):
     async def _handle_new_token(self, sig: Signal):
         """V140: Event handler for NEW_TOKEN signal."""
         mint = sig.data.get("mint")
+        platform = sig.data.get("platform", "Unknown")
+        Logger.info(f"🆕 [SCOUT] New token detected via signal: {mint[:8]} (Source: {platform})")
         if mint:
             # Trigger deep metadata scan (Hierarchical check)
             await self.deep_scan_metadata(mint)
@@ -560,12 +562,16 @@ class ScoutAgent(BaseAgent):
             
         # 1. Fetch Mint & Account Info
         # Using a batched call if possible, or individual key
+        Logger.debug(f"🔍 [SCOUT] Deep scan metadata for {mint}...")
         resp, err = self.rpc.call("getAccountInfo", [mint, {"encoding": "jsonParsed"}])
         if err or not resp:
+            Logger.warning(f"⚠️ [SCOUT] RPC Failed for {mint[:8]}: {err}")
             return False
             
         data = resp.get("value", {}).get("data", {}).get("parsed", {}).get("info", {})
         if not data:
+            owner = resp.get("value", {}).get("owner") if resp and resp.get("value") else "Unknown"
+            Logger.warning(f"⚠️ [SCOUT] No parsed info for {mint[:8]} (Owner: {owner})")
             return False
             
         # 2. Extract Data
