@@ -62,6 +62,29 @@ class PaperWallet:
             engine["sol_balance"] = value
 
     @property
+    def equity(self) -> float:
+        """Calculate total equity (Cash + Gas + Assets) using SharedPriceCache."""
+        from src.core.shared_cache import SharedPriceCache
+        
+        # 1. Cash
+        total = self.cash_balance
+        
+        # 2. Gas (SOL)
+        sol_price, _ = SharedPriceCache.get_price("SOL")
+        if not sol_price: sol_price = 150.0 # Fallback
+        total += self.sol_balance * sol_price
+        
+        # 3. Assets
+        current_assets = self.assets
+        for s, a in current_assets.items():
+            price, _ = SharedPriceCache.get_price(s)
+            if not price: 
+                price = a.avg_price # Fallback to entry price
+            total += a.balance * price
+            
+        return total
+
+    @property
     def assets(self) -> Dict[str, PaperAsset]:
         """Construct PaperAssets from CapitalManager state on-the-fly."""
         raw_positions = self.cm.get_all_positions(self.engine_name)

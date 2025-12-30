@@ -563,7 +563,7 @@ class PhantomArbiter:
             # V115: Live USDC Balance
             from src.arbiter.core.pod_engine import USDC_MINT
             return self._wallet.get_balance(USDC_MINT)
-        return self.paper_wallet.cash
+        return self.paper_wallet.cash_balance
         
     @current_balance.setter
     def current_balance(self, value):

@@ -438,7 +438,7 @@ class Director:
                     # 2. Arbiter (PaperWallet V2)
                     elif arb and hasattr(arb, 'paper_wallet') and arb.paper_wallet:
                         pw = arb.paper_wallet
-                        paper_balance = pw.cash
+                        paper_balance = pw.cash_balance
                         paper_gas = pw.sol_balance
                         paper_equity = pw.equity
                         

@@ -1,7 +1,7 @@
 {
   "version": "40.0",
   "total_capital_usd": 1050.0,
-  "last_updated": 1767119914.3522007,
+  "last_updated": 1767123533.6867657,
   "engines": {
     "MERCHANT": {
       "allocated_capital": 50.0,
@@ -32,8 +32,8 @@
     },
     "SCALPER": {
       "allocated_capital": 1000.0,
-      "cash_balance": 1000.0,
-      "sol_balance": 1.0,
+      "cash_balance": 1147.75,
+      "sol_balance": 0.015000000000000013,
       "positions": {},
       "stats": {
         "wins": 0,
