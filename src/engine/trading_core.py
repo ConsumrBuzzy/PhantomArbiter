@@ -588,10 +588,18 @@ class TradingCore:
         is_live = Settings.ENABLE_TRADING
         min_conf = getattr(Settings, 'LIVE_MIN_CONFIDENCE', 0.85) if is_live else getattr(Settings, 'PAPER_MIN_CONFIDENCE', 0.45)
         
+        # V134: Null safety for confidence
+        if confidence is None:
+            confidence = 0.5
+        
         if action == "BUY" and confidence < min_conf:
             from src.shared.system.logging import Logger
             Logger.debug(f"🛑 REJECTED: Low Confidence {confidence:.2f} < {min_conf:.2f} (Paper: {'OFF' if is_live else 'ON'})")
             return
+        
+        # V134: Null safety for size_usd before calculation
+        if size_usd is None or size_usd <= 0:
+            size_usd = Settings.POSITION_SIZE_USD
             
         # V79.0: Apply confidence-based position sizing
         size_usd = self._confidence_to_size(confidence, size_usd)
