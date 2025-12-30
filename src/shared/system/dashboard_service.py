@@ -72,6 +72,16 @@ class DashboardState:
     scrape_queue: int = 0        # Pending scrapes
     paper_pnl_today: float = 0.0 # Paper trading PnL today
     
+    # V67.0: Execution Drift (Phase 5B)
+    avg_drift_pct: float = 0.0   # Average Paper vs Live delta
+    last_drift_pct: float = 0.0  # Most recent drift
+    drift_status: str = "OK"     # OK / WARN / CRITICAL
+    whale_boosts: int = 0        # Trades boosted by whale pulse
+    
+    # V67.0: Auto-Slippage (Phase 5C)
+    slippage_bps: int = 300      # Current max slippage tolerance
+    slippage_gauge: str = "GREEN" # GREEN / YELLOW / RED
+    
     def __post_init__(self):
         if self.positions_list is None:
             self.positions_list = []
@@ -303,6 +313,40 @@ class DashboardService:
         except:
             pass
         
+        # V67.0: Get execution drift from ShadowManager
+        try:
+            from src.engine.shadow_manager import ShadowManager
+            shadow = ShadowManager()
+            stats = shadow.get_stats()
+            state.avg_drift_pct = stats.get("avg_delta_pct", 0.0)
+            state.whale_boosts = stats.get("whale_boosted", 0)
+            
+            # Get last audit for recent drift
+            audits = shadow.get_recent_audits(1)
+            if audits:
+                state.last_drift_pct = getattr(audits[0], 'delta_pct', 0.0)
+            
+            # Determine drift status
+            if abs(state.avg_drift_pct) < 0.5:
+                state.drift_status = "OK"
+            elif abs(state.avg_drift_pct) < 1.5:
+                state.drift_status = "WARN"
+            else:
+                state.drift_status = "CRIT"
+        except:
+            pass
+        
+        # V67.0: Get slippage calibrator status
+        try:
+            from src.engine.slippage_calibrator import get_calibrator
+            calibrator = get_calibrator()
+            if calibrator:
+                status = calibrator.get_status()
+                state.slippage_bps = status.get("current_bps", 300)
+                state.slippage_gauge = status.get("gauge", "GREEN")
+        except:
+            pass
+        
         return state
     
     def _print_dashboard(self, state: DashboardState):
@@ -346,6 +390,8 @@ class DashboardService:
             "├" + "─" * 68 + "┤",
             f"│ 🧠 INTELLIGENCE (PAPER_AGGRESSIVE: {'ON' if getattr(Settings, 'PAPER_AGGRESSIVE_MODE', False) else 'OFF'})                    │",
             f"│ Whales: {state.whale_alerts:<7}  │ Queue: {state.scrape_queue:<8}  │ Today: ${state.paper_pnl_today:<+10.2f}              │",
+            f"│ 🎯 DRIFT: {state.drift_status:<4} │ Avg: {state.avg_drift_pct:+.2f}%  │ Last: {state.last_drift_pct:+.2f}% │ 🐋Boost: {state.whale_boosts:<3}  │",
+            f"│ ⚙️ SLIP: {state.slippage_bps:>3}bps ({state.slippage_gauge:<6})                                            │",
             "├" + "─" * 68 + "┤",
             "│ 📊 MARKET SNAPSHOT                                               │",
             "├─────────────────────────────────┬────────────────────────────────┤",

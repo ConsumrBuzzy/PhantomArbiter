@@ -62,9 +62,9 @@ class Director:
         self.agents["scalper"] = TradingCore(strategy_class=MerchantEnsemble, engine_name="SCALPER")
         
         if not self.lite_mode:
-            # Whale Watcher (V23)
+            # Whale Watcher (V23, V67.0: Whale-Pulse with metadata registry)
             from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
-            self.agents["whale"] = WhaleWatcherAgent()
+            self.agents["whale"] = WhaleWatcherAgent(metadata_registry=self.token_registry)
             
             # 4. SLOW TIER AGENTS
             # Scout

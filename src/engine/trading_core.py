@@ -54,6 +54,10 @@ from src.engine.watcher_manager import WatcherManager
 # V133: SignalScanner (SRP Refactor)
 from src.engine.signal_scanner import SignalScanner
 
+# V67.0: Phase 5 - Institutional Realism
+from src.engine.shadow_manager import ShadowManager
+from src.engine.slippage_calibrator import SlippageCalibrator
+
 # V133: MaintenanceService (SRP Refactor)
 from src.engine.maintenance_service import MaintenanceService
 
@@ -259,6 +263,31 @@ class TradingCore:
             jito_adapter=self.jito_adapter,  # V48.0: Tipped bundle submission
             execution_backend=self.execution_backend  # V49.0: Unified backend
         )
+        
+        # V67.0: Phase 5 - Shadow Manager for Paper/Live Audit
+        self.shadow_manager = ShadowManager()
+        
+        # V67.0: Phase 5C - Auto-Slippage Calibrator
+        # Wire calibrator to executor for drift-reactive slippage adjustment
+        try:
+            from phantom_core import ScorerConfig
+            scorer_config = ScorerConfig(
+                min_profit_usd=getattr(Settings, 'MIN_PROFIT_USD', 0.10),
+                max_slippage_bps=getattr(Settings, 'SLIPPAGE_MAX_BPS', 300),
+                gas_fee_usd=getattr(Settings, 'GAS_FEE_USD', 0.02),
+                jito_tip_usd=getattr(Settings, 'JITO_TIP_USD', 0.001),
+                dex_fee_bps=getattr(Settings, 'DEX_FEE_BPS', 30),
+                default_trade_size_usd=getattr(Settings, 'MAX_POSITION_SIZE_USD', 15.0)
+            )
+            self.slippage_calibrator = SlippageCalibrator(
+                scorer_config=scorer_config,
+                shadow_manager=self.shadow_manager
+            )
+            self.executor.slippage_calibrator = self.slippage_calibrator
+            Logger.info("⚙️ [CORE] SlippageCalibrator wired to TradeExecutor")
+        except Exception as e:
+            Logger.warn(f"⚙️ [CORE] SlippageCalibrator init skipped: {e}")
+            self.slippage_calibrator = None
         
         # V48.0: Initialize HeartbeatReporter
         self.heartbeat = HeartbeatReporter(

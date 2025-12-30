@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from src.core.prices.pyth_adapter import PythAdapter, PythPrice
     from src.shared.infrastructure.jito_adapter import JitoAdapter
     from src.shared.execution.execution_backend import ExecutionBackend
+    from src.engine.slippage_calibrator import SlippageCalibrator
 
 
 @dataclass
@@ -107,6 +108,9 @@ class TradeExecutor:
         
         # V49.0: Unified Execution Backend (Paper/Live parity)
         self.execution_backend = execution_backend
+        
+        # V67.0: Auto-Slippage Calibrator (Phase 5C)
+        self.slippage_calibrator: Optional['SlippageCalibrator'] = None
         
         # Tracking
         self._last_paper_pnl = 0.0
@@ -886,6 +890,10 @@ class TradeExecutor:
             
             # Capital health check
             self.capital_mgr.perform_maintenance(self.engine_name)
+            
+            # V67.0: Trigger slippage recalibration after trade
+            if self.slippage_calibrator:
+                self.slippage_calibrator.maybe_recalibrate()
             
             return ExecutionResult(True, f"SELL {watcher.symbol}", tx_id, pnl_usd)
         else:
