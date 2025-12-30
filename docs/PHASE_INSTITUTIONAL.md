@@ -35,7 +35,7 @@ Most bots fail because they optimize for a fantasy.
 - [x] **Dynamic Slippage Model**: `Slippage = Base + (Vol * Impact)`.
 
 - [x] **Volatility Penalty**: Forbid entry if standard deviation > threshold.
-- [ ] **Shadow Mode**:
+- [x] **Shadow Mode**:
   - Run `Live` and `Paper` engines on the *exact same signals* in parallel.
   - Log `(Live_Entry - Paper_Entry)` deltas.
   - Auto-adjust `Paper` parameters until delta < 1%.
