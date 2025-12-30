@@ -1,68 +1,71 @@
 # PhantomArbiter Architecture
 
 ## Overview
-PhantomArbiter is a **Solana DEX Arbitrage System** with a preserved Meme Coin Scraper module.
+PhantomArbiter operates on a **Single Engine Base** architecture. The system uses a unified, high-performance execution core (`src/engine`) which is driven by two distinct **Market Methods** depending on the operational context:
+1.  **Arbiter**: Spatial/Triangular arbitrage for established pools.
+2.  **Scraper**: High-speed discovery and sniping for new launches.
+
+**System Status**: Active Development
+**Python Version**: 3.12+
 
 ## 🏗️ Project Structure
 
 ```
 PhantomArbiter/
-├── main.py                    # Unified CLI entrypoint
-├── config/                    # Shared configuration
-├── scripts/                   # Utility scripts (14 files)
-├── tests/                     # All tests (32 files)
-└── src/
-    ├── shared/                # Components used by BOTH projects
-    │   ├── execution/         # WalletManager, JupiterSwapper
-    │   ├── feeds/             # Jupiter, Raydium, Orca price feeds
-    │   ├── system/            # Logging, utilities
-    │   └── infrastructure/    # RPC balancer, Drift adapter
-    │
-    ├── arbiter/               # ACTIVE: Arbitrage project
-    │   ├── arbiter.py         # Main orchestrator (PhantomArbiter class)
-    │   ├── core/              # Executor, SpreadDetector, RiskManager
-    │   ├── strategies/        # Spatial, Triangular, Funding arb
-    │   └── monitoring/        # Dashboard, alerts
-    │
-    └── scraper/               # PRESERVED: Meme coin discovery
-        ├── agents/            # ScoutAgent, SniperAgent, WhaleWatcher
-        ├── discovery/         # LaunchpadMonitor, TokenRegistry
-        └── scout/             # TokenScraper, Auditor
+├── main.py                    # Unified CLI Entrypoint ("Select Your Method")
+├── config/                    # Shared Configuration
+├── build_station.py           # Universal Station Setup Script
+├── data/                      # Shared Persistence Layer
+├── src/
+│   ├── engine/                # ⚡ THE ENGINE BASE (Shared Core)
+│   │   ├── trading_core.py    # Zero-alloc tick loop
+│   │   ├── decision_engine.py # Logic processor
+│   │   └── execution/         # Abstracted Executor
+│   │
+│   ├── arbiter/               # 🚀 METHOD 1: Arbitrage
+│   │   ├── strategies/        # Logic: "Find price discrepancies"
+│   │   └── core/              # Adapters to feed Engine with Arb signals
+│   │
+│   ├── scraper/               # 🔎 METHOD 2: Scraper
+│   │   ├── discovery/         # Logic: "Find new tokens"
+│   │   └── agents/            # Adapters to feed Engine with Snipe signals
+│   │
+│   └── shared/                # Common Infrastructure (Feeds, Logs)
+└── tests/                     # Comprehensive Test Suite
 ```
 
-## 🎯 CLI Commands
+## 🧠 System Design Principles
 
-| Command | Description |
-|---------|-------------|
-| `python main.py arbiter` | Run spatial arbitrage (paper/live) |
-| `python main.py scan` | Quick opportunity scan |
-| `python main.py discover` | Find trending tokens |
-| `python main.py watch` | Monitor launchpads |
-| `python main.py scout` | Smart money analysis |
-| `python main.py monitor` | Profitability dashboard |
+### 1. Single Engine, Multiple Methods
+The **Engine Base** (`src/engine`) provides the "Muscle":
+- **Tick Loop**: <10ms event processing.
+- **Position Management**: Validating and holding state.
+- **Execution**: Routing trades to the blockchain.
 
-## 🏛️ Logical Layers
+The **Methods** provide the "Brain":
+- **Arbiter Method**: Scans for spread > fees. Injects `BUY` signal into Engine.
+- **Scraper Method**: Scans for new pool creation. Injects `SNIPE` signal into Engine.
 
-### Layer 1: Data Ingestion (`src/shared/feeds/`)
-- **JupiterFeed**: Jupiter aggregator prices
-- **RaydiumFeed**: Raydium AMM prices
-- **OrcaFeed**: Orca CLMM prices
+### 2. Execution Tiers (SRP)
+The Core Engine ensures zero-delay execution by enforcing strict tiers.
 
-### Layer 2: Opportunity Detection (`src/arbiter/core/`)
-- **SpreadDetector**: Cross-DEX spread calculation
-- **RiskManager**: Profitability validation
+#### 🔴 P0: Execution Core
+- **Cycle Time**: <10ms
+- **Responsibility**: Takes a Signal from *any* Method and executes it blindly and immediately.
+- **Optimization**: No memory allocation in the hot loop.
 
-### Layer 3: Strategy Engines (`src/arbiter/strategies/`)
-- **SpatialArb**: Buy DEX A → Sell DEX B
-- **TriangularArb**: A → B → C → A cycles
-- **FundingArb**: Spot + Perp delta-neutral
+#### 🟡 P1: Logic Adaptation (The Methods)
+- **Cycle Time**: <100ms
+- **Arbiter**: Calculates cross-DEX spreads.
+- **Scraper**: Filters HoneyPot/RugPull risks.
+- **Output**: Standardized `TradeSignal` passed to P0.
 
-### Layer 4: Execution (`src/shared/execution/`)
-- **WalletManager**: Keypair and balance management
-- **JupiterSwapper**: Trade execution via Jupiter
-- **AtomicExecutor**: Multi-leg atomic bundles
+#### 🟢 P2: Infrastructure
+- **Responsibility**: Logging, Database, Async API calls.
 
-## 🚀 Key Principles
-1. **Sibling Separation**: Arbiter and Scraper are independent modules sharing common infrastructure
-2. **Atomic Execution**: Multi-leg trades succeed or fail together
-3. **Paper-First**: Default to paper trading for safety
+## 🛠️ Station Setup
+Use the unified builder to set up any workstation:
+```powershell
+python build_station.py
+```
+This handles Python 3.12 checks, `venv` creation, and dependency installation.
