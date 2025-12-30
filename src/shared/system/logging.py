@@ -156,10 +156,11 @@ class Logger:
             # Plain fallback
             print(f"{ts} | {level:8} | {source:10} | {msg_with_icon}")
     
-    @staticmethod
     def _log_to_file(level: str, message: str, source: str = "") -> None:
-        """Write to file logger."""
+        """Write to file logger and feed to AppState."""
         full_msg = f"[{source}] {message}" if source else message
+        
+        # 1. Write to standard logger
         if level == "INFO":
             file_logger.info(full_msg)
         elif level == "WARNING":
@@ -168,6 +169,22 @@ class Logger:
             file_logger.error(full_msg)
         elif level == "DEBUG":
             file_logger.debug(full_msg)
+            
+        # 2. Feed to AppState (Dashboard)
+        # Lazy import to avoid circular dependency
+        try:
+            from src.shared.state.app_state import state
+            # Only push important logs to UI
+            if level in ["INFO", "WARNING", "ERROR", "SUCCESS", "CRITICAL"]:
+                state.log(full_msg)
+                
+            # Flash error support
+            if level in ["ERROR", "CRITICAL"]:
+                state.flash_error(full_msg)
+        except ImportError:
+            pass
+        except Exception:
+            pass
     
     # =========================================================================
     # PUBLIC API (Backward Compatible)
