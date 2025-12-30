@@ -1,7 +1,7 @@
 {
   "version": "40.0",
   "total_capital_usd": 1050.0,
-  "last_updated": 1767124618.9875467,
+  "last_updated": 1767127160.5253785,
   "engines": {
     "MERCHANT": {
       "allocated_capital": 50.0,
@@ -32,17 +32,51 @@
     },
     "SCALPER": {
       "allocated_capital": 1000.0,
-      "cash_balance": 1147.75,
-      "sol_balance": 0.015000000000000013,
-      "positions": {},
+      "cash_balance": 115.26199248287281,
+      "sol_balance": 0.01646666666666668,
+      "positions": {
+        "TRUMP": {
+          "balance": 68.68114221600835,
+          "avg_price": 5.013384881064834,
+          "entry_price": 5.013384881064834,
+          "current_price": 5.013384881064834,
+          "size_usd": 344.325,
+          "current_value": 344.325,
+          "mint": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
+          "entry_time": 1767127140.7338076,
+          "dex_id": "JUPITER"
+        },
+        "DUPE": {
+          "balance": 41441.508953793746,
+          "avg_price": 0.008196050613011624,
+          "entry_price": 0.008196050613011624,
+          "current_price": 0.008196050613011624,
+          "size_usd": 339.65670486486795,
+          "current_value": 339.65670486486795,
+          "mint": "fRfKGCriduzDwSudCwpL7ySCEiboNuryhZDVJtr1a1C",
+          "entry_time": 1767127148.4862406,
+          "dex_id": "JUPITER"
+        },
+        "PUMPCADE": {
+          "balance": 62125.925691911776,
+          "avg_price": 0.005420555102186476,
+          "entry_price": 0.005420555102186476,
+          "current_price": 0.005420555102186476,
+          "size_usd": 336.75700348735023,
+          "current_value": 336.75700348735023,
+          "mint": "Eg2ymQ2aQqjMcibnmTt8erC6Tvk9PVpJZCxvVPJz2agu",
+          "entry_time": 1767127160.5253785,
+          "dex_id": "JUPITER"
+        }
+      },
       "stats": {
         "wins": 0,
-        "losses": 0,
-        "total_pnl_usd": 0.0,
-        "fees_paid_usd": 0.0,
-        "slippage_usd": 0.0
+        "losses": 1,
+        "total_pnl_usd": -7.749299164908905,
+        "fees_paid_usd": 3.82,
+        "slippage_usd": 28.313524003868153
       },
-      "peak_equity": 1000.0,
+      "peak_equity": 1147.75,
       "daily_start_equity": 1000.0
     },
     "ARBITER": {
