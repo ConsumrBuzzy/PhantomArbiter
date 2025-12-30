@@ -274,7 +274,9 @@ class Director:
                             self.agents["scalper"].execute_signal(s)
                         except Exception as e:
                             import traceback
-                            state.log(f"[Director] Signal execution failed: {e}\n{traceback.format_exc()}")
+                            tb = traceback.format_exc()
+                            print(f"[Director] Signal execution failed: {e}\n{tb}")  # V134: Print to console
+                            state.log(f"[Director] Signal execution failed: {e}\n{tb}")
                 
                 await asyncio.sleep(2)
             except asyncio.CancelledError:
