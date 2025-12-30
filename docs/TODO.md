@@ -6,15 +6,17 @@
 
 ---
 
-## 🚀 Active Sprint: "Institutional Realism" (Phase 4)
+## 🚀 Active Sprint: "Universal Discovery" (Phase 6)
 
-**Goal**: Eliminate the "Backtest Trap" by enforcing realistic execution costs and reducing latency to sub-60ms.
+**Goal**: Capture the "Graduation Gap" alpha via hierarchical lifecycle tracking.
 
-| **P1** | **Dashboard Overhaul** (Observability) | 📋 Plan | Mixed | [PHASE_DASHBOARD_OVERHAUL.md](./PHASE_DASHBOARD_OVERHAUL.md) |
-| **P1** | **Auto-Slippage** (Drift-Reactive) | ✅ Done | Python | [PHASE_AUTO_SLIPPAGE.md](./PHASE_AUTO_SLIPPAGE.md) |
-| **P1** | **Congestion Multiplier** (Jito Tips) | ✅ Done | Python | [PHASE_CONGESTION_MULTIPLIER.md](./PHASE_CONGESTION_MULTIPLIER.md) |
-| **P0** | **Universal Discovery** (V140 Hierarchical) | 🟡 Active | Scout | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
-| **P2** | **Full Backtest Suite** (Verify PnL Impact) | ⏳ Pending | QA | [TRADING_STRATEGIES.md](./TRADING_STRATEGIES.md) |
+| Priority | Task | Status | Owner | Linked Doc |
+| :--- | :--- | :--- | :--- | :--- |
+| **P0** | **PumpFunMonitor** (Rust/Python WSS) | 📋 Plan | Rust | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **P0** | **RaydiumStandardBridge** (675k... Initialization) | 📋 Plan | Python | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **P1** | **Hierarchical Scout Logic** (Graduation Alerts) | 📋 Plan | Scout | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **P1** | **Bonding Curve Math** (Metadata Schema) | ✅ Done | Rust | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **P2** | **Full PnL Auditor** (Shadow vs. Live) | ⚪ Planned | QA | `PHASE_7_AUDIT.md` |
 
 ---
 
@@ -22,12 +24,10 @@
 
 | Phase | Description | Status | Tracking Doc |
 | :--- | :--- | :--- | :--- |
-| **Phase 1** | **Foundation** (Scraper, Basic Arb) | ✅ Complete | [DATA_PIPELINE.md](./DATA_PIPELINE.md) |
-| **Phase 2** | **Paper Trading** (Wallets, Simulation) | ✅ Complete | [EXECUTION.md](./EXECUTION.md) |
-| **Phase 3** | **Refactor & Cleanup** (Inventory, SRP) | ✅ Complete | [INVENTORY.md](./INVENTORY.md) |
 | **Phase 4** | **Optimization & Realism** (Rust, Latency) | ✅ Complete | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` (Todo) |
+| **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` |
 | **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | 🟡 Active | [PHASE_UNIVERSAL_DISCOVERY.md](./PHASE_UNIVERSAL_DISCOVERY.md) |
+| **Phase 7** | **PnL Audit & Risk Hardening** | ⚪ Upcoming | `PHASE_7_AUDIT.md` |
 
 ---
 
