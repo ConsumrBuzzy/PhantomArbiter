@@ -463,6 +463,12 @@ class TradeExecutor:
         Returns:
             ExecutionResult with success status and details
         """
+        # V134: Null safety for price
+        if price is None or price <= 0:
+            price = watcher.get_price() if hasattr(watcher, 'get_price') else 0.0
+            if price is None or price <= 0:
+                return ExecutionResult(False, "No valid price for buy")
+        
         # Pre-flight checks
         can_execute, preflight_reason = self._check_preflight_buy(watcher, size_usd)
         if not can_execute:
