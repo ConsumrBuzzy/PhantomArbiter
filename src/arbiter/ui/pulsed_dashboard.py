@@ -227,7 +227,7 @@ class RichPulseReporter(ArbiterReporter):
     def __init__(self, telegram=None):
         super().__init__(telegram)
         self.dashboard = PulsedDashboard()
-        self.live = Live(self.dashboard.layout, refresh_per_second=4, screen=True)
+        self.live = Live(self.dashboard.layout, refresh_per_second=2, screen=True)  # V134: Reduced from 4 to prevent stutter
         self.live.start()
         
     def update_from_state(self, app_state):
