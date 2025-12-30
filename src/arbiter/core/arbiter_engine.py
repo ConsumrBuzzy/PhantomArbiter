@@ -116,8 +116,6 @@ class ArbiterEngine:
                 should_print = (self._scan_counter % 3 == 0)
                 self._scan_counter += 1
                 
-                self._scan_counter += 1
-                
                 # Base trade size (multiplier applied later per pair)
                 base_trade_size = self._calculate_trade_size()
                 
@@ -313,7 +311,12 @@ class ArbiterEngine:
 
     def _calculate_trade_size(self, pair: str = None) -> float:
         limit = self.config.max_trade if self.config.max_trade > 0 else float('inf')
-        base = min(self.tracker.current_balance, limit)
+        if self.config.live_mode: # Assuming self.config.live_mode exists, otherwise self.live_mode
+            # V2.0: Use Arbiter's unified property (Live or Paper)
+            base = min(self.arbiter.current_balance, limit)
+        else:
+            # Paper mode
+            base = min(self.arbiter.current_balance, limit) # Corrected: min returns a number, not an object with get_smart_size_multiplier
         
         if pair:
             multiplier = pod_system.get_smart_size_multiplier(pair)
