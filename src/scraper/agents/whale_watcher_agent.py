@@ -18,16 +18,19 @@ class WhaleWatcherAgent(BaseAgent):
     2. Copy Trading: Emits BUY signals when Top Wallets enter a position.
     """
     
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None, metadata_registry: Dict = None):
         super().__init__(name="WHALE_WATCH", config=config or {})
         self.rpc = get_rpc_balancer()
+        
+        # V67.0: Metadata Registry for Whale-Pulse Confidence Boost
+        self.metadata_registry = metadata_registry or {}
         
         # Configuration
         self.watchlist_file = os.path.join(os.path.dirname(__file__), "../../data/smart_money_watchlist.json")
         self.poll_interval = 15.0 # Seconds
         self.last_signatures: Dict[str, str] = {} # wallet -> last_seen_signature
         
-        Logger.info(f"[{self.name}] Agent Initialized")
+        Logger.info(f"[{self.name}] Agent Initialized (Registry: {len(self.metadata_registry)} tokens)")
 
     async def start(self):
         """Start background polling."""
@@ -172,6 +175,11 @@ class WhaleWatcherAgent(BaseAgent):
                 # Or we inject it into a Shared bus.
                 
                 # Emit to Global SignalBus (V33 Unification)
+                usd_value = abs(sol_change)/1e9 * 150  # Estimated USD value
+                
+                # V67.0: Update Whale-Pulse Confidence in Metadata Registry
+                self._apply_whale_bonus(mint, usd_value)
+                
                 signal_bus.emit(Signal(
                     type=SignalType.WHALE,
                     source=self.name,
@@ -180,7 +188,7 @@ class WhaleWatcherAgent(BaseAgent):
                         "action": "BUY",
                         "confidence": 0.9,
                         "wallet": wallet,
-                        "usd_value": abs(sol_change)/1e9 * 150 # Est
+                        "usd_value": usd_value
                     }
                 ))
 
@@ -204,6 +212,46 @@ class WhaleWatcherAgent(BaseAgent):
                 return mint
                 
         return None
+
+    def _apply_whale_bonus(self, mint: str, usd_value: float) -> None:
+        """
+        V67.0: Apply Whale-Pulse confidence bonus to metadata registry.
+        
+        Bonus Scale:
+        - $1k-$5k:   +0.05
+        - $5k-$25k:  +0.15
+        - $25k-$100k: +0.25
+        - $100k+:    +0.35
+        """
+        if not self.metadata_registry:
+            return
+            
+        # Get metadata for this mint
+        metadata = self.metadata_registry.get(mint)
+        if not metadata:
+            return
+        
+        # Calculate bonus based on USD value (tiered)
+        if usd_value >= 100_000:
+            bonus = 0.35
+        elif usd_value >= 25_000:
+            bonus = 0.25
+        elif usd_value >= 5_000:
+            bonus = 0.15
+        elif usd_value >= 1_000:
+            bonus = 0.05
+        else:
+            return  # Below threshold, no bonus
+        
+        # Apply bonus (additive, capped at 0.5)
+        try:
+            current = getattr(metadata, 'whale_confidence_bonus', 0.0)
+            new_bonus = min(current + bonus, 0.5)
+            metadata.whale_confidence_bonus = new_bonus
+            Logger.info(f"🐋 [WHALE-PULSE] {mint[:8]}: +{bonus:.2f} confidence (Total: {new_bonus:.2f})")
+        except AttributeError:
+            # Fallback for non-Rust metadata objects
+            pass
 
     def _load_watchlist(self) -> Dict:
         if not os.path.exists(self.watchlist_file):

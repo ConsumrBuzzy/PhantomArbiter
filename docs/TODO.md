@@ -18,7 +18,7 @@
 | **P1** | **Race-to-First** (Deduplication) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **P1** | **Signal Scorer** (Move Logic to Rust) | ✅ Done | Rust | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
 | **P1** | **Shadow Mode** (Paper/Live Parity) | ✅ Done | Python | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **P1** | **Whale-Pulse** (Confidence Boost) | 🏗️ Rust Done | Rust | [PHASE_WHALE_PULSE.md](./PHASE_WHALE_PULSE.md) |
+| **P1** | **Whale-Pulse** (Confidence Boost) | ✅ Done | Rust+Py | [PHASE_WHALE_PULSE.md](./PHASE_WHALE_PULSE.md) |
 | **P2** | **Full Backtest Suite** (Verify PnL Impact) | ⏳ Pending | QA | [TRADING_STRATEGIES.md](./TRADING_STRATEGIES.md) |
 
 ---
