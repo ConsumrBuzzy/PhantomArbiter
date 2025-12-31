@@ -106,11 +106,31 @@ class Director:
             self.agents["whale"] = None
             self.agents["scout"] = None
             self.agents["landlord"] = None
+            
+            # V140: Initialize Pod System for autonomous hop exploration
+            from src.engine.pod_manager import get_pod_manager
+            self.pod_manager = get_pod_manager()
+            
+            # Spawn default HopPod for SOL-based multiverse scanning
+            from config.settings import Settings
+            self.default_hop_pod = self.pod_manager.spawn_hop_pod(
+                name="sol_multiverse",
+                start_token=getattr(Settings, 'SOL_MINT', "So11111111111111111111111111111111111111112"),
+                min_hops=getattr(Settings, 'HOP_MIN_LEGS', 2),
+                max_hops=getattr(Settings, 'HOP_MAX_LEGS', 4),
+                min_liquidity=getattr(Settings, 'HOP_MIN_LIQUIDITY_USD', 5000),
+                cooldown=getattr(Settings, 'HOP_SCAN_INTERVAL_SEC', 2.0)
+            )
+            if self.default_hop_pod:
+                state.log(f"[Director] 🌌 Spawned HopPod: {self.default_hop_pod.id}")
+            else:
+                state.log("[Director] ⚠️ Failed to spawn HopPod - Rust extension may not be built")
         else:
-            # Mock or Skip
+            # Lite Mode - Mock or Skip
             self.agents["whale"] = None
             self.agents["scout"] = None
             self.agents["landlord"] = None
+            self.pod_manager = None
 
         # 5. SIGNAL BUS (Unified OS Hub)
         self.signal_bus = signal_bus
@@ -235,6 +255,17 @@ class Director:
                 )
             else:
                 state.log("[Director] ⚡ Narrow Path Mode: Skipping slow tier (Whale/Scout/Discovery/Liquidity).")
+                
+                # V140: Start Pod System for autonomous hop exploration
+                if self.pod_manager:
+                    await self.pod_manager.start_all()
+                    state.log(f"[Director] 🌌 Started {len(self.pod_manager.pods)} pods")
+                    
+                    # Start pod signal consumer
+                    self.tasks["mid"]["pod_signals"] = asyncio.create_task(
+                        self._consume_pod_signals(),
+                        name="Pod_Signal_Consumer"
+                    )
         else:
             state.log("[Director] ⚡ Lite Mode Active: Skipping non-essential background daemons.")
         
@@ -261,6 +292,62 @@ class Director:
         except Exception as e:
             state.log(f"[Init] ❌ Startup Error: {e}")
 
+    async def _consume_pod_signals(self):
+        """
+        V140: Consume signals from HopPods and route to SignalBus/Dashboard.
+        
+        This bridges the autonomous Pod system with the TradingCore.
+        High-priority signals can trigger immediate execution.
+        """
+        from src.engine.pod_manager import PodSignal, PodType
+        
+        while self.is_running:
+            try:
+                if not self.pod_manager:
+                    await asyncio.sleep(1.0)
+                    continue
+                
+                # Get queued signals (sorted by priority)
+                signals = self.pod_manager.get_signals(clear=True)
+                
+                for signal in signals:
+                    # Route based on signal type
+                    if signal.signal_type == "OPPORTUNITY" and signal.pod_type == PodType.HOP:
+                        # High-priority hop opportunity
+                        opp_data = signal.data
+                        
+                        # Update AppState for dashboard
+                        state.hop_cycles = state.hop_cycles or {}
+                        state.hop_cycles['best'] = opp_data
+                        state.hop_cycles['cycles_by_hops'] = opp_data.get('cycles_by_hops', {})
+                        
+                        # Log significant opportunities
+                        profit = opp_data.get('profit_pct', 0)
+                        if profit > 0.2:  # 0.2% threshold
+                            hop_count = opp_data.get('hop_count', 0)
+                            state.log(f"[HopPod] 🎯 {hop_count}-hop: +{profit:.3f}%")
+                        
+                        # Push to SignalBus for potential execution
+                        if signal.priority >= 8:  # High confidence
+                            self.signal_bus.emit({
+                                "type": "HOP_OPPORTUNITY",
+                                "source": signal.pod_id,
+                                "data": opp_data,
+                                "priority": signal.priority
+                            })
+                    
+                    elif signal.signal_type == "WARNING":
+                        state.log(f"[Pod] ⚠️ {signal.pod_id}: {signal.data.get('message', 'Warning')}")
+                
+                # Update pod stats in AppState
+                state.pod_stats = self.pod_manager.get_stats()
+                
+                await asyncio.sleep(0.5)  # Poll rate
+                
+            except Exception as e:
+                state.log(f"[Director] Pod consumer error: {e}")
+                await asyncio.sleep(2.0)
+
     async def stop(self):
         """Shutdown."""
         self.is_running = False
@@ -282,6 +369,11 @@ class Director:
                     await task
                 except asyncio.CancelledError:
                     pass
+        
+        # V140: Stop Pod System
+        if hasattr(self, 'pod_manager') and self.pod_manager:
+            await self.pod_manager.stop_all()
+            state.log("[Director] 🌌 All pods stopped")
         
         state.status = "OFFLINE"
 
