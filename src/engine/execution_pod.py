@@ -132,6 +132,20 @@ class ExecutionPod(BasePod):
         if self._jupiter_client is None:
             from src.engine.dex_builders import get_jupiter_client
             self._jupiter_client = get_jupiter_client(slippage_bps=30)
+            
+        # Initialize Ghost Validator if in GHOST mode
+        if self.mode == ExecutionMode.GHOST and getattr(self, '_ghost_validator', None) is None:
+            try:
+                from src.engine.ghost_validator import GhostValidator
+                from src.engine.dex_builders import MultiHopQuoteBuilder
+                # We need a QuoteBuilder for validation
+                # Reuse existing one or create new? QuoteBuilder needs jupiter_client
+                quote_builder = MultiHopQuoteBuilder(self._jupiter_client)
+                self._ghost_validator = GhostValidator(quote_builder)
+                Logger.info("[ExecutionPod] 👻 GhostValidator initialized")
+            except Exception as e:
+                Logger.warning(f"[ExecutionPod] Failed to init GhostValidator: {e}")
+                self._ghost_validator = None
     
     async def enqueue_opportunity(self, opportunity_data: Dict[str, Any]):
         """
