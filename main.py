@@ -36,7 +36,7 @@ def create_parser() -> argparse.ArgumentParser:
         description="Solana DEX Arbitrage & Meme Coin Discovery System",
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
     # ═══════════════════════════════════════════════════════════════
     # ARBITER SUBCOMMAND
