@@ -36,11 +36,7 @@ class VisualBridge:
         logger.info(f"➕ Client Connected. Total: {len(self.connected_clients)}")
         
         # Send immediate snapshot on connect
-        try:
-            snapshot = self.market_manager.get_graph_data()
-            await websocket.send(json.dumps(snapshot))
-        except Exception as e:
-            logger.error(f"❌ Failed to send initial snapshot: {e}")
+        await self.send_snapshot(websocket)
 
     async def unregister(self, websocket):
         """Unregister a client connection."""
@@ -52,12 +48,31 @@ class VisualBridge:
         await self.register(websocket)
         try:
             async for message in websocket:
-                # Handle any incoming control messages here
-                pass
+                try:
+                    data = json.loads(message)
+                    if data.get("action") == "REQUEST_SYNC":
+                        logger.info(f"🔄 Client requested SYNC. Resetting Snapshot.")
+                        await self.send_snapshot(websocket)
+                    elif data.get("action") == "PONG":
+                        # Keep-alive received, could update timestamp here
+                        pass
+                except json.JSONDecodeError:
+                    pass
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
             await self.unregister(websocket)
+
+    async def send_snapshot(self, websocket):
+        """Sends a full snapshot to reset the client state."""
+        try:
+            snapshot = self.market_manager.get_graph_data()
+            # Reset/Set sequence ID for this snapshot
+            snapshot['seq_id'] = self.current_seq_id
+            snapshot['type'] = 'snapshot'
+            await websocket.send(json.dumps(snapshot))
+        except Exception as e:
+            logger.error(f"❌ Failed to send snapshot: {e}")
 
     async def send_update(self, websocket, message: str):
         """Send a message to a specific client."""
@@ -73,32 +88,50 @@ class VisualBridge:
         logger.info("📡 Broadcast Loop Started.")
         while self.is_running:
             try:
-                # 1. Get Fresh Data (Differential or Snapshot)
+                # 1. Get Fresh Data (Differential)
                 payload_data: GraphPayload = self.market_manager.get_graph_diff()
+                
+                # Assign Global Sequence ID
+                self.current_seq_id += 1
+                payload_data['seq_id'] = self.current_seq_id
+                payload_data['type'] = 'diff'
                 
                 # 2. Serialize to JSON
                 payload = json.dumps(payload_data)
                 
                 # 3. Broadcast
                 if self.connected_clients:
-                    # Create tasks for all connected clients to send in parallel
                     tasks = [self.send_update(client, payload) for client in self.connected_clients]
                     if tasks:
                         await asyncio.gather(*tasks)
-                        logger.info(f"📤 Broadcast: {len(payload_data.get('nodes', []))} nodes to {len(self.connected_clients)} clients.")
+                        # logger.debug(f"📤 Broadcast SEQ:{self.current_seq_id}") 
                         
             except Exception as e:
                 logger.error(f"❌ Broadcast Error: {e}")
                 
-            # Rate Limit (e.g., 2 FPS)
+            # Rate Limit (e.g., 2 FPS for stability)
             await asyncio.sleep(0.5)
 
+    async def heartbeat_loop(self):
+        """Sends PING every 5s to keep connections alive."""
+        while self.is_running:
+            if self.connected_clients:
+                ping_payload = json.dumps({"type": "PING"})
+                tasks = [self.send_update(client, ping_payload) for client in self.connected_clients]
+                await asyncio.gather(*tasks)
+            await asyncio.sleep(5)
+
     async def start(self):
-        """Starts the WebSocket server and the broadcast loop."""
+        """Starts the WebSocket server and background loops."""
         self.is_running = True
+        self.current_seq_id = 0
 
-        server = await serve(self.handler, self.host, self.port)
-        logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
+        async with serve(self.handler, self.host, self.port):
+            logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
+            
+            # Run loops concurrently
+            await asyncio.gather(
+                self.broadcast_loop(),
+                self.heartbeat_loop()
+            )
 
-        # Run broadcast loop alongside server
-        await self.broadcast_loop()

@@ -99,6 +99,20 @@ export class SigmaManager {
         // Add other diff logic (new nodes/edges) as needed
     }
 
+    // Decay energy over time (called from RAF)
+    decayEnergy() {
+        this.graph.forEachNode((node, attributes) => {
+            if (attributes.energy > 0.1) {
+                const newEnergy = attributes.energy * 0.95; // 5% decay per frame
+                this.graph.setNodeAttribute(node, 'energy', newEnergy);
+                this.graph.setNodeAttribute(node, 'size', Math.max(3, newEnergy * 15));
+                if (newEnergy < 0.3) {
+                    this.graph.setNodeAttribute(node, 'color', '#00ffff');
+                }
+            }
+        });
+    }
+
     cleanup() {
         if (this.layout) this.layout.kill();
         if (this.renderer) this.renderer.kill();
