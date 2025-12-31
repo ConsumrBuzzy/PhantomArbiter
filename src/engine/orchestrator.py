@@ -90,12 +90,47 @@ class MarketOrchestrator:
         except Exception as e:
             print(f"   ❌ Failed to launch HUD: {e}")
 
+    def ignite_http_server(self):
+        """Starts a lightweight HTTP server for 'The Void' frontend."""
+        import http.server
+        import socketserver
+        import threading
+        
+        PORT = 8000
+        DIRECTORY = "frontend"
+        
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                # Serve from the root but default to dashboard.html
+                # Or easier: Serve everything, user hits /frontend/dashboard.html
+                # Let's serve from ROOT so /frontend/dashboard.html is accessible
+                super().__init__(*args, directory=".", **kwargs)
+
+        def run_server():
+            try:
+                # Allow address reuse
+                socketserver.TCPServer.allow_reuse_address = True
+                with socketserver.TCPServer(("", PORT), Handler) as httpd:
+                    print(f"\n🔮 THE VOID IS OPEN: http://localhost:{PORT}/frontend/dashboard.html")
+                    httpd.serve_forever()
+            except OSError as e:
+                print(f"⚠️ HTTP Server Error (Port {PORT} busy?): {e}")
+
+        # Start in daemon thread
+        threading.Thread(target=run_server, daemon=True).start()
+
     async def ignite_system(self):
-        """Ignites the Director and Visual Bridge."""
+        """
+        Ignite the Phantom Engine and Visual Bridge.
+        """
         self.is_running = True
         
-        # 1. Visual Bridge (The Eyes)
-        self.executor_loop = asyncio.events.new_event_loop()
+        print("   🚀 Launching The Void (WebGL)...")
+        # V33: Launch HTTP Server (The Void)
+        self.ignite_http_server()
+        
+        # 1. Visual Bridge (The Voice)
+        # Check if already running to prevent double ignition
         self.visual_bridge = VisualBridge()
         
         # V33: Ignite Pyth Polling for Full Spectrum
