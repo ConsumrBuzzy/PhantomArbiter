@@ -134,59 +134,127 @@
         scene.add(gridHelper);
 
         // --- NODE LOGIC ---
-        function createNode(mint, label, colorHex) {
-            if (nodes.has(mint)) return nodes.get(mint);
+        function createNode(id, label, archetype, params) {
+            if (nodes.has(id)) return nodes.get(id);
 
-            const geometry = new THREE.SphereGeometry(NODE_SIZE, 16, 16);
-            const material = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(colorHex),
-                emissive: new THREE.Color(colorHex),
-                emissiveIntensity: 0.5,
-                roughness: 0.2,
-                metalness: 0.8
-            });
-            const sphere = new THREE.Mesh(geometry, material);
+            const color = new THREE.Color(params.hex_color);
+            let geometry, material;
+
+            switch (archetype) {
+                case 'PLANET':
+                    geometry = new THREE.SphereGeometry(params.radius * 2, 32, 32);
+                    material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        roughness: params.roughness,
+                        metalness: 0.2,
+                        emissive: color,
+                        emissiveIntensity: 0.2
+                    });
+                    break;
+                case 'SUPERNOVA':
+                    geometry = new THREE.IcosahedronGeometry(params.radius, 2);
+                    material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        emissive: color,
+                        emissiveIntensity: 2.0,
+                        wireframe: true
+                    });
+                    break;
+                case 'COMET':
+                    geometry = new THREE.ConeGeometry(params.radius, params.radius * 4, 8);
+                    material = new THREE.MeshBasicMaterial({ color: color });
+                    break;
+                case 'PULSAR':
+                default:
+                    geometry = new THREE.SphereGeometry(params.radius, 16, 16);
+                    material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        emissive: color,
+                        emissiveIntensity: 0.5
+                    });
+            }
+
+            const mesh = new THREE.Mesh(geometry, material);
 
             // Random Position in Galaxy (Cylinder/Disc distribution)
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * GALAXY_RADIUS * 0.8;
             const y = (Math.random() - 0.5) * 50; // Flattened disc
 
-            sphere.position.set(
+            mesh.position.set(
                 Math.cos(angle) * radius,
                 y,
                 Math.sin(angle) * radius
             );
 
-            scene.add(sphere);
-            nodes.set(mint, sphere);
-            return sphere;
+            mesh.userData = { id, label, archetype, originalParams: { ...params } };
+            scene.add(mesh);
+            nodes.set(id, mesh);
+            return mesh;
         }
 
-        function flashNode(mint, colorHex, label) {
-            let node = nodes.get(mint);
+        function triggerArchetypeUpdate(data) {
+            let node = nodes.get(data.id);
             if (!node) {
-                node = createNode(mint, label, colorHex);
+                node = createNode(data.id, data.label, data.archetype, data.params);
             }
 
-            // Flash Effect (Pulse Size & Emissive)
-            node.material.emissive.setHex(parseInt(colorHex.replace('#', '0x'), 16));
-            node.material.emissiveIntensity = 5.0; // Bright flash
-            node.scale.set(3, 3, 3); // Grow
+            const params = data.params;
+            node.material.emissiveIntensity = params.emissive_intensity * 2;
 
-            // Log
-            logEvent(`⚡ ${label || mint} [${colorHex}]`);
+            if (data.archetype === 'SUPERNOVA') {
+                node.scale.set(5, 5, 5); // Massive expansion
+                createShockwave(node.position, params.hex_color);
+            } else if (data.archetype === 'PULSAR') {
+                node.scale.set(2, 2, 2);
+                createShockwave(node.position, params.hex_color, 0.5);
+            } else if (data.archetype === 'COMET') {
+                // Comets drift faster
+                node.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+            }
+
+            logEvent(`🌌 [${data.archetype}] ${data.label || data.id}`);
         }
 
-        function updateNodes() {
+        function createShockwave(pos, colorHex, scale = 1.0) {
+            const geom = new THREE.RingGeometry(1, 1.2, 32);
+            const mat = new THREE.MeshBasicMaterial({
+                color: colorHex,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(geom, mat);
+            ring.position.copy(pos);
+            ring.lookAt(camera.position);
+            ring.userData = { type: 'effect', life: 1.0, scale: scale };
+            scene.add(ring);
+        }
+
+        function updateScene() {
             nodes.forEach((node) => {
-                // Decay Emissive
-                if (node.material.emissiveIntensity > 0.5) {
-                    node.material.emissiveIntensity *= 0.95;
+                // Decay
+                if (node.material.emissiveIntensity > 0.2) {
+                    node.material.emissiveIntensity *= 0.98;
                 }
-                // Decay Scale
                 if (node.scale.x > 1) {
-                    node.scale.multiplyScalar(0.95);
+                    node.scale.multiplyScalar(0.96);
+                }
+                // Comet drift
+                if (node.userData.archetype === 'COMET' && node.userData.velocity) {
+                    node.position.add(node.userData.velocity);
+                }
+            });
+
+            // Update effects
+            scene.children.forEach(child => {
+                if (child.userData && child.userData.type === 'effect') {
+                    child.scale.multiplyScalar(1.1);
+                    child.userData.life *= 0.95;
+                    child.material.opacity = child.userData.life;
+                    if (child.userData.life < 0.01) {
+                        scene.remove(child);
+                    }
                 }
             });
         }
@@ -197,7 +265,12 @@
         const logEl = document.getElementById('feed-log');
 
         document.getElementById('test-btn').addEventListener('click', () => {
-            flashNode("MANUAL_TEST", "#ff0000", "MANUAL");
+            triggerArchetypeUpdate({
+                id: "TEST_" + Math.random(),
+                label: "TEST",
+                archetype: "SUPERNOVA",
+                params: { hex_color: "#ffaa00", radius: 2, emissive_intensity: 5 }
+            });
         });
 
         function logEvent(msg) {
@@ -209,7 +282,7 @@
         }
 
         function connect() {
-            logEvent("Attempting WS Connection...");
+            logEvent("Attempting Neural Link...");
             const ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
@@ -225,13 +298,11 @@
                 try {
                     const data = JSON.parse(event.data);
 
-                    if (data.type === 'flash') {
-                        flashNode(data.node, data.color, data.label);
+                    if (data.type === 'ARCHETYPE_UPDATE') {
+                        triggerArchetypeUpdate(data);
                     } else if (data.type === 'snapshot') {
-                        // Rebuild graph?
-                        // For The Void, we just additive spawn for now
                         logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
-                        data.nodes.forEach(n => createNode(n.id, n.label, n.color || '#39ff14'));
+                        data.nodes.forEach(n => createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1, emissive_intensity: 1, roughness: 0.5 }));
                     } else if (data.type === 'PING') {
                         // Optional heartbeat log
                         // logEvent("❤️ PING");
@@ -264,7 +335,7 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            updateNodes();
+            updateScene();
             controls.update();
 
             // Render with Bloom

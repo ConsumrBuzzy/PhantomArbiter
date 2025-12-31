@@ -21,7 +21,7 @@ class VisualTransformer:
     @staticmethod
     def transform(signal: Signal) -> Optional[Dict[str, Any]]:
         """
-        Transforms a raw Signal into a Visual Payload.
+        Transforms a raw Signal into a Visual Archetype Payload.
         """
         data = signal.data
         source = signal.source or data.get("source", "UNKNOWN")
@@ -33,64 +33,65 @@ class VisualTransformer:
             
         label = data.get("symbol", "???")
         
-        # 2. Archetype & Color Mapping
-        archetype = "sphere" # Default
+        # 2. Archetype Mapping
+        # User defined: Pulsar, Planet, Supernova, Comet
+        archetype = "GLOBE" # Fallback
         color = "#ffffff"
-        size_multiplier = 1.0
+        params = {
+            "radius": 1.0,
+            "roughness": 0.5,
+            "emissive_intensity": 1.0,
+            "hex_color": "#FFFFFF"
+        }
         
         if source == "WSS_Listener" or source == "DEX":
-            # Execution Layer (Green)
-            color = "#39ff14" # Neon Green
-            archetype = "flash_sphere"
+            # "The Pulsar" (Green) - Shockwave trigger
+            archetype = "PULSAR"
+            color = "#39ff14"
+            params.update({
+                "radius": 1.2,
+                "emissive_intensity": 3.0,
+                "hex_color": color,
+                "roughness": 0.1
+            })
             
         elif source == "PYTH":
-            # Truth Layer (Cyan)
+            # "The Planet" (Cyan) - Stable body
+            archetype = "PLANET"
             color = "#00ffff"
-            archetype = "pulse_star" # Pulsing stable star
+            params.update({
+                "radius": 2.0,
+                "emissive_intensity": 1.5,
+                "hex_color": color,
+                "roughness": 0.8 # Rocky texture
+            })
             
         elif source == "PUMP_GRAD":
-            # Graduation (Orange)
+            # "The Supernova" (Orange) - Rapid expansion
+            archetype = "SUPERNOVA"
             color = "#ffaa00"
-            archetype = "supernova" # Explosive
-            size_multiplier = 5.0
+            params.update({
+                "radius": 3.0,
+                "emissive_intensity": 8.0,
+                "hex_color": color,
+                "roughness": 0.0
+            })
             
         elif source == "DISCOVERY" or source == "SCRAPER":
-            # Discovery (Purple)
+            # "The Comet" (Purple) - Moving trailer
+            archetype = "COMET"
             color = "#9945ff"
-            archetype = "comet" # Entering the system
-            
-        elif source == "LAUNCHPAD":
-            # Creation (Magenta)
-            color = "#ff00ff"
-            archetype = "spark"
-            
-        elif source == "ORCA":
-            # Liquidity (Teal)
-            color = "#008080"
-            archetype = "fluid_orb" # Fluid
-            
-        elif source == "ARB":
-            # Warning (Red)
-            color = "#ff0000"
-            archetype = "warning_crystal"
-            
-        # 3. Physics / Dimensions
-        # In a real metadata layer, we'd lookup Market Cap to set Radius
-        # For now, we use a default
-        radius = 2.0 * size_multiplier
-        
+            params.update({
+                "radius": 0.8,
+                "emissive_intensity": 4.0,
+                "hex_color": color,
+                "roughness": 0.3
+            })
+
         return {
-            "type": "flash", # The protocol message type
-            "node": mint,
+            "type": "ARCHETYPE_UPDATE",
+            "id": mint,
             "label": label,
-            "visual": {
-                "color": color,
-                "archetype": archetype,
-                "radius": radius,
-                "roughness": 0.2, # TODO: Map to volatility
-                "metalness": 0.8
-            },
-            # Flat attributes for legacy compatibility
-            "color": color,
-            "energy": size_multiplier
+            "archetype": archetype,
+            "params": params
         }
