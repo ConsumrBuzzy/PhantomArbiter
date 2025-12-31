@@ -73,10 +73,47 @@ def test_dashboard_registry():
     
     print("✅ DashboardRegistry passed")
 
+def test_fragment_rendering():
+    print("\n🎨 Testing Fragment Rendering (Soak Simulation)...")
+    # Mock State
+    class MockState:
+        def __init__(self):
+            self.hop_cycles = {
+                'best': {'path_display': 'SOL -> USDC -> BONK -> SOL', 'profit_pct': 0.75},
+                'cycles_by_hops': {3: 15, 4: 5}
+            }
+            self.graph_stats = {'nodes': 1000, 'edges': 5000, 'last_update': 'Few seconds ago'}
+            self.pod_stats = {
+                'pods': [
+                    {'pod_type': 'execution', 'recent_history': [
+                        {'expected_profit_pct': 1.2, 'tip_lamports': 50000, 'mode': 'GHOST', 'signature': 'ghost_sig_123'}
+                    ]}
+                ]
+            }
+            self.shadow_stats = {}
+            self.stats = {}
+            
+    state = MockState()
+    
+    # Test Hop Fragments
+    from src.arbiter.ui.fragments.narrow_path import MultiverseFragment, GraphStatsFragment, JitoBundleFragment
+    
+    frags = [MultiverseFragment(), GraphStatsFragment(), JitoBundleFragment()]
+    for f in frags:
+        try:
+            renderable = f.render(state)
+            print(f"   Rendered {f.name}: OK")
+        except Exception as e:
+            print(f"   ❌ Failed to render {f.name}: {e}")
+            raise e
+            
+    print("✅ UI Rendering Stability passed")
+
 if __name__ == "__main__":
     try:
         test_strategy_factory()
         test_dashboard_registry()
+        test_fragment_rendering()
         print("\n🎉 ALL SYSTEMS GO")
     except AssertionError as e:
         print(f"\n❌ VERIFICATION FAILED: {e}")

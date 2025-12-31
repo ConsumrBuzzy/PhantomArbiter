@@ -56,14 +56,25 @@ class PulsedDashboard:
     def _init_fragments(self):
         """Register fragments based on active mode."""
         if getattr(Settings, 'HOP_ENGINE_ENABLED', False):
-            # Phase 17: Modular Scavenger/Hop Mode
+            # Phase 17: Narrow Path / Hop Mode
+            from src.arbiter.ui.fragments.narrow_path import (
+                MultiverseFragment, 
+                GraphStatsFragment, 
+                JitoBundleFragment
+            )
+            from src.arbiter.ui.fragments.scavenger import ScavengerFragment
+            
+            # Left Bottom
             registry.register("shadow", ScavengerFragment())
-            registry.register("stats", FlowFragment())
-            # registry.register("left", HopStatsFragment()) # Replaces Arb Table? Maybe not yet.
+            
+            # Right Column (The "Pair Hop" Control Center)
+            registry.register("scalper", MultiverseFragment())
+            registry.register("inventory", GraphStatsFragment())
+            registry.register("stats", JitoBundleFragment())
         else:
-            # Legacy Mode
+            # Legacy Mode / Scalper Mode
             registry.register("shadow", ShadowFragment())
-            # registry.register("stats", StandardStatsFragment()) # TODO: Implement this
+            # registry.register("stats", StandardStatsFragment())
 
     def generate_header(self, state: Any):
         """Render header with Real/Paper split."""
@@ -179,27 +190,31 @@ class RichPulseReporter(ArbiterReporter):
             self.dashboard.generate_opp_table(app_state.opportunities)
         )
         
-        # 3. Scalper (Right Top) - Legacy
-        self.dashboard.layout["scalper"].update(
-            self.dashboard.generate_scalper_panel(app_state.scalp_signals, app_state.market_pulse)
-        )
+        # 3. Scalper (Right Top)
+        scalper_panel = registry.render_slot("scalper", app_state)
+        if scalper_panel:
+            self.dashboard.layout["scalper"].update(scalper_panel)
+        else:
+            self.dashboard.layout["scalper"].update(
+                self.dashboard.generate_scalper_panel(app_state.scalp_signals, app_state.market_pulse)
+            )
         
         # 3b. Signals (Left Bottom) - Legacy
+        # Currently no fragment for signals, sticking to legacy
         self.dashboard.layout["signals"].update(
              self.dashboard.generate_signal_panel(app_state.system_signals)
         )
 
-        # 3c. Inventory - Legacy
-        # Note: inventory panel is actually populated by graph stats in narrow path mode
-        inventory_data = app_state.inventory
-        # If in hop mode, inventory might be holding graph stats?
-        # Let's check how main.py populates inventory
-        self.dashboard.layout["inventory"].update(
-             self.dashboard.generate_inventory_panel(inventory_data)
-        )
+        # 3c. Inventory (Right Mid)
+        inventory_panel = registry.render_slot("inventory", app_state)
+        if inventory_panel:
+            self.dashboard.layout["inventory"].update(inventory_panel)
+        else:
+            self.dashboard.layout["inventory"].update(
+                 self.dashboard.generate_inventory_panel(app_state.inventory)
+            )
         
         # 4. Modular Slots (Shadow & Stats)
-        # Using Registry for these panels!
         shadow_panel = registry.render_slot("shadow", app_state)
         if shadow_panel:
             self.dashboard.layout["shadow"].update(shadow_panel)
