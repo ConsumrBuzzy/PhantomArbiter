@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 // use tokio::sync::mpsc; // Removed unused import
 use crossbeam_channel::{bounded, Receiver, Sender};
 use futures_util::{SinkExt, StreamExt};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
