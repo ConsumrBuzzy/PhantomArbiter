@@ -38,9 +38,10 @@ class GhostValidator:
         self.quote_builder = quote_builder
         self.pending_validations = 0
         
-    async def validate_later(self, cycle_id: str, path: list, original_profit: float, delay_seconds: float = 2.0) -> Optional[ValidationResult]:
+    async def validate_later(self, cycle_id: str, path: list, original_profit: float, delay_seconds: float = 0.450) -> Optional[ValidationResult]:
         """
-        Schedule a validation check after a delay.
+        Schedule a validation check after a delay (Jito Inclusion Latency).
+        Standard Jito Bundle Inclusion ~400ms.
         """
         self.pending_validations += 1
         try:
@@ -70,19 +71,32 @@ class GhostValidator:
             metrics = self.quote_builder.calculate_cycle_profit(quotes, input_amount)
             current_profit = metrics['profit_pct']
             
+            # REALITY CHECK: Deduct Estimated Fees
+            # Network Fee (0.000005) + ATA Rent (0.002 x legs) + Jito Tip (0.0001)
+            # Approx 0.008 SOL fixed cost
+            fixed_cost_sol = 0.008 
+            cost_pct = (fixed_cost_sol / (input_amount / 1e9)) * 100
+            
+            net_profit = current_profit - cost_pct
+            
             # Check if still profitable
-            still_profitable = current_profit > 0.1 # Min threshold
+            still_profitable = net_profit > 0.05 # Min threshold after fees
             drift = current_profit - original_profit
             
             log_icon = "✅" if still_profitable else "❌"
-            Logger.info(
-                f"[Ghost] {log_icon} Look-Back: {original_profit:.3f}% -> {current_profit:.3f}% (Drift: {drift:+.3f}%)"
-            )
+            if still_profitable:
+                 Logger.info(
+                    f"[Ghost] {log_icon} CONFIRMED: {original_profit:.3f}% -> {current_profit:.3f}% (Net: {net_profit:.3f}%)"
+                )
+            else:
+                 Logger.warning(
+                    f"[Ghost] {log_icon} REJECTED: {original_profit:.3f}% -> {current_profit:.3f}% (Fees ate profit)"
+                )
             
             return ValidationResult(
                 cycle_id=cycle_id,
                 original_profit_pct=original_profit,
-                current_profit_pct=current_profit,
+                current_profit_pct=net_profit,
                 is_still_profitable=still_profitable,
                 drift_pct=drift,
                 timestamp=time.time()
