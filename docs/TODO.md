@@ -6,17 +6,18 @@
 
 ---
 
-## 🚀 Active Sprint: "Universal Discovery" (Phase 6)
+## 🚀 Active Sprint: "Narrow Path" (Phase 8)
 
-**Goal**: Capture the "Graduation Gap" alpha via hierarchical lifecycle tracking.
+**Goal**: Pivot to Long-Tail Multi-Hop Arbitrage via Rust-powered graph pathfinding.
 
 | Priority | Task | Status | Owner | Linked Doc |
 | :--- | :--- | :--- | :--- | :--- |
-| **P0** | **PumpFunMonitor** (6EF8... Monitoring) | 📋 Plan | Rust/Py | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P0** | **RaydiumStandardBridge** (675k... Initialization) | 📋 Plan | Python | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P1** | **Hierarchical Scout Logic** (Graduation Alerts) | 📋 Plan | Scout | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P1** | **Bonding Curve Math** (Metadata Schema) | ✅ Done | Rust | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P2** | **Full PnL Auditor** (Shadow vs. Live) | ⚪ Planned | QA | `PHASE_7_AUDIT.md` |
+| **P0** | **Slim-Down**: Disable WhaleWatcher & ScoutAgent | 🟡 Active | Director | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
+| **P0** | **graph.rs**: Pool Matrix Implementation | 📋 Plan | Rust | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
+| **P0** | **cycle_finder.rs**: Bellman-Ford Cycle Detection | 📋 Plan | Rust | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
+| **P1** | **HopGraphEngine**: Python Integration | 📋 Plan | Arbiter | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
+| **P1** | **AtomicExecutor**: 4-Leg Jito Bundle Support | 📋 Plan | Executor | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
+| **P2** | **Dashboard**: Path Efficiency Metrics | ⚪ Planned | UI | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
 
 ---
 
@@ -25,9 +26,10 @@
 | Phase | Description | Status | Tracking Doc |
 | :--- | :--- | :--- | :--- |
 | **Phase 4** | **Optimization & Realism** (Rust, Latency) | ✅ Complete | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` |
-| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | 🟡 Active | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
+| **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⏸️ Paused | `PHASE_INTELLIGENCE.md` |
+| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | ⏸️ Paused | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
 | **Phase 7** | **PnL Audit & Risk Hardening** | ⚪ Upcoming | `PHASE_7_AUDIT.md` |
+| **Phase 8** | **🆕 Narrow Path** (Multi-Hop Token Hopping) | 🟡 Active | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
 
 ---
 
