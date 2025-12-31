@@ -1,3 +1,4 @@
+#![deny(dead_code)]
 use pyo3::prelude::*;
 use solana_sdk::{
     hash::Hash,
