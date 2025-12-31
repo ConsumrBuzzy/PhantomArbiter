@@ -125,6 +125,14 @@ class Director:
                 state.log(f"[Director] 🌌 Spawned HopPod: {self.default_hop_pod.id}")
             else:
                 state.log("[Director] ⚠️ Failed to spawn HopPod - Rust extension may not be built")
+            
+            # Spawn CyclePod - the "Governor of Wisdom" for global market intelligence
+            self.cycle_pod = self.pod_manager.spawn_cycle_pod(
+                name="market_governor",
+                cooldown=1.0  # Update context every second
+            )
+            if self.cycle_pod:
+                state.log(f"[Director] 🧠 Spawned CyclePod: {self.cycle_pod.id} (Governor of Wisdom)")
         else:
             # Lite Mode - Mock or Skip
             self.agents["whale"] = None
@@ -338,6 +346,29 @@ class Director:
                     
                     elif signal.signal_type == "WARNING":
                         state.log(f"[Pod] ⚠️ {signal.pod_id}: {signal.data.get('message', 'Warning')}")
+                    
+                    elif signal.signal_type == "CONTEXT_UPDATE" and signal.pod_type == PodType.CYCLE:
+                        # Update global market context in AppState
+                        state.market_context = signal.data
+                    
+                    elif signal.signal_type == "CONGESTION_ALERT" and signal.pod_type == PodType.CYCLE:
+                        # Log congestion alerts
+                        level = signal.data.get('level', 'unknown').upper()
+                        tip = signal.data.get('jito_tip', 0)
+                        adj = signal.data.get('profit_adj', 0)
+                        state.log(f"[CyclePod] 🔥 CONGESTION {level}: Jito tip {tip:,} lamports | Threshold +{adj:.2f}%")
+                        
+                        # Push to SignalBus
+                        self.signal_bus.emit({
+                            "type": "CONGESTION_ALERT",
+                            "source": signal.pod_id,
+                            "data": signal.data,
+                            "priority": signal.priority
+                        })
+                    
+                    elif signal.signal_type == "VOLATILITY_ALERT" and signal.pod_type == PodType.CYCLE:
+                        vix = signal.data.get('vix', 0)
+                        state.log(f"[CyclePod] 📊 Volatility Alert: VIX {vix:.0f}")
                 
                 # Update pod stats in AppState
                 state.pod_stats = self.pod_manager.get_stats()

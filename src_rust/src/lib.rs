@@ -479,5 +479,8 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     cycle_finder::register_cycle_finder_classes(m)?;
     multiverse::register_multiverse_classes(m)?;
 
+    // V140: Multi-Hop Atomic Execution
+    router::register_router_classes(m)?;
+
     Ok(())
 }

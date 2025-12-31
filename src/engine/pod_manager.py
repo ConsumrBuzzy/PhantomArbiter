@@ -384,6 +384,283 @@ class HopPod(BasePod):
         }
 
 
+class CyclePod(BasePod):
+    """
+    The "Governor of Wisdom" - monitors global market conditions.
+    
+    CyclePod doesn't find trades; it finds Market Context. It provides
+    intelligence to all other pods about when conditions favor trading
+    and when they don't.
+    
+    Responsibilities:
+    1. Jito Pulse: Monitor tip prices for congestion detection
+    2. Sector Rotation: Track volume flow between asset classes
+    3. Volatility Index: Calculate a "Solana VIX" equivalent
+    4. Global Bias: Adjust profit thresholds across all pods
+    """
+    
+    def __init__(
+        self,
+        config: PodConfig,
+        signal_callback: Callable[[PodSignal], None]
+    ):
+        super().__init__(config, signal_callback)
+        
+        # Market context singleton
+        from src.shared.models.context import get_market_context, CongestionLevel, MarketSector
+        self._context = get_market_context()
+        
+        # Historical tracking for trend detection
+        self._tip_history: List[int] = []
+        self._volume_history: List[float] = []
+        self._max_history = 60  # 1 minute at 1Hz
+        
+        # Alert state (to avoid spamming)
+        self._last_congestion_alert: float = 0
+        self._alert_cooldown = 30.0  # seconds
+        
+        # Stats
+        self.alerts_sent: int = 0
+        self.congestion_events: int = 0
+        self.sector_changes: int = 0
+        
+        Logger.info(f"[CyclePod] Initialized - Governor of Wisdom active")
+    
+    async def _scan(self) -> List[PodSignal]:
+        """
+        Update market context and emit alerts if conditions change significantly.
+        """
+        signals = []
+        
+        try:
+            # 1. Update Jito metrics
+            await self._update_jito_metrics()
+            
+            # 2. Update volume/sector metrics
+            await self._update_volume_metrics()
+            
+            # 3. Update volatility index
+            await self._update_volatility_metrics()
+            
+            # 4. Derive global state
+            self._update_global_state()
+            
+            # 5. Check for alert conditions
+            alert_signals = self._check_alert_conditions()
+            signals.extend(alert_signals)
+            
+            # 6. Always emit context update for other systems
+            signals.append(PodSignal(
+                pod_id=self.id,
+                pod_type=PodType.CYCLE,
+                signal_type="CONTEXT_UPDATE",
+                priority=3,  # Low priority, just informational
+                data=self._context.get_dashboard_summary()
+            ))
+            
+        except Exception as e:
+            Logger.debug(f"[CyclePod] Scan error: {e}")
+        
+        return signals
+    
+    async def _update_jito_metrics(self) -> None:
+        """Update Jito tip tracking from congestion monitor."""
+        try:
+            from src.engine.congestion_monitor import get_congestion_monitor
+            monitor = get_congestion_monitor()
+            
+            if monitor:
+                status = monitor.get_status()
+                current_tip = status.get('tip_lamports', 10_000)
+                
+                # Track history
+                self._tip_history.append(current_tip)
+                if len(self._tip_history) > self._max_history:
+                    self._tip_history = self._tip_history[-self._max_history:]
+                
+                # Calculate percentiles from history
+                if len(self._tip_history) >= 10:
+                    sorted_tips = sorted(self._tip_history)
+                    self._context.jito.p5_tip_lamports = sorted_tips[len(sorted_tips) // 20]
+                    self._context.jito.p50_tip_lamports = sorted_tips[len(sorted_tips) // 2]
+                    self._context.jito.p95_tip_lamports = sorted_tips[int(len(sorted_tips) * 0.95)]
+                
+                # Calculate velocity (rate of change)
+                if len(self._tip_history) >= 5:
+                    recent = self._tip_history[-5:]
+                    velocity = (recent[-1] - recent[0]) / 5
+                    self._context.jito.tip_velocity = velocity
+                
+                self._context.jito.current_tip_lamports = current_tip
+                self._context.jito.sample_count = len(self._tip_history)
+                self._context.jito.last_update = time.time()
+                
+        except Exception as e:
+            Logger.debug(f"[CyclePod] Jito update error: {e}")
+    
+    async def _update_volume_metrics(self) -> None:
+        """Update DEX volume and sector flow tracking."""
+        # TODO: Integrate with real volume data from RPC/WSS
+        # For now, use placeholder logic based on price cache activity
+        try:
+            from src.core.shared_cache import SharedPriceCache
+            
+            # Count recent price updates as a proxy for volume activity
+            updates = getattr(SharedPriceCache, '_update_count', 0)
+            self._volume_history.append(float(updates))
+            if len(self._volume_history) > self._max_history:
+                self._volume_history = self._volume_history[-self._max_history:]
+            
+            # Estimate total volume from update frequency
+            if len(self._volume_history) >= 2:
+                delta = self._volume_history[-1] - self._volume_history[-2]
+                self._context.volume.total_volume_1h = delta * 1000  # Rough estimate
+            
+            self._context.volume.last_update = time.time()
+            
+        except Exception as e:
+            Logger.debug(f"[CyclePod] Volume update error: {e}")
+    
+    async def _update_volatility_metrics(self) -> None:
+        """Calculate volatility index (Solana VIX equivalent)."""
+        try:
+            from src.core.shared_cache import SharedPriceCache
+            
+            # Use tip velocity + update frequency as volatility proxy
+            tip_velocity = abs(self._context.jito.tip_velocity)
+            tip_factor = min(tip_velocity / 1000, 50)  # Cap at 50 points
+            
+            # Update frequency contribution
+            if len(self._volume_history) >= 2:
+                update_rate = self._volume_history[-1] - self._volume_history[max(0, len(self._volume_history)-10)]
+                freq_factor = min(update_rate / 10, 30)  # Cap at 30 points
+            else:
+                freq_factor = 10
+            
+            # Base + factors = VIX
+            base_vix = 20
+            self._context.volatility.volatility_index = min(base_vix + tip_factor + freq_factor, 100)
+            
+            # Update frequency tracking
+            self._context.volatility.update_frequency_hz = len(self._volume_history) / max(1, self._max_history)
+            
+        except Exception as e:
+            Logger.debug(f"[CyclePod] Volatility update error: {e}")
+    
+    def _update_global_state(self) -> None:
+        """Derive global trading state from metrics."""
+        from src.shared.models.context import CongestionLevel, MarketSector
+        
+        jito = self._context.jito
+        
+        # Determine congestion level
+        old_level = self._context.congestion_level
+        if jito.current_tip_lamports > jito.p95_tip_lamports * 2:
+            self._context.congestion_level = CongestionLevel.EXTREME
+        elif jito.current_tip_lamports > jito.p95_tip_lamports:
+            self._context.congestion_level = CongestionLevel.HIGH
+        elif jito.current_tip_lamports > jito.p50_tip_lamports * 1.5:
+            self._context.congestion_level = CongestionLevel.MODERATE
+        else:
+            self._context.congestion_level = CongestionLevel.LOW
+        
+        # Track congestion events
+        if old_level != self._context.congestion_level:
+            if self._context.congestion_level in [CongestionLevel.HIGH, CongestionLevel.EXTREME]:
+                self.congestion_events += 1
+        
+        # Calculate global profit adjustment based on congestion
+        adj_map = {
+            CongestionLevel.LOW: 0.0,
+            CongestionLevel.MODERATE: 0.05,
+            CongestionLevel.HIGH: 0.15,
+            CongestionLevel.EXTREME: 0.30,
+        }
+        self._context.global_min_profit_adj = adj_map.get(self._context.congestion_level, 0.0)
+        
+        # Adjust scan cooldown for high congestion
+        if self._context.congestion_level == CongestionLevel.EXTREME:
+            self._context.hop_cooldown_multiplier = 3.0
+            self._context.trading_enabled = False
+            self._context.reason = "Extreme network congestion"
+        elif self._context.congestion_level == CongestionLevel.HIGH:
+            self._context.hop_cooldown_multiplier = 2.0
+            self._context.trading_enabled = True
+        else:
+            self._context.hop_cooldown_multiplier = 1.0
+            self._context.trading_enabled = True
+            self._context.reason = ""
+        
+        # Update timestamp
+        self._context.last_update = time.time()
+        self._context.update_count += 1
+    
+    def _check_alert_conditions(self) -> List[PodSignal]:
+        """Check for conditions that warrant alerts."""
+        signals = []
+        now = time.time()
+        
+        from src.shared.models.context import CongestionLevel
+        
+        # Congestion alert (rate limited)
+        if self._context.congestion_level in [CongestionLevel.HIGH, CongestionLevel.EXTREME]:
+            if now - self._last_congestion_alert > self._alert_cooldown:
+                self._last_congestion_alert = now
+                self.alerts_sent += 1
+                
+                signals.append(PodSignal(
+                    pod_id=self.id,
+                    pod_type=PodType.CYCLE,
+                    signal_type="CONGESTION_ALERT",
+                    priority=8,
+                    data={
+                        "level": self._context.congestion_level.value,
+                        "jito_tip": self._context.jito.current_tip_lamports,
+                        "p50_tip": self._context.jito.p50_tip_lamports,
+                        "p95_tip": self._context.jito.p95_tip_lamports,
+                        "profit_adj": self._context.global_min_profit_adj,
+                        "trading_enabled": self._context.trading_enabled,
+                        "message": f"Network congestion {self._context.congestion_level.value.upper()}: "
+                                   f"Raising profit thresholds by {self._context.global_min_profit_adj:.2f}%"
+                    }
+                ))
+        
+        # VIX spike alert
+        if self._context.volatility.volatility_index > 75:
+            signals.append(PodSignal(
+                pod_id=self.id,
+                pod_type=PodType.CYCLE,
+                signal_type="VOLATILITY_ALERT",
+                priority=6,
+                data={
+                    "vix": self._context.volatility.volatility_index,
+                    "label": self._context.volatility.get_vix_label(),
+                    "message": f"High volatility detected: VIX {self._context.volatility.volatility_index:.0f}"
+                }
+            ))
+        
+        return signals
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get CyclePod statistics."""
+        return {
+            "pod_id": self.id,
+            "pod_type": "cycle",
+            "status": self.status.value,
+            "total_scans": self.total_scans,
+            "total_signals": self.total_signals,
+            "alerts_sent": self.alerts_sent,
+            "congestion_events": self.congestion_events,
+            "sector_changes": self.sector_changes,
+            "uptime_seconds": time.time() - self.created_at,
+            "context": self._context.get_dashboard_summary(),
+        }
+    
+    def get_context(self):
+        """Get the current market context."""
+        return self._context
+
+
 class PodManager:
     """
     Manages the lifecycle of all Pods in the system.
@@ -463,6 +740,51 @@ class PodManager:
         Logger.info(f"[PodManager] Spawned HopPod: {pod.id} ({name})")
         return pod
     
+    def spawn_cycle_pod(
+        self,
+        name: str = "market_governor",
+        cooldown: float = 1.0
+    ) -> Optional[CyclePod]:
+        """
+        Spawn the CyclePod (Governor of Wisdom).
+        
+        Only one CyclePod should exist - it's a singleton that provides
+        global market context to all other pods.
+        
+        Args:
+            name: Human-readable name for the pod
+            cooldown: Seconds between context updates
+            
+        Returns:
+            The created CyclePod, or existing one if already spawned
+        """
+        # Check if we already have a CyclePod
+        for pod in self.pods.values():
+            if isinstance(pod, CyclePod):
+                Logger.debug(f"[PodManager] CyclePod already exists: {pod.id}")
+                return pod
+        
+        config = PodConfig(
+            pod_type=PodType.CYCLE,
+            name=name,
+            params={},
+            cooldown_seconds=cooldown,
+            max_signals_per_minute=30  # Higher limit for context updates
+        )
+        
+        pod = CyclePod(config, self.signal_callback)
+        self.pods[pod.id] = pod
+        
+        Logger.info(f"[PodManager] Spawned CyclePod: {pod.id} (Governor of Wisdom)")
+        return pod
+    
+    def get_cycle_pod(self) -> Optional[CyclePod]:
+        """Get the singleton CyclePod if it exists."""
+        for pod in self.pods.values():
+            if isinstance(pod, CyclePod):
+                return pod
+        return None
+
     async def start_all(self) -> None:
         """Start all pods."""
         for pod in self.pods.values():
