@@ -140,4 +140,3 @@ class PumpFunMonitor:
         if self.aggregator:
             self.aggregator.stop()
         self.is_running = False
-```
