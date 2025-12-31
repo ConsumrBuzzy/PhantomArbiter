@@ -6,48 +6,38 @@
 
 ---
 
-## 🚀 Active Sprint: "Narrow Path" (Phase 8)
+## 🚀 Active Sprint: "Battle Test" (Phase 17)
 
-**Goal**: Pivot to Long-Tail Multi-Hop Arbitrage via Rust-powered graph pathfinding.
+**Goal**: Validate the Narrow Path infrastructure via Ghost Executions and Paper Mode soak testing.
 
 | Priority | Task | Status | Owner | Linked Doc |
 | :--- | :--- | :--- | :--- | :--- |
-<<<<<<< HEAD
-| **P0** | **Slim-Down**: Disable WhaleWatcher & ScoutAgent | 🟡 Active | Director | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-| **P0** | **graph.rs**: Pool Matrix Implementation | 📋 Plan | Rust | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-| **P0** | **cycle_finder.rs**: Bellman-Ford Cycle Detection | 📋 Plan | Rust | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-| **P1** | **HopGraphEngine**: Python Integration | 📋 Plan | Arbiter | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-| **P1** | **AtomicExecutor**: 4-Leg Jito Bundle Support | 📋 Plan | Executor | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-| **P2** | **Dashboard**: Path Efficiency Metrics | ⚪ Planned | UI | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-=======
-| **P0** | **PumpFunMonitor** (6EF8... Monitoring) | 📋 Plan | Rust/Py | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P0** | **RaydiumStandardBridge** (675k... Initialization) | 📋 Plan | Python | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P1** | **Hierarchical Scout Logic** (Graduation Alerts) | 📋 Plan | Scout | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P1** | **Bonding Curve Math** (Metadata Schema) | ✅ Done | Rust | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **P0** | **Audit-Ready Architecture** (Shadow Mode) | ✅ Verifying | Core | `PHASE_7_AUDIT.md` |
-| **P0** | **Enable & Wire All Components** | ✅ Done | System | `PHASE_SYSTEM_WIRING.md` |
-| **P0** | **Reliability Hardening** (RPC Failover) | ✅ Done | Infra | `PHASE_9_RELIABILITY.md` |
-| **P0** | **Global Risk Governor** (Capital/Safety) | 📋 Plan | Core | `PHASE_10_GOVERNOR.md` |
+| **P0** | **Ghost Execution**: Dry-run 4-leg Jito bundles | 📋 Plan | Executor | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **P0** | **Scavenger Validation**: Test FailureTracker & BridgePod signals | 📋 Plan | Intelligence | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **P1** | **Paper Soak**: 24-hour paper mode stability test | 📋 Plan | System | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **P2** | **Live Checklist**: Final validation before live trading | ⚪ Upcoming | Core | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
 
 ---
 
-## 🛠️ Step-by-Step
+## ✅ Recently Completed
 
-### Phase 10: Global Risk Governor (Current)
-- [x] **Risk Governor**: Implement `GlobalRiskGovernor` for capital partitioning (70/30) and kill switches.
-- [x] **Integration**: Wire Governor into `Director` and `TradingCore`.
-- [x] **Validation**: Unit test priority locking and drawdown halts.
+### Phase 16: Scavenger Intelligence (2025-12-31)
 
-### Phase 11: Universal Wisdom (Graduation Sniper)
-- [x] **Sniper Logic**: Refine `SniperAgent` to target pump.fun -> Raydium migrations (Graduation Events).
-- [x] **Intent Registry**: Implement collision detection in `SignalBus` to prevent Scalper/Arbiter overlap.
-- [ ] **Universal Scout**: Open up `ScoutAgent` filters for broad market vision.
+- [x] **FailureTracker**: Spike/Recoil detection in `log_harvester.py`
+- [x] **BridgePod**: Circle CCTP & Wormhole monitoring
+- [x] **Dashboard**: Hot Pools and Institutional Flow panels
+- [x] **Integration Tests**: `tests/test_multi_hop.py`
+- [x] **Benchmarks**: `scripts/bench_multiverse.py`
 
-### Phase 13: Universal Ingestion
-- [ ] **Log Harvester**: Implement `LogHarvester` to listen for Raydium/Pump.fun Program Logs (`initialize2`, `create`).
-- [ ] **Signal Injection**: Wire Harvester to `SniperAgent` and `ScoutAgent` via SignalBus.
-- [ ] **Validation**: Verify detection of pool creation events via log simulation.
->>>>>>> 5ed24d93e632b45759fb53bbebbf9fdcf995c0c5
+### Phase 8-15: Narrow Path Infrastructure
+
+- [x] **graph.rs**: Pool Matrix Implementation
+- [x] **cycle_finder.rs**: Bellman-Ford Cycle Detection
+- [x] **multiverse.rs**: 2-5 Hop Scanner
+- [x] **HopGraphEngine**: Python Integration
+- [x] **ExecutionPod**: Paper/Live execution modes
+- [x] **JupiterClient**: DEX quote routing
+- [x] **MultiHopBuilder**: Jito bundle construction
 
 ---
 
@@ -56,25 +46,22 @@
 | Phase | Description | Status | Tracking Doc |
 | :--- | :--- | :--- | :--- |
 | **Phase 4** | **Optimization & Realism** (Rust, Latency) | ✅ Complete | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-<<<<<<< HEAD
 | **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⏸️ Paused | `PHASE_INTELLIGENCE.md` |
 | **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | ⏸️ Paused | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **Phase 7** | **PnL Audit & Risk Hardening** | ⚪ Upcoming | `PHASE_7_AUDIT.md` |
-| **Phase 8** | **🆕 Narrow Path** (Multi-Hop Token Hopping) | 🟡 Active | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
-=======
-| **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⚪ Planned | `PHASE_INTELLIGENCE.md` |
-| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | 🟡 Active | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
-| **Phase 7** | **PnL Audit & Risk Hardening** (Shadow Mode) | 🚀 Launching | `PHASE_7_AUDIT.md` |
->>>>>>> 5ed24d93e632b45759fb53bbebbf9fdcf995c0c5
+| **Phase 7** | **PnL Audit & Risk Hardening** | ✅ Complete | `PHASE_7_AUDIT.md` |
+| **Phase 8-15** | **Narrow Path** (Multi-Hop Token Hopping) | ✅ Complete | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
+| **Phase 16** | **Scavenger Intelligence** (FailureTracker, BridgePod) | ✅ Complete | `PHASE_16_SCAVENGER.md` |
+| **Phase 17** | **🆕 Battle Test** (Ghost Execution, Soak Testing) | 🟡 Active | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
 
 ---
 
 ## 💡 Idea Backlog (The Icebox)
 
-* [x] **"Shadow Mode"**: Run Live & Paper strategies side-by-side on the same signals to compare execution quality explicitly.
-* [ ] **"Replay Buffer"**: Save raw WSS logs to disk to "replay" a market day exactly as it happened for debugging.
-* [ ] **"Landlord Agent"**: A devoted agent that manages rent/costs of the bot infrastructure itself (managing SOL gas, RPC accounts).
-* [ ] **"Sentiment Engine"**: Ingest Twitter/Discord sentiment to weigh the `SignalScanner` confidence.
+- [x] **"Shadow Mode"**: Run Live & Paper strategies side-by-side on the same signals.
+- [ ] **"Replay Buffer"**: Save raw WSS logs to disk for market replay debugging.
+- [ ] **"Landlord Agent"**: Manage SOL gas and RPC costs automatically.
+- [ ] **"Sentiment Engine"**: Ingest Twitter/Discord sentiment for signal weighting.
+- [ ] **"PythPod"**: Real-time oracle price feeds for institutional-grade pricing.
 
 ---
 
