@@ -828,6 +828,7 @@ class PodManager:
         # Map string mode to enum
         mode_map = {
             "paper": ExecutionMode.PAPER,
+            "ghost": ExecutionMode.GHOST,  # V140: Added Ghost Mode
             "live": ExecutionMode.LIVE,
             "disabled": ExecutionMode.DISABLED,
         }
