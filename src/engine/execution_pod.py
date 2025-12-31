@@ -441,7 +441,8 @@ class ExecutionPod(BasePod):
                     asyncio.create_task(self._ghost_validator.validate_later(
                         cycle_id=cycle_id,
                         path=path,
-                        original_profit=actual_profit_pct
+                        original_profit=actual_profit_pct,
+                        input_amount=input_amount
                     ))
             else:
                 signature = self._hop_builder.build_and_submit(

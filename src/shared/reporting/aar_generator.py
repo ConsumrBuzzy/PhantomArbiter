@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from src.shared.system.logging import Logger
+from src.shared.system.hydration_manager import HydrationManager
 
 class AARGenerator:
     """
@@ -68,6 +69,15 @@ class AARGenerator:
         # Ensure reports dir exists
         os.makedirs("reports", exist_ok=True)
         filename = f"reports/aar_{int(self.start_time)}.json"
+        
+        # Auto-Dehydrate (Nomad Persistence)
+        try:
+            hydration = HydrationManager()
+            archive_path = hydration.dehydrate(context=self.context)
+            if archive_path:
+                report["archive_path"] = archive_path
+        except Exception as e:
+            Logger.warning(f"Failed to auto-dehydrate: {e}")
         
         with open(filename, 'w') as f:
             json.dump(report, f, indent=4)

@@ -38,7 +38,7 @@ class GhostValidator:
         self.quote_builder = quote_builder
         self.pending_validations = 0
         
-    async def validate_later(self, cycle_id: str, path: list, original_profit: float, delay_seconds: float = 0.450) -> Optional[ValidationResult]:
+    async def validate_later(self, cycle_id: str, path: list, original_profit: float, delay_seconds: float = 0.450, input_amount: int = 1_000_000_000) -> Optional[ValidationResult]:
         """
         Schedule a validation check after a delay (Jito Inclusion Latency).
         Standard Jito Bundle Inclusion ~400ms.
@@ -48,9 +48,8 @@ class GhostValidator:
             await asyncio.sleep(delay_seconds)
             current_time = time.time()
             
-            # Re-fetch quotes for the same path
-            # Assume 1 SOL input as standard baseline
-            input_amount = 1_000_000_000
+            # Re-fetch quotes for the same path with EXACT amount
+            # This ensures we hit the same liquidity depth/slippage
             
             quotes = await self.quote_builder.build_cycle_quotes(
                 path=path,

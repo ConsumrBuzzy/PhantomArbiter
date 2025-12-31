@@ -55,8 +55,14 @@ archive/
 src/core/price_history_*.json
 
 # Data
-# data/*.db  <-- Tracked by LFS now
-# data/market_data.db <-- Tracked by LFS now
+# Data & State (Nomad Architecture)
+data/*.db
+data/*.db-journal
+# archives/ is strictly for JSON mission logs
+archives/
+!archives/*.json
+!archives/.keep
+
 start.bat
 
 # ═══════════════════════════════════════════════════════════

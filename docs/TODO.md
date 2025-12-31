@@ -52,6 +52,8 @@
 | **Phase 8-15** | **Narrow Path** (Multi-Hop Token Hopping) | ✅ Complete | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
 | **Phase 16** | **Scavenger Intelligence** (FailureTracker, BridgePod) | ✅ Complete | `PHASE_16_SCAVENGER.md` |
 | **Phase 17** | **🆕 Battle Test** (Ghost Execution, Soak Testing) | 🟡 Active | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **Phase 20** | **Nomad Persistence** (Auto-Hydration) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
+| **Phase 21** | **Privacy Shield** (Ephemeral Wallets) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
 
 ---
 

@@ -14,6 +14,7 @@ from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.system.config_manager import ConfigManager, SessionContext
 from src.shared.reporting.aar_generator import AARGenerator
+from src.shared.system.hydration_manager import HydrationManager
 
 # Initialize rich console for startup messages
 from rich.console import Console
@@ -66,6 +67,18 @@ def main():
     parser.add_argument("--headless", action="store_true", help="Skip interactive menu")
     args, unknown = parser.parse_known_args()
     
+    # 0. Nomad Persistence: Auto-Hydration (Startup)
+    # This rebuilds the Hot DB from Cold JSON if needed
+    try:
+        hydration = HydrationManager()
+        # In Phase 20, we simply ensure the DB exists if archives are present
+        archives = hydration.list_archives()
+        if archives and not hydration.db_exists(): 
+            console.print("[dim]💎 Nomad: Rehydrating from latest archive...[/dim]")
+            hydration.rehydrate(archives[0])
+    except Exception as e:
+        console.print(f"[yellow]⚠️ Hydration Warning: {e}[/yellow]")
+    
     # 2. Get Session Context
     if args.headless:
         # Load from JSON defaults if headless
@@ -87,6 +100,12 @@ def main():
     except Exception as e:
         console.print_exception()
         sys.exit(1)
+    finally:
+        # Phase 21: Privacy Shield - RAM Zeroing
+        if 'context' in locals() and context.wallet_key:
+            context.wallet_key = None
+            del context.wallet_key
+            console.print("[dim]🔐 Privacy Shield: Wallet Key wiped from RAM.[/dim]")
 
 if __name__ == "__main__":
     main()

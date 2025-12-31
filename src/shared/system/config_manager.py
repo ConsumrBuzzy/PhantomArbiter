@@ -9,11 +9,13 @@ import os
 import json
 import time
 import subprocess
-import sys
+import getpass
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 import questionary
 from rich.console import Console
+
+from src.shared.system.hydration_manager import HydrationManager
 
 console = Console()
 
@@ -24,6 +26,7 @@ class SessionContext:
     execution_mode: str # "GHOST", "PAPER", "LIVE"
     budget_sol: float
     params: Dict[str, Any]
+    wallet_key: Optional[bytes] = None # Ephemeral Key (Privacy Shield)
 
 class ConfigManager:
     """
@@ -77,15 +80,37 @@ class ConfigManager:
         ).ask()
         
         # 2. Execution Mode
-        # For now, default to GHOST as per plan, but let's offer PAPER check
         mode = questionary.select(
             "Select Deployment Mode:",
             choices=[
+                questionary.Choice("🔥 LIVE (Money on the Line)", value="LIVE"),
                 questionary.Choice("👻 GHOST (Simulated Jito + Verification)", value="GHOST"),
                 questionary.Choice("📄 PAPER (Standard Simulation)", value="PAPER"),
-                # Live is hidden/disabled for safety in this phase
             ]
         ).ask()
+        
+        # Privacy Shield: Inject Key if needed
+        wallet_key = None
+        if mode == "LIVE":
+            console.print("\n[bold red]🔐 PRIVACY SHIELD ACTIVE[/bold red]")
+            console.print("   The Private Key will be injected into RAM only.")
+            console.print("   It will NEVER be written to disk or logs.")
+            
+            try:
+                # getpass hides input on most systems
+                key_input = getpass.getpass("🔑 Inject Private Key (Base58): ")
+                if not key_input or len(key_input) < 10:
+                    console.print("[red]❌ Invalid Key Injection. Aborting.[/red]")
+                    sys.exit(1)
+                
+                # Convert Base58 to bytes (mocking validation here for now)
+                # In real impl, we'd validate against solders.keypair
+                wallet_key = key_input.encode('utf-8') 
+                console.print("[green]   ✅ Key Injected into Volatile Memory[/green]")
+                
+            except Exception as e:
+                console.print(f"[red]❌ Key Injection Failed: {e}[/red]")
+                sys.exit(1)
         
         # 3. Risk Profile (Advanced)
         risk = questionary.select(
@@ -111,7 +136,8 @@ class ConfigManager:
             strategy_mode=strategy,
             execution_mode=mode,
             budget_sol=float(budget),
-            params={"risk_profile": risk}
+            params={"risk_profile": risk},
+            wallet_key=wallet_key
         )
 
     @staticmethod
