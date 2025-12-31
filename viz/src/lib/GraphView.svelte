@@ -77,13 +77,11 @@
                 ...n.meta,
             });
 
-            // Re-sync layout if needed
-            if (!forceAtlas2.isRunning(graph)) {
-                forceAtlas2.assign(graph, {
-                    iterations: 50,
-                    settings: { gravity: 1 },
-                });
-            }
+            // Re-sync layout (Sync assignment)
+            forceAtlas2(graph, {
+                iterations: 50,
+                settings: { gravity: 1 },
+            });
         }
     }
 
