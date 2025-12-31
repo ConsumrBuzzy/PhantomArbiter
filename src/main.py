@@ -13,6 +13,7 @@ import logging
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.system.config_manager import ConfigManager, SessionContext
+from src.shared.reporting.aar_generator import AARGenerator
 
 # Initialize rich console for startup messages
 from rich.console import Console
@@ -36,18 +37,26 @@ async def run_arbiter_session(context: SessionContext):
     else:
         Settings.HOP_ENGINE_ENABLED = False
         
+    # Initialize AAR Generator
+    aar = AARGenerator(context)
+    
     # Start the Director
     from src.arbiter.director import Director
     director = Director(
         simulation_mode=True if context.execution_mode != "LIVE" else False,
-        budget=float(context.budget_sol * 200), # Approx USD conversion for now, TODO: Fetch price
-        duration=60 # Default duration, maybe add to context?
+        budget=float(context.budget_sol * 200),
+        duration=60 
     )
     
-    # Inject context into Director if needed, or Director reads Settings
-    # For now, Director reads Settings which we just patched.
-    
-    await director.start_monitoring()
+    try:
+        await director.start_monitoring()
+    finally:
+        # Generate Debrief
+        console.print("\n[bold cyan]📋 Generatig Mission Debrief (AAR)...[/bold cyan]")
+        # TODO: Hydrate AAR with real stats from Director/Pods
+        # For now, it captures duration and context
+        report_path = aar.generate_report()
+        console.print(f"[green]✅ AAR Saved: {report_path}[/green]")
 
 
 def main():

@@ -7,6 +7,9 @@ Part of Phase 18: Command Center.
 
 import os
 import json
+import time
+import subprocess
+import sys
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 import questionary
@@ -84,16 +87,53 @@ class ConfigManager:
             ]
         ).ask()
         
-        # 3. Budget
+        # 3. Risk Profile (Advanced)
+        risk = questionary.select(
+            "Select Risk Profile:",
+            choices=[
+                questionary.Choice("🛡️ Conservative (Low Size, High Confidence)", value="CONSERVATIVE"),
+                questionary.Choice("⚖️ Balanced (Standard)", value="BALANCED"),
+                questionary.Choice("⚔️ Aggressive (Max Size, Speed)", value="AGGRESSIVE"),
+            ]
+        ).ask()
+        
+        # 4. Budget
         budget = questionary.text(
             "📉 Set Session Budget (SOL):", 
             default="10.0",
             validate=lambda text: text.replace('.', '', 1).isdigit() or "Please enter a number"
         ).ask()
         
+        # 5. Pre-Flight Latency Check
+        ConfigManager._check_latency()
+        
         return SessionContext(
             strategy_mode=strategy,
             execution_mode=mode,
             budget_sol=float(budget),
-            params={}
+            params={"risk_profile": risk}
         )
+
+    @staticmethod
+    def _check_latency():
+        """
+        Performs a Pre-Flight Connectivity Check.
+        Pings Public DNS (8.8.8.8) as a proxy for network health.
+        """
+        console.print("\n[dim]🛰️ Performing Pre-Flight Checks...[/dim]")
+        try:
+            # Windows ping command
+            start = time.time()
+            subprocess.run(["ping", "-n", "1", "8.8.8.8"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            end = time.time()
+            latency_ms = (end - start) * 1000
+            
+            if latency_ms > 500:
+                console.print(f"[bold red]⚠️ WARNING: High Network Latency Detected: {latency_ms:.0f}ms[/bold red]")
+                console.print("[red]   Ghost results may be overly optimistic due to lag.[/red]")
+                time.sleep(1) # Let user see warning
+            else:
+                console.print(f"[green]✅ Network Latency: {latency_ms:.0f}ms (Nominal)[/green]")
+                
+        except Exception:
+            console.print("[yellow]⚠️ Could not verify latency. Assuming offline/restricted.[/yellow]")

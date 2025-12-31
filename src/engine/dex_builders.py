@@ -47,6 +47,7 @@ class SwapQuote:
     slippage_bps: int = 50  # 0.5% default
     dexes_used: List[str] = field(default_factory=list)
     quote_response: Optional[Dict] = None  # Raw Jupiter response
+    timestamp: float = field(default_factory=time.time) # Time of quote fetch
 
 
 @dataclass
@@ -154,6 +155,7 @@ class JupiterClient:
                     slippage_bps=slippage,
                     dexes_used=dexes,
                     quote_response=data,
+                    timestamp=time.time(),
                 )
                 
         except asyncio.TimeoutError:

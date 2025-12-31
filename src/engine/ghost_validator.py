@@ -46,6 +46,7 @@ class GhostValidator:
         self.pending_validations += 1
         try:
             await asyncio.sleep(delay_seconds)
+            current_time = time.time()
             
             # Re-fetch quotes for the same path
             # Assume 1 SOL input as standard baseline
@@ -62,25 +63,51 @@ class GhostValidator:
                 return ValidationResult(
                     cycle_id=cycle_id,
                     original_profit_pct=original_profit,
-                    current_profit_pct=-100.0, # Failed to route
+                    current_profit_pct=-100.0,
                     is_still_profitable=False,
                     drift_pct=-100.0,
-                    timestamp=time.time()
+                    timestamp=current_time
+                )
+
+            # HONEST GHOSTING CHECK 1: Data Staleness
+            # If the quote is older than 2.0s, it's stale and invalid.
+            latest_quote_time = max(q.timestamp for q in quotes)
+            age = current_time - latest_quote_time
+            if age > 2.0:
+                Logger.warning(f"[Ghost] ⚠️ STALE DATA VOID: Quote is {age:.2f}s old. Rejected.")
+                return ValidationResult(
+                    cycle_id=cycle_id,
+                    original_profit_pct=original_profit,
+                    current_profit_pct=0.0,
+                    is_still_profitable=False,
+                    drift_pct=0.0,
+                    timestamp=current_time
                 )
                 
+            # HONEST GHOSTING CHECK 2: Inclusion Probability
+            # Real bundles drop ~10% of the time due to auction loss or block packing
+            import random
+            if random.random() < 0.10:
+                 Logger.warning(f"[Ghost] 🎲 BUNDLE DROPPED: Simulated Jito Auction Failure (10% chance)")
+                 return ValidationResult(
+                    cycle_id=cycle_id,
+                    original_profit_pct=original_profit,
+                    current_profit_pct=0.0, # Didn't lose money, just didn't execute
+                    is_still_profitable=False, # Did not profit
+                    drift_pct=0.0,
+                    timestamp=current_time
+                )
+
             metrics = self.quote_builder.calculate_cycle_profit(quotes, input_amount)
             current_profit = metrics['profit_pct']
             
             # REALITY CHECK: Deduct Estimated Fees
-            # Network Fee (0.000005) + ATA Rent (0.002 x legs) + Jito Tip (0.0001)
-            # Approx 0.008 SOL fixed cost
             fixed_cost_sol = 0.008 
             cost_pct = (fixed_cost_sol / (input_amount / 1e9)) * 100
-            
             net_profit = current_profit - cost_pct
             
             # Check if still profitable
-            still_profitable = net_profit > 0.05 # Min threshold after fees
+            still_profitable = net_profit > 0.05
             drift = current_profit - original_profit
             
             log_icon = "✅" if still_profitable else "❌"
@@ -99,7 +126,7 @@ class GhostValidator:
                 current_profit_pct=net_profit,
                 is_still_profitable=still_profitable,
                 drift_pct=drift,
-                timestamp=time.time()
+                timestamp=current_time
             )
             
         except Exception as e:
