@@ -20,6 +20,7 @@ async def run_verification():
     
     # 2. Init Engine
     core = TradingCore(engine_name="TEST_FLIGHT")
+    await core.initialize() # Wait for async init (TradeExecutor creation)
     
     # 3. Mock the Live Execution Backend to prevent real spending
     # We want execute_buy -> triggers audit -> calls paper_buy

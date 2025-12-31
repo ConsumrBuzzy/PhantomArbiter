@@ -97,7 +97,6 @@ class TradingCore:
             engine_name: Unique identifier for this engine (e.g. SCALPER, VWAP).
         """
         # priority_queue.add(3, 'LOG', {'level': 'INFO', 'message': "⚡ TRADING CORE INITIALIZING..."})
-        print(f"DEBUG: TradingCore init start {engine_name}")
         
         # Store engine name for later use
         self.engine_name = engine_name
@@ -153,7 +152,6 @@ class TradingCore:
         # We use the local PaperWallet class (Adapter for CapitalManager)
         # Top-level import handles this.
         self.paper_wallet = PaperWallet(engine_name=engine_name)
-        print("DEBUG: TradingCore PaperWallet init done")
         
     async def initialize(self):
         """
@@ -207,7 +205,6 @@ class TradingCore:
                 priority_queue.add(3, 'LOG', {'level': 'INFO', 'message': f"🌐 [{self.engine_name}] dYdX: {self.dydx_adapter}"})
             except Exception as e:
                 priority_queue.add(3, 'LOG', {'level': 'WARN', 'message': f"⚠️ [{self.engine_name}] dYdX init failed: {e}"})
-        print("DEBUG: TradingCore dYdX init done")
         
         # V12.4: Drawdown Protection (Loss Streak Tracking)
         self.consecutive_losses = 0
@@ -252,11 +249,9 @@ class TradingCore:
             self.execution_backend = LiveBackend(swapper=self.swapper, engine_name=self.engine_name)
         else:
             self.execution_backend = PaperBackend(capital_manager=self.capital_mgr, engine_name=self.engine_name)
-        print("DEBUG: TradingCore ExecutionBackend init done")
         
         # V67.0: Phase 5 - Shadow Manager for Paper/Live Audit
         self.shadow_manager = ShadowManager()
-        print("DEBUG: TradingCore ShadowManager init done")
         
         self.executor = TradeExecutor(
             engine_name=self.engine_name,
@@ -273,7 +268,6 @@ class TradingCore:
             execution_backend=self.execution_backend,  # V49.0: Unified backend
             shadow_manager=self.shadow_manager # V67.0: Audit Hook
         )
-        print("DEBUG: TradingCore executor created")
         
         # V67.0: Phase 5 - Shadow Manager moved up
         # self.shadow_manager = ShadowManager()
