@@ -110,8 +110,8 @@ class OrcaAdapter:
                         timestamp = asyncio.get_event_loop().time()
                         signal_bus.emit(Signal(
                             type=SignalType.MARKET_UPDATE,
+                            source="ORCA",
                             data={
-                                "source": "ORCA", # Teal Flash
                                 "symbol": name.split("-")[0], # "SOL" from "SOL-USDC-..."
                                 "label": name,
                                 "token": state.token_mint_a, # Or B? usually we track base

@@ -76,9 +76,9 @@ class PumpFunMonitor:
             timestamp = asyncio.get_event_loop().time()
             signal_bus.emit(Signal(
                 type=SignalType.MARKET_UPDATE,
+                source="PUMP_GRAD",
                 data={
-                    "source": "PUMP_GRAD",
-                    "symbol": "GRAD", # Label text
+                    "symbol": "GRAD",
                     "token": mint,
                     "mint": mint,
                     "price": 0.0,

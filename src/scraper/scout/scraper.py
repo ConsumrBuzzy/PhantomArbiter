@@ -33,13 +33,13 @@ class TokenScraper:
                         
                         # Emit Discovery Signal (Purple Flash)
                         signal_bus.emit(Signal(
-                            type=SignalType.MARKET_UPDATE, # Use update to trigger flash
+                            type=SignalType.MARKET_UPDATE,
+                            source="DISCOVERY",
                             data={
-                                "source": "DISCOVERY",
                                 "symbol": c.get("symbol", "NEW"),
                                 "mint": c.get("address"),
                                 "token": c.get("address"),
-                                "price": 0.0, # Unknown price usually
+                                "price": 0.0,
                                 "timestamp": asyncio.get_event_loop().time()
                             }
                         ))

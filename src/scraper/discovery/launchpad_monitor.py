@@ -464,8 +464,8 @@ class LaunchpadMonitor:
         # V33: Signal Bus Integration
         signal_bus.emit(Signal(
             type=SignalType.MARKET_UPDATE,
+            source="LAUNCHPAD",
             data={
-                "source": "LAUNCHPAD", # Magenta Flash
                 "symbol": event.symbol or "NEW",
                 "label": f"{event.symbol} ({event.platform.value})",
                 "token": event.mint,

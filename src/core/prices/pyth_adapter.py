@@ -120,11 +120,11 @@ class PythAdapter(PriceProvider):
             # Emit "Truth" Signal
             signal_bus.emit(Signal(
                 type=SignalType.MARKET_UPDATE,
+                source="PYTH",
                 data={
-                    "source": "PYTH",
                     "symbol": symbol,
-                    "token": symbol, # Use symbol as token ID if mint unknown
-                    "mint": symbol,  # Map symbol to mint if possible, else use symbol
+                    "token": symbol,
+                    "mint": symbol,
                     "price": p_price.price,
                     "confidence": p_price.confidence,
                     "timestamp": timestamp

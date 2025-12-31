@@ -65,11 +65,11 @@ class DydxAdapter:
             
             signal_bus.emit(Signal(
                 type=SignalType.MARKET_UPDATE,
+                source="DYDX",
                 data={
-                    "source": "DYDX",
                     "symbol": token,
                     "token": token,
-                    "mint": token, # Map if possible, else use symbol
+                    "mint": token,
                     "price": price,
                     "timestamp": timestamp
                 }
