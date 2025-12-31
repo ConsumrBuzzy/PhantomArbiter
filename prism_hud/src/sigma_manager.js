@@ -99,6 +99,16 @@ export class SigmaManager {
         // Add other diff logic (new nodes/edges) as needed
     }
 
+    // Process a high-speed flash event
+    processFlash(flash) {
+        if (this.graph.hasNode(flash.node)) {
+            // Instant energy injection
+            this.graph.setNodeAttribute(flash.node, 'energy', flash.energy || 1.0);
+            this.graph.setNodeAttribute(flash.node, 'color', flash.color || '#39ff14'); // Explicit flash color
+            this.graph.setNodeAttribute(flash.node, 'size', 20.0); // Big spike
+        }
+    }
+
     // Decay energy over time (called from RAF)
     decayEnergy() {
         this.graph.forEachNode((node, attributes) => {

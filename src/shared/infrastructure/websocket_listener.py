@@ -370,10 +370,23 @@ class WebSocketListener:
                         self.stats["last_price_update"] = time.time()
                         wss_log(f"📈 {symbol} = ${price:.6f} (WSS)")
 
+                        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+                        
+                        # V31: Emit Real-Time Signal for Visual Bridge
+                        signal_bus.emit(Signal(
+                            type=SignalType.MARKET_UPDATE,
+                            source="WSS_Listener",
+                            data={
+                                "mint": mint,
+                                "symbol": symbol,
+                                "price": price,
+                                "timestamp": time.time()
+                            }
+                        ))
+
                         # V12.2: Push to Dashboard Pulse
                         try:
                             from src.shared.state.app_state import state
-
                             state.update_pulse(symbol, price)
                         except:
                             pass

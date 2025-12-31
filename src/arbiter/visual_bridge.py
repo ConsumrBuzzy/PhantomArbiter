@@ -14,8 +14,7 @@ import websockets
 from websockets.server import serve
 import logging
 
-from src.shared.persistence.market_manager import MarketManager
-from src.shared.schemas.graph_protocol import GraphPayload
+from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 
 # Configure Logging
 logger = logging.getLogger("VisualBridge")
@@ -29,6 +28,36 @@ class VisualBridge:
         self.connected_clients = set()
         self.market_manager = MarketManager()
         self.is_running = False
+        self._setup_signal_listener()
+
+    def _setup_signal_listener(self):
+        """Wires the Neural Link from SignalBus to the Bridge."""
+        def handle_market_update(sig: Signal):
+            # Only broadcast if we have clients
+            if not self.connected_clients:
+                return
+                
+            # Construct heavyweight "Flash" packet
+            # We use fire-and-forget to avoid blocking the bus
+            mint = sig.data.get("mint") or sig.data.get("token")
+            if mint:
+                flash_packet = json.dumps({
+                    "type": "flash",
+                    "node": mint,
+                    "energy": 1.0,
+                    "color": "#00FF00" # Default flash color
+                })
+                # Schedule broadcast on the event loop
+                asyncio.create_task(self._broadcast_flash(flash_packet))
+
+        signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_update)
+        signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update)
+
+    async def _broadcast_flash(self, payload: str):
+        """High-speed broadcast for flash events."""
+        if self.connected_clients:
+            tasks = [self.send_update(client, payload) for client in self.connected_clients]
+            await asyncio.gather(*tasks)
 
     async def register(self, websocket):
         """Register a new client connection."""
@@ -79,7 +108,8 @@ class VisualBridge:
         try:
             await websocket.send(message)
         except websockets.exceptions.ConnectionClosed:
-            logger.warning("⚠️ Connection closed during send.")
+            # logger.warning("⚠️ Connection closed during send.")
+            pass # Suppress warning for high-freq flashes
         except Exception as e:
             logger.error(f"❌ Send Error: {e}")
 

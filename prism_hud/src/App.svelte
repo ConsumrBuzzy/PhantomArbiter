@@ -55,6 +55,9 @@
         currentSeqId = data.seq_id;
         diffCount++;
         sigmaManager.processDiff(data);
+    } else if (data.type === 'flash') {
+        // High-speed visual event (No sequence check needed)
+        sigmaManager.processFlash(data);
     }
   }
 
