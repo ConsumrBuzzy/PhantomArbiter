@@ -58,8 +58,12 @@ def test_strategy_factory():
 
 def test_dashboard_registry():
     print("\n🧩 Testing DashboardRegistry...")
+    print(f"   Settings.HOP_ENGINE_ENABLED: {getattr(Settings, 'HOP_ENGINE_ENABLED', 'UNKNOWN')}")
+    
     # Initialize Dashboard (triggering registration)
     dash = PulsedDashboard()
+    
+    print(f"   Registry Slots: {registry._slots.keys()}")
     
     # Check registry
     shadow_frag = registry.get_fragment("shadow")    # ScavengerFragment
