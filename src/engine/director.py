@@ -101,57 +101,32 @@ class Director:
             from src.engine.landlord_core import get_landlord
             self.agents["landlord"] = get_landlord()
         elif hop_mode:
-            # V140: Narrow Path Mode - Skip intelligence agents for graph arb
-            state.log("[Director] ⚡ Narrow Path Mode: Skipping Whale/Scout/Landlord agents.")
-            self.agents["whale"] = None
-            self.agents["scout"] = None
-            self.agents["landlord"] = None
+            # V140: Narrow Path Mode (Managed by StrategyFactory)
+            state.log("[Director] ⚡ Narrow Path Mode Active (Modular Architecture)")
             
-            # V140: Initialize Pod System for autonomous hop exploration
+            from src.engine.strategy_factory import StrategyFactory, StrategyMode
             from src.engine.pod_manager import get_pod_manager
-            self.pod_manager = get_pod_manager()
-            
-            # Spawn default HopPod for SOL-based multiverse scanning
             from config.settings import Settings
-            self.default_hop_pod = self.pod_manager.spawn_hop_pod(
-                name="sol_multiverse",
-                start_token=getattr(Settings, 'SOL_MINT', "So11111111111111111111111111111111111111112"),
-                min_hops=getattr(Settings, 'HOP_MIN_LEGS', 2),
-                max_hops=getattr(Settings, 'HOP_MAX_LEGS', 4),
-                min_liquidity=getattr(Settings, 'HOP_MIN_LIQUIDITY_USD', 5000),
-                cooldown=getattr(Settings, 'HOP_SCAN_INTERVAL_SEC', 2.0)
-            )
-            if self.default_hop_pod:
-                state.log(f"[Director] 🌌 Spawned HopPod: {self.default_hop_pod.id}")
-            else:
-                state.log("[Director] ⚠️ Failed to spawn HopPod - Rust extension may not be built")
             
-            # Spawn CyclePod - the "Governor of Wisdom" for global market intelligence
-            self.cycle_pod = self.pod_manager.spawn_cycle_pod(
-                name="market_governor",
-                cooldown=1.0  # Update context every second
-            )
-            if self.cycle_pod:
-                state.log(f"[Director] 🧠 Spawned CyclePod: {self.cycle_pod.id} (Governor of Wisdom)")
+            # Initialize Manager and Factory
+            self.pod_manager = get_pod_manager()
+            self.strategy_factory = StrategyFactory(self.pod_manager)
             
-            # Spawn ExecutionPod - the "Striker" for atomic bundle execution
-            self.execution_pod = self.pod_manager.spawn_execution_pod(
-                name="striker",
-                mode="paper",  # Start in paper mode for safety
-                min_profit_pct=getattr(Settings, 'HOP_MIN_PROFIT_PCT', 0.15),
-                cooldown=0.5,
-            )
-            if self.execution_pod:
-                state.log(f"[Director] ⚔️ Spawned ExecutionPod: {self.execution_pod.id} (mode=paper)")
+            # Spawn Pods via Factory
+            config = {
+                'whale_threshold': 250_000,
+                'execution_mode': 'ghost', # Default to GHOST for battle test
+            }
+            # Override execution mode if specified in settings?
+            # For now, let's stick to GHOST validation as safe default
             
-            # Spawn BridgePod - the "Sniffer" for institutional liquidity inflows
-            self.bridge_pod = self.pod_manager.spawn_bridge_pod(
-                name="sniffer",
-                whale_threshold=250_000.0,
-                cooldown=10.0,
-            )
-            if self.bridge_pod:
-                state.log(f"[Director] 🌉 Spawned BridgePod: {self.bridge_pod.id} (The Sniffer)")
+            pods = self.strategy_factory.spawn_pods(StrategyMode.NARROW_PATH, config)
+            
+            # Map pods to Director for reference (optional, or just rely on manager)
+            # We want to keep references to specific key pods if needed
+            self.execution_pod = self.pod_manager.get_execution_pod()
+            
+            state.log(f"[Director] 🌌 Strategy Factory spawned {len(pods)} pods")
         else:
             # Lite Mode - Mock or Skip
             self.agents["whale"] = None
