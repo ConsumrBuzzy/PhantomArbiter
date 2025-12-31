@@ -31,9 +31,14 @@
 - [x] **Validation**: Unit test priority locking and drawdown halts.
 
 ### Phase 11: Universal Wisdom (Graduation Sniper)
-- [ ] **Sniper Logic**: Refine `SniperAgent` to target pump.fun -> Raydium migrations (Graduation Events).
-- [ ] **Intent Registry**: Implement collision detection in `SignalBus` to prevent Scalper/Arbiter overlap.
+- [x] **Sniper Logic**: Refine `SniperAgent` to target pump.fun -> Raydium migrations (Graduation Events).
+- [x] **Intent Registry**: Implement collision detection in `SignalBus` to prevent Scalper/Arbiter overlap.
 - [ ] **Universal Scout**: Open up `ScoutAgent` filters for broad market vision.
+
+### Phase 13: Universal Ingestion
+- [ ] **Log Harvester**: Implement `LogHarvester` to listen for Raydium/Pump.fun Program Logs (`initialize2`, `create`).
+- [ ] **Signal Injection**: Wire Harvester to `SniperAgent` and `ScoutAgent` via SignalBus.
+- [ ] **Validation**: Verify detection of pool creation events via log simulation.
 
 ---
 
