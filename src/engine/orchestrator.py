@@ -124,7 +124,7 @@ class MarketOrchestrator:
         self.orca = OrcaAdapter()
         asyncio.create_task(self.orca.start_polling(interval=5.0))
         
-        return bridge_task, engine_task
+
         bridge_task = asyncio.create_task(self.visual_bridge.start())
         
         # 2. Director (The Brain)
