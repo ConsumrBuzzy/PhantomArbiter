@@ -102,6 +102,9 @@ class TradingCore:
         self.engine_name = engine_name
         self.registry = registry or {}
         
+        # V10.0: Global Risk Governor (Injected by Director)
+        self.risk_governor = None
+        
         # 1. Execution Layer
         self.wallet = WalletManager()
         self.swapper = JupiterSwapper(self.wallet)

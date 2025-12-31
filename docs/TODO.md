@@ -18,16 +18,17 @@
 | **P1** | **Bonding Curve Math** (Metadata Schema) | ✅ Done | Rust | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
 | **P0** | **Audit-Ready Architecture** (Shadow Mode) | ✅ Verifying | Core | `PHASE_7_AUDIT.md` |
 | **P0** | **Enable & Wire All Components** | ✅ Done | System | `PHASE_SYSTEM_WIRING.md` |
-| **P0** | **Reliability Hardening** (RPC Failover) | 📋 Plan | Infra | `PHASE_9_RELIABILITY.md` |
+| **P0** | **Reliability Hardening** (RPC Failover) | ✅ Done | Infra | `PHASE_9_RELIABILITY.md` |
+| **P0** | **Global Risk Governor** (Capital/Safety) | 📋 Plan | Core | `PHASE_10_GOVERNOR.md` |
 
 ---
 
 ## 🛠️ Step-by-Step
 
-### Phase 9: Reliability Hardening (Current)
-- [ ] **RPC Manager**: Implement `RpcFailoverManager` to track health and switch providers.
-- [ ] **Data Source Redundancy**: Add secondary WebSocket if main fails (optional/future).
-- [ ] **Stress Test**: Simulate RPC failure and verify switch.
+### Phase 10: Global Risk Governor (Current)
+- [ ] **Risk Governor**: Implement `GlobalRiskGovernor` for capital partitioning (70/30) and kill switches.
+- [ ] **Integration**: Wire Governor into `Director` and `TradingCore`.
+- [ ] **Validation**: Unit test priority locking and drawdown halts.
 
 ---
 

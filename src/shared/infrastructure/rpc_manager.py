@@ -38,7 +38,52 @@ class RpcConnectionManager:
         }
         
         Logger.info(f"🛡️ [RPC] Manager initialized with {len(self.rpc_urls)} providers")
+        
+        # V9.1: Initial Latency Benchmark
+        self.benchmark_providers()
 
+    def benchmark_providers(self):
+        """
+        Ping all providers to determine the fastest one.
+        Updates current_index to point to the lowest latency Healthy node.
+        """
+        Logger.info(f"🏎️ [RPC] Benchmarking {len(self.rpc_urls)} providers...")
+        
+        best_idx = 0
+        min_latency = float('inf')
+        
+        for i, url in enumerate(self.rpc_urls):
+            try:
+                start = time.time()
+                # Simple ping: getVersion or getHealth
+                payload = {"jsonrpc": "2.0", "id": 1, "method": "getHealth"}
+                resp = requests.post(url, json=payload, timeout=2)
+                
+                if resp.status_code == 200:
+                    latency = (time.time() - start) * 1000
+                    self._record_success(url, latency)
+                    Logger.debug(f"   ✅ {url}: {latency:.0f}ms")
+                    
+                    if latency < min_latency:
+                        min_latency = latency
+                        best_idx = i
+                else:
+                    self._record_error(url, f"HTTP {resp.status_code}")
+                    Logger.debug(f"   ❌ {url}: HTTP {resp.status_code}")
+                    
+            except Exception as e:
+                self._record_error(url, "Timeout/Error")
+                Logger.debug(f"   ❌ {url}: Timeout/Error")
+        
+        # Switch to best
+        if best_idx != self.current_index:
+            old = self.get_active_url()
+            self.current_index = best_idx
+            new = self.get_active_url()
+            Logger.info(f"🏎️ [RPC] Latency Rebalance: Switched to {new} ({min_latency:.0f}ms)")
+        else:
+            Logger.info(f"🏎️ [RPC] Retaining {self.get_active_url()} ({min_latency:.0f}ms)")
+            
     def get_active_url(self) -> str:
         return self.rpc_urls[self.current_index]
 

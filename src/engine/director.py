@@ -61,8 +61,23 @@ class Director:
         self.agents["arbiter"] = PhantomArbiter(arb_config)
         
         # 3. MID TIER AGENTS
-        # Scalper
+        
+        # V10.0: Global Risk Governor
+        from src.engine.risk_governor import GlobalRiskGovernor
+        self.risk_governor = GlobalRiskGovernor()
+        
+        # 3. MID TIER AGENTS
+        # Scalper (Inject Governor)
+        # Note: TradingCore init might need update or we set it post-init?
+        # TradingCore.__init__ signature doesn't take governor yet.
+        # We can perform dependency injection property setting.
         self.agents["scalper"] = TradingCore(strategy_class=MerchantEnsemble, engine_name="SCALPER")
+        self.agents["scalper"].risk_governor = self.risk_governor
+        
+        # Pass to Arbiter too?
+        if hasattr(self.agents["arbiter"], 'set_risk_governor'):
+             self.agents["arbiter"].set_risk_governor(self.risk_governor)
+
         
         if not self.lite_mode:
             # Whale Watcher (V23, V67.0: Whale-Pulse with metadata registry)
