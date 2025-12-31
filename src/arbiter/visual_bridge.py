@@ -23,7 +23,7 @@ logger = logging.getLogger("VisualBridge")
 
 
 class VisualBridge:
-    def __init__(self, host: str = "localhost", port: int = 8765):
+    def __init__(self, host: str = "127.0.0.1", port: int = 8765):
         self.host = host
         self.port = port
         self.server = None
@@ -179,12 +179,18 @@ class VisualBridge:
         self.is_running = True
         self.current_seq_id = 0
 
-        async with serve(self.handler, self.host, self.port):
-            logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
-            
-            # Run loops concurrently
-            await asyncio.gather(
-                self.broadcast_loop(),
-                self.heartbeat_loop()
-            )
+        try:
+            async with serve(self.handler, self.host, self.port):
+                logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
+                print(f"🌉 Visual Bridge Online: ws://{self.host}:{self.port}")
+                
+                # Run loops concurrently
+                await asyncio.gather(
+                    self.broadcast_loop(),
+                    self.heartbeat_loop()
+                )
+        except Exception as e:
+            logger.error(f"❌ Visual Bridge Server Error: {e}")
+            print(f"❌ Visual Bridge Failed to Start: {e}")
+            self.is_running = False
 
