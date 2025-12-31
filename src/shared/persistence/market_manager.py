@@ -15,7 +15,10 @@ from typing import List, Dict, Optional
 from src.shared.system.logging import Logger
 from src.shared.system.database.core import DatabaseCore
 from src.shared.system.database.repositories.market_repo import MarketRepository
-from src.shared.schemas.graph_protocol import GraphSnapshot, GraphNode, GraphLink, create_snapshot
+from src.shared.schemas.graph_protocol import (
+    GraphSnapshot, GraphDiff, GraphNode, GraphLink, GraphPayload,
+    create_snapshot, create_diff
+)
 
 
 class MarketManager:
@@ -25,9 +28,10 @@ class MarketManager:
 
     def __init__(self):
         self.db = DatabaseCore()
-        self.repo = MarketRepository(self.db)
-
-    def rehydrate(self) -> int:
+        self.repo = MarketRepository(DatabaseCore())
+        self.last_snapshot: Optional[GraphSnapshot] = None
+        
+    def dehydrate(self) -> Dict[str, int]:
         """
         Loads pool graph from JSON archive into SQLite.
         """
@@ -188,6 +192,85 @@ class MarketManager:
             nodes[mint_b]['size'] += (liq / 1000.0)
 
         return create_snapshot(list(nodes.values()), links, seq=int(time.time()))
+
+    def get_graph_diff(self) -> GraphPayload:
+        """
+        Returns a Differential Update (GraphDiff) if possible, 
+        otherwise returns a full GraphSnapshot (first run).
+        """
+        # 1. Generate Current State
+        current_snapshot = self.get_graph_data()
+        
+        # 2. Check if we have a baseline
+        if not self.last_snapshot:
+            self.last_snapshot = current_snapshot
+            return current_snapshot
+            
+        # 3. Calculate Diff
+        diff = self._calculate_diff(self.last_snapshot, current_snapshot)
+        
+        # 4. Update Baseline
+        self.last_snapshot = current_snapshot
+        
+        return diff
+        
+    def _calculate_diff(self, old: GraphSnapshot, new: GraphSnapshot) -> GraphDiff:
+        """
+        Compares two snapshots and returns the delta.
+        """
+        # Maps for O(1) Lookup
+        old_nodes = {n['id']: n for n in old['nodes']}
+        new_nodes = {n['id']: n for n in new['nodes']}
+        
+        upserted_nodes = []
+        removed_node_ids = []
+        
+        # 1. Detect Upserts (New or Changed)
+        for nid, n_node in new_nodes.items():
+            o_node = old_nodes.get(nid)
+            
+            # If new or different, add to upsert list
+            # Simple inequality check covers all fields (color, size, label)
+            if not o_node or n_node != o_node:
+                upserted_nodes.append(n_node)
+                
+        # 2. Detect Removals
+        for nid in old_nodes:
+            if nid not in new_nodes:
+                removed_node_ids.append(nid)
+        
+        # 3. Links (Same logic, simple for V1)
+        # Ideally check links too, but for V1 let's just trigger updates
+        # If links changed, we send them. 
+        # Making simple link list comparison:
+        # (Optimizing links requires Map{(source,target): params})
+        
+        # For this phase, we just send ALL links if ANY node changed? No.
+        # We need true link diff.
+        
+        old_links = {(l['source'], l['target']): l for l in old['links']}
+        new_links = {(l['source'], l['target']): l for l in new['links']}
+        
+        upserted_links = []
+        removed_links = []
+        
+        for k, n_link in new_links.items():
+            o_link = old_links.get(k)
+            if not o_link or n_link != o_link:
+                upserted_links.append(n_link)
+                
+        for k in old_links:
+            if k not in new_links:
+                removed_links.append({"source": k[0], "target": k[1]})
+
+        return create_diff(
+            nodes=upserted_nodes, 
+            links=upserted_links, 
+            removed_nodes=removed_node_ids, 
+            removed_links=removed_links, 
+            seq=new['sequence']
+        )
+
 
     def export_graph_data(self, output_dir: str = "data/viz") -> bool:
         """

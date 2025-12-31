@@ -24,11 +24,16 @@ async def listen():
                 data = json.loads(message)
 
                 msg_type = data.get("type", "unknown")
-                graph_data = data.get("data", {})
-                nodes = len(graph_data.get("nodes", []))
-                links = len(graph_data.get("links", []))
-
-                print(f"📩 Received {msg_type}: {nodes} nodes, {links} links")
+                seq = data.get("sequence", 0)
+                nodes = len(data.get("nodes", []))
+                links = len(data.get("links", []))
+                
+                # For Diffs, show counts. For Snapshots, show totals.
+                if msg_type == "diff":
+                    rem_nodes = len(data.get("removed_node_ids", []))
+                    print(f"📉 [#{seq}] Received DIFF: {nodes} upserted, {links} updated links, {rem_nodes} removed")
+                else:
+                    print(f"📸 [#{seq}] Received SNAPSHOT: {nodes} nodes, {links} links")
 
     except Exception as e:
         print(f"❌ Connection Error: {e}")

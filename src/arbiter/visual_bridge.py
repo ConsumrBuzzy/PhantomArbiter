@@ -15,7 +15,7 @@ from websockets.server import serve
 import logging
 
 from src.shared.persistence.market_manager import MarketManager
-from src.shared.schemas.graph_protocol import GraphSnapshot
+from src.shared.schemas.graph_protocol import GraphPayload
 
 # Configure Logging
 logger = logging.getLogger("VisualBridge")
@@ -73,18 +73,13 @@ class VisualBridge:
         logger.info("📡 Broadcast Loop Started.")
         while self.is_running:
             try:
-                # 1. Get Fresh Data (Strictly Typed)
-                graph_data: GraphSnapshot = self.market_manager.get_graph_data()
+                # 1. Get Fresh Data (Differential or Snapshot)
+                payload_data: GraphPayload = self.market_manager.get_graph_diff()
                 
-                # 2. Validation (Lightweight)
-                if graph_data['type'] != 'snapshot':
-                    logger.warning(f"⚠️ Invalid Payload Type: {graph_data.get('type')}")
-                    # In future, handle diffs here
+                # 2. Serialize to JSON
+                payload = json.dumps(payload_data)
                 
-                # 3. Serialize to JSON
-                payload = json.dumps(graph_data)
-                
-                # 4. Broadcast
+                # 3. Broadcast
                 if self.connected_clients:
                     # Create tasks for all connected clients to send in parallel
                     tasks = [self.send_update(client, payload) for client in self.connected_clients]
