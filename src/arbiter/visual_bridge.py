@@ -35,50 +35,21 @@ class VisualBridge:
     def _setup_signal_listener(self):
         """Subscribe to SignalBus for real-time events."""
         
+        # V33: Import Transformer
+        from src.arbiter.visual_transformer import VisualTransformer
+
         async def handle_market_update(sig: Signal):
-            # Construct heavyweight "Flash" packet
-            # We use fire-and-forget to avoid blocking the bus
-            mint = sig.data.get("mint") or sig.data.get("token")
-            symbol = sig.data.get("symbol", "???")
-            source = sig.data.get("source", "DEX") # Default to DEX
+            # Transform Raw Signal -> Visual Globe
+            payload = VisualTransformer.transform(sig)
             
-            # Phase 33: Full Spectrum Colors
-            # Helius (DEX) = Neon Green
-            # Pyth (Oracle) = Cyan Blue
-            # dYdX (CEX) = Orange
-            # Arb/Spread = Red (Warning)
-            
-            color = "#39ff14" # Default Green (DEX)
-            if source == "PYTH":
-                color = "#00ffff" # Cyan
-            elif source == "DYDX":
-                color = "#ffaa00" # Orange
-            elif source == "PUMP_GRAD":
-                color = "#ffaa00" # Orange (Graduation)
-            elif source == "DISCOVERY":
-                color = "#9945ff" # Purple (Solana/Discovery)
-            elif source == "LAUNCHPAD":
-                color = "#ff00ff" # Magenta (Raydium/Meteora/etc)
-            elif source == "MIGRATION":
-                color = "#ffd700" # Gold (Migration Event)
-            elif source == "ORCA":
-                color = "#008080" # Teal (Concentrated Liquidity)
-            elif source == "ARB":
-                color = "#ff0000" # Red Warning
-            
-            if mint:
-                flash_packet = json.dumps({
-                    "type": "flash",
-                    "node": mint,
-                    "label": symbol,
-                    "energy": 1.0,
-                    "color": color
-                })
-                # Schedule broadcast on the event loop
-                asyncio.create_task(self._broadcast_flash(flash_packet))
+            if payload:
+                # Serialize and Broadcast
+                # We use fire-and-forget to avoid blocking the bus
+                packet = json.dumps(payload)
+                asyncio.create_task(self._broadcast_flash(packet))
 
         signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_update)
-        signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update) # Treat scalp signals as updates too
+        signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update)
 
     async def _broadcast_flash(self, payload: str):
         """High-speed broadcast for flash events."""
@@ -170,13 +141,30 @@ class VisualBridge:
             await asyncio.sleep(0.5)
 
     async def heartbeat_loop(self):
-        """Sends PING every 5s to keep connections alive."""
+        """Sends PING every 5s and Test Flashes if idle."""
+        import random
         while self.is_running:
             if self.connected_clients:
+                # 1. Ping
                 ping_payload = json.dumps({"type": "PING"})
                 tasks = [self.send_update(client, ping_payload) for client in self.connected_clients]
                 await asyncio.gather(*tasks)
-            await asyncio.sleep(5)
+                
+                # 2. V33: TEST SIGNAL (To prove The Void works)
+                # If no real signals are coming, the void is dark. Let's light it up.
+                test_colors = ["#39ff14", "#00ffff", "#ffaa00", "#9945ff", "#ff00ff", "#008080"]
+                test_flash = json.dumps({
+                    "type": "flash",
+                    "node": f"TEST_{random.randint(1000,9999)}",
+                    "label": "SYSTEM_TEST",
+                    "energy": 1.0,
+                    "color": random.choice(test_colors)
+                })
+                # Broadcast test flash to all
+                tasks = [self.send_update(client, test_flash) for client in self.connected_clients]
+                await asyncio.gather(*tasks)
+
+            await asyncio.sleep(2.0) # 2s heartbeat
 
     async def start(self):
         """Starts the WebSocket server and background loops."""

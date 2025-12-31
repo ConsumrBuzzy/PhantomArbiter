@@ -64,6 +64,9 @@
         <div class="hud-text">PHANTOM ARBITER // THE VOID</div>
         <div class="hud-text">STATUS: <span id="status">CONNECTING...</span></div>
         <div class="hud-text">EVENTS: <span id="event-count">0</span></div>
+        <button id="test-btn"
+            style="border: 1px solid #0f0; background: #000; color: #0f0; cursor: pointer; margin-top: 5px;">SPAWN TEST
+            NODE</button>
         <div id="feed-log"></div>
     </div>
     <div id="canvas-container"></div>
@@ -172,7 +175,7 @@
             node.scale.set(3, 3, 3); // Grow
 
             // Log
-            logEvent(`⚡ FLASH: ${label || mint} [${colorHex}]`);
+            logEvent(`⚡ ${label || mint} [${colorHex}]`);
         }
 
         function updateNodes() {
@@ -193,21 +196,26 @@
         const countEl = document.getElementById('event-count');
         const logEl = document.getElementById('feed-log');
 
+        document.getElementById('test-btn').addEventListener('click', () => {
+            flashNode("MANUAL_TEST", "#ff0000", "MANUAL");
+        });
+
         function logEvent(msg) {
             const div = document.createElement('div');
             div.className = 'log-entry';
             div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
             logEl.prepend(div);
-            if (logEl.children.length > 10) logEl.removeChild(logEl.lastChild);
+            if (logEl.children.length > 20) logEl.removeChild(logEl.lastChild); // Increase log size
         }
 
         function connect() {
+            logEvent("Attempting WS Connection...");
             const ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
                 statusEl.textContent = "CONNECTED (NEURAL LINK ESTABLISHED)";
                 statusEl.style.color = "#0f0";
-                console.log("Connected to SignalBus");
+                logEvent("WebSocket Open");
                 ws.send(JSON.stringify({ action: "REQUEST_SYNC" }));
             };
 
@@ -222,19 +230,31 @@
                     } else if (data.type === 'snapshot') {
                         // Rebuild graph?
                         // For The Void, we just additive spawn for now
-                        logEvent(`📸 Snapshot received (${data.nodes.length} nodes)`);
+                        logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
                         data.nodes.forEach(n => createNode(n.id, n.label, n.color || '#39ff14'));
+                    } else if (data.type === 'PING') {
+                        // Optional heartbeat log
+                        // logEvent("❤️ PING");
+                    } else {
+                        logEvent(`❓ Unknown Type: ${data.type}`);
                     }
 
                 } catch (e) {
                     console.error("Parse error", e);
+                    logEvent("❌ Parse Error");
                 }
             };
 
             ws.onclose = () => {
                 statusEl.textContent = "DISCONNECTED - RETRYING...";
                 statusEl.style.color = "#f00";
+                logEvent("WS Closed");
                 setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error("WS Error", err);
+                logEvent("WS Error check console");
             };
         }
 
