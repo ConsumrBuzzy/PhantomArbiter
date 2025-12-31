@@ -29,8 +29,9 @@ from src.engine.pod_manager import BasePod, PodConfig, PodSignal, PodType, PodSt
 
 class ExecutionMode(Enum):
     """Execution mode for the pod."""
-    PAPER = "paper"      # Simulate execution, no real transactions
+    PAPER = "paper"      # Simulate execution, no real transactions, no builder
     LIVE = "live"        # Real execution with Jito bundles
+    GHOST = "ghost"      # Dry run: Build real bundle, but don't submit
     DISABLED = "disabled"  # Consume signals but don't execute
 
 
@@ -46,6 +47,7 @@ class ExecutionResult:
     execution_time_ms: float = 0.0
     leg_count: int = 0
     tip_lamports: int = 0
+    mode: str = "unknown"
     timestamp: float = field(default_factory=time.time)
 
 
@@ -93,6 +95,14 @@ class ExecutionPod(BasePod):
         
         Logger.info(f"[ExecutionPod] Initialized in {mode.value} mode (min_profit={min_profit_pct}%)")
     
+    def set_mode(self, mode: ExecutionMode):
+        """Runtime mode switch."""
+        self.mode = mode
+        Logger.info(f"[ExecutionPod] Switched to {mode.value} mode")
+        # Re-init builders if switching to LIVE/GHOST
+        if mode in [ExecutionMode.LIVE, ExecutionMode.GHOST]:
+            self._init_builders()
+
     def _init_builders(self):
         """Lazy initialization of execution infrastructure."""
         if self._hop_builder is None:
@@ -102,8 +112,12 @@ class ExecutionPod(BasePod):
                 
                 private_key = getattr(Settings, 'PRIVATE_KEY_BASE58', None)
                 if not private_key:
-                    Logger.warning("[ExecutionPod] No private key configured, using paper mode")
-                    self.mode = ExecutionMode.PAPER
+                    if self.mode == ExecutionMode.LIVE:
+                        Logger.warning("[ExecutionPod] No private key, falling back to PAPER")
+                        self.mode = ExecutionMode.PAPER
+                    elif self.mode == ExecutionMode.GHOST:
+                        # Ghost execution needs a builder, use dummy key if needed or warn
+                        Logger.warning("[ExecutionPod] No private key for GHOST mode")
                 else:
                     self._hop_builder = MultiHopBuilder(
                         private_key,
@@ -112,7 +126,7 @@ class ExecutionPod(BasePod):
                     )
                     Logger.info(f"[ExecutionPod] MultiHopBuilder initialized: {self._hop_builder.pubkey()[:8]}...")
             except ImportError:
-                Logger.warning("[ExecutionPod] Rust extension not available, using paper mode")
+                Logger.warning("[ExecutionPod] Rust extension not available, using PAPER")
                 self.mode = ExecutionMode.PAPER
         
         if self._jupiter_client is None:
@@ -226,8 +240,8 @@ class ExecutionPod(BasePod):
         # Execute based on mode
         if self.mode == ExecutionMode.PAPER:
             result = await self._execute_paper(cycle_id, opp, context)
-        elif self.mode == ExecutionMode.LIVE:
-            result = await self._execute_live(cycle_id, opp, context)
+        elif self.mode in [ExecutionMode.LIVE, ExecutionMode.GHOST]:
+            result = await self._execute_live(cycle_id, opp, context, dry_run=(self.mode == ExecutionMode.GHOST))
         else:
             result = ExecutionResult(
                 cycle_id=cycle_id,
@@ -239,6 +253,7 @@ class ExecutionPod(BasePod):
         
         # Update stats
         result.execution_time_ms = (time.time() - start_time) * 1000
+        result.mode = self.mode.value
         self._execution_times.append(time.time())
         self.execution_history.append(result)
         
@@ -247,10 +262,10 @@ class ExecutionPod(BasePod):
         
         if result.success:
             self.executions_succeeded += 1
-            Logger.info(f"[ExecutionPod] ✅ Executed {hop_count}-hop | +{result.expected_profit_pct:.3f}%")
+            Logger.info(f"[ExecutionPod] ✅ Executed {hop_count}-hop | +{result.expected_profit_pct:.3f}% ({self.mode.value})")
         else:
             self.executions_failed += 1
-            Logger.debug(f"[ExecutionPod] ❌ Failed: {result.error}")
+            Logger.debug(f"[ExecutionPod] ❌ Failed ({self.mode.value}): {result.error}")
         
         return result
     
@@ -281,6 +296,7 @@ class ExecutionPod(BasePod):
             actual_profit_pct=expected_profit_pct,  # Assume perfect execution
             leg_count=hop_count,
             tip_lamports=0,
+            mode="paper"
         )
     
     async def _execute_live(
@@ -288,6 +304,7 @@ class ExecutionPod(BasePod):
         cycle_id: str,
         opp: Dict[str, Any],
         context,
+        dry_run: bool = False,
     ) -> ExecutionResult:
         """
         Live execution via MultiHopBuilder and Jito.
@@ -399,13 +416,18 @@ class ExecutionPod(BasePod):
                     leg_count=hop_count,
                 )
             
-            # 6. Build and submit!
-            signature = self._hop_builder.build_and_submit(
-                swap_legs=swap_legs,
-                tip_lamports=tip_lamports,
-                recent_blockhash=blockhash,
-                expected_profit_pct=actual_profit_pct,
-            )
+            # 6. Build and submit (or dry run)
+            if dry_run:
+                Logger.info(f"[ExecutionPod] 👻 GHOST RUN: Skipping submission for {hop_count}-hop bundle")
+                Logger.info(f"               Tip: {tip_lamports} | Expected Profit: {actual_profit_pct:.3f}%")
+                signature = f"ghost_{cycle_id}"
+            else:
+                signature = self._hop_builder.build_and_submit(
+                    swap_legs=swap_legs,
+                    tip_lamports=tip_lamports,
+                    recent_blockhash=blockhash,
+                    expected_profit_pct=actual_profit_pct,
+                )
             
             return ExecutionResult(
                 cycle_id=cycle_id,
@@ -415,6 +437,7 @@ class ExecutionPod(BasePod):
                 actual_profit_pct=actual_profit_pct,
                 leg_count=hop_count,
                 tip_lamports=tip_lamports,
+                mode="ghost" if dry_run else "live",
             )
             
         except Exception as e:
@@ -425,6 +448,7 @@ class ExecutionPod(BasePod):
                 error=str(e),
                 expected_profit_pct=expected_profit_pct,
                 leg_count=hop_count,
+                mode="ghost" if dry_run else "live",
             )
     
     def _check_rate_limit_execution(self) -> bool:
