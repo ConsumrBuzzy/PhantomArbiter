@@ -647,7 +647,6 @@ class TradeExecutor:
         Returns:
             TradeResult
         """
-        print(f"DEBUG: _execute_paper_buy entered for {watcher.symbol}", flush=True)
         tx_id = f"MOCK_TX_BUY_{int(time.time())}"
         
         # Position sizing
@@ -657,7 +656,9 @@ class TradeExecutor:
         
         total_equity = self.paper_wallet.get_total_value(current_price_map)
         
+        
         # V135: Use passed size if available, else derive
+        risk_amount = 0.0
         if size_usd > 0:
             calculated_size = size_usd
         else:
