@@ -11,7 +11,7 @@ Manages the bidirectional flow of Token Metadata between:
 import json
 import os
 import time
-from typing import List, Dict
+from typing import List, Dict, Set
 from src.shared.system.logging import Logger
 from src.shared.system.database.core import DatabaseCore
 from src.shared.system.database.repositories.token_repo import TokenRepository
@@ -113,3 +113,43 @@ class TokenRegistry:
         except Exception as e:
             Logger.error(f"❌ Token Dehydration Failed: {e}")
             return False
+
+    def audit_orphans(self, active_mints: Set[str]) -> int:
+        """
+        Garbage Collection: Deletes tokens that are not part of any active pool.
+        Returns the number of tokens purged.
+        """
+        try:
+            # 1. Get all known tokens
+            all_tokens = self.repo.get_all_tokens()
+            existing_mints = {t['mint'] for t in all_tokens}
+            
+            # 2. Identify Orphans (Exist in DB but NOT in active_mints)
+            # We must be careful not to delete tokens that might be useful but momentarily disconnected.
+            # However, for 'Sanitizer' mode, we assume strict cleanup.
+            
+            # Special Case: Always keep USDC/SOL to be safe
+            whitelist = {
+                "So11111111111111111111111111111111111111112",
+                "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+            }
+            
+            orphans = existing_mints - active_mints - whitelist
+            
+            if not orphans:
+                return 0
+                
+            # 3. Purge
+            count = 0
+            with self.repo.db.cursor(commit=True) as c:
+                for mint in orphans:
+                    c.execute("DELETE FROM tokens WHERE mint = ?", (mint,))
+                    count += 1
+                    
+            Logger.info(f"   🧹 Registry Audit: Purged {count} orphaned tokens.")
+            return count
+            
+        except Exception as e:
+            Logger.error(f"❌ Registry Audit Failed: {e}")
+            return 0
