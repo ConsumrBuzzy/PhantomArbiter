@@ -317,12 +317,17 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
 async def main() -> None:
     """Main entry point."""
     
+    # DEBUG: See what we are getting
+    # print(f"DEBUG: sys.argv inside main: {sys.argv}")
+
     # V33: Auto-launch Dashboard if no args provided
     if len(sys.argv) == 1:
         print("ℹ️  No command specified. Defaulting to Full Spectrum Dashboard...")
         sys.argv.append("dashboard")
 
     parser = create_parser()
+    # Explicitly allow no subcommand
+    # But checking args.command is handled below
     args = parser.parse_args()
 
     # SHORTCUT: 'live' -> dashboard + live=True
