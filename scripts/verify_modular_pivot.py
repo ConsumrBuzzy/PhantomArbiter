@@ -40,7 +40,7 @@ def test_strategy_factory():
     config = {'execution_mode': 'ghost'}
     pods = factory.spawn_pods(StrategyMode.NARROW_PATH, config)
     
-    pod_types = [p.type for p in pods]
+    pod_types = [p.config.pod_type for p in pods]
     print(f"   Spawned {len(pods)} pods: {[p.id for p in pods]}")
     
     assert PodType.WHALE in pod_types, "BridgePod (WHALE) missing"
