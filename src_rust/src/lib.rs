@@ -424,6 +424,7 @@ mod scorer;
 // ------------------------------------------------------------------------
 pub mod cycle_finder;
 pub mod graph;
+pub mod multiverse;
 
 // ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
@@ -476,6 +477,7 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // V140: Narrow Path (Multi-Hop Arbitrage)
     graph::register_graph_classes(m)?;
     cycle_finder::register_cycle_finder_classes(m)?;
+    multiverse::register_multiverse_classes(m)?;
 
     Ok(())
 }
