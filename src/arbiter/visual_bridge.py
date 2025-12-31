@@ -12,83 +12,97 @@ import asyncio
 import json
 import websockets
 from websockets.server import serve
+import logging
 
 from src.shared.persistence.market_manager import MarketManager
-from src.shared.system.logging import Logger
+from src.shared.schemas.graph_protocol import GraphSnapshot
+
+# Configure Logging
+logger = logging.getLogger("VisualBridge")
 
 
 class VisualBridge:
-    def __init__(self, host="localhost", port=8765, update_interval=2.0):
+    def __init__(self, host: str = "localhost", port: int = 8765):
         self.host = host
         self.port = port
-        self.update_interval = update_interval
-        self.market_manager = MarketManager()
+        self.server = None
         self.connected_clients = set()
-        self.running = False
+        self.market_manager = MarketManager()
+        self.is_running = False
 
     async def register(self, websocket):
+        """Register a new client connection."""
         self.connected_clients.add(websocket)
-        Logger.info(f"   🔌 Client Connected. Total: {len(self.connected_clients)}")
-        # Send immediate update on connect
-        await self.send_update(websocket)
+        logger.info(f"➕ Client Connected. Total: {len(self.connected_clients)}")
+        
+        # Send immediate snapshot on connect
+        try:
+            snapshot = self.market_manager.get_graph_data()
+            await websocket.send(json.dumps(snapshot))
+        except Exception as e:
+            logger.error(f"❌ Failed to send initial snapshot: {e}")
 
     async def unregister(self, websocket):
+        """Unregister a client connection."""
         self.connected_clients.remove(websocket)
-        Logger.info(f"   🔌 Client Disconnected. Total: {len(self.connected_clients)}")
+        logger.info(f"➖ Client Disconnected. Total: {len(self.connected_clients)}")
 
     async def handler(self, websocket):
+        """Main WebSocket handler."""
         await self.register(websocket)
         try:
             async for message in websocket:
-                # Handle any incoming control messages here (e.g. "filter:min_liq=X")
-                # For now, we just ignore inputs or log them
+                # Handle any incoming control messages here
                 pass
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
             await self.unregister(websocket)
 
-    async def send_update(self, websocket):
-        """Sends current graph snapshot to a specific client."""
+    async def send_update(self, websocket, message: str):
+        """Send a message to a specific client."""
         try:
-            data = self.market_manager.get_graph_data()
-            message = json.dumps({"type": "graph_snapshot", "data": data})
             await websocket.send(message)
+        except websockets.exceptions.ConnectionClosed:
+            logger.warning("⚠️ Connection closed during send.")
         except Exception as e:
-            Logger.error(f"❌ Bridge Send Error: {e}")
+            logger.error(f"❌ Send Error: {e}")
 
     async def broadcast_loop(self):
-        """Periodically broadcasts updates to all clients."""
-        Logger.info(f"   📡 Broadcast Loop Started (Interval: {self.update_interval}s)")
-        while self.running:
+        """Periodically fetch graph data and broadcast to all clients."""
+        logger.info("📡 Broadcast Loop Started.")
+        while self.is_running:
             try:
+                # 1. Get Fresh Data (Strictly Typed)
+                graph_data: GraphSnapshot = self.market_manager.get_graph_data()
+                
+                # 2. Validation (Lightweight)
+                if graph_data['type'] != 'snapshot':
+                    logger.warning(f"⚠️ Invalid Payload Type: {graph_data.get('type')}")
+                    # In future, handle diffs here
+                
+                # 3. Serialize to JSON
+                payload = json.dumps(graph_data)
+                
+                # 4. Broadcast
                 if self.connected_clients:
-                    # Fetch fresh data
-                    # Note: In a real high-freq scenario, we might want to check if data CHANGED
-                    # before sending. For now, we send snapshots.
-                    data = self.market_manager.get_graph_data()
-                    message = json.dumps(
-                        {
-                            "type": "graph_update",
-                            "data": data,
-                            "meta": {"clients": len(self.connected_clients)},
-                        }
-                    )
-
-                    # Broadcast
-                    websockets.broadcast(self.connected_clients, message)
-
-                await asyncio.sleep(self.update_interval)
+                    # Create tasks for all connected clients to send in parallel
+                    tasks = [self.send_update(client, payload) for client in self.connected_clients]
+                    if tasks:
+                        await asyncio.gather(*tasks)
+                        
             except Exception as e:
-                Logger.error(f"❌ Broadcast Error: {e}")
-                await asyncio.sleep(1)  # Backoff on error
+                logger.error(f"❌ Broadcast Error: {e}")
+                
+            # Rate Limit (e.g., 2 FPS)
+            await asyncio.sleep(0.5)
 
     async def start(self):
         """Starts the WebSocket server and the broadcast loop."""
-        self.running = True
+        self.is_running = True
 
         server = await serve(self.handler, self.host, self.port)
-        Logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
+        logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
 
         # Run broadcast loop alongside server
         await self.broadcast_loop()

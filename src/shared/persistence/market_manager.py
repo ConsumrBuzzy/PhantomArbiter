@@ -11,10 +11,11 @@ Manages the bidirectional flow of Pool Graphs between:
 import json
 import os
 import time
-from typing import Dict
+from typing import List, Dict, Optional
 from src.shared.system.logging import Logger
 from src.shared.system.database.core import DatabaseCore
 from src.shared.system.database.repositories.market_repo import MarketRepository
+from src.shared.schemas.graph_protocol import GraphSnapshot, GraphNode, GraphLink, create_snapshot
 
 
 class MarketManager:
@@ -118,34 +119,34 @@ class MarketManager:
             Logger.error(f"❌ Pool Dehydration Failed: {e}")
             return False
 
-    def get_graph_data(self) -> Dict:
+    def get_graph_data(self) -> GraphSnapshot:
         """
         Generates the visual graph data structure (Nodes/Links).
-        Returns a dictionary with 'nodes' and 'links' lists.
+        Returns a strictly typed GraphSnapshot.
         """
         pools = self.repo.get_all_pools()
-
-        nodes = {}
-        links = []
-
+        
+        nodes: Dict[str, GraphNode] = {}
+        links: List[GraphLink] = []
+        
         # Color mapping
         # SOL = Purple, USDC = Blue, USDT = Green, Others = Gray
         COLOR_SOL = "#9945FF"
         COLOR_USDC = "#2775CA"
         COLOR_USDT = "#26A17B"
         COLOR_DEFAULT = "#808080"
-
+        
         for p in pools:
-            pool_addr = p["address"]
-            mint_a = p["token_a"]
-            mint_b = p["token_b"]
-            liq = p.get("liquidity_usd", 0) or 0
-            vol = p.get("vol_24h", 0) or 0
-
+            pool_addr = p['address']
+            mint_a = p['token_a']
+            mint_b = p['token_b']
+            liq = p.get('liquidity_usd', 0) or 0
+            vol = p.get('vol_24h', 0) or 0
+            
             # Filter noise
             if liq < 100 and vol < 100:
                 continue
-
+                
             # Identify Ecosystem Color
             edge_color = COLOR_DEFAULT
             if "So11111111111111111111111111111111111111112" in [mint_a, mint_b]:
@@ -154,29 +155,39 @@ class MarketManager:
                 edge_color = COLOR_USDC
             elif "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" in [mint_a, mint_b]:
                 edge_color = COLOR_USDT
-
+                
             # Add Nodes (Idempotent)
             if mint_a not in nodes:
-                nodes[mint_a] = {"id": mint_a, "color": edge_color, "size": 1}
-            if mint_b not in nodes:
-                nodes[mint_b] = {"id": mint_b, "color": edge_color, "size": 1}
-
-            # Add Link
-            links.append(
-                {
-                    "source": mint_a,
-                    "target": mint_b,
-                    "weight": vol,
-                    "color": edge_color,
-                    "label": p.get("dex_label", "Unknown"),
+                nodes[mint_a] = {
+                    "id": mint_a, 
+                    "label": mint_a[:4], # Short label for now
+                    "color": edge_color, 
+                    "size": 1.0, 
+                    "meta": {"type": "token"}
                 }
-            )
-
+            if mint_b not in nodes:
+                nodes[mint_b] = {
+                    "id": mint_b, 
+                    "label": mint_b[:4],
+                    "color": edge_color, 
+                    "size": 1.0, 
+                    "meta": {"type": "token"}
+                }
+                
+            # Add Link
+            links.append({
+                "source": mint_a,
+                "target": mint_b,
+                "weight": vol,
+                "color": edge_color,
+                "label": p.get('dex_label', 'Unknown')
+            })
+            
             # Increment Node Size (Degree/Liq proxy)
-            nodes[mint_a]["size"] += liq / 1000.0
-            nodes[mint_b]["size"] += liq / 1000.0
+            nodes[mint_a]['size'] += (liq / 1000.0) 
+            nodes[mint_b]['size'] += (liq / 1000.0)
 
-        return {"nodes": list(nodes.values()), "links": links}
+        return create_snapshot(list(nodes.values()), links, seq=int(time.time()))
 
     def export_graph_data(self, output_dir: str = "data/viz") -> bool:
         """

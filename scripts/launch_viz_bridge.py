@@ -28,7 +28,7 @@ async def main():
     configure_logging()
     print("🌉 Starting Visual Bridge...")
 
-    bridge = VisualBridge(host="localhost", port=8765, update_interval=2.0)
+    bridge = VisualBridge(host="localhost", port=8765)
 
     try:
         await bridge.start()
