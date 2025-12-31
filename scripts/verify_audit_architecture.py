@@ -62,6 +62,11 @@ async def run_verification():
         
     print("✅ Core Initialized & Shadow Manager Detected")
     
+    # Funding Paper Wallet for test
+    core.executor.paper_wallet.deposit("SOL", 10.0, 150.0)
+    core.executor.paper_wallet.deposit("USDC", 1500.0, 1.0)
+    print("✅ Paper Wallet Funded")
+    
     # 4. Trigger Buy
     from src.strategy.watcher import Watcher
     watcher = Watcher("SOL", "So11111111111111111111111111111111111111112")
