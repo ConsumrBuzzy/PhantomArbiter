@@ -41,9 +41,27 @@ def run_rust_audit():
         else:
             print("   ⚠️ Rust Issues Found:")
             print(result.stderr[:1000]) # truncated
+            print("   💡 Tip: Run with --fix to automatically apply Cargo suggestions.")
             
     except Exception as e:
         print(f"   ❌ Rust Audit Failed: {e}")
+
+def run_rust_fix():
+    print("\n🛠️  Running Rust Auto-Fix (cargo fix)...")
+    try:
+        if not shutil.which("cargo"):
+            return
+
+        # --allow-dirty is needed if working tree has changes
+        subprocess.run(
+            ["cargo", "fix", "--allow-dirty", "--allow-staged"],
+            cwd="src_rust",
+            check=False
+        )
+        print("   ✅ Rust Fixes Applied.")
+            
+    except Exception as e:
+        print(f"   ❌ Rust Fix Failed: {e}")
 
 def run_python_audit():
     print("\n🐍 Running Python Audit (Vulture)...")
@@ -104,6 +122,12 @@ def run_data_audit():
 def main():
     print("🧹 PhantomArbiter Project Sanitizer")
     print("====================================")
+    
+    # Simple arg parse
+    auto_fix = "--fix" in sys.argv
+    
+    if auto_fix:
+        run_rust_fix()
     
     run_rust_audit()
     run_python_audit()
