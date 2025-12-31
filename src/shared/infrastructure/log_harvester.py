@@ -23,6 +23,10 @@ from src.shared.system.logging import Logger
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 from config.settings import Settings
 
+# V140: Tracking institutional inflow
+CIRCLE_CCTP_ID = "CCTP1BeS7S99Wf2f7C6YxG5iXqC8Zq5m2vGvXv5z"
+WORMHOLE_BRIDGE_ID = "wormDTUZ2vDjnC7sbb6q9G2c474Y6G7J7J7J7J7J7J7"
+
 # Program IDs
 RAYDIUM_V4_ID = "675kPX9MCyJsD5ippTu671dKKkCtSE5v4RBmZJtHNv9v"
 PUMPFUN_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
@@ -238,6 +242,10 @@ class LogHarvester:
                     await self._subscribe(ws, ORCA_WHIRLPOOL_ID)
                     await self._subscribe(ws, METEORA_DLMM_ID)
                     
+                    # V140: Subscribe to Bridge Programs
+                    await self._subscribe(ws, self.CIRCLE_CCTP_ID)
+                    await self._subscribe(ws, self.WORMHOLE_BRIDGE_ID)
+                    
                     while self.is_running:
                         msg = await ws.recv()
                         await self._process_message(json.loads(msg))
@@ -315,6 +323,61 @@ class LogHarvester:
                 pool_address = self._extract_pool_from_logs(logs)
                 if pool_address:
                     self.failure_tracker.record_success(pool_address)
+        
+        # V140: Check for Bridge Inflows (Circle CCTP / Wormhole)
+        is_bridge = False
+        protocol = "UNKNOWN"
+        amount_usd = 0.0
+        
+        for log in logs:
+            if self.CIRCLE_CCTP_ID in log:
+                is_bridge = True
+                protocol = "CCTP"
+                # Look for "Mint" or "DepositForBurn"
+                if "mint" in log.lower() or "deposit" in log.lower():
+                    amount_usd = self._extract_amount_from_logs(logs, "CCTP")
+                break
+            
+            if self.WORMHOLE_BRIDGE_ID in log:
+                is_bridge = True
+                protocol = "WORMHOLE"
+                if "complete" in log.lower() or "transfer" in log.lower():
+                    amount_usd = self._extract_amount_from_logs(logs, "WORMHOLE")
+                break
+        
+        if is_bridge and amount_usd > 0:
+            Logger.info(f"👁️ [HARVESTER] 🌉 BRIDGE INFLOW: ${amount_usd:,.0f} via {protocol}")
+            
+            signal_bus.emit(Signal(
+                type=SignalType.WHALE_ACTIVITY,
+                source="HARVESTER",
+                data={
+                    "event": "BRIDGE_INFLOW",
+                    "protocol": protocol,
+                    "amount_usd": amount_usd,
+                    "signature": signature,
+                }
+            ))
+    
+    def _extract_amount_from_logs(self, logs: List[str], protocol: str) -> float:
+        """
+        Heuristic to extract USD amount from bridge logs.
+        On a real system, we'd parse the instruction data, but for 
+        the "Whiff" strategy, we look for amount patterns in logs.
+        """
+        for log in logs:
+            # Look for large numbers that might be lamports/units
+            if "amount" in log.lower() or "value" in log.lower():
+                import re
+                numbers = re.findall(r'\d+', log)
+                if numbers:
+                    # Very rough heuristic: largest number normalized
+                    raw_val = int(max(numbers, key=len))
+                    if protocol == "CCTP":
+                        return raw_val / 1_000_000.0  # USDC has 6 decimals
+                    else:
+                        return raw_val / 1_000_000_000.0  # Assume 9 decimals for SOL/ETH
+        return 0.0
     
     def _extract_pool_from_logs(self, logs: List[str]) -> Optional[str]:
         """

@@ -851,6 +851,51 @@ class PodManager:
             if isinstance(pod, ExecutionPod):
                 return pod
         return None
+    
+    def spawn_bridge_pod(
+        self,
+        name: str = "sniffer",
+        whale_threshold: float = 250_000.0,
+        cooldown: float = 10.0,
+    ):
+        """
+        Spawn the BridgePod (The Sniffer).
+        
+        Args:
+            name: Human-readable name
+            whale_threshold: USD inflow to trigger whale signals
+            cooldown: Seconds between aggregation cycles
+        """
+        from src.engine.bridge_pod import BridgePod
+        
+        # Singleton check
+        pod = self.get_bridge_pod()
+        if pod: return pod
+        
+        config = PodConfig(
+            pod_type=PodType.WHALE,
+            name=name,
+            params={"whale_threshold": whale_threshold},
+            cooldown_seconds=cooldown,
+        )
+        
+        pod = BridgePod(
+            config=config,
+            signal_callback=self.signal_callback,
+            whale_threshold_usd=whale_threshold,
+        )
+        self.pods[pod.id] = pod
+        
+        Logger.info(f"[PodManager] Spawned BridgePod: {pod.id}")
+        return pod
+
+    def get_bridge_pod(self) -> Optional[BridgePod]:
+        """Get the singleton BridgePod if it exists."""
+        from src.engine.bridge_pod import BridgePod
+        for pod in self.pods.values():
+            if isinstance(pod, BridgePod):
+                return pod
+        return None
 
     async def start_all(self) -> None:
         """Start all pods."""

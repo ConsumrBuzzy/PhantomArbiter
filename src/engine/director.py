@@ -143,6 +143,15 @@ class Director:
             )
             if self.execution_pod:
                 state.log(f"[Director] ⚔️ Spawned ExecutionPod: {self.execution_pod.id} (mode=paper)")
+            
+            # Spawn BridgePod - the "Sniffer" for institutional liquidity inflows
+            self.bridge_pod = self.pod_manager.spawn_bridge_pod(
+                name="sniffer",
+                whale_threshold=250_000.0,
+                cooldown=10.0,
+            )
+            if self.bridge_pod:
+                state.log(f"[Director] 🌉 Spawned BridgePod: {self.bridge_pod.id} (The Sniffer)")
         else:
             # Lite Mode - Mock or Skip
             self.agents["whale"] = None
@@ -384,6 +393,19 @@ class Director:
                     elif signal.signal_type == "VOLATILITY_ALERT" and signal.pod_type == PodType.CYCLE:
                         vix = signal.data.get('vix', 0)
                         state.log(f"[CyclePod] 📊 Volatility Alert: VIX {vix:.0f}")
+                    
+                    elif signal.signal_type == "LIQUIDITY_INFLOW" and signal.pod_type == PodType.WHALE:
+                        amount = signal.data.get('amount_usd', 0)
+                        proto = signal.data.get('protocol', 'UNKNOWN')
+                        state.log(f"[BridgePod] 🌊 FLOOD: ${amount:,.0f} via {proto}")
+                        
+                        # Push to SignalBus
+                        self.signal_bus.emit({
+                            "type": "LIQUIDITY_INFLOW",
+                            "source": signal.pod_id,
+                            "data": signal.data,
+                            "priority": signal.priority
+                        })
                 
                 # Update pod stats in AppState
                 state.pod_stats = self.pod_manager.get_stats()
