@@ -97,7 +97,14 @@ class PulsedDashboard:
         return Panel(table, title="[bold]Live Market Observer[/bold]", border_style="blue")
         
     def generate_scalper_panel(self, signals: List[Any], market_pulse: Dict[str, Any] = None):
-        """Show active scalp signals AND Price Watch."""
+        """Show active scalp signals AND Price Watch.
+        V140: In Narrow Path mode, this is replaced by generate_multiverse_panel.
+        """
+        # V140: Check if we're in hop mode - if so, show placeholder
+        from config.settings import Settings
+        if getattr(Settings, 'HOP_ENGINE_ENABLED', False):
+            return self.generate_multiverse_panel(signals)
+        
         # V90.0: Unified Price Watch + Signal View
         table = Table(box=box.SIMPLE, expand=True)
         table.add_column("Token", style="magenta")
@@ -166,8 +173,75 @@ class PulsedDashboard:
                 
         return Panel(table, title="[magenta]Scalper & Price Watch[/magenta]", border_style="magenta")
 
+    def generate_multiverse_panel(self, hop_data: Any = None):
+        """V140: Show Multiverse Hop Cycles grouped by hop count.
+        
+        Displays cycles found at each hop level (2-5) with profit and liquidity.
+        """
+        table = Table(box=box.SIMPLE, expand=True)
+        table.add_column("Hops", style="cyan", width=4)
+        table.add_column("Path", style="white", ratio=2)
+        table.add_column("Profit", justify="right", style="green")
+        table.add_column("Liq", justify="right", style="dim")
+        
+        # Try to get multiverse data from app_state
+        cycles_by_hops = {}
+        if hop_data and hasattr(hop_data, 'get'):
+            cycles_by_hops = hop_data.get('cycles_by_hops', {})
+        elif isinstance(hop_data, dict):
+            cycles_by_hops = hop_data.get('cycles_by_hops', {})
+        
+        if not cycles_by_hops:
+            # Show placeholder with tier descriptions
+            table.add_row("2", "[dim]Spatial (High Comp)[/dim]", "-", "-")
+            table.add_row("3", "[dim]Triangle (Standard)[/dim]", "-", "-")
+            table.add_row("[cyan]4[/cyan]", "[cyan]Long-Tail (Alpha Zone)[/cyan]", "-", "-")
+            table.add_row("5", "[dim]Deep Path (Complex)[/dim]", "-", "-")
+            return Panel(table, title="[cyan]🌌 Multiverse Hop Scanner[/cyan]", border_style="cyan")
+        
+        # Show best cycle at each hop level
+        for hop_count in [2, 3, 4, 5]:
+            cycles = cycles_by_hops.get(hop_count, [])
+            if cycles:
+                best = cycles[0] if isinstance(cycles, list) else cycles
+                path_short = best.get('path', [])[:3]  # First 3 tokens
+                path_str = "→".join([p[:6] for p in path_short]) + "..."
+                
+                profit = best.get('profit_pct', 0)
+                profit_color = "green" if profit > 0.3 else "yellow"
+                
+                liq = best.get('min_liquidity_usd', 0)
+                liq_str = f"${liq/1000:.0f}k" if liq > 1000 else f"${liq:.0f}"
+                
+                # Highlight 4-hop (alpha zone)
+                if hop_count == 4:
+                    table.add_row(
+                        f"[bold cyan]{hop_count}[/bold cyan]",
+                        f"[bold]{path_str}[/bold]",
+                        f"[bold {profit_color}]+{profit:.2f}%[/bold {profit_color}]",
+                        liq_str
+                    )
+                else:
+                    table.add_row(
+                        str(hop_count),
+                        path_str,
+                        f"[{profit_color}]+{profit:.2f}%[/{profit_color}]",
+                        liq_str
+                    )
+            else:
+                tier_name = {2: "Spatial", 3: "Triangle", 4: "Long-Tail", 5: "Deep"}
+                table.add_row(str(hop_count), f"[dim]{tier_name.get(hop_count, '')}[/dim]", "-", "-")
+        
+        return Panel(table, title="[cyan]🌌 Multiverse Hop Scanner[/cyan]", border_style="cyan")
+
     def generate_inventory_panel(self, inventory: List[Any]):
-        """Show held bags with Bought and Current prices."""
+        """Show held bags with Bought and Current prices.
+        V140: In Narrow Path mode, shows Graph Stats instead.
+        """
+        from config.settings import Settings
+        if getattr(Settings, 'HOP_ENGINE_ENABLED', False):
+            return self.generate_graph_stats_panel(inventory)
+        
         table = Table(box=box.SIMPLE, expand=True)
         table.add_column("Token")
         table.add_column("Bought", justify="right")   # V133: Bought Price
@@ -189,6 +263,47 @@ class PulsedDashboard:
                 )
                 
         return Panel(table, title="Inventory (Held Bags)", border_style="yellow")
+
+    def generate_graph_stats_panel(self, stats_data: Any = None):
+        """V140: Show HopGraph engine statistics.
+        
+        Displays pool count, node count, scan performance metrics.
+        """
+        from rich.table import Table as RichTable
+        
+        grid = RichTable.grid(expand=True)
+        grid.add_column(ratio=1)
+        grid.add_column(ratio=1, justify="right")
+        
+        # Default stats
+        node_count = 0
+        edge_count = 0
+        scan_ms = 0.0
+        cycles_found = 0
+        
+        # Try to extract stats from app_state
+        if stats_data and hasattr(stats_data, 'get'):
+            node_count = stats_data.get('node_count', 0)
+            edge_count = stats_data.get('edge_count', 0)
+            scan_ms = stats_data.get('last_scan_ms', 0.0)
+            cycles_found = stats_data.get('cycles_found', 0)
+        elif isinstance(stats_data, dict):
+            node_count = stats_data.get('node_count', 0)
+            edge_count = stats_data.get('edge_count', 0)
+            scan_ms = stats_data.get('last_scan_ms', 0.0)
+            cycles_found = stats_data.get('cycles_found', 0)
+        
+        # Color coding
+        pool_color = "green" if edge_count > 1000 else "yellow" if edge_count > 100 else "dim"
+        scan_color = "green" if scan_ms < 50 else "yellow" if scan_ms < 200 else "red"
+        cycle_color = "green" if cycles_found > 0 else "dim"
+        
+        grid.add_row("Tokens (Nodes):", f"[cyan]{node_count:,}[/cyan]")
+        grid.add_row("Pools (Edges):", f"[{pool_color}]{edge_count:,}[/{pool_color}]")
+        grid.add_row("Scan Time:", f"[{scan_color}]{scan_ms:.1f}ms[/{scan_color}]")
+        grid.add_row("Cycles Found:", f"[{cycle_color}]{cycles_found}[/{cycle_color}]")
+        
+        return Panel(grid, title="[yellow]📊 Graph Engine Stats[/yellow]", border_style="yellow")
 
     def generate_signal_panel(self, signals: List[Any]):
         """Show recent system-wide signals."""
