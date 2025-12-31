@@ -551,21 +551,21 @@ class TradeExecutor:
         
         tx_id = None
         
-        if self.live_mode:
-            # LIVE EXECUTION
-            tx_id = self.swapper.execute_swap(
-                direction="BUY",
-                amount_usd=size_usd,
-                reason=reason,
-                target_mint=watcher.mint
-            )
+        # V49.0: Unified Backend Execution (Delegated)
+        execution_result = self.execution_backend.execute_buy(
+            watcher=watcher,
+            amount_usd=size_usd,
+            reason=reason,
+            price=price
+        )
+        
+        # Unpack result
+        if execution_result.success:
+            tx_id = execution_result.tx_id or f"TX_{int(time.time())}"
         else:
-            # PAPER EXECUTION
-            if is_paper_aggressive:
-                print(f"      📝 Calling _execute_paper_buy()...")
-            tx_id = self._execute_paper_buy(watcher, price, reason, liq, decision_engine, size_usd=size_usd)
-            if is_paper_aggressive:
-                print(f"      📋 Paper buy returned: {tx_id}")
+            tx_id = None
+            priority_queue.add(2, 'LOG', {'level': 'ERROR', 'message': f"❌ BUY FAILED: {execution_result.reason}"})
+            return execution_result
         
         if tx_id:
             # Success path
@@ -593,15 +593,20 @@ class TradeExecutor:
             watcher.enter_position(price, size_usd)
             watcher.last_signal_time = time.time()
             
-            live_result = TradeResult(True, "BUY", watcher.symbol, price, size_usd/price, 0.0, tx_id=tx_id, reason=reason, requested_price=price, source="LIVE")
+            live_result = execution_result
             
             # V48.0 SHADOW MODE AUDIT
-            if self.live_mode and self.shadow_manager and getattr(Settings, 'ENABLE_SHADOW_MODE', False):
-                # Run paper execution in background/parallel (simplified here as synchronous for safety first)
-                # In strict async, we'd use asyncio.create_task, but here we want to ensure it runs.
-                # Since we already completed live trade, this extra ms is fine for audit.
+            enable_shadow = getattr(Settings, 'ENABLE_SHADOW_MODE', False)
+            enable_trading = getattr(Settings, 'ENABLE_TRADING', False)
+            print(f"DEBUG: Shadow Check - live_mode={self.live_mode}, shadow_mgr={bool(self.shadow_manager)}, setting_shadow={enable_shadow}, setting_trading={enable_trading}")
+            
+            if self.live_mode and self.shadow_manager and enable_shadow and enable_trading:
+                print("DEBUG: Entering Shadow Audit Block")
+                # Run paper execution in background/parallel
                 try:
+                    # We need to manually run paper logic here since we just did live
                     paper_result = self._execute_paper_buy(watcher, price, reason, liq, decision_engine, size_usd=size_usd)
+                    print(f"DEBUG: Paper Result: {paper_result}")
                     # Use asyncio.create_task for the logging to not block logic
                     import asyncio
                     # We can't await here easily if not async def. ShadowManager.audit_trade is async.
@@ -618,7 +623,8 @@ class TradeExecutor:
                     if loop.is_running():
                         loop.create_task(self.shadow_manager.audit_trade("BUY", watcher.symbol, price, paper_result, live_result))
                 except Exception as e:
-                    Logger.warning(f"[SHADOW] Failed to trigger audit: {e}")
+                    print(f"DEBUG: SHADOW AUDIT EXCEPTION: {e}")
+                    # Logger.warning(f"[SHADOW] Failed to trigger audit: {e}")
 
             return live_result
         else:
@@ -641,6 +647,7 @@ class TradeExecutor:
         Returns:
             TradeResult
         """
+        print(f"DEBUG: _execute_paper_buy entered for {watcher.symbol}", flush=True)
         tx_id = f"MOCK_TX_BUY_{int(time.time())}"
         
         # Position sizing
