@@ -62,14 +62,18 @@ def test_dashboard_registry():
     dash = PulsedDashboard()
     
     # Check registry
-    shadow_frag = registry.get_fragment("scavenger") # Name is 'scavenger' for ScavengerFragment
-    stats_frag = registry.get_fragment("flow")       # Name is 'flow' for FlowFragment
+    shadow_frag = registry.get_fragment("shadow")    # ScavengerFragment
+    stats_frag = registry.get_fragment("stats")      # JitoBundleFragment (Narrow Path)
+    scalper_frag = registry.get_fragment("scalper")  # MultiverseFragment
+    inv_frag = registry.get_fragment("inventory")    # GraphStatsFragment
     
-    print(f"   Shadow Slot Fragment: {shadow_frag.__class__.__name__ if shadow_frag else 'None'}")
-    print(f"   Stats Slot Fragment: {stats_frag.__class__.__name__ if stats_frag else 'None'}")
+    print(f"   Shadow Fragment: {shadow_frag.__class__.__name__ if shadow_frag else 'None'}")
+    print(f"   Stats Fragment: {stats_frag.__class__.__name__ if stats_frag else 'None'}")
+    print(f"   Scalper Fragment: {scalper_frag.__class__.__name__ if scalper_frag else 'None'}")
     
-    assert shadow_frag is not None, "ScavengerFragment not registered in Shadow slot"
-    assert stats_frag is not None, "FlowFragment not registered in Stats slot"
+    assert shadow_frag is not None, "ScavengerFragment not registered"
+    assert "Jito" in stats_frag.__class__.__name__, f"Expected JitoBundleFragment, got {stats_frag.__class__.__name__}"
+    assert "Multiverse" in scalper_frag.__class__.__name__, "MultiverseFragment not registered"
     
     print("✅ DashboardRegistry passed")
 
