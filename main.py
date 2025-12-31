@@ -19,6 +19,14 @@ Monitoring:
 
 import argparse
 import asyncio
+import logging
+import sys
+import os
+
+# Ultra-safe encoding fix for Windows Consoles
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -566,18 +574,6 @@ async def cmd_pulse(args: argparse.Namespace) -> None:
     from rich.console import Console
     from src.engine.director import Director
     from src.arbiter.ui.pulsed_dashboard import RichPulseReporter
-import asyncio
-import logging
-import sys
-import os
-
-# Ultra-safe encoding fix for Windows Consoles
-if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding='utf-8')
-    sys.stderr.reconfigure(encoding='utf-8')
-
-from src.shared.system.logging import Logger
-from src.shared.state.app_state import state as app_state
 
     # 1. Init
     console = Console()
