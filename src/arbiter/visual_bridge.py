@@ -141,8 +141,10 @@ class VisualBridge:
             await asyncio.sleep(0.5)
 
     async def heartbeat_loop(self):
-        """Sends PING every 5s and Test Flashes if idle."""
+        """Sends PING every 5s and Test Archetypes if idle."""
         import random
+        from src.arbiter.visual_transformer import VisualTransformer
+        
         while self.is_running:
             if self.connected_clients:
                 # 1. Ping
@@ -150,19 +152,25 @@ class VisualBridge:
                 tasks = [self.send_update(client, ping_payload) for client in self.connected_clients]
                 await asyncio.gather(*tasks)
                 
-                # 2. V33: TEST SIGNAL (To prove The Void works)
-                # If no real signals are coming, the void is dark. Let's light it up.
-                test_colors = ["#39ff14", "#00ffff", "#ffaa00", "#9945ff", "#ff00ff", "#008080"]
-                test_flash = json.dumps({
-                    "type": "flash",
-                    "node": f"TEST_{random.randint(1000,9999)}",
-                    "label": "SYSTEM_TEST",
-                    "energy": 1.0,
-                    "color": random.choice(test_colors)
-                })
-                # Broadcast test flash to all
-                tasks = [self.send_update(client, test_flash) for client in self.connected_clients]
-                await asyncio.gather(*tasks)
+                # 2. V33: TEST ARCHEOTYPE
+                # Randomly pick a source to trigger various archetypes
+                sources = ["WSS_Listener", "PYTH", "PUMP_GRAD", "DISCOVERY"]
+                mock_sig = Signal(
+                    type=SignalType.MARKET_UPDATE,
+                    source=random.choice(sources),
+                    data={
+                        "mint": f"TEST_{random.randint(1000,9999)}",
+                        "symbol": "MOCK_TK",
+                        "price": 1.23,
+                        "timestamp": 0
+                    }
+                )
+                
+                payload = VisualTransformer.transform(mock_sig)
+                if payload:
+                    packet = json.dumps(payload)
+                    tasks = [self.send_update(client, packet) for client in self.connected_clients]
+                    await asyncio.gather(*tasks)
 
             await asyncio.sleep(2.0) # 2s heartbeat
 
