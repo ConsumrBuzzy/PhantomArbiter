@@ -226,6 +226,8 @@ class RichPulseReporter(ArbiterReporter):
     
     def __init__(self, telegram=None):
         super().__init__(telegram)
+        from src.shared.system.logging import Logger
+        Logger.set_silent(True) # V135: Silence console logs to prevent TUI artifacts
         self.dashboard = PulsedDashboard()
         self.live = Live(self.dashboard.layout, refresh_per_second=2, screen=True)  # V134: Reduced from 4 to prevent stutter
         self.live.start()
@@ -302,3 +304,5 @@ class RichPulseReporter(ArbiterReporter):
         
     def stop(self):
         self.live.stop()
+        from src.shared.system.logging import Logger
+        Logger.set_silent(False) # Restore console logs
