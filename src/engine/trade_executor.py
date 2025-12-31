@@ -596,17 +596,11 @@ class TradeExecutor:
             live_result = execution_result
             
             # V48.0 SHADOW MODE AUDIT
-            enable_shadow = getattr(Settings, 'ENABLE_SHADOW_MODE', False)
-            enable_trading = getattr(Settings, 'ENABLE_TRADING', False)
-            print(f"DEBUG: Shadow Check - live_mode={self.live_mode}, shadow_mgr={bool(self.shadow_manager)}, setting_shadow={enable_shadow}, setting_trading={enable_trading}")
-            
-            if self.live_mode and self.shadow_manager and enable_shadow and enable_trading:
-                print("DEBUG: Entering Shadow Audit Block")
+            if self.live_mode and self.shadow_manager and getattr(Settings, 'ENABLE_SHADOW_MODE', False) and getattr(Settings, 'ENABLE_TRADING', False):
                 # Run paper execution in background/parallel
                 try:
                     # We need to manually run paper logic here since we just did live
                     paper_result = self._execute_paper_buy(watcher, price, reason, liq, decision_engine, size_usd=size_usd)
-                    print(f"DEBUG: Paper Result: {paper_result}")
                     # Use asyncio.create_task for the logging to not block logic
                     import asyncio
                     # We can't await here easily if not async def. ShadowManager.audit_trade is async.
