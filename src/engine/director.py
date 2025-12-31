@@ -20,7 +20,10 @@ class Director:
     
     def __init__(self, live_mode: bool = False, lite_mode: bool = False):
         self.is_running = False
+        # V90.0: Full System Activation requested by User
         self.lite_mode = lite_mode
+        if not self.lite_mode:
+             state.log("🚀 [Director] FULL SYSTEM MODE: Enabling all agents (Whale, Scout, Landlord)")
         
         # V23: Supervisor Registry (Tiered)
         self.tasks = {

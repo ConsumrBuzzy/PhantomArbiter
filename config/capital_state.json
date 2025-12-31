@@ -1,7 +1,7 @@
 {
   "version": "40.0",
   "total_capital_usd": 1050.0,
-  "last_updated": 1767147033.7647035,
+  "last_updated": 1767147222.3059325,
   "engines": {
     "MERCHANT": {
       "allocated_capital": 50.0,
@@ -122,7 +122,7 @@
           "size_usd": 10.0,
           "current_value": 10.0,
           "mint": "So11111111111111111111111111111111111111112",
-          "entry_time": 1767147033.7647035,
+          "entry_time": 1767147222.3059325,
           "dex_id": "JUPITER"
         }
       },

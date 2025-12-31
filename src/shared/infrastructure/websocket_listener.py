@@ -42,22 +42,28 @@ class WebSocketListener:
         self.thread = None
         self.reconnect_delay = 5
         
-        self.ws_url = os.getenv("HELIUS_WS_URL", "")
         
-        # V6.1.8: Extract API key from WSS URL for RPC
-        self.rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
+        self.ws_url = os.getenv("HELIUS_WS_URL", "")
+
+        # V9.0: RPC Failover Manager
+        from src.shared.infrastructure.rpc_manager import RpcConnectionManager
+        
+        # Load RPCs from Env (Comma separated)
+        env_rpcs = os.getenv("RPC_URLS", "")
+        base_rpc = os.getenv("RPC_URL", "")
+        
+        rpc_list = []
+        if env_rpcs:
+            rpc_list.extend(env_rpcs.split(","))
+        if base_rpc:
+            rpc_list.append(base_rpc)
+            
+        # Helius fallback logic logic
         if "api-key=" in self.ws_url:
             api_key = self.ws_url.split("api-key=")[-1]
-            self.rpc_url = f"https://mainnet.helius-rpc.com/?api-key={api_key}"
-        elif os.getenv("HELIUS_API_KEY"):
-            self.rpc_url = f"https://mainnet.helius-rpc.com/?api-key={os.getenv('HELIUS_API_KEY')}"
-        
-        # V6.1.8: Very conservative throttling (1 RPS)
-        self.rpc_semaphore = threading.Semaphore(2)  # Max 2 concurrent
-        self.rpc_timeout = 3
-        self.last_fetch_time = 0
-        self.min_fetch_interval = 1.0  # 1 RPS max
-        self.pending_signatures = set()
+            rpc_list.append(f"https://mainnet.helius-rpc.com/?api-key={api_key}")
+            
+        self.rpc_manager = RpcConnectionManager(rpc_list)
         
         # V6.1.8: Backoff state
         self.rate_limited_until = 0
@@ -266,10 +272,19 @@ class WebSocketListener:
             for attempt in range(MAX_RETRIES):
                 self.stats["rpc_fetches"] += 1
                 
-                response = requests.post(self.rpc_url, json=payload, timeout=self.rpc_timeout)
+                # Proxy through Manager (Auto-switch on connection failure)
+                # Note: We catch RequestException inside manager? 
+                # Actually manager re-raises it after switching. So we need to handle it here or let it retry.
+                try:
+                    response = self.rpc_manager.post(payload, timeout=self.rpc_timeout)
+                except requests.RequestException:
+                    # Manager has already switched provider.
+                    # We continue to next retry loop, which will use new provider.
+                    continue
                 
                 if response.status_code == 429:
                     self.stats["rpc_429s"] += 1
+                    # Notify manager maybe?
                     self.rate_limited_until = time.time() + self.backoff_seconds
                     self.backoff_seconds = min(self.backoff_seconds * 2, 30)
                     return

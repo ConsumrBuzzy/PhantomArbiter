@@ -272,10 +272,16 @@ class TradingCore:
         # V67.0: Phase 5 - Shadow Manager moved up
         # self.shadow_manager = ShadowManager()
         
-        # V67.0: Phase 5C - Auto-Slippage Calibrator
+            # V67.0: Phase 5C - Auto-Slippage Calibrator
         # Wire calibrator to executor for drift-reactive slippage adjustment
         try:
-            from phantom_core import ScorerConfig
+            try:
+                from phantom_core import ScorerConfig
+            except ImportError:
+                # Fallback to Python implementation
+                from src.shared.models.scorer_config import ScorerConfig
+                Logger.info("⚠️ [CORE] phantom_core not found, using Python ScorerConfig fallback")
+
             scorer_config = ScorerConfig(
                 min_profit_usd=getattr(Settings, 'MIN_PROFIT_USD', 0.10),
                 max_slippage_bps=getattr(Settings, 'SLIPPAGE_MAX_BPS', 300),
