@@ -20,7 +20,10 @@ class Director:
     
     def __init__(self, live_mode: bool = False, lite_mode: bool = False):
         self.is_running = False
+        # V90.0: Full System Activation requested by User
         self.lite_mode = lite_mode
+        if not self.lite_mode:
+             state.log("🚀 [Director] FULL SYSTEM MODE: Enabling all agents (Whale, Scout, Landlord)")
         
         # V23: Supervisor Registry (Tiered)
         self.tasks = {
@@ -38,10 +41,15 @@ class Director:
         self.price_cache = SharedPriceCache
         self.watched_mints = {"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC"}
         self.listener = WebSocketListener(self.price_cache, self.watched_mints)
-        
         # V9.0: Chaos Shield (Security)
         from src.shared.system.chaos_shield import chaos_shield
         self.chaos = chaos_shield
+        
+        # V13.0: Log Harvester (Universal Ingestion)
+        from src.shared.infrastructure.log_harvester import LogHarvester
+        self.log_harvester = LogHarvester()
+        if not self.lite_mode:
+             self.log_harvester.start()
         
         # V40.0: Shared Token Metadata Layer (Rust-Powered)
         try:
@@ -58,8 +66,23 @@ class Director:
         self.agents["arbiter"] = PhantomArbiter(arb_config)
         
         # 3. MID TIER AGENTS
-        # Scalper
+        
+        # V10.0: Global Risk Governor
+        from src.engine.risk_governor import GlobalRiskGovernor
+        self.risk_governor = GlobalRiskGovernor()
+        
+        # 3. MID TIER AGENTS
+        # Scalper (Inject Governor)
+        # Note: TradingCore init might need update or we set it post-init?
+        # TradingCore.__init__ signature doesn't take governor yet.
+        # We can perform dependency injection property setting.
         self.agents["scalper"] = TradingCore(strategy_class=MerchantEnsemble, engine_name="SCALPER")
+        self.agents["scalper"].risk_governor = self.risk_governor
+        
+        # Pass to Arbiter too?
+        if hasattr(self.agents["arbiter"], 'set_risk_governor'):
+             self.agents["arbiter"].set_risk_governor(self.risk_governor)
+
         
         if not self.lite_mode:
             # Whale Watcher (V23, V67.0: Whale-Pulse with metadata registry)
@@ -254,6 +277,16 @@ class Director:
             # 1. Update AppState for Dashboard
             # In V2 Dashboard, we might have a 'system_health' map
             # state.update_system_health(self.tasks)
+            
+            # V70.0: Push Shadow/Audit Stats to Dashboard
+            if "scalper" in self.agents:
+                scalper = self.agents["scalper"]
+                if hasattr(scalper, 'shadow_manager') and scalper.shadow_manager:
+                    # Dynamically attach stats to state object
+                    # Assuming AppState allows arbitrary attrs or we added it (checked later)
+                    # For safety, we set it on the instance if possible
+                    stats = scalper.shadow_manager.get_stats()
+                    setattr(state, 'shadow_stats', stats)
             
             # 2. Check Task Liveness
             for tier, tasks in self.tasks.items():

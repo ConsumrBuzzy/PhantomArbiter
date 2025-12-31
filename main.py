@@ -205,6 +205,14 @@ def create_parser() -> argparse.ArgumentParser:
     pulse_parser.add_argument("--budget", type=float, default=50.0, help="Strategies budget")
     pulse_parser.add_argument("--interval", type=int, default=2, help="Scan speed (sec)")
 
+    # ═══════════════════════════════════════════════════════════════
+    # GRADUATION SUBCOMMAND (Pump.fun Sniper)
+    # ═══════════════════════════════════════════════════════════════
+    grad_parser = subparsers.add_parser(
+        "graduation",
+        help="Run high-performance Pump.fun graduation monitor (Rust-accelerated)"
+    )
+
     return parser
 
 
@@ -530,6 +538,36 @@ async def cmd_pulse(args: argparse.Namespace) -> None:
         await director.stop()
 
 
+async def cmd_graduation(args: argparse.Namespace) -> None:
+    """Handle graduation subcommand - Pump.fun monitor."""
+    from src.engine.pump_monitor import PumpFunMonitor
+    from src.shared.system.logging import Logger
+    
+    print("\n" + "="*60)
+    print("   PHANTOM ARBITER - Pump.fun Graduation Monitor (Rust V2)")
+    print("="*60)
+    
+    monitor = PumpFunMonitor()
+    monitor.start()
+    
+    print("   ✅ Monitor running... (Ctrl+C to stop)")
+    print("   Waiting for 'Complete' events...")
+    
+    try:
+        while True:
+            await monitor.poll()
+            await asyncio.sleep(0.01) # High frequency poll
+            
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        Logger.error(f"   ❌ Monitor crashed: {e}")
+    finally:
+        print("\n   🛑 Stopping monitor...")
+        # monitor.stop() # If implemented
+
+
+
 async def cmd_monitor(args: argparse.Namespace) -> None:
     """Handle monitor subcommand."""
     try:
@@ -686,6 +724,7 @@ async def main() -> None:
         "clean": cmd_clean,
         "dashboard": cmd_dashboard,
         "pulse": cmd_pulse,
+        "graduation": cmd_graduation,
     }
     
     handler = command_handlers.get(args.command)

@@ -30,16 +30,12 @@ if TYPE_CHECKING:
     from src.shared.infrastructure.jito_adapter import JitoAdapter
     from src.shared.execution.execution_backend import ExecutionBackend
     from src.engine.slippage_calibrator import SlippageCalibrator
+    from src.engine.slippage_calibrator import SlippageCalibrator
     from src.engine.congestion_monitor import CongestionMonitor
+    from src.engine.shadow_manager import ShadowManager
 
 
-@dataclass
-class ExecutionResult:
-    """Result of a trade execution attempt."""
-    success: bool
-    message: str
-    tx_id: Optional[str] = None
-    pnl_usd: Optional[float] = None
+from src.shared.models.trade_result import TradeResult
 
 
 class TradeExecutor:
@@ -71,7 +67,8 @@ class TradeExecutor:
         validator: Optional['TokenValidator'] = None,
         pyth_adapter: Optional['PythAdapter'] = None,
         jito_adapter: Optional['JitoAdapter'] = None,
-        execution_backend: Optional['ExecutionBackend'] = None
+        execution_backend: Optional['ExecutionBackend'] = None,
+        shadow_manager: Optional['ShadowManager'] = None
     ):
         """
         Initialize TradeExecutor with all required dependencies.
@@ -109,6 +106,7 @@ class TradeExecutor:
         
         # V49.0: Unified Execution Backend (Paper/Live parity)
         self.execution_backend = execution_backend
+        self.shadow_manager = shadow_manager
         
         # V67.0: Auto-Slippage Calibrator (Phase 5C)
         self.slippage_calibrator: Optional['SlippageCalibrator'] = None
@@ -462,7 +460,7 @@ class TradeExecutor:
         reason: str,
         size_usd: float,
         decision_engine: Optional[Any] = None
-    ) -> ExecutionResult:
+    ) -> TradeResult:
         """
         Execute a buy order with pre-flight checks and ML filtering.
         
@@ -474,18 +472,18 @@ class TradeExecutor:
             decision_engine: Optional decision engine for cooldown
             
         Returns:
-            ExecutionResult with success status and details
+            TradeResult with success status and details
         """
         # V134: Null safety for price
         if price is None or price <= 0:
             price = watcher.get_price() if hasattr(watcher, 'get_price') else 0.0
             if price is None or price <= 0:
-                return ExecutionResult(False, "No valid price for buy")
+                return TradeResult.failed(watcher.symbol, "BUY", "No valid price for buy")
         
         # Pre-flight checks
         can_execute, preflight_reason = self._check_preflight_buy(watcher, size_usd)
         if not can_execute:
-            return ExecutionResult(False, preflight_reason)
+            return TradeResult.failed(watcher.symbol, "BUY", preflight_reason)
             
         # -------------------------------------------------------------------
         # V63.0: SIMULATION INTERCEPT
@@ -515,7 +513,7 @@ class TradeExecutor:
             if is_paper_aggressive:
                 print(f"      ❌ ML REJECTED (but bypassed in paper mode)")
             priority_queue.add(2, 'LOG', {'level': 'INFO', 'message': f"🧠 {msg}"})
-            return ExecutionResult(False, msg)
+            return TradeResult.failed(watcher.symbol, "BUY", msg)
         elif not ml_passed and is_paper_aggressive:
             print(f"      ⚠️ ML would reject, but bypassing in PAPER_AGGRESSIVE_MODE")
             
@@ -531,7 +529,7 @@ class TradeExecutor:
 
             
             watcher.last_signal_time = time.time()
-            return ExecutionResult(True, f"SIMULATED BUY {watcher.symbol}", "sim_tx_id")
+            return TradeResult(True, "BUY", watcher.symbol, price, size_usd/price if price else 0, 0.0, tx_id="sim_tx_id", reason=reason)
         
         # Global Lock
         if is_paper_aggressive:
@@ -539,7 +537,7 @@ class TradeExecutor:
         if not self.portfolio.request_lock(watcher.symbol):
             if is_paper_aggressive:
                 print(f"      ❌ Lock unavailable!")
-            return ExecutionResult(False, "Lock unavailable")
+            return TradeResult.failed(watcher.symbol, "BUY", "Lock unavailable")
         if is_paper_aggressive:
             print(f"      ✅ Lock acquired")
         
@@ -553,21 +551,21 @@ class TradeExecutor:
         
         tx_id = None
         
-        if self.live_mode:
-            # LIVE EXECUTION
-            tx_id = self.swapper.execute_swap(
-                direction="BUY",
-                amount_usd=size_usd,
-                reason=reason,
-                target_mint=watcher.mint
-            )
+        # V49.0: Unified Backend Execution (Delegated)
+        execution_result = self.execution_backend.execute_buy(
+            watcher=watcher,
+            amount_usd=size_usd,
+            reason=reason,
+            price=price
+        )
+        
+        # Unpack result
+        if execution_result.success:
+            tx_id = execution_result.tx_id or f"TX_{int(time.time())}"
         else:
-            # PAPER EXECUTION
-            if is_paper_aggressive:
-                print(f"      📝 Calling _execute_paper_buy()...")
-            tx_id = self._execute_paper_buy(watcher, price, reason, liq, decision_engine, size_usd=size_usd)
-            if is_paper_aggressive:
-                print(f"      📋 Paper buy returned: {tx_id}")
+            tx_id = None
+            priority_queue.add(2, 'LOG', {'level': 'ERROR', 'message': f"❌ BUY FAILED: {execution_result.reason}"})
+            return execution_result
         
         if tx_id:
             # Success path
@@ -595,11 +593,37 @@ class TradeExecutor:
             watcher.enter_position(price, size_usd)
             watcher.last_signal_time = time.time()
             
-            return ExecutionResult(True, f"BUY {watcher.symbol}", tx_id)
+            live_result = execution_result
+            
+            # V48.0 SHADOW MODE AUDIT
+            if self.live_mode and self.shadow_manager and getattr(Settings, 'ENABLE_SHADOW_MODE', False) and getattr(Settings, 'ENABLE_TRADING', False):
+                # Run paper execution in background/parallel
+                try:
+                    # We need to manually run paper logic here since we just did live
+                    paper_result = self._execute_paper_buy(watcher, price, reason, liq, decision_engine, size_usd=size_usd)
+                    # Use asyncio.create_task for the logging to not block logic
+                    import asyncio
+                    # We can't await here easily if not async def. ShadowManager.audit_trade is async.
+                    # We'll schedule it or fire-and-forget.
+                    # Actually ShadowManager.audit_trade is async.
+                    # For now, just logging it if we can't await. 
+                    # Or better: ShadowManager can have a synchronous wrapper or we use a background task tool.
+                    # Let's assume we just store it for now or print.
+                    # The implementation plan said: "Insert a ShadowManager.audit() call"
+                    # We will add a sync method to ShadowManager or wrapper.
+                    # Re-checking shadow_manager.py... it has audit_trade (async).
+                    # We'll need to run it in the event loop.
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(self.shadow_manager.audit_trade("BUY", watcher.symbol, price, paper_result, live_result))
+                except Exception as e:
+                    Logger.warning(f"[SHADOW] Failed to trigger audit: {e}")
+
+            return live_result
         else:
             self.portfolio.release_lock()
             priority_queue.add(2, 'LOG', {'level': 'ERROR', 'message': f"BUY FAILED: {watcher.symbol}"})
-            return ExecutionResult(False, "Execution failed")
+            return TradeResult.failed(watcher.symbol, "BUY", "Execution failed")
     
     def _execute_paper_buy(
         self,
@@ -608,13 +632,13 @@ class TradeExecutor:
         reason: str,
         liq: float,
         decision_engine: Optional[Any],
-        size_usd: float = 0.0  # V135: Accept passed size
-    ) -> Optional[str]:
+        size_usd: float = 0.0
+    ) -> TradeResult:
         """
         Execute paper buy with realistic simulation.
         
         Returns:
-            Mock transaction ID or None on failure
+            TradeResult
         """
         tx_id = f"MOCK_TX_BUY_{int(time.time())}"
         
@@ -625,7 +649,9 @@ class TradeExecutor:
         
         total_equity = self.paper_wallet.get_total_value(current_price_map)
         
+        
         # V135: Use passed size if available, else derive
+        risk_amount = 0.0
         if size_usd > 0:
             calculated_size = size_usd
         else:
@@ -645,7 +671,7 @@ class TradeExecutor:
         
         if final_size <= 0:
             Logger.warning(f"⚠️ [PAPER] Insufficient Funds for {watcher.symbol}")
-            return None
+            return TradeResult.failed(watcher.symbol, "BUY", "Insufficient Funds")
         
         # Gas check
         self.paper_wallet.ensure_gas(min_sol=Settings.MIN_SOL_RESERVE * 2)
@@ -654,7 +680,7 @@ class TradeExecutor:
                 'level': 'WARNING',
                 'message': f"❌ [MOCK TXN FAILED] {watcher.symbol} BUY - Insufficient SOL for gas"
             })
-            return None
+            return TradeResult.failed(watcher.symbol, "BUY", "Insufficient SOL")
         
         # Congestion check
         is_congested, failure_rate, delay_max = self._check_congestion(watcher)
@@ -672,7 +698,7 @@ class TradeExecutor:
                 'level': 'WARNING',
                 'message': f"❌ [MOCK TXN FAILED] {watcher.symbol} BUY failed (gas lost)"
             })
-            return None
+            return TradeResult.failed(watcher.symbol, "BUY", "Simulation Failure")
         
         # Execution delay
         delay_ms = random.randint(Settings.EXECUTION_DELAY_MIN_MS, delay_max)
@@ -699,6 +725,15 @@ class TradeExecutor:
                 'level': 'INFO',
                 'message': f"🥪 [MEV ATTACK] {watcher.symbol} Sandwich Bot: +{mev_penalty_pct*100:.2f}%"
             })
+            
+        # V70.0: Jito Fee Simulation
+        jito_tip = 0.0
+        if self.JITO_ENABLED:
+            jito_tip = self.JITO_TIP_LAMPORTS / 1e9 # to SOL
+            # Deduct from SOL balance
+            self.paper_wallet.sol_balance -= jito_tip
+            self.paper_wallet.stats['fees_paid_usd'] += jito_tip * 150 # Est SOL price
+            priority_queue.add(4, 'LOG', {'level': 'DEBUG', 'message': f"💸 [PAPER] Paid Jito Tip: {jito_tip:.4f} SOL"})
         
         # Log paper buy
         self._log_paper_buy(watcher.symbol, execution_price, reason, final_size)
@@ -717,13 +752,13 @@ class TradeExecutor:
         
         if not success:
             priority_queue.add(2, 'LOG', {'level': 'WARN', 'message': f"⚠️ [PAPER] Buy Failed: {msg}"})
-            return None
+            return TradeResult.failed(watcher.symbol, "BUY", msg)
         
         # Set cooldown
         if decision_engine and hasattr(decision_engine, 'set_signal_cooldown'):
             decision_engine.set_signal_cooldown(watcher)
         
-        return tx_id
+        return TradeResult(True, "BUY", watcher.symbol, execution_price, final_size/execution_price, 0.0, tx_id=tx_id, reason=reason, requested_price=price, source="PAPER")
     
     def _log_paper_buy(self, symbol: str, price: float, reason: str, size_usd: float) -> None:
         """Log paper buy to console and telegram."""
@@ -758,7 +793,7 @@ class TradeExecutor:
         watcher: 'Watcher',
         price: float,
         reason: str
-    ) -> ExecutionResult:
+    ) -> TradeResult:
         """
         Execute a sell order with realistic simulation.
         
@@ -768,18 +803,18 @@ class TradeExecutor:
             reason: Sell reason
             
         Returns:
-            ExecutionResult with success status, message, and PnL
+            TradeResult with success status, details, and PnL
         """
         # V134: Null safety for price
         if price is None or price <= 0:
             price = watcher.get_price() if hasattr(watcher, 'get_price') else 0.0
             if price is None or price <= 0:
-                return ExecutionResult(False, "No valid price for sell")
+                return TradeResult.failed(watcher.symbol, "SELL", "No valid price for sell")
         
         # Guard - only sell assets we hold
         if not self.live_mode:
             if watcher.symbol not in self.paper_wallet.assets:
-                return ExecutionResult(False, "No position to sell")
+                return TradeResult.failed(watcher.symbol, "SELL", "No position to sell")
         
         # Log execution attempt
         mode_prefix = "LIVE" if self.live_mode else "MOCK"
@@ -828,7 +863,10 @@ class TradeExecutor:
             )
         else:
             # PAPER EXECUTION
-            tx_id, pnl_usd = self._execute_paper_sell(watcher, price, reason)
+            paper_res = self._execute_paper_sell(watcher, price, reason)
+            tx_id = paper_res.tx_id
+            pnl_usd = paper_res.pnl_usd if paper_res.pnl_usd else 0.0
+            pnl_usd = self._last_paper_pnl # Use the tracked one for consistency
         
         if tx_id:
             # Success path
@@ -904,21 +942,33 @@ class TradeExecutor:
                 self.congestion_monitor.maybe_adjust_tip()
             
             return ExecutionResult(True, f"SELL {watcher.symbol}", tx_id, pnl_usd)
+            
+            live_result = TradeResult(True, "SELL", watcher.symbol, price, size_token_log, 0.0, tx_id=tx_id, reason=reason, requested_price=price, source="LIVE", pnl_usd=pnl_usd)
+            
+            # V48.0 SHADOW MODE AUDIT
+            if self.live_mode and self.shadow_manager and getattr(Settings, 'ENABLE_SHADOW_MODE', False):
+                try:
+                    paper_result = self._execute_paper_sell(watcher, price, reason)
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(self.shadow_manager.audit_trade("SELL", watcher.symbol, price, paper_result, live_result))
+                except Exception as e:
+                    Logger.warning(f"[SHADOW] Failed to trigger audit: {e}")
+            
+            return live_result
         else:
             priority_queue.add(2, 'LOG', {'level': 'ERROR', 'message': f"SELL FAILED: {watcher.symbol}"})
             return ExecutionResult(False, "Execution failed")
     
     def _execute_paper_sell(
         self,
-        watcher: 'Watcher',
-        price: float,
-        reason: str
-    ) -> Tuple[Optional[str], float]:
+    ) -> TradeResult:
         """
         Execute paper sell with realistic simulation.
         
         Returns:
-            (tx_id, pnl_usd) or (None, 0.0) on failure
+            TradeResult
         """
         tx_id = f"MOCK_TX_SELL_{int(time.time())}"
         self._paper_sell_occurred = False
@@ -930,7 +980,7 @@ class TradeExecutor:
                 'level': 'WARNING',
                 'message': f"❌ [MOCK TXN FAILED] {watcher.symbol} SELL - Insufficient SOL for gas"
             })
-            return None, 0.0
+            return TradeResult.failed(watcher.symbol, "SELL", "Insufficient SOL")
         
         # Congestion check
         is_congested, failure_rate, delay_max = self._check_congestion(watcher)
@@ -943,15 +993,14 @@ class TradeExecutor:
                 'level': 'WARNING',
                 'message': f"❌ [MOCK TXN FAILED] {watcher.symbol} SELL failed (gas lost, position held)"
             })
-            return None, 0.0
+            return TradeResult.failed(watcher.symbol, "SELL", "Simulation Failure")
         
         # Execution delay
         delay_ms = random.randint(Settings.EXECUTION_DELAY_MIN_MS, delay_max)
         time.sleep(delay_ms / 1000.0)
         
-        # Check we have the asset
         if watcher.symbol not in self.paper_wallet.assets:
-            return None, 0.0
+            return TradeResult.failed(watcher.symbol, "SELL", "Position not found")
         
         # Get execution price
         execution_price = self._get_execution_price(watcher, price, delay_ms)
@@ -959,6 +1008,12 @@ class TradeExecutor:
         # Get liquidity
         data_feed_meta = getattr(watcher.data_feed, 'meta', {}) if hasattr(watcher, 'data_feed') else {}
         liquidity = data_feed_meta.get('liquidity_usd', 1000000) if data_feed_meta else 1000000
+        
+        # V70.0: Jito Fee Simulation
+        if self.JITO_ENABLED:
+            jito_tip = self.JITO_TIP_LAMPORTS / 1e9
+            self.paper_wallet.sol_balance -= jito_tip
+            self.paper_wallet.stats['fees_paid_usd'] += jito_tip * 150
         
         # Execute via CapitalManager
         success, msg, paper_pnl = self.capital_mgr.execute_sell(
@@ -972,14 +1027,14 @@ class TradeExecutor:
         
         if not success:
             priority_queue.add(2, 'LOG', {'level': 'WARN', 'message': f"⚠️ [PAPER] Sell Failed: {msg}"})
-            return None, 0.0
+            return TradeResult.failed(watcher.symbol, "SELL", msg)
         
         self._last_paper_pnl = paper_pnl if paper_pnl else 0
         self._paper_sell_occurred = True
         
         print(f"\n📝 [PAPER] SELL {watcher.symbol} @ ${execution_price:.6f} ({reason}) PnL: ${paper_pnl:.2f}")
         
-        return tx_id, paper_pnl
+        return TradeResult(True, "SELL", watcher.symbol, execution_price, 0.0, 0.0, tx_id=tx_id, reason=reason, requested_price=price, source="PAPER", pnl_usd=paper_pnl)
 
     def _log_simulated_trade(self, side, symbol, size_usd, price, reason, confidence, pnl=0.0):
         """V63.1: Log trade to DB for simulation analysis."""

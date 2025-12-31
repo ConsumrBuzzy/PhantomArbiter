@@ -156,12 +156,13 @@ impl WssAggregator {
     /// * `endpoints` - List of WSS URLs (e.g., ["wss://mainnet.helius-rpc.com/?api-key=xxx"])
     /// * `program_ids` - List of program IDs to subscribe to (e.g., Raydium, Orca)
     /// * `commitment` - Commitment level ("processed", "confirmed", "finalized")
-    #[pyo3(signature = (endpoints, program_ids, commitment="processed"))]
+    #[pyo3(signature = (endpoints, program_ids, commitment="processed", log_filters=None))]
     pub fn start(
         &mut self,
         endpoints: Vec<String>,
         program_ids: Vec<String>,
         commitment: &str,
+        log_filters: Option<Vec<String>>,
     ) -> PyResult<()> {
         if self.running.load(Ordering::SeqCst) {
             return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
@@ -208,6 +209,7 @@ impl WssAggregator {
             let active_conns_conn = active_conns_arc.clone();
             let program_ids_conn = program_ids.clone();
             let commitment_conn = commitment_str.clone();
+            let log_filters_conn = log_filters.clone();
             let provider_name = format!("provider_{}", idx);
 
             runtime.spawn(async move {
@@ -216,6 +218,7 @@ impl WssAggregator {
                     provider_name,
                     program_ids_conn,
                     commitment_conn,
+                    log_filters_conn,
                     provider_raw_tx, // Send to raw channel
                     running_conn,
                     msg_received_conn,
@@ -376,6 +379,7 @@ async fn run_connection(
     provider_name: String,
     program_ids: Vec<String>,
     commitment: String,
+    log_filters: Option<Vec<String>>,
     tx: Sender<WssEvent>, // Raw TX
     running: Arc<AtomicBool>,
     msg_received: Arc<AtomicU64>,
@@ -390,6 +394,7 @@ async fn run_connection(
             &provider_name,
             &program_ids,
             &commitment,
+            &log_filters,
             &tx,
             &running,
             &msg_received,
@@ -416,6 +421,7 @@ async fn connect_and_subscribe(
     provider_name: &str,
     program_ids: &[String],
     commitment: &str,
+    log_filters: &Option<Vec<String>>,
     tx: &Sender<WssEvent>,
     running: &Arc<AtomicBool>,
     msg_received: &Arc<AtomicU64>,
@@ -458,7 +464,7 @@ async fn connect_and_subscribe(
                 // So parsing stays here.
 
                 // Parse the message
-                if let Some(event) = parse_log_notification(&text, provider_name) {
+                if let Some(event) = parse_log_notification(&text, provider_name, log_filters) {
                     msg_received.fetch_add(1, Ordering::Relaxed);
                     // Send to raw channel for dedupe
                     let _ = tx.try_send(event);
@@ -495,7 +501,7 @@ async fn connect_and_subscribe(
 }
 
 /// Parse a logsSubscribe notification into a WssEvent.
-fn parse_log_notification(text: &str, provider_name: &str) -> Option<WssEvent> {
+fn parse_log_notification(text: &str, provider_name: &str, log_filters: &Option<Vec<String>>) -> Option<WssEvent> {
     let v: serde_json::Value = serde_json::from_str(text).ok()?;
 
     // Check if it's a notification (not a subscription confirmation)
@@ -517,6 +523,30 @@ fn parse_log_notification(text: &str, provider_name: &str) -> Option<WssEvent> {
         .iter()
         .filter_map(|l| l.as_str().map(|s| s.to_string()))
         .collect();
+
+    // FILTER: If log_filters are provided, at least one log line must match one filter string
+    if let Some(filters) = log_filters {
+        if filters.is_empty() {
+             // Treat empty filter list as "allow all"? Or "block all"? 
+             // Usually filters imply constraints. But for safety, let's treat generic empty list as no-op if Option was Some([]).
+             // However, best to assume if Some is passed, we filter.
+             // If any string matches any log.
+        } else {
+             let mut matched = false;
+             for log in &logs {
+                 for filter_str in filters {
+                     if log.contains(filter_str) {
+                         matched = true;
+                         break;
+                     }
+                 }
+                 if matched { break; }
+             }
+             if !matched {
+                 return None;
+             }
+        }
+    }
 
     let _timestamp_ns = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

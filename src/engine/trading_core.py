@@ -102,6 +102,9 @@ class TradingCore:
         self.engine_name = engine_name
         self.registry = registry or {}
         
+        # V10.0: Global Risk Governor (Injected by Director)
+        self.risk_governor = None
+        
         # 1. Execution Layer
         self.wallet = WalletManager()
         self.swapper = JupiterSwapper(self.wallet)
@@ -250,6 +253,9 @@ class TradingCore:
         else:
             self.execution_backend = PaperBackend(capital_manager=self.capital_mgr, engine_name=self.engine_name)
         
+        # V67.0: Phase 5 - Shadow Manager for Paper/Live Audit
+        self.shadow_manager = ShadowManager()
+        
         self.executor = TradeExecutor(
             engine_name=self.engine_name,
             capital_mgr=self.capital_mgr,
@@ -262,16 +268,23 @@ class TradingCore:
             validator=self.validator,
             pyth_adapter=self.pyth_adapter,
             jito_adapter=self.jito_adapter,  # V48.0: Tipped bundle submission
-            execution_backend=self.execution_backend  # V49.0: Unified backend
+            execution_backend=self.execution_backend,  # V49.0: Unified backend
+            shadow_manager=self.shadow_manager # V67.0: Audit Hook
         )
         
-        # V67.0: Phase 5 - Shadow Manager for Paper/Live Audit
-        self.shadow_manager = ShadowManager()
+        # V67.0: Phase 5 - Shadow Manager moved up
+        # self.shadow_manager = ShadowManager()
         
-        # V67.0: Phase 5C - Auto-Slippage Calibrator
+            # V67.0: Phase 5C - Auto-Slippage Calibrator
         # Wire calibrator to executor for drift-reactive slippage adjustment
         try:
-            from phantom_core import ScorerConfig
+            try:
+                from phantom_core import ScorerConfig
+            except ImportError:
+                # Fallback to Python implementation
+                from src.shared.models.scorer_config import ScorerConfig
+                Logger.info("⚠️ [CORE] phantom_core not found, using Python ScorerConfig fallback")
+
             scorer_config = ScorerConfig(
                 min_profit_usd=getattr(Settings, 'MIN_PROFIT_USD', 0.10),
                 max_slippage_bps=getattr(Settings, 'SLIPPAGE_MAX_BPS', 300),

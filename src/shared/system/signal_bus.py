@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, List, Callable, Any
+from typing import Dict, List, Callable, Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 import time
@@ -52,3 +52,57 @@ class SignalBus:
 
 # Global Hub Accessor
 signal_bus = SignalBus()
+
+# V11.0: Intent Registry (Resource Locking)
+class IntentRegistry:
+    """
+    Prevents Strategy Collisions by locking resources (tokens).
+    """
+    def __init__(self):
+        self._locks: Dict[str, str] = {} # mint -> strategy_id
+        self._lock_times: Dict[str, float] = {} # mint -> timestamp
+        
+    def claim(self, mint: str, strategy_id: str, ttl: int = 60) -> bool:
+        """Attempt to lock a token for exclusive use."""
+        now = time.time()
+        
+        # Check existing lock
+        if mint in self._locks:
+            owner = self._locks[mint]
+            lock_time = self._lock_times.get(mint, 0)
+            
+            # If same owner, refresh
+            if owner == strategy_id:
+                self._lock_times[mint] = now + ttl
+                return True
+                
+            # If expired, overwrite
+            if now > lock_time:
+                pass # Proceed to claim
+            else:
+                return False # Locked by someone else
+                
+        # Create Lock
+        self._locks[mint] = strategy_id
+        self._lock_times[mint] = now + ttl
+        return True
+
+    def release(self, mint: str, strategy_id: str):
+        """Release lock if owned by strategy."""
+        if self._locks.get(mint) == strategy_id:
+            del self._locks[mint]
+            if mint in self._lock_times:
+                del self._lock_times[mint]
+
+    def check_owner(self, mint: str) -> Optional[str]:
+        """Who owns this token?"""
+        now = time.time()
+        if mint in self._locks:
+            if now <= self._lock_times.get(mint, 0):
+                return self._locks[mint]
+            else:
+                 # Lazy cleanup
+                 self.release(mint, self._locks[mint])
+        return None
+
+intent_registry = IntentRegistry()

@@ -1,7 +1,7 @@
 {
   "version": "40.0",
   "total_capital_usd": 1050.0,
-  "last_updated": 1767127160.5253785,
+  "last_updated": 1767147222.3059325,
   "engines": {
     "MERCHANT": {
       "allocated_capital": 50.0,
@@ -108,6 +108,33 @@
       },
       "peak_equity": 0.0,
       "daily_start_equity": 0.0
+    },
+    "TEST_FLIGHT": {
+      "allocated_capital": 1500.0,
+      "cash_balance": 1490.0,
+      "sol_balance": 9.99499,
+      "positions": {
+        "SOL": {
+          "balance": 0.06643414715163594,
+          "avg_price": 150.525,
+          "entry_price": 150.525,
+          "current_price": 150.525,
+          "size_usd": 10.0,
+          "current_value": 10.0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "entry_time": 1767147222.3059325,
+          "dex_id": "JUPITER"
+        }
+      },
+      "stats": {
+        "fees_paid_usd": 0.7515,
+        "slippage_usd": 0.035,
+        "total_pnl_usd": 0.0,
+        "wins": 0,
+        "losses": 0
+      },
+      "peak_equity": 1500.0,
+      "daily_start_equity": 1500.0
     }
   }
 }
