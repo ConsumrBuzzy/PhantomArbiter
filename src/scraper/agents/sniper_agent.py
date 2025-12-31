@@ -6,6 +6,7 @@ from src.scraper.agents.base_agent import BaseAgent, AgentSignal
 from src.shared.infrastructure.token_scraper import get_token_scraper
 from src.core.threshold_manager import get_threshold_manager
 from src.shared.system.logging import Logger
+from src.shared.system.signal_bus import intent_registry
 
 class SniperAgent(BaseAgent):
     """
@@ -30,6 +31,10 @@ class SniperAgent(BaseAgent):
         self.sniped_mints: set = set()  # Track already-sniped tokens
         self.cooldown_seconds = 60      # Minimum time between snipes on same token
         self.last_snipe_time: Dict[str, float] = {}
+        
+        # V11.0: Graduation Watchlist (PumpFun -> Raydium)
+        # mint -> {'curve_pct': 0.95, 'added_at': ts}
+        self.graduation_watchlist: Dict[str, Dict] = {}
         
         Logger.info(f"[{self.name}] Sniper Agent Initialized")
 
@@ -71,6 +76,41 @@ class SniperAgent(BaseAgent):
         
         Logger.info(f"[{self.name}] 📡 New target queued: {mint[:8]}... from {source}")
 
+    def on_bonding_curve_update(self, mint: str, pct_complete: float):
+        """
+        V11.0: Graduation Monitor.
+        If curve > 95%, add to high-priority watch.
+        """
+        if pct_complete > 0.95:
+            if mint not in self.graduation_watchlist:
+                Logger.info(f"[{self.name}] 🎓 WATCH: {mint[:8]} at {pct_complete*100:.1f}% curve - Waiting for Graduation")
+                self.graduation_watchlist[mint] = {
+                    'curve_pct': pct_complete,
+                    'added_at': time.time()
+                }
+
+    def on_raydium_pool_created(self, mint: str):
+        """
+        V11.0: The Trigger.
+        Called when 'initialize2' log is detected on Raydium.
+        """
+        if mint in self.graduation_watchlist:
+            # IT'S HAPPENING
+            Logger.info(f"[{self.name}] 🎓 GRADUATION DETECTED: {mint[:8]}! FIRING SNIPE!")
+            
+            # Instant Queue (Bypass normal queue for speed?)
+            # For now, insert at front of pending
+            self.pending_snipes.insert(0, {
+                "mint": mint,
+                "source": "GRADUATION",
+                "discovered_at": time.time()
+            })
+            # Also remove from watchlist
+            del self.graduation_watchlist[mint]
+            
+            # Optional: Call on_tick immediately or trigger async?
+            # In a real event loop, on_tick is next anyway.
+
     def on_tick(self, market_data: Dict) -> Optional[AgentSignal]:
         """
         Process pending snipe opportunities.
@@ -83,7 +123,16 @@ class SniperAgent(BaseAgent):
         target = self.pending_snipes.pop(0)
         mint = target["mint"]
         source = target["source"]
+        mint = target["mint"]
+        source = target["source"]
         discovered_at = target["discovered_at"]
+        
+        # V11.0: Intent Registry Lock
+        # Try to claim for SNIPER. If locked by ARBITER, skip.
+        if not intent_registry.claim(mint, "SNIPER", ttl=30):
+            owner = intent_registry.check_owner(mint)
+            Logger.warning(f"[{self.name}] 🚫 Locked by {owner} - Skipping Snipe on {mint[:8]}")
+            return None
         
         # Lookup token metadata
         info = self.scraper.lookup(mint)
@@ -133,6 +182,7 @@ class SniperAgent(BaseAgent):
         Logger.info(f"[{self.name}] 🎯 SNIPE: {symbol} | Liq: ${liquidity:,.0f} | Conf: {final_confidence:.0%} | Source: {source}")
         
         return AgentSignal(
+            source=self.name,
             action="BUY",
             symbol=symbol,
             confidence=final_confidence,
@@ -142,7 +192,8 @@ class SniperAgent(BaseAgent):
                 "mint": mint,
                 "liquidity": liquidity,
                 "snipe_size": self.SNIPE_SIZE_USD,
-                "smart_money_boost": smart_money_boost
+                "smart_money_boost": smart_money_boost,
+                "is_graduation": (source == "GRADUATION")
             }
         )
 

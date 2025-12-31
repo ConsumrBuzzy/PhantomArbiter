@@ -10,7 +10,7 @@ import time
 import threading
 from typing import Dict, Optional
 from src.shared.system.logging import Logger
-from src.config.settings import Settings
+from config.settings import Settings
 
 class GlobalRiskGovernor:
     """

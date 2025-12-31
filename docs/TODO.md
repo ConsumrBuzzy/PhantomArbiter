@@ -26,9 +26,14 @@
 ## 🛠️ Step-by-Step
 
 ### Phase 10: Global Risk Governor (Current)
-- [ ] **Risk Governor**: Implement `GlobalRiskGovernor` for capital partitioning (70/30) and kill switches.
-- [ ] **Integration**: Wire Governor into `Director` and `TradingCore`.
-- [ ] **Validation**: Unit test priority locking and drawdown halts.
+- [x] **Risk Governor**: Implement `GlobalRiskGovernor` for capital partitioning (70/30) and kill switches.
+- [x] **Integration**: Wire Governor into `Director` and `TradingCore`.
+- [x] **Validation**: Unit test priority locking and drawdown halts.
+
+### Phase 11: Universal Wisdom (Graduation Sniper)
+- [ ] **Sniper Logic**: Refine `SniperAgent` to target pump.fun -> Raydium migrations (Graduation Events).
+- [ ] **Intent Registry**: Implement collision detection in `SignalBus` to prevent Scalper/Arbiter overlap.
+- [ ] **Universal Scout**: Open up `ScoutAgent` filters for broad market vision.
 
 ---
 
