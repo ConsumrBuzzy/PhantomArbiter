@@ -494,8 +494,8 @@ class LaunchpadMonitor:
         # V33: Signal Bus Integration
         signal_bus.emit(Signal(
             type=SignalType.MARKET_UPDATE,
+            source="MIGRATION",
             data={
-                "source": "MIGRATION", # Gold/Orange Flash
                 "symbol": "MIGRATION",
                 "label": f"To {event.destination_dex}",
                 "token": event.mint,
