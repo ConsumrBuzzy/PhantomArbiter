@@ -35,7 +35,8 @@ class PulsedDashboard:
         
         self.layout["left_container"].split_column(
             Layout(name="left", ratio=2), # Arb Table
-            Layout(name="signals", ratio=1) # Signal Audit
+            Layout(name="signals", ratio=1), # Signal Audit
+            Layout(name="shadow", ratio=1) # Shadow/Drift Pane
         )
         
         # Right Column: Split Top (Scalper), Middle (Inventory), Bottom (Stats)
@@ -221,6 +222,31 @@ class PulsedDashboard:
         ]
         return Panel("\n".join(lines), title="Strategy Engine", border_style="white")
 
+    def generate_shadow_panel(self, stats: Dict[str, Any]):
+        """Show Shadow Mode/Drift stats."""
+        if not stats:
+            return Panel("Waiting for Audit Data...", title="Shadow Audit (The Drift)", border_style="dim")
+            
+        grid = Table.grid(expand=True)
+        grid.add_column()
+        grid.add_column(justify="right")
+        
+        # Summary Stats
+        audits = stats.get('total_audits', 0)
+        deltas = stats.get('significant_deltas', 0)
+        drift = stats.get('avg_delta_pct', 0.0)
+        max_drift = stats.get('max_delta_pct', 0.0)
+        
+        drift_color = "green" if abs(drift) < 0.5 else "yellow"
+        if abs(drift) > 1.0: drift_color = "red"
+        
+        grid.add_row("Audits:", str(audits))
+        grid.add_row("Sig. Deltas:", f"[red]{deltas}[/red]" if deltas > 0 else str(deltas))
+        grid.add_row("Mean Drift:", f"[{drift_color}]{drift:+.2f}%[/{drift_color}]")
+        grid.add_row("Max Drift:", f"{max_drift:+.2f}%")
+        
+        return Panel(grid, title="Shadow Audit (The Drift)", border_style="cyan")
+
 class RichPulseReporter(ArbiterReporter):
     """Overrides default Reporter to render to Rich Layout."""
     
@@ -257,6 +283,12 @@ class RichPulseReporter(ArbiterReporter):
         # 3b. Signals (Left Bottom)
         self.dashboard.layout["signals"].update(
             self.dashboard.generate_signal_panel(app_state.system_signals)
+        )
+        
+        # 3c. Shadow (Left Bottom 2)
+        shadow_stats = getattr(app_state, 'shadow_stats', {})
+        self.dashboard.layout["shadow"].update(
+            self.dashboard.generate_shadow_panel(shadow_stats)
         )
         
         # 4. Inventory (Right Mid)

@@ -1,7 +1,7 @@
 {
   "version": "40.0",
   "total_capital_usd": 1050.0,
-  "last_updated": 1767127160.5253785,
+  "last_updated": 1767146308.695167,
   "engines": {
     "MERCHANT": {
       "allocated_capital": 50.0,
@@ -95,6 +95,21 @@
       "daily_start_equity": 0.0
     },
     "LATENCY_TESTER": {
+      "allocated_capital": 0.0,
+      "cash_balance": 0.0,
+      "sol_balance": 0.02,
+      "positions": {},
+      "stats": {
+        "wins": 0,
+        "losses": 0,
+        "total_pnl_usd": 0.0,
+        "fees_paid_usd": 0.0,
+        "slippage_usd": 0.0
+      },
+      "peak_equity": 0.0,
+      "daily_start_equity": 0.0
+    },
+    "TEST_FLIGHT": {
       "allocated_capital": 0.0,
       "cash_balance": 0.0,
       "sol_balance": 0.02,

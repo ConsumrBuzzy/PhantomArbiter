@@ -97,6 +97,10 @@ class CapitalManager:
         self._initialize_defaults_if_missing()
         
         self._initialized = True
+        
+        # V48.1: Integrity Check
+        self.audit_state_integrity()
+        
         Logger.info(f"💰 [CAPITAL] CapitalManager initialized ({mode} mode)")
     
     # ═══════════════════════════════════════════════════════════════════════
@@ -699,6 +703,44 @@ class CapitalManager:
         self._sweep_excess_gas(engine_name)  # Get cash first
         self._check_bankruptcy(engine_name)  # Then check solvency
         self._sweep_zombie_bags(engine_name)
+    
+    def audit_state_integrity(self) -> None:
+        """
+        V70.0: Startup sanity check to detect 'Phantom Profit' or corrupted state.
+        If total equity exceeds unrealistic bounds, suggest a reset.
+        """
+        try:
+            total_equity = 0.0
+            total_positions = 0
+            
+            for engine_name, engine_data in self.state.get("engines", {}).items():
+                cash = engine_data.get("cash_balance", 0.0)
+                pos_val = 0.0
+                positions = engine_data.get("positions", {})
+                for p in positions.values():
+                    # Estimate value at entry (since we don't have live price yet)
+                    balance = p.get("balance", 0)
+                    price = p.get("avg_price", 0)
+                    pos_val += balance * price
+                    
+                total_equity += cash + pos_val
+                total_positions += len(positions)
+                
+            # Pattern: Phantom Profit often manifests as cash > budget without trades
+            # 20% buffer
+            threshold = self.default_capital * 1.20
+            
+            if total_equity > threshold and total_positions == 0:
+                Logger.warning(f"⚠️ [CAPITAL] SUSPICIOUS STATE DETECTED: Total Equity ${total_equity:.2f} > Threshold ${threshold:.2f} with NO positions.")
+                Logger.warning(f"   This looks like 'Phantom Profit' from a previous corrupted session.")
+                Logger.warning(f"   RECOMMENDATION: Run 'python scripts/reset_paper_data.py' to fix.")
+                
+            elif total_equity > (self.default_capital * 3.0):
+                 # Extreme safeguard
+                 Logger.error(f"🚨 [CAPITAL] EXTREME VALUE DETECTED: ${total_equity:.2f}. Suspected data corruption.")
+                 
+        except Exception as e:
+            Logger.error(f"[CAPITAL] Integrity check failed: {e}")
 
 
     def _sweep_zombie_bags(self, engine_name: str) -> None:
@@ -796,6 +838,7 @@ class CapitalManager:
         # Estimate position value (Optimistic: use entry price if live price unknown)
         # In CapitalManager we often lack live prices, so we assume held bags are worth cost execution
         # If they are down 90%, this is wrong, but typically we want to check CASH insolvency first.
+        # Estimate position value (Optimistic: use entry price if live price unknown)
         pos_value = 0.0
         for p in positions.values():
             pos_value += p.get("balance", 0.0) * p.get("avg_price", 0.0)

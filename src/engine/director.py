@@ -255,6 +255,16 @@ class Director:
             # In V2 Dashboard, we might have a 'system_health' map
             # state.update_system_health(self.tasks)
             
+            # V70.0: Push Shadow/Audit Stats to Dashboard
+            if "scalper" in self.agents:
+                scalper = self.agents["scalper"]
+                if hasattr(scalper, 'shadow_manager') and scalper.shadow_manager:
+                    # Dynamically attach stats to state object
+                    # Assuming AppState allows arbitrary attrs or we added it (checked later)
+                    # For safety, we set it on the instance if possible
+                    stats = scalper.shadow_manager.get_stats()
+                    setattr(state, 'shadow_stats', stats)
+            
             # 2. Check Task Liveness
             for tier, tasks in self.tasks.items():
                 for name, task in tasks.items():
