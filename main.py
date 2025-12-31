@@ -316,6 +316,12 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
 
 async def main() -> None:
     """Main entry point."""
+    
+    # V33: Auto-launch Dashboard if no args provided
+    if len(sys.argv) == 1:
+        print("ℹ️  No command specified. Defaulting to Full Spectrum Dashboard...")
+        sys.argv.append("dashboard")
+
     parser = create_parser()
     args = parser.parse_args()
 
