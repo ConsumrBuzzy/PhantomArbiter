@@ -125,24 +125,31 @@ class MarketOrchestrator:
         """
         self.is_running = True
         
+        print("\n" + "═"*40)
+        print(" 🔥 PHANTOM OS: IGNITING SYSTEM KERNEL")
+        print("═"*40)
+
+        # 1. Visual Bridge (The Voice) - START THIS FIRST
+        # V33: Priority 1 - Get the UI pipe open
+        self.visual_bridge = VisualBridge()
+        bridge_task = asyncio.create_task(self.visual_bridge.start())
+        # Give the bridge 100ms to bind before launching monitors
+        await asyncio.sleep(0.1)
+
         print("   🚀 Launching The Void (WebGL)...")
         # V33: Launch HTTP Server (The Void)
         self.ignite_http_server()
         
-        # 1. Visual Bridge (The Voice)
-        # Check if already running to prevent double ignition
-        self.visual_bridge = VisualBridge()
-        
+        # 2. Monitors (The Eyes)
         # V33: Ignite Pyth Polling for Full Spectrum
         from src.core.prices.pyth_adapter import PythAdapter
         self.pyth = PythAdapter()
         asyncio.create_task(self.pyth.start_polling(interval=2.0))
 
         # V33: Ignite Pump.fun Monitor (Orange Layer - Graduation)
-        # Tracking "Graduations" to Raydium as high-signal events
         from src.engine.pump_monitor import PumpFunMonitor
         self.pump_monitor = PumpFunMonitor()
-        asyncio.create_task(self.pump_monitor.start_monitoring(interval=0.2)) # High freq
+        asyncio.create_task(self.pump_monitor.start_monitoring(interval=0.2)) 
         
         # V33: Ignite Scraper (Purple Layer - Discovery)
         from src.scraper.scout.scraper import TokenScraper
@@ -159,14 +166,27 @@ class MarketOrchestrator:
         self.orca = OrcaAdapter()
         asyncio.create_task(self.orca.start_polling(interval=5.0))
         
-
-        bridge_task = asyncio.create_task(self.visual_bridge.start())
-        
-        # 2. Director (The Brain)
+        # 3. Director (The Brain)
         self.director = Director()
         engine_task = asyncio.create_task(self.director.start())
         
+        # 4. Terminal Pulse (User Feedback)
+        asyncio.create_task(self._run_terminal_pulse())
+        
         return bridge_task, engine_task
+
+    async def _run_terminal_pulse(self):
+        """Provides the scrolling feedback the user misses."""
+        import time
+        from src.shared.state.app_state import state
+        while self.is_running:
+            try:
+                # Summary of recent activity
+                swaps = len(state.signals) if hasattr(state, "signals") else 0
+                print(f"⚡ [PULSE] System Active | Total Signals: {swaps} | Time: {time.strftime('%H:%M:%S')}", flush=True)
+                await asyncio.sleep(5.0)
+            except:
+                await asyncio.sleep(5.0)
 
     async def shutdown(self):
         """Graceful Shutdown."""

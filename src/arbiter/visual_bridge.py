@@ -23,7 +23,7 @@ logger = logging.getLogger("VisualBridge")
 
 
 class VisualBridge:
-    def __init__(self, host: str = "127.0.0.1", port: int = 8765):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8765):
         self.host = host
         self.port = port
         self.server = None
@@ -43,6 +43,11 @@ class VisualBridge:
             payload = VisualTransformer.transform(sig)
             
             if payload:
+                # Console Feedback for User (The "Scrolling Dashboard" they miss)
+                archetype = payload.get("archetype", "UNKNOWN")
+                symbol = payload.get("label", "???")
+                print(f"🔮 [VOID_TRANSFORM] {archetype} spawned for {symbol}")
+
                 # Serialize and Broadcast
                 # We use fire-and-forget to avoid blocking the bus
                 packet = json.dumps(payload)
@@ -116,8 +121,8 @@ class VisualBridge:
         logger.info("📡 Broadcast Loop Started.")
         while self.is_running:
             try:
-                # 1. Get Fresh Data (Differential)
-                payload_data: GraphPayload = self.market_manager.get_graph_diff()
+                # 1. Get Fresh Data (Differential) via thread to avoid blocking loop
+                payload_data: GraphPayload = await asyncio.to_thread(self.market_manager.get_graph_diff)
                 
                 # Assign Global Sequence ID
                 self.current_seq_id += 1
@@ -132,7 +137,6 @@ class VisualBridge:
                     tasks = [self.send_update(client, payload) for client in self.connected_clients]
                     if tasks:
                         await asyncio.gather(*tasks)
-                        # logger.debug(f"📤 Broadcast SEQ:{self.current_seq_id}") 
                         
             except Exception as e:
                 logger.error(f"❌ Broadcast Error: {e}")
@@ -176,13 +180,15 @@ class VisualBridge:
 
     async def start(self):
         """Starts the WebSocket server and background loops."""
+        print(f"🌉 Visual Bridge: Initializing server on {self.host}:{self.port}...", flush=True)
         self.is_running = True
         self.current_seq_id = 0
 
         try:
-            async with serve(self.handler, self.host, self.port):
+            # V33: Explicitly set reuse_address for fast restarts
+            async with serve(self.handler, self.host, self.port, reuse_address=True):
+                print(f"🌉 Visual Bridge Online: ws://127.0.0.1:{self.port}", flush=True)
                 logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
-                print(f"🌉 Visual Bridge Online: ws://{self.host}:{self.port}")
                 
                 # Run loops concurrently
                 await asyncio.gather(
@@ -191,6 +197,8 @@ class VisualBridge:
                 )
         except Exception as e:
             logger.error(f"❌ Visual Bridge Server Error: {e}")
-            print(f"❌ Visual Bridge Failed to Start: {e}")
+            print(f"❌ Visual Bridge Failed to Start on {self.host}:{self.port}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             self.is_running = False
 
