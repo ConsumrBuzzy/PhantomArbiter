@@ -737,6 +737,7 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     """Run the TUI Dashboard with the Director orchestrator."""
     from src.dashboard.tui_app import PhantomDashboard
     from src.engine.director import Director
+    from src.arbiter.visual_bridge import VisualBridge
 
     from config.settings import Settings
 
@@ -744,20 +745,27 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
 
     # 1. Initialize Director (The Brain)
     director = Director()
+    
+    # 2. Initialize Visual Bridge (The Eyes)
+    visual_bridge = VisualBridge()
 
-    # 2. Initialize Dashboard (The Face)
+    # 3. Initialize Dashboard (The Face)
     app = PhantomDashboard()
 
-    # 3. Start Engines in Background (V13.0)
+    # 4. Start Engines in Background (V13.0)
     # This prevents the initial balance fetch and system setup from delaying the UI.
     engine_task = asyncio.create_task(director.start())
+    bridge_task = asyncio.create_task(visual_bridge.start())
+    
+    print("\n   🔮 PRISM HUD ONLINE: http://localhost:5173\n")
 
-    # 4. Launch UI (Instant)
+    # 5. Launch UI (Instant)
     try:
         await app.run_async()
     finally:
-        # 5. Cleanup
+        # 6. Cleanup
         engine_task.cancel()
+        bridge_task.cancel()
         await director.stop()
 
 
