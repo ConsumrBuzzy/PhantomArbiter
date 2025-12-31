@@ -19,7 +19,6 @@ from typing import List, Dict, Any
 from src.arbiter.core.reporter import ArbiterReporter
 from src.arbiter.ui.fragments.registry import registry
 from src.arbiter.ui.fragments.scavenger import ScavengerFragment, FlowFragment
-from src.arbiter.ui.fragments.hop import HopStatsFragment, ShadowFragment
 from config.settings import Settings
 
 class PulsedDashboard:
