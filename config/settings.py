@@ -153,6 +153,8 @@ class Settings:
     
     # RPC
     RPC_URL = "https://api.mainnet-beta.solana.com"
+    HELIUS_WS_URL = os.getenv("HELIUS_WS_URL", "wss://api.mainnet-beta.solana.com")
+
 
     # Execution Settings
     SLIPPAGE_BPS = 750  # 7.5% (Increased for low-liquidity memecoins)

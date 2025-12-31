@@ -41,10 +41,15 @@ class Director:
         self.price_cache = SharedPriceCache
         self.watched_mints = {"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC"}
         self.listener = WebSocketListener(self.price_cache, self.watched_mints)
-        
         # V9.0: Chaos Shield (Security)
         from src.shared.system.chaos_shield import chaos_shield
         self.chaos = chaos_shield
+        
+        # V13.0: Log Harvester (Universal Ingestion)
+        from src.shared.infrastructure.log_harvester import LogHarvester
+        self.log_harvester = LogHarvester()
+        if not self.lite_mode:
+             self.log_harvester.start()
         
         # V40.0: Shared Token Metadata Layer (Rust-Powered)
         try:
