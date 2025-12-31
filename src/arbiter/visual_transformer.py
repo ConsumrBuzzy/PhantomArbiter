@@ -33,19 +33,24 @@ class VisualTransformer:
             
         label = data.get("symbol", "???")
         
-        # 2. Archetype Mapping
-        # User defined: Pulsar, Planet, Supernova, Comet
-        archetype = "GLOBE" # Fallback
-        color = "#ffffff"
+        # 2. Archetype Mapping (Expanded V34)
+        # Pulsar (Green) - DEX Swaps, Real-time trades
+        # Planet (Cyan) - Oracle data, stable reference
+        # Supernova (Orange) - Graduations, major events
+        # Comet (Purple) - Discoveries, new tokens
+        # Nova (Teal) - CLMM/Orca activity
+        
+        archetype = "GLOBE"
+        color = "#00ffaa"  # Visible teal fallback
         params = {
             "radius": 1.0,
             "roughness": 0.5,
-            "emissive_intensity": 1.0,
-            "hex_color": "#FFFFFF"
+            "emissive_intensity": 2.0,  # Brighter default
+            "hex_color": "#00ffaa"
         }
         
-        if source == "WSS_Listener" or source == "DEX":
-            # "The Pulsar" (Green) - Shockwave trigger
+        # DEX SWAPS (Green Pulsar)
+        if source in ("WSS_Listener", "DEX", "HARVESTER"):
             archetype = "PULSAR"
             color = "#39ff14"
             params.update({
@@ -54,20 +59,31 @@ class VisualTransformer:
                 "hex_color": color,
                 "roughness": 0.1
             })
+        
+        # CLMM / ORCA (Teal Nova)
+        elif source in ("ORCA", "DYDX", "METEORA"):
+            archetype = "NOVA"
+            color = "#00ffcc"
+            params.update({
+                "radius": 1.5,
+                "emissive_intensity": 2.5,
+                "hex_color": color,
+                "roughness": 0.2
+            })
             
+        # ORACLES (Cyan Planet)
         elif source == "PYTH":
-            # "The Planet" (Cyan) - Stable body
             archetype = "PLANET"
             color = "#00ffff"
             params.update({
                 "radius": 2.0,
                 "emissive_intensity": 1.5,
                 "hex_color": color,
-                "roughness": 0.8 # Rocky texture
+                "roughness": 0.8
             })
             
-        elif source == "PUMP_GRAD":
-            # "The Supernova" (Orange) - Rapid expansion
+        # GRADUATIONS / LAUNCHES (Orange Supernova)
+        elif source in ("PUMP_GRAD", "LAUNCHPAD", "MIGRATION"):
             archetype = "SUPERNOVA"
             color = "#ffaa00"
             params.update({
@@ -77,8 +93,8 @@ class VisualTransformer:
                 "roughness": 0.0
             })
             
-        elif source == "DISCOVERY" or source == "SCRAPER":
-            # "The Comet" (Purple) - Moving trailer
+        # DISCOVERIES (Purple Comet)
+        elif source in ("DISCOVERY", "SCRAPER", "SAURON_PUMPFUN", "SAURON_RAYDIUM"):
             archetype = "COMET"
             color = "#9945ff"
             params.update({
@@ -95,3 +111,4 @@ class VisualTransformer:
             "archetype": archetype,
             "params": params
         }
+
