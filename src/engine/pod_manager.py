@@ -48,6 +48,7 @@ class PodType(Enum):
     PERFORMER = "performer"  # Individual token tracking
     SCOUT = "scout"       # Discovery and recon
     WHALE = "whale"       # V140: Bridge inflow sniffer
+    EXECUTION = "execution" # V140: The Striker (Bundle executor)
 
 
 @dataclass
@@ -833,7 +834,7 @@ class PodManager:
         exec_mode = mode_map.get(mode.lower(), ExecutionMode.PAPER)
         
         config = PodConfig(
-            pod_type=PodType.SCOUT,  # Reuse SCOUT type for execution
+            pod_type=PodType.EXECUTION,  # V140: Correct type for Execution
             name=name,
             params={
                 "min_profit_pct": min_profit_pct,

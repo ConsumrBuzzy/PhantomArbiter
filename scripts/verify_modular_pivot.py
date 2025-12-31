@@ -46,9 +46,11 @@ def test_strategy_factory():
     assert PodType.WHALE in pod_types, "BridgePod (WHALE) missing"
     assert PodType.CYCLE in pod_types, "CyclePod missing"
     assert PodType.HOP in pod_types, "HopPod missing"
+    assert PodType.EXECUTION in pod_types, "ExecutionPod missing"
     
     # Check ExecutionPod mode
-    exec_pod = next(p for p in pods if p.id == "striker")
+    # Find by type primarily, fall back to ID if needed
+    exec_pod = next(p for p in pods if p.config.pod_type == PodType.EXECUTION)
     print(f"   ExecutionPod Mode: {exec_pod.mode}")
     assert exec_pod.mode == ExecutionMode.GHOST, f"Expected GHOST mode, got {exec_pod.mode}"
     
