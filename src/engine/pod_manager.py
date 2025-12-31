@@ -47,6 +47,7 @@ class PodType(Enum):
     CYCLE = "cycle"       # Market cycle detection
     PERFORMER = "performer"  # Individual token tracking
     SCOUT = "scout"       # Discovery and recon
+    WHALE = "whale"       # V140: Bridge inflow sniffer
 
 
 @dataclass
@@ -147,6 +148,14 @@ class BasePod(ABC):
         """Resume a paused pod."""
         if self.status == PodStatus.PAUSED:
             self.status = PodStatus.ACTIVE
+            Logger.debug(f"[Pod] Resumed {self.id}")
+
+    def emit_signal(self, signal: PodSignal) -> None:
+        """Emit a signal via the callback."""
+        self.total_signals += 1
+        self.signals_this_minute += 1
+        if self.signal_callback:
+            self.signal_callback(signal)
             Logger.debug(f"[Pod] Resumed {self.id}")
     
     async def _run_loop(self) -> None:

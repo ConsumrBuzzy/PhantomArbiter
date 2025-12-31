@@ -6,6 +6,7 @@ import time
 
 class SignalType(Enum):
     WHALE = "WHALE"
+    WHALE_ACTIVITY = "WHALE_ACTIVITY" # V140: Scavenger Intelligence (Failures/Bridges)
     SCOUT = "SCOUT"
     ARB_OPP = "ARB_OPP"
     SCALP_SIGNAL = "SCALP_SIGNAL"
