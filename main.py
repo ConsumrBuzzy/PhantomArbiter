@@ -209,6 +209,9 @@ def create_parser() -> argparse.ArgumentParser:
     dash_parser.add_argument(
         "--live", action="store_true", help="Enable LIVE trading in Dashboard"
     )
+    dash_parser.add_argument(
+        "--no-hud", action="store_true", help="Disable auto-launch of Svelte HUD"
+    )
 
     # ═══════════════════════════════════════════════════════════════
     # LIVE SUBCOMMAND (Shortcut for Dashboard --live)
@@ -735,38 +738,43 @@ async def cmd_clean(args: argparse.Namespace) -> None:
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
     """Run the TUI Dashboard with the Director orchestrator."""
+    from src.engine.orchestrator import MarketOrchestrator
     from src.dashboard.tui_app import PhantomDashboard
-    from src.engine.director import Director
-    from src.arbiter.visual_bridge import VisualBridge
-
     from config.settings import Settings
 
     Settings.SILENT_MODE = True
-
-    # 1. Initialize Director (The Brain)
-    director = Director()
     
-    # 2. Initialize Visual Bridge (The Eyes)
-    visual_bridge = VisualBridge()
+    # Check for HUD flag (add to parser later if needed, or default based on logic)
+    # For now, let's assume we want HUD unless specified otherwise.
+    # The user prompt implies main.py should do it all.
+    launch_hud = not getattr(args, "no_hud", False) 
 
-    # 3. Initialize Dashboard (The Face)
+    # 1. Initialize Orchestrator (Mission Control)
+    orchestrator = MarketOrchestrator(headless_frontend=not launch_hud)
+    
+    # 2. Run Hygiene
+    orchestrator.run_hygiene_check()
+
+    # 3. Initialize Dashboard ( The Face)
+    # We initialize dashboard *before* igniting system to capture startup logs effectively if wired
     app = PhantomDashboard()
 
-    # 4. Start Engines in Background (V13.0)
-    # This prevents the initial balance fetch and system setup from delaying the UI.
-    engine_task = asyncio.create_task(director.start())
-    bridge_task = asyncio.create_task(visual_bridge.start())
+    # 4. Ignite System (Background)
+    bridge_task, engine_task = await orchestrator.ignite_system()
+    
+    # 5. Launch Frontend (Process)
+    orchestrator.launch_frontend()
     
     print("\n   🔮 PRISM HUD ONLINE: http://localhost:5173\n")
 
-    # 5. Launch UI (Instant)
+    # 6. Launch TUI (Instant)
     try:
         await app.run_async()
     finally:
-        # 6. Cleanup
-        engine_task.cancel()
+        # 7. Cleanup
         bridge_task.cancel()
-        await director.stop()
+        engine_task.cancel()
+        await orchestrator.shutdown()
 
 
 async def main() -> None:
