@@ -39,12 +39,12 @@
             payload.links.forEach(addLink);
         } else if (payload.type === "diff") {
             // 1. Remove
-            payload.removed_node_ids.forEach(id => {
+            payload.removed_node_ids.forEach((id) => {
                 if (graph.hasNode(id)) graph.dropNode(id);
             });
-            payload.removed_links.forEach(l => {
+            payload.removed_links.forEach((l) => {
                 if (graph.hasEdge(l.source, l.target)) {
-                  graph.dropEdge(l.source, l.target);
+                    graph.dropEdge(l.source, l.target);
                 }
             });
 
@@ -52,6 +52,11 @@
             payload.nodes.forEach(addNode);
             payload.links.forEach(addLink);
         }
+
+        return {
+            nodes: graph.order,
+            links: graph.size,
+        };
     }
 
     function addNode(n: GraphNode) {
@@ -60,7 +65,7 @@
                 label: n.label,
                 color: n.color,
                 size: n.size,
-                ...n.meta
+                ...n.meta,
             });
         } else {
             graph.addNode(n.id, {
@@ -69,12 +74,15 @@
                 label: n.label,
                 color: n.color,
                 size: n.size,
-                ...n.meta
+                ...n.meta,
             });
-            
+
             // Re-sync layout if needed
             if (!forceAtlas2.isRunning(graph)) {
-                forceAtlas2.assign(graph, { iterations: 50, settings: { gravity: 1 } });
+                forceAtlas2.assign(graph, {
+                    iterations: 50,
+                    settings: { gravity: 1 },
+                });
             }
         }
     }
@@ -84,14 +92,14 @@
             graph.mergeEdgeAttributes(l.source, l.target, {
                 weight: l.weight,
                 color: l.color,
-                label: l.label
+                label: l.label,
             });
         } else {
             // Forceatlas2 and other layouts benefit from 'weight' being strictly positive
             graph.addEdge(l.source, l.target, {
                 weight: Math.max(l.weight, 0.1),
                 color: l.color,
-                label: l.label
+                label: l.label,
             });
         }
     }

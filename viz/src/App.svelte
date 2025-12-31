@@ -6,30 +6,25 @@
 
     let graphView: GraphView;
     let bridge: BridgeClient;
-    
+
     let status: "connected" | "disconnected" | "connecting" = "connecting";
     let stats = { nodes: 0, links: 0, sequence: 0 };
 
     onMount(() => {
-        bridge = new BridgeClient("ws://localhost:8765", (payload: GraphPayload) => {
-            status = "connected";
-            stats.sequence = payload.sequence;
-            
-            // Apply to Graph
-            if (graphView) {
-                graphView.applyPayload(payload);
-            }
+        bridge = new BridgeClient(
+            "ws://localhost:8765",
+            (payload: GraphPayload) => {
+                status = "connected";
+                stats.sequence = payload.sequence;
 
-            // Update local stats (Simplified for UI)
-            if (payload.type === "snapshot") {
-                stats.nodes = payload.nodes.length;
-                stats.links = payload.links.length;
-            } else {
-                // Approximate for Diffs
-                stats.nodes += (payload.nodes.length - payload.removed_node_ids.length);
-                stats.links += (payload.links.length - payload.removed_links.length);
-            }
-        });
+                // Apply to Graph and get true counts
+                if (graphView) {
+                    const counts = graphView.applyPayload(payload);
+                    stats.nodes = counts.nodes;
+                    stats.links = counts.links;
+                }
+            },
+        );
 
         bridge.connect();
 
@@ -48,7 +43,7 @@
                 {status.toUpperCase()}
             </div>
         </div>
-        
+
         <div class="stats">
             <div class="stat">
                 <span class="label">NODES</span>
@@ -73,7 +68,11 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-family:
+            "Inter",
+            system-ui,
+            -apple-system,
+            sans-serif;
     }
 
     main {
@@ -127,7 +126,7 @@
         font-weight: bold;
         padding: 4px 8px;
         border-radius: 4px;
-        background: rgba(0,0,0,0.3);
+        background: rgba(0, 0, 0, 0.3);
     }
 
     .dot {
@@ -137,9 +136,16 @@
         background: #555;
     }
 
-    .status.connected .dot { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
-    .status.connecting .dot { background: #ffaa00; }
-    .status.disconnected .dot { background: #ff4444; }
+    .status.connected .dot {
+        background: #00ff88;
+        box-shadow: 0 0 10px #00ff88;
+    }
+    .status.connecting .dot {
+        background: #ffaa00;
+    }
+    .status.disconnected .dot {
+        background: #ff4444;
+    }
 
     .stats {
         display: flex;
@@ -159,7 +165,7 @@
     }
 
     .value {
-        font-family: 'JetBrains Mono', monospace;
+        font-family: "JetBrains Mono", monospace;
         font-size: 1.1rem;
         color: #00ff88;
     }
