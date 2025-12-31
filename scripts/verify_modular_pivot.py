@@ -65,19 +65,20 @@ def test_dashboard_registry():
     
     print(f"   Registry Slots: {registry._slots.keys()}")
     
-    # Check registry
-    shadow_frag = registry.get_fragment("shadow")    # ScavengerFragment
-    stats_frag = registry.get_fragment("stats")      # JitoBundleFragment (Narrow Path)
-    scalper_frag = registry.get_fragment("scalper")  # MultiverseFragment
-    inv_frag = registry.get_fragment("inventory")    # GraphStatsFragment
+    # Check registry by Fragment Name (not Slot Name!)
+    scavenger_frag = registry.get_fragment("scavenger") 
+    jito_frag = registry.get_fragment("jito_bundle")      
+    multiverse_frag = registry.get_fragment("multiverse")  
+    graph_frag = registry.get_fragment("graph_stats")    
     
-    print(f"   Shadow Fragment: {shadow_frag.__class__.__name__ if shadow_frag else 'None'}")
-    print(f"   Stats Fragment: {stats_frag.__class__.__name__ if stats_frag else 'None'}")
-    print(f"   Scalper Fragment: {scalper_frag.__class__.__name__ if scalper_frag else 'None'}")
+    print(f"   Scavenger Fragment: {scavenger_frag.__class__.__name__ if scavenger_frag else 'None'}")
+    print(f"   Jito Fragment: {jito_frag.__class__.__name__ if jito_frag else 'None'}")
+    print(f"   Multiverse Fragment: {multiverse_frag.__class__.__name__ if multiverse_frag else 'None'}")
     
-    assert shadow_frag is not None, "ScavengerFragment not registered"
-    assert "Jito" in stats_frag.__class__.__name__, f"Expected JitoBundleFragment, got {stats_frag.__class__.__name__}"
-    assert "Multiverse" in scalper_frag.__class__.__name__, "MultiverseFragment not registered"
+    assert scavenger_frag is not None, "ScavengerFragment not registered"
+    assert jito_frag is not None, "JitoBundleFragment not registered" 
+    assert multiverse_frag is not None, "MultiverseFragment not registered"
+    assert graph_frag is not None, "GraphStatsFragment not registered"
     
     print("✅ DashboardRegistry passed")
 
