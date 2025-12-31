@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import time
 from src.shared.system.database.repositories.base import BaseRepository
 from src.shared.state.app_state import TokenIdentity, TokenRisk
@@ -103,3 +103,30 @@ class TokenRepository(BaseRepository):
             "risk": risk,
             "last_updated": row['last_updated']
         }
+
+    def get_all_tokens(self) -> List[Dict]:
+        """Fetch all tokens for archival."""
+        with self.db.cursor() as c:
+            c.execute("SELECT * FROM tokens")
+            rows = c.fetchall()
+            
+        results = []
+        for row in rows:
+            # Basic reconstruction for archival
+            results.append({
+                "mint": row['mint'],
+                "symbol": row['symbol'],
+                "name": row['name'],
+                "decimals": row['decimals'],
+                "program_id": row['program_id'],
+                "last_updated": row['last_updated'],
+                # We can skip full risk object for the basic registry if we want, 
+                # but better to persist it all.
+                "risk": {
+                    "mint_authority": row['mint_authority'],
+                    "freeze_authority": row['freeze_authority'],
+                    "is_mutable": bool(row['is_mutable']),
+                    "safety_score": row['safety_score']
+                }
+            })
+        return results

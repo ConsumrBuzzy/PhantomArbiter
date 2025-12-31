@@ -46,6 +46,22 @@ class MarketRepository(BaseRepository):
             )
             """)
 
+            # 3. Known Pools (Graph Nodes) - Phase 23
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS known_pools (
+                address TEXT PRIMARY KEY,
+                token_a TEXT NOT NULL,
+                token_b TEXT NOT NULL,
+                dex_label TEXT,
+                liquidity_usd REAL DEFAULT 0,
+                vol_24h REAL DEFAULT 0,
+                last_updated REAL
+            )
+            """)
+
+            c.execute("CREATE INDEX IF NOT EXISTS idx_pools_tokens ON known_pools(token_a, token_b)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_pools_dex ON known_pools(dex_label)")
+
             # 3. Cycle Timing
             c.execute("""
             CREATE TABLE IF NOT EXISTS cycle_timing (
@@ -103,3 +119,21 @@ class MarketRepository(BaseRepository):
             INSERT INTO cycle_timing (pod_name, pairs_scanned, duration_ms, timestamp)
             VALUES (?, ?, ?, ?)
         """, (pod_name, pairs_scanned, duration_ms, int(time.time())), commit=True)
+
+    def save_pool(self, address: str, token_a: str, token_b: str, dex_label: str, liquidity_usd: float = 0, vol_24h: float = 0):
+        """Upsert a known pool node."""
+        with self.db.cursor(commit=True) as c:
+            c.execute("""
+            INSERT INTO known_pools (address, token_a, token_b, dex_label, liquidity_usd, vol_24h, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(address) DO UPDATE SET
+                liquidity_usd=excluded.liquidity_usd,
+                vol_24h=excluded.vol_24h,
+                last_updated=excluded.last_updated
+            """, (address, token_a, token_b, dex_label, liquidity_usd, vol_24h, time.time()))
+
+    def get_all_pools(self) -> List[Dict]:
+        """Fetch all pools for graph reconstruction."""
+        with self.db.cursor() as c:
+            c.execute("SELECT * FROM known_pools")
+            return [dict(row) for row in c.fetchall()]

@@ -54,6 +54,8 @@
 | **Phase 17** | **🆕 Battle Test** (Ghost Execution, Soak Testing) | 🟡 Active | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
 | **Phase 20** | **Nomad Persistence** (Auto-Hydration) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
 | **Phase 21** | **Privacy Shield** (Ephemeral Wallets) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
+| **Phase 22** | **Token Memory** (Metadata Persistence) | ✅ Complete | [PHASE_22_23_PERSISTENCE.md](./PHASE_22_23_PERSISTENCE.md) |
+| **Phase 23** | **Market Map** (Pool Persistence) | ✅ Complete | [PHASE_22_23_PERSISTENCE.md](./PHASE_22_23_PERSISTENCE.md) |
 
 ---
 

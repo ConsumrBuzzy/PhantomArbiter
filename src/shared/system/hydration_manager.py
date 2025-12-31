@@ -21,6 +21,9 @@ from datetime import datetime
 
 from src.shared.system.logging import Logger
 from src.shared.system.database.core import DatabaseCore
+# Phase 22/23: Persistence Bridges
+from src.shared.persistence.token_registry import TokenRegistry
+from src.shared.persistence.market_manager import MarketManager
 
 class HydrationManager:
     """Refits the ship for new waters by moving cargo between holds."""
@@ -30,6 +33,9 @@ class HydrationManager:
     def __init__(self):
         self.db = DatabaseCore()
         os.makedirs(self.ARCHIVE_DIR, exist_ok=True)
+        # Bridges
+        self.token_registry = TokenRegistry()
+        self.market_manager = MarketManager()
 
     def _get_connection(self):
         """Get DB connection from Core."""
@@ -44,13 +50,14 @@ class HydrationManager:
         Compresses the current hot database into a JSON archive.
         Applies 'Smart Pruning' to discard noise.
         
-        Args:
-            context: Optional session context to embed in metadata.
-            
-        Returns:
-            Path to the created archive or None on failure.
+        Also triggers Registry Dehydration (Token Memory & Market Map).
         """
         Logger.info("🧊 Initiating Dehydration Protocol...")
+        
+        # Phase 22 & 23: Registry Sync
+        self.token_registry.dehydrate()
+        self.market_manager.dehydrate()
+        
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -120,8 +127,14 @@ class HydrationManager:
         """
         Restores a mission state from a JSON archive into the local DB.
         WARNING: This assumes the schema exists.
+        
+        Also triggers Registry Rehydration (Token Memory & Market Map).
         """
         Logger.info(f"💧 Initiating Rehydration from {archive_path}...")
+        
+        # Phase 22 & 23: Registry Sync
+        self.token_registry.rehydrate()
+        self.market_manager.rehydrate()
         
         try:
             with open(archive_path, 'r') as f:
