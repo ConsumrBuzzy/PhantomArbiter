@@ -11,7 +11,6 @@ Usage:
     print(pool.address)  # Whirlpool address
 """
 
-import os
 import time
 import requests
 from typing import Dict, List, Optional
@@ -20,15 +19,23 @@ from dataclasses import dataclass
 try:
     from src.shared.system.logging import Logger
 except ImportError:
+
     class Logger:
         @staticmethod
-        def info(msg): print(f"[INFO] {msg}")
+        def info(msg):
+            print(f"[INFO] {msg}")
+
         @staticmethod
-        def warning(msg): print(f"[WARN] {msg}")
+        def warning(msg):
+            print(f"[WARN] {msg}")
+
         @staticmethod
-        def error(msg): print(f"[ERROR] {msg}")
+        def error(msg):
+            print(f"[ERROR] {msg}")
+
         @staticmethod
-        def debug(msg): pass
+        def debug(msg):
+            pass
 
 
 # Well-known Orca Whirlpool addresses for major pairs
@@ -93,6 +100,7 @@ TOKEN_MINTS = {
 @dataclass
 class OrcaPoolInfo:
     """Information about an Orca Whirlpool."""
+
     address: str
     name: str
     token_a_mint: str
@@ -106,23 +114,23 @@ class OrcaPoolInfo:
 class OrcaPoolFetcher:
     """
     Fetches Orca Whirlpool pool information.
-    
+
     Uses a combination of:
     1. Known high-liquidity pools (hardcoded for speed)
     2. Orca API for dynamic discovery
     """
-    
+
     ORCA_API_URL = "https://api.mainnet.orca.so/v1/whirlpool/list"
     CACHE_TTL = 300  # 5 minutes
-    
+
     def __init__(self):
         self._cache: Dict[str, OrcaPoolInfo] = {}
         self._all_pools: List[OrcaPoolInfo] = []
         self._cache_time = 0
-        
+
         # Pre-populate with known pools
         self._load_known_pools()
-    
+
     def _load_known_pools(self):
         """Load known high-liquidity pools."""
         for pair_name, pool_data in KNOWN_WHIRLPOOLS.items():
@@ -139,30 +147,30 @@ class OrcaPoolFetcher:
             )
             self._cache[pool.address] = pool
             self._all_pools.append(pool)
-        
+
         Logger.debug(f"[ORCA] Loaded {len(KNOWN_WHIRLPOOLS)} known pools")
-    
+
     def _refresh_cache(self) -> bool:
         """Refresh pool cache from Orca API."""
         if time.time() - self._cache_time < self.CACHE_TTL:
             return True
-        
+
         try:
             Logger.debug("[ORCA] Refreshing pool cache from API...")
             response = requests.get(self.ORCA_API_URL, timeout=10)
-            
+
             if response.status_code != 200:
                 Logger.warning(f"[ORCA] API returned {response.status_code}")
                 return False
-            
+
             data = response.json()
             whirlpools = data.get("whirlpools", [])
-            
+
             for wp in whirlpools:
                 address = wp.get("address", "")
                 if address in self._cache:
                     continue  # Skip known pools
-                
+
                 pool = OrcaPoolInfo(
                     address=address,
                     name=f"{wp.get('tokenA', {}).get('symbol', '?')}/{wp.get('tokenB', {}).get('symbol', '?')}",
@@ -173,73 +181,68 @@ class OrcaPoolFetcher:
                     tick_spacing=wp.get("tickSpacing", 64),
                     liquidity=float(wp.get("tvl", 0)),
                 )
-                
+
                 self._cache[address] = pool
                 self._all_pools.append(pool)
-            
+
             self._cache_time = time.time()
             Logger.debug(f"[ORCA] Cached {len(self._all_pools)} total pools")
             return True
-            
+
         except Exception as e:
             Logger.warning(f"[ORCA] Cache refresh failed: {e}")
             return False
-    
+
     def get_all_pools(self) -> List[OrcaPoolInfo]:
         """Get all known pools."""
         self._refresh_cache()
         return self._all_pools
-    
+
     def get_pools_for_token(self, symbol: str) -> List[OrcaPoolInfo]:
         """Get all pools involving a specific token."""
         symbol_upper = symbol.upper()
         self._refresh_cache()
-        
-        return [
-            p for p in self._all_pools
-            if symbol_upper in p.name.upper()
-        ]
-    
+
+        return [p for p in self._all_pools if symbol_upper in p.name.upper()]
+
     def get_best_pool(
-        self,
-        token_a: str,
-        token_b: str,
-        min_liquidity: float = 0
+        self, token_a: str, token_b: str, min_liquidity: float = 0
     ) -> Optional[OrcaPoolInfo]:
         """
         Get the best pool for a token pair.
-        
+
         Args:
             token_a: First token symbol (e.g., "SOL")
             token_b: Second token symbol (e.g., "USDC")
             min_liquidity: Minimum TVL requirement
-            
+
         Returns:
             OrcaPoolInfo or None
         """
         self._refresh_cache()
-        
+
         a = token_a.upper()
         b = token_b.upper()
-        
+
         # Check both orderings
         pair1 = f"{a}/{b}"
         pair2 = f"{b}/{a}"
-        
+
         candidates = [
-            p for p in self._all_pools
+            p
+            for p in self._all_pools
             if p.name.upper() in [pair1, pair2]
             and (min_liquidity == 0 or p.liquidity >= min_liquidity)
         ]
-        
+
         if not candidates:
             Logger.warning(f"[ORCA] No pool found for {pair1}")
             return None
-        
+
         # Sort by liquidity (highest first)
         candidates.sort(key=lambda x: x.liquidity, reverse=True)
         return candidates[0]
-    
+
     def get_pool_by_address(self, address: str) -> Optional[OrcaPoolInfo]:
         """Get pool info by address."""
         return self._cache.get(address)
@@ -253,24 +256,24 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Orca Pool Fetcher Test")
     print("=" * 60)
-    
+
     fetcher = OrcaPoolFetcher()
-    
+
     print(f"\n📊 Total pools: {len(fetcher.get_all_pools())}")
-    
+
     # Test SOL/USDC
     pool = fetcher.get_best_pool("SOL", "USDC")
     if pool:
-        print(f"\n✅ SOL/USDC Whirlpool:")
+        print("\n✅ SOL/USDC Whirlpool:")
         print(f"   Address: {pool.address}")
         print(f"   Name: {pool.name}")
         print(f"   Tick Spacing: {pool.tick_spacing}")
     else:
         print("\n❌ No SOL/USDC pool found")
-    
+
     # List all known pools
     print("\n📋 Known Whirlpools:")
     for p in fetcher.get_all_pools()[:5]:
         print(f"   {p.name}: {p.address[:16]}...")
-    
+
     print("\n" + "=" * 60)

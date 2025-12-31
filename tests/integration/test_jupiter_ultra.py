@@ -8,16 +8,14 @@ if not api_key:
     print("⚠️ JUPITER_API_KEY not set in .env - test will use public endpoint")
 
 # Trying the Ultra endpoint mentioned by user
-url = "https://api.jup.ag/ultra/v1/quote" 
+url = "https://api.jup.ag/ultra/v1/quote"
 params = {
-    "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 
-    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", 
-    "amount": "12000000", 
-    "slippageBps": "50"
+    "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+    "amount": "12000000",
+    "slippageBps": "50",
 }
-headers = {
-    "x-api-key": api_key
-}
+headers = {"x-api-key": api_key}
 
 try:
     print(f"Testing key against Ultra: {url}")

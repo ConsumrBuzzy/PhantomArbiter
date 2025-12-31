@@ -1,8 +1,6 @@
-
 import os
 import requests
 import base64
-import json
 from dotenv import load_dotenv
 from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
@@ -33,26 +31,30 @@ JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
 JUPITER_QUOTE_URL_PUBLIC = "https://public.jupiterapi.com/quote"
 JUPITER_SWAP_URL_PUBLIC = "https://public.jupiterapi.com/swap"
 
+
 def log(level, msg):
     print(f"[{level}] {msg}")
+
 
 def execute_test_buy():
     # 1. Get Quote
     print("-" * 50)
     log("INFO", f"Getting quote for {TEST_AMOUNT_USDC} USDC -> WIF...")
-    
+
     quote = None
     params = {
         "inputMint": USDC_MINT,
         "outputMint": WIF_MINT,
         "amount": str(TEST_AMOUNT_LAMPORTS),
-        "slippageBps": "50"
+        "slippageBps": "50",
     }
 
     # Try Authenticated API first
     try:
         headers = {"x-api-key": JUPITER_API_KEY}
-        response = requests.get(JUPITER_QUOTE_URL, params=params, headers=headers, timeout=10)
+        response = requests.get(
+            JUPITER_QUOTE_URL, params=params, headers=headers, timeout=10
+        )
         if response.status_code == 200:
             quote = response.json()
             log("INFO", "✅ Got quote from Auth API")
@@ -87,18 +89,18 @@ def execute_test_buy():
         "quoteResponse": quote,
         "wrapAndUnwrapSol": True,
         "dynamicComputeUnitLimit": True,
-        "prioritizationFeeLamports": "auto"
+        "prioritizationFeeLamports": "auto",
     }
 
     swap_data = None
-    
+
     # Try Auth Swap
     try:
         response = requests.post(
             JUPITER_SWAP_URL,
             json=swap_request,
             headers={"Content-Type": "application/json", "x-api-key": JUPITER_API_KEY},
-            timeout=30
+            timeout=30,
         )
         if response.status_code == 200:
             swap_data = response.json()
@@ -114,7 +116,7 @@ def execute_test_buy():
                 JUPITER_SWAP_URL_PUBLIC,
                 json=swap_request,
                 headers={"Content-Type": "application/json"},
-                timeout=30
+                timeout=30,
             )
             if response.status_code == 200:
                 swap_data = response.json()
@@ -125,7 +127,7 @@ def execute_test_buy():
         except Exception as e:
             log("ERROR", f"Swap request error: {e}")
             return
-            
+
     if not swap_data:
         return
 
@@ -139,30 +141,31 @@ def execute_test_buy():
         tx_bytes = base64.b64decode(swap_transaction)
         transaction = VersionedTransaction.from_bytes(tx_bytes)
         signed_tx = VersionedTransaction(transaction.message, [keypair])
-        
+
         client = Client(RPC_URL)
         log("INFO", "🚀 Sending transaction to Solana...")
-        
+
         # THIS IS THE KEY FIX: Using TxOpts()
         tx_sig = client.send_transaction(
-            signed_tx,
-            opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
+            signed_tx, opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
         )
-        
-        if hasattr(tx_sig, 'value'):
+
+        if hasattr(tx_sig, "value"):
             sig_str = str(tx_sig.value)
         else:
             sig_str = str(tx_sig)
-            
+
         print("-" * 50)
-        log("SUCCESS", f"Transaction submitted! Signature:")
+        log("SUCCESS", "Transaction submitted! Signature:")
         log("LINK", f"https://solscan.io/tx/{sig_str}")
         print("-" * 50)
-        
+
     except Exception as e:
         log("ERROR", f"Transaction failed: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     execute_test_buy()

@@ -12,9 +12,10 @@ import subprocess
 import sys
 import os
 
+
 def main():
     print("🚀 Launching PhantomArbiter Hygiene Sequence...")
-    
+
     # Locate the sanitizer script
     script_path = os.path.join("scripts", "project_sanitizer.py")
     if not os.path.exists(script_path):
@@ -25,7 +26,7 @@ def main():
 
     # Forward arguments
     cmd = [sys.executable, script_path] + sys.argv[1:]
-    
+
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
@@ -33,6 +34,7 @@ def main():
         sys.exit(e.returncode)
     except KeyboardInterrupt:
         print("\n🛑 Aborted by user.")
+
 
 if __name__ == "__main__":
     main()

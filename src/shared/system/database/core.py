@@ -4,14 +4,22 @@ import time
 from contextlib import contextmanager
 from src.shared.system.logging import Logger
 
+
 class DatabaseCore:
     """
     Core Database Connection Manager.
     Handles connection pooling, WAL mode, and schema initialization.
     Singleton pattern ensures single point of truth.
     """
+
     _instance = None
-    DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))), "data", "trading_journal.db")
+    DB_PATH = os.path.join(
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        ),
+        "data",
+        "trading_journal.db",
+    )
 
     def __new__(cls):
         if cls._instance is None:
@@ -22,7 +30,7 @@ class DatabaseCore:
     def _init(self):
         self._ensure_data_dir()
         self._init_wal_mode()
-        # Schema init is handled by the Facade or individual repos now, 
+        # Schema init is handled by the Facade or individual repos now,
         # but Core provides the connection.
 
     def _ensure_data_dir(self):
@@ -38,7 +46,9 @@ class DatabaseCore:
         try:
             with self.cursor(commit=True) as c:
                 c.execute("PRAGMA journal_mode=WAL;")
-                c.execute("PRAGMA synchronous=NORMAL;") # Faster, slightly less safe than FULL
+                c.execute(
+                    "PRAGMA synchronous=NORMAL;"
+                )  # Faster, slightly less safe than FULL
         except Exception as e:
             Logger.warning(f"⚠️ Failed to enable WAL mode: {e}")
 

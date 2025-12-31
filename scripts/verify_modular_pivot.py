@@ -9,19 +9,19 @@ Checks if the Modular Architecture components are correctly wired.
 
 import sys
 import os
-import asyncio
 from unittest.mock import MagicMock
 
 # Mock settings
-sys.modules['config.settings'] = MagicMock()
+sys.modules["config.settings"] = MagicMock()
 from config.settings import Settings
+
 Settings.HOP_ENGINE_ENABLED = True
 Settings.SOL_MINT = "So11111111111111111111111111111111111111112"
 Settings.HOP_MIN_LEGS = 3
 Settings.HOP_MAX_LEGS = 4
 Settings.HOP_MIN_LIQUIDITY_USD = 1000.0
 Settings.HOP_MIN_PROFIT_PCT = 0.5
-Settings.PRIVATE_KEY_BASE58 = "5M..." # Mock key
+Settings.PRIVATE_KEY_BASE58 = "5M..."  # Mock key
 
 # Add src to path
 sys.path.append(os.getcwd())
@@ -32,81 +32,112 @@ from src.engine.execution_pod import ExecutionMode
 from src.arbiter.ui.fragments.registry import registry
 from src.arbiter.ui.pulsed_dashboard import PulsedDashboard
 
+
 def test_strategy_factory():
     print("🏭 Testing StrategyFactory...")
     manager = PodManager()
     factory = StrategyFactory(manager)
-    
-    config = {'execution_mode': 'ghost'}
+
+    config = {"execution_mode": "ghost"}
     pods = factory.spawn_pods(StrategyMode.NARROW_PATH, config)
-    
+
     pod_types = [p.config.pod_type for p in pods]
     print(f"   Spawned {len(pods)} pods: {[p.id for p in pods]}")
-    
+
     assert PodType.WHALE in pod_types, "BridgePod (WHALE) missing"
     assert PodType.CYCLE in pod_types, "CyclePod missing"
     assert PodType.HOP in pod_types, "HopPod missing"
     assert PodType.EXECUTION in pod_types, "ExecutionPod missing"
-    
+
     # Check ExecutionPod mode
     # Find by type primarily, fall back to ID if needed
     exec_pod = next(p for p in pods if p.config.pod_type == PodType.EXECUTION)
     print(f"   ExecutionPod Mode: {exec_pod.mode}")
-    assert exec_pod.mode == ExecutionMode.GHOST, f"Expected GHOST mode, got {exec_pod.mode}"
-    
+    assert exec_pod.mode == ExecutionMode.GHOST, (
+        f"Expected GHOST mode, got {exec_pod.mode}"
+    )
+
     print("✅ StrategyFactory passed")
+
 
 def test_dashboard_registry():
     print("\n🧩 Testing DashboardRegistry...")
-    print(f"   Settings.HOP_ENGINE_ENABLED: {getattr(Settings, 'HOP_ENGINE_ENABLED', 'UNKNOWN')}")
-    
+    print(
+        f"   Settings.HOP_ENGINE_ENABLED: {getattr(Settings, 'HOP_ENGINE_ENABLED', 'UNKNOWN')}"
+    )
+
     # Initialize Dashboard (triggering registration)
     dash = PulsedDashboard()
-    
+
     print(f"   Registry Slots: {registry._slots.keys()}")
-    
+
     # Check registry by Fragment Name (not Slot Name!)
-    scavenger_frag = registry.get_fragment("scavenger") 
-    jito_frag = registry.get_fragment("jito_bundle")      
-    multiverse_frag = registry.get_fragment("multiverse")  
-    graph_frag = registry.get_fragment("graph_stats")    
-    
-    print(f"   Scavenger Fragment: {scavenger_frag.__class__.__name__ if scavenger_frag else 'None'}")
+    scavenger_frag = registry.get_fragment("scavenger")
+    jito_frag = registry.get_fragment("jito_bundle")
+    multiverse_frag = registry.get_fragment("multiverse")
+    graph_frag = registry.get_fragment("graph_stats")
+
+    print(
+        f"   Scavenger Fragment: {scavenger_frag.__class__.__name__ if scavenger_frag else 'None'}"
+    )
     print(f"   Jito Fragment: {jito_frag.__class__.__name__ if jito_frag else 'None'}")
-    print(f"   Multiverse Fragment: {multiverse_frag.__class__.__name__ if multiverse_frag else 'None'}")
-    
+    print(
+        f"   Multiverse Fragment: {multiverse_frag.__class__.__name__ if multiverse_frag else 'None'}"
+    )
+
     assert scavenger_frag is not None, "ScavengerFragment not registered"
-    assert jito_frag is not None, "JitoBundleFragment not registered" 
+    assert jito_frag is not None, "JitoBundleFragment not registered"
     assert multiverse_frag is not None, "MultiverseFragment not registered"
     assert graph_frag is not None, "GraphStatsFragment not registered"
-    
+
     print("✅ DashboardRegistry passed")
+
 
 def test_fragment_rendering():
     print("\n🎨 Testing Fragment Rendering (Soak Simulation)...")
+
     # Mock State
     class MockState:
         def __init__(self):
             self.hop_cycles = {
-                'best': {'path_display': 'SOL -> USDC -> BONK -> SOL', 'profit_pct': 0.75},
-                'cycles_by_hops': {3: 15, 4: 5}
+                "best": {
+                    "path_display": "SOL -> USDC -> BONK -> SOL",
+                    "profit_pct": 0.75,
+                },
+                "cycles_by_hops": {3: 15, 4: 5},
             }
-            self.graph_stats = {'nodes': 1000, 'edges': 5000, 'last_update': 'Few seconds ago'}
+            self.graph_stats = {
+                "nodes": 1000,
+                "edges": 5000,
+                "last_update": "Few seconds ago",
+            }
             self.pod_stats = {
-                'pods': [
-                    {'pod_type': 'execution', 'recent_history': [
-                        {'expected_profit_pct': 1.2, 'tip_lamports': 50000, 'mode': 'GHOST', 'signature': 'ghost_sig_123'}
-                    ]}
+                "pods": [
+                    {
+                        "pod_type": "execution",
+                        "recent_history": [
+                            {
+                                "expected_profit_pct": 1.2,
+                                "tip_lamports": 50000,
+                                "mode": "GHOST",
+                                "signature": "ghost_sig_123",
+                            }
+                        ],
+                    }
                 ]
             }
             self.shadow_stats = {}
             self.stats = {}
-            
+
     state = MockState()
-    
+
     # Test Hop Fragments
-    from src.arbiter.ui.fragments.narrow_path import MultiverseFragment, GraphStatsFragment, JitoBundleFragment
-    
+    from src.arbiter.ui.fragments.narrow_path import (
+        MultiverseFragment,
+        GraphStatsFragment,
+        JitoBundleFragment,
+    )
+
     frags = [MultiverseFragment(), GraphStatsFragment(), JitoBundleFragment()]
     for f in frags:
         try:
@@ -115,8 +146,9 @@ def test_fragment_rendering():
         except Exception as e:
             print(f"   ❌ Failed to render {f.name}: {e}")
             raise e
-            
+
     print("✅ UI Rendering Stability passed")
+
 
 if __name__ == "__main__":
     try:

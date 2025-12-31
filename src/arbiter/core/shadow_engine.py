@@ -9,8 +9,8 @@ Deconstructs fees into atomic components:
 - ML Risk Penalty
 """
 
-from typing import Dict, NamedTuple
 from dataclasses import dataclass
+
 
 @dataclass
 class ShadowReceipt:
@@ -20,7 +20,7 @@ class ShadowReceipt:
     slippage_usd: float
     ml_penalty_usd: float
     net_final_usd: float
-    
+
     def to_string(self) -> str:
         """Format receipt as a multi-line string."""
         return (
@@ -34,23 +34,24 @@ class ShadowReceipt:
             f"      = NET PROFIT:   ${self.net_final_usd:>.4f}"
         )
 
+
 class ShadowEngine:
     """Production-grade fee modeling for detailed breakdowns."""
-    
+
     # 2025 Solana Reality: ~0.3% per hop (Orca/Raydium/Meteora)
-    DEX_FEE_RATE = 0.003 
+    DEX_FEE_RATE = 0.003
 
     def get_receipt(
-        self, 
-        gross_spread_usd: float, 
-        trade_size: float, 
-        fees_obj=None, 
+        self,
+        gross_spread_usd: float,
+        trade_size: float,
+        fees_obj=None,
         ml_decay_cost: float = 0.0,
-        ml_slippage_cost: float = 0.0
+        ml_slippage_cost: float = 0.0,
     ) -> ShadowReceipt:
         """
         Generate a comprehensive receipt for a potential trade.
-        
+
         Args:
             gross_spread_usd: Raw profit before any fees
             trade_size: Size of trade in USD
@@ -58,39 +59,45 @@ class ShadowEngine:
             ml_decay_cost: Calculated ML decay penalty
             ml_slippage_cost: Calculated ML slippage penalty
         """
-        
+
         if fees_obj:
             # Use detailed estimate if available
             dex_fees = fees_obj.trading_fee_usd
-            network_costs = fees_obj.gas_fee_usd + fees_obj.priority_fee_usd + fees_obj.safety_buffer_usd
+            network_costs = (
+                fees_obj.gas_fee_usd
+                + fees_obj.priority_fee_usd
+                + fees_obj.safety_buffer_usd
+            )
             slippage = fees_obj.slippage_cost_usd + ml_slippage_cost
         else:
             # Fallback estimation
             # 1. Variable DEX Fees (Buy Hop + Sell Hop = 0.6% total)
-            dex_fees = (trade_size * self.DEX_FEE_RATE) * 2 
-            
+            dex_fees = (trade_size * self.DEX_FEE_RATE) * 2
+
             # 2. Fixed Network Costs (Gas + Priority + Jito)
-            network_costs = 0.12 
-            
+            network_costs = 0.12
+
             # 3. Slippage
             slippage = trade_size * 0.002 + ml_slippage_cost
-            
+
         # 4. ML Penalty (Decay)
         ml_penalty = ml_decay_cost
-        
+
         net = gross_spread_usd - (dex_fees + network_costs + slippage + ml_penalty)
-        
+
         return ShadowReceipt(
             gross_usd=gross_spread_usd,
             dex_fees_usd=dex_fees,
             network_costs_usd=network_costs,
             slippage_usd=slippage,
             ml_penalty_usd=ml_penalty,
-            net_final_usd=net
+            net_final_usd=net,
         )
+
 
 # Singleton
 _shadow_engine = None
+
 
 def get_shadow_engine():
     global _shadow_engine

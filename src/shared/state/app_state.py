@@ -3,9 +3,9 @@ from typing import List, Dict, Any
 from dataclasses import dataclass, field
 import threading
 import time
-import os
 from src.core.global_state import GlobalState
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+
 
 @dataclass
 class ArbOpportunity:
@@ -15,60 +15,71 @@ class ArbOpportunity:
     est_profit_sol: float
     timestamp: float = field(default_factory=time.time)
 
+
 @dataclass
 class InventoryItem:
     """Represents a held token with its value and pnl."""
+
     symbol: str
     amount: float  # Quantity held
     value_usd: float = 0.0
     pnl: float = 0.0
     price_change_24h: float = 0.0
-    entry_price: float = 0.0      # V133: Bought Price
-    current_price: float = 0.0    # V133: Current Price
-    quantity: float = 0.0         # V133: Token quantity
+    entry_price: float = 0.0  # V133: Bought Price
+    current_price: float = 0.0  # V133: Current Price
+    quantity: float = 0.0  # V133: Token quantity
+
 
 @dataclass
 class WalletData:
     """Snapshot of a wallet's state."""
+
     balance_sol: float = 0.0
     balance_usdc: float = 0.0
     gas_sol: float = 0.0
     # V12.6: Support both Dict (legacy) and List (V100) of InventoryItems
-    inventory: Any = field(default_factory=dict) 
+    inventory: Any = field(default_factory=dict)
     total_value_usd: float = 0.0
+
 
 @dataclass
 class ScalpSignal:
     token: str
-    signal_type: str # "RSI Oversold", "Breakout"
-    confidence: str # "High", "Med"
-    action: str # "BUY", "SELL"
+    signal_type: str  # "RSI Oversold", "Breakout"
+    confidence: str  # "High", "Med"
+    action: str  # "BUY", "SELL"
     price: float = 0.0  # V133: Current price at signal time
     timestamp: float = field(default_factory=time.time)
+
 
 @dataclass
 class TokenIdentity:
     """Tier 1: Static Identity (Fetched Once)"""
+
     mint: str
     symbol: str
     decimals: int
-    program_id: str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" # SPL Token
+    program_id: str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # SPL Token
     name: str = ""
-    logo_uri: Any = None # Optional[str]
+    logo_uri: Any = None  # Optional[str]
+
 
 @dataclass
 class TokenRisk:
     """Tier 2: Risk & Security (Slow-Changing)"""
-    mint_authority: Any = None # Optional[str] - None means fixed supply
-    freeze_authority: Any = None # Optional[str] - If set, high risk
+
+    mint_authority: Any = None  # Optional[str] - None means fixed supply
+    freeze_authority: Any = None  # Optional[str] - If set, high risk
     is_mutable: bool = True
     is_renounced: bool = False
     transfer_fee_bps: int = 0
-    safety_score: float = 50.0 # 0-100
+    safety_score: float = 50.0  # 0-100
+
 
 @dataclass
 class TokenMarket:
     """Tier 3: Market & Liquidity (Fast-Changing)"""
+
     price_usd: float = 0.0
     volume_5m: float = 0.0
     volume_1h: float = 0.0
@@ -78,11 +89,13 @@ class TokenMarket:
     top_pools: List[Any] = field(default_factory=list)
     last_updated: float = field(default_factory=time.time)
 
+
 class AppState:
     """
     Thread-safe Singleton for UI/Worker communication.
     The 'Bridge' between Headless Logic and Textual UI.
     """
+
     _instance = None
     _lock = threading.Lock()
 
@@ -94,43 +107,44 @@ class AppState:
             return cls._instance
 
     def __init__(self):
-        if self._initialized: return
-        
+        if self._initialized:
+            return
+
         self.status = "INITIALIZING"
         self.logs = deque(maxlen=200)
         self.opportunities: List[ArbOpportunity] = []
-        
+
         # Real-time Stats
         self.stats = {
             "cycles_per_sec": 0,
             "wss_latency_ms": 0,
-            "loop_lag_ms": 0.0, # V23 Supervisor Metric
+            "loop_lag_ms": 0.0,  # V23 Supervisor Metric
             "total_pnl_sol": 0.0,
             "rust_core_active": False,
             "start_time": time.time(),
-            "pod_status": "Starting..." # V27: Pod Rotation Status
+            "pod_status": "Starting...",  # V27: Pod Rotation Status
         }
-        
+
         # V12.1: Wallet State (Dashboard 2.0)
         self.wallet_live = WalletData()
         self.wallet_paper = WalletData()
         self.mode = "PAPER"
-        
-    # V12.2: High-Fidelity Data (Market Pulse)
+
+        # V12.2: High-Fidelity Data (Market Pulse)
         # Value is Dict: {'price': float, 'rsi': float, 'conf': float, 'action': str}
-        self.market_pulse: Dict[str, Dict[str, Any]] = {} 
+        self.market_pulse: Dict[str, Dict[str, Any]] = {}
         self.scalp_signals: List[ScalpSignal] = []
-        self.system_signals = deque(maxlen=50) # V35: Unified Signal Audit
-        
+        self.system_signals = deque(maxlen=50)  # V35: Unified Signal Audit
+
         # V133: UI Footer Timestamp (seconds since last pulse update)
         self.last_pulse_time: float = 0.0
-        
+
         # V133: Flash Error Bar (Real-time Red Alert display)
         self.flash_errors: deque = deque(maxlen=10)
-        
+
         # V33: Persistent Registry Sync
         self._load_from_global_state()
-        
+
         self._initialized = True
 
     def _load_from_global_state(self):
@@ -147,29 +161,31 @@ class AppState:
             self.mode = value
         elif key == "BASE_SIZE_USD":
             self.stats["base_size_usd"] = value
-        
+
         # Sync to GlobalState (disk)
         GlobalState.update_state({key: value})
         self.log(f"[State] Persistent setting {key} -> {value}")
-        
+
         # V35: Reactive Notify
-        signal_bus.emit(Signal(
-            type=SignalType.CONFIG_CHANGE,
-            source="AppState",
-            data={"key": key, "value": value}
-        ))
+        signal_bus.emit(
+            Signal(
+                type=SignalType.CONFIG_CHANGE,
+                source="AppState",
+                data={"key": key, "value": value},
+            )
+        )
 
     # ... (methods) ...
-    
+
     def update_pulse(self, symbol: str, price: float):
         """Update live price for ticker (Legacy)."""
-        self.market_pulse[symbol] = {'price': price}
+        self.market_pulse[symbol] = {"price": price}
 
     def update_pulse_batch(self, data: Dict[str, Dict[str, Any]]):
         """Update multiple tickers at once."""
         self.market_pulse.update(data)
         self.last_pulse_time = time.time()  # V133: Track for UI footer
-        
+
     def add_signal(self, signal: ScalpSignal):
         """Add new scalp signal."""
         self.scalp_signals.insert(0, signal)
@@ -183,7 +199,7 @@ class AppState:
     def log(self, message: str):
         """Add a log message."""
         self.logs.append(message)
-    
+
     def flash_error(self, message: str):
         """V133: Add a flash error for UI Red Alert bar."""
         self.flash_errors.appendleft({"msg": message, "ts": time.time()})
@@ -212,26 +228,32 @@ class AppState:
     def inventory(self) -> List[InventoryItem]:
         """Get inventory list for current mode (Compatible with Dashboard)."""
         wallet = self.wallet_live if self.mode == "LIVE" else self.wallet_paper
-        
+
         # If inventory is already a list of InventoryItems (V100 path), return it
         if isinstance(wallet.inventory, list):
             return wallet.inventory
-        
+
         # Legacy path: Convert dict {symbol: amount} to list of objects
         items = []
         if isinstance(wallet.inventory, dict):
             for symbol, amount in wallet.inventory.items():
                 try:
                     from src.core.shared_cache import SharedPriceCache
+
                     price, _ = SharedPriceCache.get_price(symbol)
                     if price:
                         value_usd = price * amount
-                        items.append(InventoryItem(symbol=symbol, amount=amount, value_usd=value_usd))
+                        items.append(
+                            InventoryItem(
+                                symbol=symbol, amount=amount, value_usd=value_usd
+                            )
+                        )
                     else:
                         items.append(InventoryItem(symbol=symbol, amount=amount))
                 except:
                     items.append(InventoryItem(symbol=symbol, amount=amount))
         return items
+
 
 # Global Accessor
 state = AppState()

@@ -7,8 +7,8 @@ from .raydium_feed import RaydiumFeed
 from .orca_feed import OrcaFeed
 
 __all__ = [
-    "PriceSource", 
-    "Quote", 
+    "PriceSource",
+    "Quote",
     "SpotPrice",
     "JupiterFeed",
     "RaydiumFeed",

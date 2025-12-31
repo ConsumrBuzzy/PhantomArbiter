@@ -3,12 +3,14 @@ Position Manager (DB)
 =====================
 Handles state persistence and lifecycle of positions using SQLite.
 """
+
 from src.shared.system.db_manager import db_manager
 from config.thresholds import DEFAULT_LEGACY_ENTRY_SIZE_USD
 
+
 class PositionManager:
     """Manages persistence logic for a Watcher using DBManager."""
-    
+
     def __init__(self, symbol: str):
         self.symbol = symbol
 
@@ -21,7 +23,7 @@ class PositionManager:
     def load_state(self) -> dict:
         """Load state from DB."""
         return db_manager.get_position(self.symbol) or {}
-    
+
     def clear_state(self):
         """Delete persisted state from DB."""
         db_manager.delete_position(self.symbol)
@@ -36,6 +38,6 @@ class PositionManager:
                 "in_position": True,
                 "max_price_achieved": estimated_entry,
                 "trailing_stop_price": 0.0,
-                "token_balance": token_balance
+                "token_balance": token_balance,
             }
         return {}

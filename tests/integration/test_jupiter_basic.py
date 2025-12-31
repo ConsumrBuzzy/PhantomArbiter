@@ -12,18 +12,16 @@ if not api_key:
 urls = [
     "https://api.jup.ag/swap/v1/quote",
     "https://api.jup.ag/v6/quote",
-    "https://quote-api.jup.ag/v6/quote"
+    "https://quote-api.jup.ag/v6/quote",
 ]
 
 params = {
-    "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 
-    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", 
-    "amount": "12000000", 
-    "slippageBps": "50"
+    "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+    "amount": "12000000",
+    "slippageBps": "50",
 }
-headers = {
-    "x-api-key": api_key
-}
+headers = {"x-api-key": api_key}
 
 print(f"Testing Key: {api_key}")
 print("-" * 50)

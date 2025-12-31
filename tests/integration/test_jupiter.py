@@ -4,9 +4,9 @@ import requests
 url = "https://public.jupiterapi.com/quote"
 params = {
     "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", 
+    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
     "amount": "12000000",
-    "slippageBps": "50"
+    "slippageBps": "50",
 }
 
 try:

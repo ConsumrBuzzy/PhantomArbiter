@@ -7,7 +7,7 @@ from .orchestrator import ArbitrageOrchestrator
 
 __all__ = [
     "SpreadDetector",
-    "SpreadOpportunity", 
+    "SpreadOpportunity",
     "ArbitrageRiskManager",
     "ArbitrageOrchestrator",
 ]

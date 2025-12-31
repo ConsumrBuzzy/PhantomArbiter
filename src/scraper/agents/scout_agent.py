@@ -1,4 +1,3 @@
-
 import asyncio
 import time
 from typing import Dict, Optional, List
@@ -14,51 +13,58 @@ from src.shared.execution.raydium_standard_bridge import RaydiumStandardBridge
 from src.scraper.discovery.pump_fun_monitor import PumpFunMonitor
 from src.core.price_cache import SharedPriceCache
 
+
 class ScoutAgent(BaseAgent):
     """
     V65.0: The Scout Agent (Navigator & Validator)
-    
+
     Roles:
     1. Smart Money Tracker (Identify & Audit winners) -> TRUST_BOOST
     2. Microstructure Analyst (Order Flow Imbalance) -> BUY/SELL pressure
     3. Regime Detector (Trending/Choppy) -> Metadata
     """
-    
+
     def __init__(self, config: Dict = None):
         super().__init__(name="SCOUT", config=config or {})
         self.rpc = get_rpc_balancer()
-        
+
         # Smart Money Config
-        self.watchlist_file = os.path.join(os.path.dirname(__file__), "../../data/smart_money_watchlist.json")
+        self.watchlist_file = os.path.join(
+            os.path.dirname(__file__), "../../data/smart_money_watchlist.json"
+        )
         self.watchlist = self._load_watchlist()
         self.audit_queue = asyncio.Queue()
         self.audited_wallets = set()
-        
+
         self.MIN_WIN_RATE = 0.70
-        self.MIN_ROI_AVG = 1.5 
+        self.MIN_ROI_AVG = 1.5
         self.MIN_TRADES = 10
-        
+
         # OFI Config (Classic order book - requires depth data)
         self.ofi_window_seconds = 1
         self.last_bid_size = 0.0
         self.last_ask_size = 0.0
         self.last_ofi_calc = 0
-        
+
         # V77.0: Price Momentum Tracker (works without order book)
-        self.price_history: Dict[str, List[tuple]] = {}  # {symbol: [(timestamp, price), ...]}
+        self.price_history: Dict[
+            str, List[tuple]
+        ] = {}  # {symbol: [(timestamp, price), ...]}
         self.momentum_window = 10  # Track last 10 ticks per symbol
         self.momentum_threshold = 0.02  # 2% move in window = signal
         self.pre_pump_signals: Dict[str, float] = {}  # {symbol: last_signal_time}
         self.signal_cooldown = 60  # Don't spam same token within 60s
-        
+
         # V100: Probe Detection
         self.probe_detector = ProbeAnalytic()
-        
+
         # V140: Lifecycle Tracking
         self.raydium_std = RaydiumStandardBridge()
         self.pump_monitor = PumpFunMonitor()
-        
-        Logger.info(f"[{self.name}] Agent Initialized (Watchlist: {len(self.watchlist)})")
+
+        Logger.info(
+            f"[{self.name}] Agent Initialized (Watchlist: {len(self.watchlist)})"
+        )
 
     def _load_watchlist(self) -> Dict:
         if not os.path.exists(self.watchlist_file):
@@ -82,17 +88,19 @@ class ScoutAgent(BaseAgent):
         self.running = True
         asyncio.create_task(self._process_audit_queue())
         asyncio.create_task(self._scan_active_tokens_job())
-        
+
         # V140: Subscribe to global discoveries
         signal_bus.subscribe(SignalType.NEW_TOKEN, self._handle_new_token)
-        
+
         Logger.info(f"[{self.name}] Background tasks started")
 
     async def _handle_new_token(self, sig: Signal):
         """V140: Event handler for NEW_TOKEN signal."""
         mint = sig.data.get("mint")
         platform = sig.data.get("platform", "Unknown")
-        Logger.info(f"🆕 [SCOUT] New token detected via signal: {mint[:8]} (Source: {platform})")
+        Logger.info(
+            f"🆕 [SCOUT] New token detected via signal: {mint[:8]} (Source: {platform})"
+        )
         if mint:
             # Trigger deep metadata scan (Hierarchical check)
             await self.deep_scan_metadata(mint)
@@ -104,129 +112,133 @@ class ScoutAgent(BaseAgent):
     def on_tick(self, market_data: Dict) -> Optional[AgentSignal]:
         """
         V77.0: Enhanced tick analysis with Price Momentum + OFI.
-        
+
         market_data expected: {'symbol': 'SOL', 'price': 100.0, 'bids': [], 'asks': []}
         """
-        symbol = market_data.get('symbol', 'UNKNOWN')
-        price = market_data.get('price', 0)
-        
+        symbol = market_data.get("symbol", "UNKNOWN")
+        price = market_data.get("price", 0)
+
         if not price or price <= 0:
             return None
-        
+
         # V77.0: Track price history for momentum
         self._track_price(symbol, price)
-        
+
         # V77.0: Calculate momentum-based signal (no order book needed)
         momentum = self.calculate_price_momentum(symbol)
-        
+
         if momentum and momentum > self.momentum_threshold:
             # Check cooldown
             last_signal = self.pre_pump_signals.get(symbol, 0)
             if time.time() - last_signal > self.signal_cooldown:
                 self.pre_pump_signals[symbol] = time.time()
-                
+
                 # Log PRE_PUMP signal
-                Logger.info(f"🚀 [SCOUT] PRE_PUMP: {symbol} +{momentum*100:.1f}% momentum detected!")
-                
+                Logger.info(
+                    f"🚀 [SCOUT] PRE_PUMP: {symbol} +{momentum * 100:.1f}% momentum detected!"
+                )
+
                 # Emit to Global SignalBus (V33 Unification)
-                signal_bus.emit(Signal(
-                    type=SignalType.SCOUT,
-                    source=self.name,
-                    data={
-                        "symbol": symbol,
-                        "action": "BUY",
-                        "confidence": min(0.5 + momentum * 10, 0.9),
-                        "momentum": momentum,
-                        "reason": f"PRE_PUMP: {momentum*100:.1f}% momentum"
-                    }
-                ))
-                
+                signal_bus.emit(
+                    Signal(
+                        type=SignalType.SCOUT,
+                        source=self.name,
+                        data={
+                            "symbol": symbol,
+                            "action": "BUY",
+                            "confidence": min(0.5 + momentum * 10, 0.9),
+                            "momentum": momentum,
+                            "reason": f"PRE_PUMP: {momentum * 100:.1f}% momentum",
+                        },
+                    )
+                )
+
                 return self._create_signal(
                     symbol=symbol,
                     action="BUY",
                     confidence=min(0.5 + momentum * 10, 0.9),
-                    reason=f"PRE_PUMP: {momentum*100:.1f}% momentum"
+                    reason=f"PRE_PUMP: {momentum * 100:.1f}% momentum",
                 )
-        
+
         # V100: Whale Probe Detection
         # Check if the market data includes signer/signer-value (parsed from logs)
-        if 'signer' in market_data and 'usd_value' in market_data:
+        if "signer" in market_data and "usd_value" in market_data:
             # V117: Competitive Tip Signal
-            if market_data.get('is_competitive'):
+            if market_data.get("is_competitive"):
                 return self._create_signal(
                     symbol=symbol,
                     action="ALERT",
                     confidence=0.98,
                     reason=f"COMPETITIVE_ACTIVITY: Bot tipping detected on {symbol}",
-                    metadata={
-                        "strategy": "TIP_WATCH",
-                        "type": "FLASH_WARM"
-                    }
+                    metadata={"strategy": "TIP_WATCH", "type": "FLASH_WARM"},
                 )
-            
+
             probe_status = self.probe_detector.analyze_tx(
-                market_data['signer'], 
-                market_data['usd_value']
+                market_data["signer"], market_data["usd_value"]
             )
-            
+
             if probe_status == "PROBE_DETECTED":
                 # Emit to Global SignalBus (V33 Unification)
-                signal_bus.emit(Signal(
-                    type=SignalType.SCOUT,
-                    source=self.name,
-                    data={
-                        "symbol": symbol,
-                        "action": "ALERT",
-                        "confidence": 0.95,
-                        "reason": f"WHALE_PROBE: Alpha activity detected on {symbol}",
-                        "wallet": market_data['signer']
-                    }
-                ))
-                
+                signal_bus.emit(
+                    Signal(
+                        type=SignalType.SCOUT,
+                        source=self.name,
+                        data={
+                            "symbol": symbol,
+                            "action": "ALERT",
+                            "confidence": 0.95,
+                            "reason": f"WHALE_PROBE: Alpha activity detected on {symbol}",
+                            "wallet": market_data["signer"],
+                        },
+                    )
+                )
+
                 return self._create_signal(
                     symbol=symbol,
                     action="ALERT",
                     confidence=0.95,
-                    reason=f"WHALE_PROBE: Alpha activity detected on {symbol}"
+                    reason=f"WHALE_PROBE: Alpha activity detected on {symbol}",
                 )
-             
+
         return None
-    
+
     def _track_price(self, symbol: str, price: float):
         """V77.0: Track price history for momentum calculation."""
         now = time.time()
-        
+
         if symbol not in self.price_history:
             self.price_history[symbol] = []
-        
+
         self.price_history[symbol].append((now, price))
-        
+
         # Keep only last N ticks
         if len(self.price_history[symbol]) > self.momentum_window:
-            self.price_history[symbol] = self.price_history[symbol][-self.momentum_window:]
-    
+            self.price_history[symbol] = self.price_history[symbol][
+                -self.momentum_window :
+            ]
+
     def calculate_price_momentum(self, symbol: str) -> Optional[float]:
         """
         V77.0: Calculate price momentum as % change over window.
-        
+
         Returns:
             Float 0.0-1.0 representing price change, or None if insufficient data.
         """
         history = self.price_history.get(symbol, [])
-        
+
         if len(history) < 3:  # Need at least 3 ticks
             return None
-        
+
         # Get oldest and newest price
         oldest_price = history[0][1]
         newest_price = history[-1][1]
-        
+
         if oldest_price <= 0:
             return None
-        
+
         # Calculate % change
         momentum = (newest_price - oldest_price) / oldest_price
-        
+
         return momentum
 
     def calculate_ofi(self, market_data: Dict) -> float:
@@ -238,49 +250,49 @@ class ScoutAgent(BaseAgent):
         try:
             # We need best bid/ask size
             # Assuming market_data has 'bids' list of [price, size] and 'asks'
-            bids = market_data.get('bids', [])
-            asks = market_data.get('asks', [])
-            
+            bids = market_data.get("bids", [])
+            asks = market_data.get("asks", [])
+
             if not bids or not asks:
                 return 0.0
-                
+
             current_bid_size = float(bids[0][1])
             current_ask_size = float(asks[0][1])
-            
+
             # Check delta
             delta_bid = current_bid_size - self.last_bid_size
             delta_ask = current_ask_size - self.last_ask_size
-            
+
             # Update state
             self.last_bid_size = current_bid_size
             self.last_ask_size = current_ask_size
-            
+
             # Make sure we don't spike on first run
             if self.last_ofi_calc == 0:
                 self.last_ofi_calc = time.time()
                 return 0.0
-                
+
             # OFI = BidDelta - AskDelta
             # If Bid Size INCREASES (people lining up to buy) -> Positive
             # If Ask Size INCREASES (people lining up to sell) -> Negative impact
             ofi = delta_bid - delta_ask
-            
+
             return ofi
-            
+
         except Exception:
             return 0.0
 
     # ═══════════════════════════════════════════════════════════════════════
     # V69.0: FLASH AUDIT (Fast First-Buyer Check for Sniper)
     # ═══════════════════════════════════════════════════════════════════════
-    
+
     def flash_audit(self, mint: str) -> Optional[Dict]:
         """
         V69.0 / V72.0: Quick audit of a token's first buyers for Smart Money presence.
-        
+
         V72.0: Now uses Bitquery First 100 Buyers API as primary source.
         Fallback to RPC if Bitquery unavailable.
-        
+
         Returns:
             {'smart_money_count': int, 'rug_risk': bool, 'wallets': [], 'source': str}
             or None if audit fails
@@ -288,80 +300,97 @@ class ScoutAgent(BaseAgent):
         # V72.0: Try Bitquery First 100 Buyers (faster, more complete)
         try:
             from src.infrastructure.bitquery_adapter import BitqueryAdapter
+
             bitquery = BitqueryAdapter()
             buyers = bitquery.get_first_100_buyers(mint)
-            
+
             if buyers:
                 smart_money_count = 0
                 found_wallets = []
-                
+
                 for wallet in buyers[:20]:  # Check first 20 for speed
                     if wallet in self.watchlist:
                         smart_money_count += 1
                         found_wallets.append(wallet[:8])
-                
+
                 # Rug risk: if first buyer bought >10% of first 20 transactions
                 first_buyer = buyers[0] if buyers else None
                 first_buyer_count = buyers[:20].count(first_buyer) if first_buyer else 0
                 rug_risk = first_buyer_count >= 3
-                
+
                 return {
                     "smart_money_count": smart_money_count,
                     "rug_risk": rug_risk,
                     "wallets": found_wallets,
                     "source": "BITQUERY",
-                    "total_buyers_checked": len(buyers[:20])
+                    "total_buyers_checked": len(buyers[:20]),
                 }
         except Exception as e:
             Logger.debug(f"[{self.name}] Bitquery Flash Audit skipped: {e}")
-        
+
         # Fallback: RPC-based audit (original V69.0 logic)
         try:
             resp, err = self.rpc.call("getSignaturesForAddress", [mint, {"limit": 10}])
             if err or not resp:
                 return None
-            
-            signatures = resp.result if hasattr(resp, 'result') else resp
+
+            signatures = resp.result if hasattr(resp, "result") else resp
             if not signatures:
                 return None
-            
+
             smart_money_count = 0
             found_wallets = []
             rug_indicators = 0
-            
+
             for sig_info in signatures[:10]:
-                sig = sig_info.get("signature") if isinstance(sig_info, dict) else sig_info
-                tx_resp, tx_err = self.rpc.call("getTransaction", [sig, {"encoding": "jsonParsed"}])
-                
+                sig = (
+                    sig_info.get("signature")
+                    if isinstance(sig_info, dict)
+                    else sig_info
+                )
+                tx_resp, tx_err = self.rpc.call(
+                    "getTransaction", [sig, {"encoding": "jsonParsed"}]
+                )
+
                 if tx_err or not tx_resp:
                     continue
-                
-                tx = tx_resp.result if hasattr(tx_resp, 'result') else tx_resp
+
+                tx = tx_resp.result if hasattr(tx_resp, "result") else tx_resp
                 if not tx:
                     continue
-                    
-                accounts = tx.get("transaction", {}).get("message", {}).get("accountKeys", [])
-                
+
+                accounts = (
+                    tx.get("transaction", {}).get("message", {}).get("accountKeys", [])
+                )
+
                 for acc in accounts[:5]:
                     pubkey = acc.get("pubkey") if isinstance(acc, dict) else acc
                     if pubkey and pubkey in self.watchlist:
                         smart_money_count += 1
                         found_wallets.append(pubkey[:8])
                         break
-                
+
                 if len(accounts) >= 2:
-                    acc0 = accounts[0].get("pubkey") if isinstance(accounts[0], dict) else accounts[0]
-                    acc1 = accounts[1].get("pubkey") if isinstance(accounts[1], dict) else accounts[1]
+                    acc0 = (
+                        accounts[0].get("pubkey")
+                        if isinstance(accounts[0], dict)
+                        else accounts[0]
+                    )
+                    acc1 = (
+                        accounts[1].get("pubkey")
+                        if isinstance(accounts[1], dict)
+                        else accounts[1]
+                    )
                     if acc0 == acc1:
                         rug_indicators += 1
-            
+
             return {
                 "smart_money_count": smart_money_count,
                 "rug_risk": rug_indicators >= 2,
                 "wallets": found_wallets,
-                "source": "RPC"
+                "source": "RPC",
             }
-            
+
         except Exception as e:
             Logger.debug(f"[{self.name}] Flash Audit Error: {e}")
             return None
@@ -376,56 +405,64 @@ class ScoutAgent(BaseAgent):
         while self.running:
             try:
                 wallet_address = await self.audit_queue.get()
-                
+
                 if wallet_address in self.audited_wallets:
                     self.audit_queue.task_done()
                     continue
-                
+
                 self.audited_wallets.add(wallet_address)
-                
+
                 # Perform Audit (Silent - only log discoveries)
                 # Logger.debug(f"[{self.name}] Auditing wallet: {wallet_address[:8]}...")
                 score = await self.calculate_wallet_performance(wallet_address)
-                
-                if score and score['is_smart_money']:
-                    Logger.info(f"[{self.name}] 🧠 SMART MONEY FOUND! {wallet_address[:8]} (WR: {score['win_rate']:.2f}, ROI: {score['avg_roi']:.2f}x)")
+
+                if score and score["is_smart_money"]:
+                    Logger.info(
+                        f"[{self.name}] 🧠 SMART MONEY FOUND! {wallet_address[:8]} (WR: {score['win_rate']:.2f}, ROI: {score['avg_roi']:.2f}x)"
+                    )
                     self.watchlist[wallet_address] = {
                         "score": score,
                         "timestamp": time.time(),
-                        "label": "Auto-Discovered"
+                        "label": "Auto-Discovered",
                     }
                     self._save_watchlist()
-                
+
                 # Rate Limit (1 audit per minute to save RPC credits)
                 self.audit_queue.task_done()
-                await asyncio.sleep(60) 
-                
+                await asyncio.sleep(60)
+
             except Exception as e:
                 Logger.error(f"[{self.name}] Worker error: {e}")
                 await asyncio.sleep(5)
-                
+
     async def _scan_active_tokens_job(self):
         """V61.0 Integration: Periodically scan active candidates for Smart Money."""
         while self.running:
             try:
                 # 1. Get active candidates (from Settings.ASSETS or Watch list)
-                candidates = list(Settings.ACTIVE_ASSETS.values()) + list(Settings.WATCH_ASSETS.values())
-                
+                candidates = list(Settings.ACTIVE_ASSETS.values()) + list(
+                    Settings.WATCH_ASSETS.values()
+                )
+
                 for mint in candidates:
                     # Resolve symbol
-                    symbol = next((k for k, v in Settings.ASSETS.items() if v == mint), "UNKNOWN")
-                    
+                    symbol = next(
+                        (k for k, v in Settings.ASSETS.items() if v == mint), "UNKNOWN"
+                    )
+
                     # Scan
                     score = await self.scan_token_for_smart_money(mint)
                     if score > 0:
                         SharedPriceCache.write_trust_score(symbol, score)
                         # Only log high-confidence signals (score > 0.5)
                         if score > 0.5:
-                            Logger.info(f"[{self.name}] 🧠 Smart Money on {symbol}: {score:.1f}")
-                    
-                    await asyncio.sleep(10) # 10s delay between tokens
-                
-                await asyncio.sleep(300) 
+                            Logger.info(
+                                f"[{self.name}] 🧠 Smart Money on {symbol}: {score:.1f}"
+                            )
+
+                    await asyncio.sleep(10)  # 10s delay between tokens
+
+                await asyncio.sleep(300)
             except Exception as e:
                 Logger.error(f"[{self.name}] Scan job error: {e}")
                 await asyncio.sleep(60)
@@ -434,30 +471,37 @@ class ScoutAgent(BaseAgent):
         """Public trigger: Find buyers of this successful token."""
         # V67.8: Resolve symbol using TokenScraper
         from src.shared.infrastructure.token_scraper import get_token_scraper
+
         scraper = get_token_scraper()
         info = scraper.lookup(token_mint)
         symbol = info.get("symbol", token_mint[:8])
         name = info.get("name", "Unknown")
-        
+
         Logger.info(f"[{self.name}] 🚀 Mooner Audit: {symbol} ({name})")
-        
-        resp, err = self.rpc.call("getSignaturesForAddress", [token_mint, {"limit": 100}])
+
+        resp, err = self.rpc.call(
+            "getSignaturesForAddress", [token_mint, {"limit": 100}]
+        )
         if err or not resp:
             return
 
-        signatures = [s['signature'] for s in resp]
+        signatures = [s["signature"] for s in resp]
         candidates = set()
-        
+
         # Check first 20 signatures
         for sig_info in signatures[:20]:
-            sig = sig_info['signature'] if isinstance(sig_info, dict) else sig_info
-            tx, tx_err = self.rpc.call("getTransaction", [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}])
-            if tx_err or not tx: continue
-            
+            sig = sig_info["signature"] if isinstance(sig_info, dict) else sig_info
+            tx, tx_err = self.rpc.call(
+                "getTransaction",
+                [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
+            )
+            if tx_err or not tx:
+                continue
+
             buyer = self._extract_signer(tx)
             if buyer and buyer not in self.watchlist:
                 candidates.add(buyer)
-                
+
         # Enqueue candidates
         for c in candidates:
             await self.audit_queue.put(c)
@@ -470,86 +514,107 @@ class ScoutAgent(BaseAgent):
                 if isinstance(keys[0], dict):
                     return keys[0].get("pubkey")
                 return keys[0]
-        except: pass
+        except:
+            pass
         return None
 
     async def calculate_wallet_performance(self, wallet_address: str) -> Optional[Dict]:
         """Audit the wallet's last 50 trades."""
-        resp, err = self.rpc.call("getSignaturesForAddress", [wallet_address, {"limit": 50}])
-        if err or not resp: return None
-        
+        resp, err = self.rpc.call(
+            "getSignaturesForAddress", [wallet_address, {"limit": 50}]
+        )
+        if err or not resp:
+            return None
+
         trades = []
         wins = 0
         total_roi = 0.0
-        
+
         # Analyze last 20 txs
-        sigs = [s['signature'] for s in resp[:20]] 
-        
+        sigs = [s["signature"] for s in resp[:20]]
+
         for sig in sigs:
-            tx, err = self.rpc.call("getTransaction", [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}])
-            if err or not tx: continue
-            
+            tx, err = self.rpc.call(
+                "getTransaction",
+                [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
+            )
+            if err or not tx:
+                continue
+
             pnl = self._analyze_tx_pnl(tx, wallet_address)
             if pnl:
                 trades.append(pnl)
-                if pnl > 0: wins += 1
+                if pnl > 0:
+                    wins += 1
                 total_roi += pnl
-                
-        if not trades: return None
-        
+
+        if not trades:
+            return None
+
         win_rate = wins / len(trades)
-        avg_roi = 1.5 if win_rate > 0.6 else 0.5 
-        
-        is_smart = (win_rate >= self.MIN_WIN_RATE)
-        
+        avg_roi = 1.5 if win_rate > 0.6 else 0.5
+
+        is_smart = win_rate >= self.MIN_WIN_RATE
+
         return {
             "win_rate": win_rate,
             "avg_roi": avg_roi,
             "trades": len(trades),
-            "is_smart_money": is_smart
+            "is_smart_money": is_smart,
         }
 
     def _analyze_tx_pnl(self, tx: dict, wallet: str) -> Optional[float]:
         """Estimate PnL impact."""
         try:
             meta = tx.get("result", {}).get("meta", {})
-            if not meta: return None
-            
+            if not meta:
+                return None
+
             # Simple heuristic matching DiscoveryEngine
             return self._check_picking_ability(tx, wallet, meta)
-                
-        except: pass
+
+        except:
+            pass
         return None
 
     def _check_picking_ability(self, tx, wallet, meta) -> Optional[float]:
-        return 1.0 # Placeholder match
+        return 1.0  # Placeholder match
 
     async def scan_token_for_smart_money(self, token_mint: str) -> float:
         """Check if Smart Money is interacting."""
-        if not self.watchlist: 
+        if not self.watchlist:
             return 0.0
-            
-        resp, err = self.rpc.call("getSignaturesForAddress", [token_mint, {"limit": 50}])
+
+        resp, err = self.rpc.call(
+            "getSignaturesForAddress", [token_mint, {"limit": 50}]
+        )
         if err or not resp:
             return 0.0
-            
+
         smart_hits = 0
-        sigs_to_check = [s['signature'] for s in resp[:15]]
-        
+        sigs_to_check = [s["signature"] for s in resp[:15]]
+
         for sig in sigs_to_check:
-             tx, err_tx = self.rpc.call("getTransaction", [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}])
-             if not tx: continue
-             
-             signer = self._extract_signer(tx)
-             if signer and signer in self.watchlist:
-                 smart_hits += 1
-                 
-        if smart_hits >= 3: return 1.0
-        if smart_hits == 2: return 0.8
+            tx, err_tx = self.rpc.call(
+                "getTransaction",
+                [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
+            )
+            if not tx:
+                continue
+
+            signer = self._extract_signer(tx)
+            if signer and signer in self.watchlist:
+                smart_hits += 1
+
+        if smart_hits >= 3:
+            return 1.0
+        if smart_hits == 2:
+            return 0.8
+
     # ═══════════════════════════════════════════════════════════════════════
     # V40.0: SHARED METADATA LAYER INTEGRATION
     # ═══════════════════════════════════════════════════════════════════════
-    
+
     async def deep_scan_metadata(self, mint: str) -> bool:
         """
         Deep scan for the Shared Token Metadata Registry.
@@ -560,7 +625,7 @@ class ScoutAgent(BaseAgent):
         except ImportError:
             Logger.warning("⚠️ Rust Extension not available for metadata scan.")
             return False
-            
+
         # 1. Fetch Mint & Account Info
         # Using a batched call if possible, or individual key
         Logger.debug(f"🔍 [SCOUT] Deep scan metadata for {mint}...")
@@ -568,41 +633,47 @@ class ScoutAgent(BaseAgent):
         if err or not resp:
             Logger.warning(f"⚠️ [SCOUT] RPC Failed for {mint[:8]}: {err}")
             return False
-            
+
         data = resp.get("value", {}).get("data", {}).get("parsed", {}).get("info", {})
         if not data:
-            owner = resp.get("value", {}).get("owner") if resp and resp.get("value") else "Unknown"
-            Logger.debug(f"ℹ️ [SCOUT] No parsed info for {mint[:8]}. Proceeding to lifecycle check (Owner: {owner})")
-            
+            owner = (
+                resp.get("value", {}).get("owner")
+                if resp and resp.get("value")
+                else "Unknown"
+            )
+            Logger.debug(
+                f"ℹ️ [SCOUT] No parsed info for {mint[:8]}. Proceeding to lifecycle check (Owner: {owner})"
+            )
+
         # 2. Extract Data
         decimals = data.get("decimals", 9) if data else 9
         mint_authority = data.get("mintAuthority") if data else None
         freeze_authority = data.get("freezeAuthority") if data else None
         is_initialized = data.get("isInitialized", True)
-        
+
         # 3. Create Rust Struct
         meta = SharedTokenMetadata(mint)
         meta.decimals = decimals
-        meta.symbol = "UNK" # TODO: Fetch Symbol
-        
+        meta.symbol = "UNK"  # TODO: Fetch Symbol
+
         # New Fields (String & Bool)
         # Default to SPL if not found (or check owner in data)
         owner_program = data.get("owner", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
         meta.program_id = str(owner_program)
-        
+
         meta.freeze_authority = freeze_authority
-        meta.has_mint_auth = (mint_authority is not None)
-        meta.is_mutable = True 
-        
+        meta.has_mint_auth = mint_authority is not None
+        meta.is_mutable = True
+
         # 4. Check LP Lock (Simulated/Stub for now or use bitquery if available)
         meta.lp_locked_pct = 0.0
-        meta.is_rug_safe = (not meta.has_mint_auth and freeze_authority is None)
-        
+        meta.is_rug_safe = not meta.has_mint_auth and freeze_authority is None
+
         # Initialize fast fields to avoid Rust unwrap errors or zeros
         meta.velocity_1m = 0.0
         meta.order_imbalance = 1.0
         meta.price_usd = 0.0
-        meta.last_updated_slot = 0 # Will be considered stale until updated
+        meta.last_updated_slot = 0  # Will be considered stale until updated
 
         # 4b. Lifecycle Hierarchical Check (V140)
         # 1. Check Pump.fun (Bonding Curve)
@@ -610,41 +681,52 @@ class ScoutAgent(BaseAgent):
         if pump_info["active"] and pump_info["progress_pct"] < 100:
             meta.market_stage = "PUMP"
             meta.bonding_curve_progress = pump_info["progress_pct"]
-            Logger.info(f"🍼 [SCOUT] Lifecycle: {mint[:8]} is in INFANCY (Pump.fun {meta.bonding_curve_progress:.1f}%)")
+            Logger.info(
+                f"🍼 [SCOUT] Lifecycle: {mint[:8]} is in INFANCY (Pump.fun {meta.bonding_curve_progress:.1f}%)"
+            )
         else:
             # 2. Check Raydium Standard (Adolescence)
             std_pool = self.raydium_std.find_pool(mint, Settings.USDC_MINT)
             if std_pool:
                 meta.market_stage = "STD"
-                meta.bonding_curve_progress = 100.0 # Graduated
-                Logger.info(f"🎓 [SCOUT] Lifecycle: {mint[:8]} is in ADOLESCENCE (Standard AMM)")
+                meta.bonding_curve_progress = 100.0  # Graduated
+                Logger.info(
+                    f"🎓 [SCOUT] Lifecycle: {mint[:8]} is in ADOLESCENCE (Standard AMM)"
+                )
             else:
                 # 3. Check Raydium CLMM (Maturity)
                 # We reuse the existing bridge logic or assume if not above, it might be CLMM (or unknown)
                 from src.shared.execution.raydium_bridge import RaydiumBridge
+
                 bridge = RaydiumBridge()
                 clmm_pool = bridge.discover_pool(mint, Settings.USDC_MINT)
                 if clmm_pool:
                     meta.market_stage = "CLMM"
                     meta.bonding_curve_progress = 100.0
-                    Logger.info(f"🏛️ [SCOUT] Lifecycle: {mint[:8]} is in MATURITY (CLMM)")
+                    Logger.info(
+                        f"🏛️ [SCOUT] Lifecycle: {mint[:8]} is in MATURITY (CLMM)"
+                    )
                 else:
                     meta.bonding_curve_progress = 0.0
                     Logger.info(f"❓ [SCOUT] Lifecycle: {mint[:8]} stage UNKNOWN")
 
         # 5. Populate initial price/liquidity if known from cache
         from src.core.price_cache import price_cache
+
         price = price_cache.get_price(mint)
         if price > 0:
             meta.price_usd = price
-            
-        # 6. Emit to Director
-        signal_bus.emit(Signal(
-            type=SignalType.METADATA,
-            source=self.name,
-            data={"metadata": meta, "mint": mint}
-        ))
-        
-        Logger.info(f"🔍 [SCOUT] Metadata Updated for {mint[:8]} (RugSafe: {meta.is_rug_safe})")
-        return True
 
+        # 6. Emit to Director
+        signal_bus.emit(
+            Signal(
+                type=SignalType.METADATA,
+                source=self.name,
+                data={"metadata": meta, "mint": mint},
+            )
+        )
+
+        Logger.info(
+            f"🔍 [SCOUT] Metadata Updated for {mint[:8]} (RugSafe: {meta.is_rug_safe})"
+        )
+        return True

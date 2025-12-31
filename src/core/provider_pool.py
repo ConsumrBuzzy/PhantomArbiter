@@ -16,9 +16,8 @@ import os
 import time
 import random
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
-from collections import deque
 from enum import Enum
 from dotenv import load_dotenv
 
@@ -27,6 +26,7 @@ load_dotenv()
 
 class ProviderType(Enum):
     """Supported RPC providers."""
+
     HELIUS = "helius"
     ALCHEMY = "alchemy"
     QUICKNODE = "quicknode"
@@ -49,21 +49,22 @@ class ProviderType(Enum):
 @dataclass
 class ProviderEndpoint:
     """Single RPC endpoint with key and health metrics."""
+
     provider: ProviderType
     api_key: str
     http_url: str
     wss_url: str
-    
+
     # Health metrics (updated in real-time)
     latency_ms: float = 0.0
     error_count: int = 0
     success_count: int = 0
     last_used: float = 0.0
     is_healthy: bool = True
-    
+
     # Rate limit tracking
     rate_limit_until: float = 0.0
-    
+
     @property
     def error_rate(self) -> float:
         """Calculate error rate (0.0 - 1.0)."""
@@ -71,12 +72,12 @@ class ProviderEndpoint:
         if total == 0:
             return 0.0
         return self.error_count / total
-    
+
     @property
     def is_rate_limited(self) -> bool:
         """Check if currently rate-limited (429)."""
         return time.time() < self.rate_limit_until
-    
+
     def record_success(self, latency_ms: float) -> None:
         """Record a successful request."""
         self.success_count += 1
@@ -87,21 +88,21 @@ class ProviderEndpoint:
             self.latency_ms = 0.8 * self.latency_ms + 0.2 * latency_ms
         self.last_used = time.time()
         self.is_healthy = True
-    
+
     def record_error(self, is_rate_limit: bool = False) -> None:
         """Record a failed request."""
         self.error_count += 1
         self.last_used = time.time()
-        
+
         if is_rate_limit:
             # Exponential backoff: 1s, 2s, 4s, 8s, max 30s
             backoff = min(30, 2 ** min(self.error_count, 5))
             self.rate_limit_until = time.time() + backoff
-        
+
         # Mark unhealthy if error rate > 30%
         if self.error_rate > 0.3 and self.success_count + self.error_count > 10:
             self.is_healthy = False
-    
+
     def reset_health(self) -> None:
         """Reset health metrics (for periodic refresh)."""
         self.error_count = 0
@@ -109,12 +110,13 @@ class ProviderEndpoint:
         self.is_healthy = True
 
 
-@dataclass 
+@dataclass
 class ProviderConfig:
     """Configuration for a provider type."""
+
     provider: ProviderType
     http_template: str  # URL template with {api_key} placeholder
-    wss_template: str   # WSS URL template
+    wss_template: str  # WSS URL template
     env_key_prefix: str  # e.g., "HELIUS_API_KEY" -> HELIUS_API_KEY_1, HELIUS_API_KEY_2
 
 
@@ -182,7 +184,7 @@ PROVIDER_CONFIGS: dict[ProviderType, ProviderConfig] = {
     ),
     ProviderType.MORALIS: ProviderConfig(
         provider=ProviderType.MORALIS,
-        http_template="https://solana-mainnet.g.alchemy.com/v2/{api_key}", # Logic below handles moralis specific if needed
+        http_template="https://solana-mainnet.g.alchemy.com/v2/{api_key}",  # Logic below handles moralis specific if needed
         wss_template="",
         env_key_prefix="MORALIS_API_KEY",
     ),
@@ -222,59 +224,64 @@ PROVIDER_CONFIGS: dict[ProviderType, ProviderConfig] = {
 class ProviderPool:
     """
     Multi-provider RPC pool with automatic failover and key rotation.
-    
+
     Usage:
         pool = ProviderPool()
         pool.load_from_env()
-        
+
         # Get best HTTP endpoint
         endpoint = pool.get_http_endpoint()
-        
+
         # Get all WSS endpoints for parallel race
         wss_urls = pool.get_wss_endpoints()
     """
-    
+
     def __init__(self) -> None:
         self._endpoints: list[ProviderEndpoint] = []
         self._lock = threading.Lock()
         self._round_robin_index = 0
-        
+
         # Health check interval
         self._last_health_reset = time.time()
         self._health_reset_interval = 300  # Reset metrics every 5 min
-    
+
     def load_from_env(self) -> int:
         """
         Load all API keys and full URLs from environment variables.
-        
+
         Supports:
         - <PREFIX>_API_KEY (injected into template)
         - <PREFIX>_RPC_URL (full HTTP URL override)
         - <PREFIX>_WSS_URL (full WSS URL override)
         """
         loaded = 0
-        
+
         for provider_type, config in PROVIDER_CONFIGS.items():
             # 1. Check for full URL overrides (e.g., HELIUS_RPC_URL)
-            rpc_url = os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_RPC_URL") or \
-                      os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_ENDPOINT")
-            wss_url = os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_WSS_URL") or \
-                      os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_WSS")
-            
+            rpc_url = os.getenv(
+                f"{config.env_key_prefix.replace('_API_KEY', '')}_RPC_URL"
+            ) or os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_ENDPOINT")
+            wss_url = os.getenv(
+                f"{config.env_key_prefix.replace('_API_KEY', '')}_WSS_URL"
+            ) or os.getenv(f"{config.env_key_prefix.replace('_API_KEY', '')}_WSS")
+
             if rpc_url:
                 endpoint = ProviderEndpoint(
                     provider=provider_type,
                     api_key="manual",
                     http_url=rpc_url.strip().strip('"').strip("'"),
-                    wss_url=(wss_url or rpc_url.replace("https://", "wss://")).strip().strip('"').strip("'"),
+                    wss_url=(wss_url or rpc_url.replace("https://", "wss://"))
+                    .strip()
+                    .strip('"')
+                    .strip("'"),
                 )
                 self._endpoints.append(endpoint)
                 loaded += 1
-                continue # Skip key loading for this provider if full URL is given
+                continue  # Skip key loading for this provider if full URL is given
 
             # 2. Regular key-based loading
             keys = self._get_env_keys(config.env_key_prefix)
-            
+
             for key in keys:
                 endpoint = ProviderEndpoint(
                     provider=provider_type,
@@ -284,35 +291,37 @@ class ProviderPool:
                 )
                 self._endpoints.append(endpoint)
                 loaded += 1
-        
+
         return loaded
-    
+
     def _get_env_keys(self, prefix: str) -> list[str]:
         """Get all API keys for a prefix (supports _1, _2, ... suffixes)."""
         keys = []
-        
+
         # Check base key (e.g., HELIUS_API_KEY)
         base_key = os.getenv(prefix)
         if base_key:
             keys.append(base_key.strip().strip('"').strip("'"))
-        
+
         # Check numbered keys (e.g., HELIUS_API_KEY_1, HELIUS_API_KEY_2)
         for i in range(1, 10):
             numbered_key = os.getenv(f"{prefix}_{i}")
             if numbered_key:
                 keys.append(numbered_key.strip().strip('"').strip("'"))
-        
+
         return keys
-    
+
     def add_endpoint(self, endpoint: ProviderEndpoint) -> None:
         """Manually add an endpoint."""
         with self._lock:
             self._endpoints.append(endpoint)
-    
-    def get_http_endpoint(self, prefer_provider: Optional[ProviderType] = None) -> Optional[ProviderEndpoint]:
+
+    def get_http_endpoint(
+        self, prefer_provider: Optional[ProviderType] = None
+    ) -> Optional[ProviderEndpoint]:
         """
         Get the best available HTTP endpoint.
-        
+
         Strategy:
         1. Filter out rate-limited and unhealthy endpoints
         2. Prefer specified provider if given
@@ -320,88 +329,86 @@ class ProviderPool:
         4. Round-robin among top 3 for load distribution
         """
         self._maybe_reset_health()
-        
+
         with self._lock:
             available = [
-                ep for ep in self._endpoints
-                if ep.is_healthy and not ep.is_rate_limited
+                ep for ep in self._endpoints if ep.is_healthy and not ep.is_rate_limited
             ]
-            
+
             if not available:
                 # Fallback: try any endpoint
                 available = [ep for ep in self._endpoints if not ep.is_rate_limited]
-            
+
             if not available:
                 return None
-            
+
             # Prefer specific provider
             if prefer_provider:
                 preferred = [ep for ep in available if ep.provider == prefer_provider]
                 if preferred:
                     available = preferred
-            
+
             # Sort by latency (0 latency means untested, put at end)
             available.sort(key=lambda ep: ep.latency_ms if ep.latency_ms > 0 else 9999)
-            
+
             # Round-robin among top 3
             top_n = min(3, len(available))
             idx = self._round_robin_index % top_n
             self._round_robin_index += 1
-            
+
             return available[idx]
-    
+
     def get_wss_endpoints(
-        self, 
-        max_count: int = 5,
-        commitment: str = "processed"
+        self, max_count: int = 5, commitment: str = "processed"
     ) -> list[str]:
         """
         Get WSS endpoints for parallel race.
-        
+
         Returns unique endpoints from different providers for maximum diversity.
         """
         self._maybe_reset_health()
-        
+
         with self._lock:
             available = [
-                ep for ep in self._endpoints
-                if ep.is_healthy and not ep.is_rate_limited
+                ep for ep in self._endpoints if ep.is_healthy and not ep.is_rate_limited
             ]
-            
+
             if not available:
                 available = list(self._endpoints)
-            
+
             # Diversify: pick one from each provider first
             by_provider: dict[ProviderType, list[ProviderEndpoint]] = {}
             for ep in available:
                 by_provider.setdefault(ep.provider, []).append(ep)
-            
+
             result = []
-            
+
             # First pass: one from each provider
             for provider, eps in by_provider.items():
                 if len(result) >= max_count:
                     break
                 # Pick the healthiest one from this provider
-                best = min(eps, key=lambda ep: ep.latency_ms if ep.latency_ms > 0 else 9999)
+                best = min(
+                    eps, key=lambda ep: ep.latency_ms if ep.latency_ms > 0 else 9999
+                )
                 result.append(best.wss_url)
-            
+
             # Second pass: fill remaining slots
             remaining = [ep for ep in available if ep.wss_url not in result]
             random.shuffle(remaining)
-            
+
             for ep in remaining:
                 if len(result) >= max_count:
                     break
                 result.append(ep.wss_url)
-            
+
             return result
-    
+
     def get_all_http_urls(self) -> list[str]:
         """Get all HTTP URLs for batch/race requests."""
         with self._lock:
             return [ep.http_url for ep in self._endpoints if ep.is_healthy]
-    
+
     def record_success(self, url: str, latency_ms: float) -> None:
         """Record a successful request to an endpoint."""
         with self._lock:
@@ -409,7 +416,7 @@ class ProviderPool:
                 if url in (ep.http_url, ep.wss_url):
                     ep.record_success(latency_ms)
                     break
-    
+
     def record_error(self, url: str, is_rate_limit: bool = False) -> None:
         """Record a failed request to an endpoint."""
         with self._lock:
@@ -417,7 +424,7 @@ class ProviderPool:
                 if url in (ep.http_url, ep.wss_url):
                     ep.record_error(is_rate_limit)
                     break
-    
+
     def _maybe_reset_health(self) -> None:
         """Periodically reset health metrics to give recovered endpoints a chance."""
         now = time.time()
@@ -426,7 +433,7 @@ class ProviderPool:
                 for ep in self._endpoints:
                     ep.reset_health()
                 self._last_health_reset = now
-    
+
     def get_stats(self) -> dict:
         """Get pool statistics for monitoring."""
         with self._lock:
@@ -435,18 +442,20 @@ class ProviderPool:
                 "healthy_endpoints": sum(1 for ep in self._endpoints if ep.is_healthy),
                 "rate_limited": sum(1 for ep in self._endpoints if ep.is_rate_limited),
                 "by_provider": {
-                    provider.value: sum(1 for ep in self._endpoints if ep.provider == provider)
+                    provider.value: sum(
+                        1 for ep in self._endpoints if ep.provider == provider
+                    )
                     for provider in ProviderType
                 },
                 "avg_latency_ms": (
-                    sum(ep.latency_ms for ep in self._endpoints if ep.latency_ms > 0) /
-                    max(1, sum(1 for ep in self._endpoints if ep.latency_ms > 0))
+                    sum(ep.latency_ms for ep in self._endpoints if ep.latency_ms > 0)
+                    / max(1, sum(1 for ep in self._endpoints if ep.latency_ms > 0))
                 ),
             }
-    
+
     def __len__(self) -> int:
         return len(self._endpoints)
-    
+
     def __repr__(self) -> str:
         stats = self.get_stats()
         return f"ProviderPool({stats['healthy_endpoints']}/{stats['total_endpoints']} healthy)"

@@ -1,14 +1,13 @@
-
 import asyncio
 import base64
 import os
 from solders.keypair import Keypair
-from solders.pubkey import Pubkey
 from config.settings import Settings
 from src.shared.execution.unified_router import UnifiedTradeRouter
 from src.shared.config.risk import RiskConfig
 from src.shared.system.logging import Logger
 from src.shared.system.smart_router import SmartRouter
+
 
 async def test_mainnet_swap():
     """
@@ -17,22 +16,24 @@ async def test_mainnet_swap():
     """
     Settings.SILENT_MODE = False
     Logger.info("🧪 INITIALIZING MAINNET SWAP TEST...")
-    
+
     # 1. Setup
     risk_config = RiskConfig()
     router = UnifiedTradeRouter(risk_config)
     smart_router = SmartRouter()
-    
+
     SOL_MINT = "So11111111111111111111111111111111111111112"
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-    
+
     # Amount: 0.001 SOL (~$0.15)
-    amount_lamports = 1_000_000 
-    
-    Logger.info(f"🛒 Quoting 0.001 SOL -> USDC...")
-    
+    amount_lamports = 1_000_000
+
+    Logger.info("🛒 Quoting 0.001 SOL -> USDC...")
+
     # 2. Get Quote
-    quote = smart_router.get_jupiter_quote(SOL_MINT, USDC_MINT, amount_lamports, slippage_bps=50)
+    quote = smart_router.get_jupiter_quote(
+        SOL_MINT, USDC_MINT, amount_lamports, slippage_bps=50
+    )
     if not quote or "error" in quote:
         Logger.error(f"❌ Quote failed: {quote}")
         return
@@ -42,17 +43,17 @@ async def test_mainnet_swap():
     if not priv_key_str:
         Logger.error("❌ No private key found in .env")
         return
-        
+
     signer = Keypair.from_base58_string(priv_key_str)
     public_key = str(signer.pubkey())
-    
+
     payload = {
         "quoteResponse": quote,
         "userPublicKey": public_key,
         "wrapAndUnwrapSol": True,
-        "computeUnitPriceMicroLamports": 10000 
+        "computeUnitPriceMicroLamports": 10000,
     }
-    
+
     swap_data = smart_router.get_swap_transaction(payload)
     if not swap_data or "swapTransaction" not in swap_data:
         Logger.error(f"❌ Swap transaction fetch failed: {swap_data}")
@@ -60,25 +61,26 @@ async def test_mainnet_swap():
 
     # 4. Prepare Transaction Bytes
     tx_bytes = base64.b64decode(swap_data["swapTransaction"])
-    
+
     # Note: Jupiter provides a transaction that usually needs a final signature from the user.
     # The Rust router.route_transaction will sign it with the private key configured.
-    
+
     Logger.info("🚀 Executing via UnifiedTradeRouter (Rust + Jito)...")
-    
+
     # 5. Execute
     result = router.execute_transaction(
-        path_type="ATOMIC", 
+        path_type="ATOMIC",
         tx_bytes=tx_bytes,
-        tip_lamports=1000 # Jito Tip
+        tip_lamports=1000,  # Jito Tip
     )
-    
+
     if result["success"]:
-        Logger.success(f"✅ SWAP SUCCESSFUL!")
+        Logger.success("✅ SWAP SUCCESSFUL!")
         Logger.info(f"🔗 Signature: {result['signature']}")
         Logger.info(f"🔗 View on Solscan: https://solscan.io/tx/{result['signature']}")
     else:
         Logger.error(f"❌ SWAP FAILED: {result['error']}")
+
 
 if __name__ == "__main__":
     asyncio.run(test_mainnet_swap())

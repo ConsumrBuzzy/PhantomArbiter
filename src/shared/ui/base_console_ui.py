@@ -9,19 +9,19 @@ Core primitives for ASCII dashboards:
 """
 
 import os
-import time
+
 
 class BaseConsoleUI:
     """
     Base class for rich console user interfaces.
     """
-    
+
     # ANSI Colors
     RESET = "\033[0m"
     BOLD = "\033[1m"
     DIM = "\033[2m"
     UNDERLINE = "\033[4m"
-    
+
     # Foreground colors
     RED = "\033[91m"
     GREEN = "\033[92m"
@@ -31,71 +31,91 @@ class BaseConsoleUI:
     CYAN = "\033[96m"
     WHITE = "\033[97m"
     GRAY = "\033[90m"
-    
+
     # Status colors mapping
     STATUS_COLORS = {
-        "READY": GREEN,      
-        "MONITOR": BLUE,  
-        "WAIT": GRAY,        
-        "EXECUTING": YELLOW,  
-        "PROFIT": GREEN,     
+        "READY": GREEN,
+        "MONITOR": BLUE,
+        "WAIT": GRAY,
+        "EXECUTING": YELLOW,
+        "PROFIT": GREEN,
         "LOSS": RED,
         "LIQ": RED,
-        "SLIP": MAGENTA
+        "SLIP": MAGENTA,
     }
-    
+
     # Box drawing characters (Double Line / Single Line styles)
     BOX = {
-        'tl': '╔', 'tr': '╗', 'bl': '╚', 'br': '╝',
-        'h': '═', 'v': '║',
-        'lm': '╠', 'rm': '╣', 'tm': '╦', 'bm': '╩',
-        'x': '╬', 'hl': '─', 'vl': '│',
-        't_down': 'qa', # TODO: Fix mapping if needed
+        "tl": "╔",
+        "tr": "╗",
+        "bl": "╚",
+        "br": "╝",
+        "h": "═",
+        "v": "║",
+        "lm": "╠",
+        "rm": "╣",
+        "tm": "╦",
+        "bm": "╩",
+        "x": "╬",
+        "hl": "─",
+        "vl": "│",
+        "t_down": "qa",  # TODO: Fix mapping if needed
     }
-    
+
     def __init__(self):
         pass
-        
+
     def clear_screen(self):
         """Clear terminal screen."""
-        os.system('cls' if os.name == 'nt' else 'clear')
-        
+        os.system("cls" if os.name == "nt" else "clear")
+
     def center_text(self, text: str, width: int) -> str:
         """Center text within width, ignoring ANSI codes for length."""
         text_len = self._visible_length(text)
         padding = max(0, (width - text_len) // 2)
-        return ' ' * padding + text
-    
-    def pad_text(self, text: str, width: int, align: str = '<') -> str:
+        return " " * padding + text
+
+    def pad_text(self, text: str, width: int, align: str = "<") -> str:
         """
         Pad text to width, accounting for ANSI codes.
         Align: '<' (left), '>' (right), '^' (center)
         """
         visible_len = self._visible_length(text)
         padding = max(0, width - visible_len)
-        
-        if align == '<':
-            return text + ' ' * padding
-        elif align == '>':
-            return ' ' * padding + text
-        elif align == '^':
+
+        if align == "<":
+            return text + " " * padding
+        elif align == ">":
+            return " " * padding + text
+        elif align == "^":
             left = padding // 2
             right = padding - left
-            return ' ' * left + text + ' ' * right
+            return " " * left + text + " " * right
         return text
 
     def make_box_line(self, left: str, fill: str, right: str, width: int) -> str:
         """Create a box line (e.g. ╔══════╗)."""
         return left + fill * (width - 2) + right
-        
+
     def _visible_length(self, text: str) -> int:
         """Calculate length of text excluding ANSI codes."""
         # Simple strip of common codes
         clean = text
-        for code in [self.RESET, self.BOLD, self.DIM, self.UNDERLINE,
-                     self.RED, self.GREEN, self.YELLOW, self.BLUE, 
-                     self.MAGENTA, self.CYAN, self.WHITE, self.GRAY]:
-            clean = clean.replace(code, '')
+        for code in [
+            self.RESET,
+            self.BOLD,
+            self.DIM,
+            self.UNDERLINE,
+            self.RED,
+            self.GREEN,
+            self.YELLOW,
+            self.BLUE,
+            self.MAGENTA,
+            self.CYAN,
+            self.WHITE,
+            self.GRAY,
+        ]:
+            clean = clean.replace(code, "")
         return len(clean)
 
     def color_status(self, status: str) -> str:

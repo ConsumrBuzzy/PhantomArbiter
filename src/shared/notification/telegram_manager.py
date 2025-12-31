@@ -31,32 +31,33 @@ CMD_SET_MODE = "SET_MODE"
 CMD_SET_SIZE = "SET_SIZE"
 CMD_SET_BUDGET = "SET_BUDGET"
 
+
 class TelegramManager:
     """
     Unified manager for Telegram interactions.
     V131: Supports TELEGRAM_SIMPLE_MODE for basic requests-based fallback.
     """
-    
+
     def __init__(self, command_queue: Optional[queue.Queue] = None):
         self.token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.command_queue = command_queue
-        
+
         self.enabled = bool(self.token and self.chat_id)
         self.running = False
-        
+
         # V131: Simple mode uses requests instead of async bot
         self.simple_mode = os.getenv("TELEGRAM_SIMPLE_MODE", "true").lower() == "true"
-        
+
         # Dashboard State
         self.dashboard_message_id: Optional[int] = None
         self.last_dashboard_content: str = ""
-        
+
         # Async Loop for Bot (not used in simple mode)
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.application = None
         self.thread: Optional[threading.Thread] = None
-        
+
         if not self.enabled:
             Logger.warning("⚠️ TG Manager: No Token. Telegram disabled.")
         elif self.simple_mode:
@@ -66,20 +67,19 @@ class TelegramManager:
         """Start the async bot thread."""
         if not self.enabled:
             return
-        
+
         # V131: Simple mode doesn't need async thread
         if self.simple_mode:
             self.running = True
             Logger.info("📡 [TG] Simple Mode: Ready (no polling)")
             return
-            
+
         if self.thread:
             return
-            
+
         self.running = True
         self.thread = threading.Thread(
-            target=self._run_async_loop,
-            name="TelegramManager"
+            target=self._run_async_loop, name="TelegramManager"
         )
         self.thread.daemon = True
         self.thread.start()
@@ -89,27 +89,31 @@ class TelegramManager:
         """Clean shutdown of the bot."""
         if not self.enabled:
             return
-            
+
         Logger.info("📡 [TG] Manager Stopping...")
         self.running = False
-        
+
         try:
             if self.loop and self.loop.is_running() and self.application:
                 # Schedule stop within the loop
-                future_stop = asyncio.run_coroutine_threadsafe(self.application.stop(), self.loop)
-                future_shutdown = asyncio.run_coroutine_threadsafe(self.application.shutdown(), self.loop)
-                
+                future_stop = asyncio.run_coroutine_threadsafe(
+                    self.application.stop(), self.loop
+                )
+                future_shutdown = asyncio.run_coroutine_threadsafe(
+                    self.application.shutdown(), self.loop
+                )
+
                 # Wait for them to complete or timeout
                 try:
                     future_stop.result(timeout=2)
                     future_shutdown.result(timeout=2)
                 except:
                     pass
-            
+
             if self.thread and self.thread.is_alive():
                 # Don't join forever, but give it a moment
                 self.thread.join(timeout=2)
-                
+
             self.thread = None
             Logger.info("📡 [TG] Manager Stopped.")
         except Exception as e:
@@ -119,38 +123,37 @@ class TelegramManager:
         """Main async loop running in background thread."""
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        
+
         # Build Application
         self.application = ApplicationBuilder().token(self.token).build()
-        
+
         # Register Command Handlers
         self._register_commands()
-        
+
         # Suppress httpx logs
         logging.getLogger("httpx").setLevel(logging.WARNING)
-        
+
         backoff = 5
-        
+
         while self.running:
             try:
                 # Initialize bot only if needed
                 if not self.application.initialized:
                     self.loop.run_until_complete(self.application.initialize())
-                
-                Logger.info(f"✅ Telegram Manager READY (Polling...)")
+
+                Logger.info("✅ Telegram Manager READY (Polling...)")
                 self.application.run_polling(
-                    stop_signals=None, 
-                    drop_pending_updates=True,
-                    close_loop=False
+                    stop_signals=None, drop_pending_updates=True, close_loop=False
                 )
             except Exception as e:
                 if not self.running:
                     break
-                    
+
                 # Specific handling for NetworkError to avoid excessive noise
                 Logger.error(f"❌ [TG] Connection Error: {e}")
                 print(f"   ⚠️ [TG] Connection lost. Retrying in {backoff}s...")
                 import time
+
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 60)
             finally:
@@ -160,15 +163,17 @@ class TelegramManager:
         try:
             if self.application:
                 self.loop.run_until_complete(self.application.shutdown())
-            
+
             # Cancel all pending tasks
             pending = asyncio.all_tasks(self.loop)
             for task in pending:
                 task.cancel()
-            
+
             if pending:
-                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                
+                self.loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+
             self.loop.close()
         except Exception as e:
             Logger.debug(f"[TG] Cleanup error: {e}")
@@ -189,26 +194,27 @@ class TelegramManager:
         """Send a new message (Thread-safe)."""
         if not self.enabled:
             return
-        
+
         # V131: Simple mode uses requests directly
         if self.simple_mode:
             self._simple_send(message)
             return
-            
+
         if not self.loop:
             return
         asyncio.run_coroutine_threadsafe(self._async_send(message), self.loop)
-    
+
     def _simple_send(self, message: str):
         """V131: Send via requests.post (blocking but reliable)."""
         import requests
+
         try:
             url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-            resp = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "HTML"
-            }, timeout=5)
+            resp = requests.post(
+                url,
+                json={"chat_id": self.chat_id, "text": message, "parse_mode": "HTML"},
+                timeout=5,
+            )
             if resp.status_code != 200:
                 Logger.debug(f"[TG] Send failed: {resp.status_code}")
         except Exception as e:
@@ -218,7 +224,9 @@ class TelegramManager:
         """Update the persistent dashboard message (Thread-safe)."""
         if not self.enabled or not self.loop:
             return
-        asyncio.run_coroutine_threadsafe(self._async_update_dashboard(content), self.loop)
+        asyncio.run_coroutine_threadsafe(
+            self._async_update_dashboard(content), self.loop
+        )
 
     # ═══════════════════════════════════════════════════════════════════
     # ASYNC IMPLEMENTATION
@@ -227,9 +235,7 @@ class TelegramManager:
     async def _async_send(self, message: str):
         try:
             await self.application.bot.send_message(
-                chat_id=self.chat_id, 
-                text=message, 
-                parse_mode='HTML'
+                chat_id=self.chat_id, text=message, parse_mode="HTML"
             )
         except Exception as e:
             Logger.debug(f"[TG] Send Error: {e}")
@@ -237,11 +243,11 @@ class TelegramManager:
     async def _async_update_dashboard(self, content: str):
         """Edit existing message or send new one."""
         formatted = content  # Caller handles formatting now
-        
+
         # Skip if identical (avoids API errors)
         if formatted == self.last_dashboard_content:
             return
-            
+
         try:
             if self.dashboard_message_id:
                 try:
@@ -249,7 +255,7 @@ class TelegramManager:
                         chat_id=self.chat_id,
                         message_id=self.dashboard_message_id,
                         text=formatted,
-                        parse_mode='MarkdownV2'
+                        parse_mode="MarkdownV2",
                     )
                     self.last_dashboard_content = formatted
                     return
@@ -258,16 +264,14 @@ class TelegramManager:
                         return
                     # If message was deleted or too old, reset
                     self.dashboard_message_id = None
-            
+
             # Send new if no ID or edit failed
             msg = await self.application.bot.send_message(
-                chat_id=self.chat_id,
-                text=formatted,
-                parse_mode='MarkdownV2'
+                chat_id=self.chat_id, text=formatted, parse_mode="MarkdownV2"
             )
             self.dashboard_message_id = msg.message_id
             self.last_dashboard_content = formatted
-            
+
         except Exception as e:
             Logger.debug(f"[TG] Dashboard Error: {e}")
 
@@ -284,14 +288,14 @@ class TelegramManager:
         await update.message.reply_text("🛑 Stopping Engine...")
         if self.command_queue:
             self.command_queue.put(CMD_STOP_ENGINE)
-            
+
     async def _cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🤖 *PHANTOM COMMANDS*\n"
             "/status - System check\n"
             "/stop - Shutdown\n"
             "/clean <TOKEN|all> - Dump tokens to USDC\n",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
     async def _cmd_clean(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -300,29 +304,29 @@ class TelegramManager:
         Usage: /clean BONK or /clean all
         """
         args = context.args
-        
+
         if not args:
             await update.message.reply_text("❌ Usage: /clean <TOKEN> or /clean all")
             return
-            
+
         target = args[0].upper()
         await update.message.reply_text(f"🧹 Starting cleanup: {target}...")
-        
+
         try:
             from src.shared.execution.wallet import WalletManager
             from src.shared.execution.swapper import JupiterSwapper
             from config.settings import Settings
-            
+
             Settings.ENABLE_TRADING = True
             wallet = WalletManager()
-            
+
             if not wallet.keypair:
                 await update.message.reply_text("❌ No wallet key loaded!")
                 return
-                
+
             swapper = JupiterSwapper(wallet)
             targets = []
-            
+
             if target == "ALL":
                 tokens = wallet.get_all_token_accounts()
                 for mint, bal in tokens.items():
@@ -337,41 +341,41 @@ class TelegramManager:
                 else:
                     await update.message.reply_text(f"❌ Unknown token: {target}")
                     return
-            
+
             if not targets:
                 await update.message.reply_text("✨ Nothing to clean!")
                 return
-                
+
             results = []
             for mint in targets:
                 info = wallet.get_token_info(mint)
                 if not info:
                     continue
-                    
+
                 symbol = "?"
                 for k, v in Settings.ASSETS.items():
                     if v == mint:
                         symbol = k
                         break
-                        
+
                 tx = swapper.execute_swap(
                     direction="SELL",
                     amount_usd=0,
                     reason="TG Clean",
                     target_mint=mint,
-                    priority_fee=100000
+                    priority_fee=100000,
                 )
-                
+
                 if tx:
                     results.append(f"✅ {symbol}")
                 else:
                     results.append(f"❌ {symbol}")
-                    
+
                 await asyncio.sleep(1.0)
-            
+
             await update.message.reply_text(
-                f"🧹 Cleanup Complete!\n" + "\n".join(results)
+                "🧹 Cleanup Complete!\n" + "\n".join(results)
             )
-            
+
         except Exception as e:
             await update.message.reply_text(f"❌ Error: {str(e)[:100]}")

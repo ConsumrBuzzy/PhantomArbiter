@@ -26,20 +26,29 @@ from dataclasses import dataclass, field
 try:
     from src.shared.system.logging import Logger
 except ImportError:
+
     class Logger:
         @staticmethod
-        def info(msg): print(f"[INFO] {msg}")
+        def info(msg):
+            print(f"[INFO] {msg}")
+
         @staticmethod
-        def warning(msg): print(f"[WARN] {msg}")
+        def warning(msg):
+            print(f"[WARN] {msg}")
+
         @staticmethod
-        def error(msg): print(f"[ERROR] {msg}")
+        def error(msg):
+            print(f"[ERROR] {msg}")
+
         @staticmethod
-        def debug(msg): pass
+        def debug(msg):
+            pass
 
 
 @dataclass
 class SwapLeg:
     """Represents one leg of a multi-DEX swap."""
+
     dex: str  # 'meteora', 'orca', 'jupiter'
     pool: str
     input_mint: str
@@ -49,18 +58,19 @@ class SwapLeg:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'dex': self.dex,
-            'pool': self.pool,
-            'inputMint': self.input_mint,
-            'outputMint': self.output_mint,
-            'amount': self.amount,
-            'slippageBps': self.slippage_bps,
+            "dex": self.dex,
+            "pool": self.pool,
+            "inputMint": self.input_mint,
+            "outputMint": self.output_mint,
+            "amount": self.amount,
+            "slippageBps": self.slippage_bps,
         }
 
 
 @dataclass
 class LegResult:
     """Result from one swap leg."""
+
     dex: str
     input_mint: str
     output_mint: str
@@ -72,6 +82,7 @@ class LegResult:
 @dataclass
 class ExecutionResult:
     """Result from unified execution engine."""
+
     success: bool
     command: str
     signature: Optional[str] = None
@@ -86,10 +97,10 @@ class ExecutionResult:
 class ExecutionBridge:
     """
     Python wrapper for the Unified TypeScript Execution Engine.
-    
+
     Enables atomic multi-DEX swaps via persistent Node.js daemon.
     """
-    
+
     def __init__(self, engine_path: Optional[str] = None):
         """
         Initialize the bridge.
@@ -99,11 +110,11 @@ class ExecutionBridge:
         else:
             project_root = Path(__file__).parent.parent.parent.parent
             self.engine_path = project_root / "bridges" / "execution_engine.js"
-        
+
         if not self.engine_path.exists():
             Logger.warning(f"[EXEC] Engine not found at {self.engine_path}")
             Logger.warning("[EXEC] Run: cd bridges && npm install && npm run build")
-            
+
         self._daemon = None
 
     def _ensure_daemon(self):
@@ -120,7 +131,7 @@ class ExecutionBridge:
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=str(self.engine_path.parent),
-                bufsize=1
+                bufsize=1,
             )
             Logger.info("[EXEC] Daemon started (PID: %s)", self._daemon.pid)
         except Exception as e:
@@ -132,18 +143,18 @@ class ExecutionBridge:
         self._ensure_daemon()
         if not self._daemon:
             return {"success": False, "error": "Daemon failed to start"}
-            
+
         try:
             payload = json.dumps(command) + "\n"
             self._daemon.stdin.write(payload)
             self._daemon.stdin.flush()
-            
+
             line = self._daemon.stdout.readline()
             if not line:
                 Logger.error("[EXEC] Daemon closed stream")
                 self._daemon = None
                 return {"success": False, "error": "Daemon closed stream"}
-                
+
             return json.loads(line.strip())
         except Exception as e:
             Logger.error(f"[EXEC] IPC error: {e}")
@@ -159,43 +170,45 @@ class ExecutionBridge:
     def _parse_result(self, data: Dict[str, Any]) -> ExecutionResult:
         """Parse engine response into ExecutionResult."""
         legs = []
-        for leg_data in data.get('legs', []):
-            legs.append(LegResult(
-                dex=leg_data.get('dex', ''),
-                input_mint=leg_data.get('inputMint', ''),
-                output_mint=leg_data.get('outputMint', ''),
-                input_amount=int(leg_data.get('inputAmount', 0)),
-                output_amount=int(leg_data.get('outputAmount', 0)),
-                price_impact=float(leg_data.get('priceImpact', 0)),
-            ))
-        
+        for leg_data in data.get("legs", []):
+            legs.append(
+                LegResult(
+                    dex=leg_data.get("dex", ""),
+                    input_mint=leg_data.get("inputMint", ""),
+                    output_mint=leg_data.get("outputMint", ""),
+                    input_amount=int(leg_data.get("inputAmount", 0)),
+                    output_amount=int(leg_data.get("outputAmount", 0)),
+                    price_impact=float(leg_data.get("priceImpact", 0)),
+                )
+            )
+
         return ExecutionResult(
-            success=data.get('success', False),
-            command=data.get('command', ''),
-            signature=data.get('signature'),
+            success=data.get("success", False),
+            command=data.get("command", ""),
+            signature=data.get("signature"),
             legs=legs,
-            error=data.get('error'),
-            simulation_success=data.get('simulationSuccess'),
-            simulation_error=data.get('simulationError'),
-            compute_units_used=data.get('computeUnitsUsed'),
-            timestamp=int(data.get('timestamp', 0)),
+            error=data.get("error"),
+            simulation_success=data.get("simulationSuccess"),
+            simulation_error=data.get("simulationError"),
+            compute_units_used=data.get("computeUnitsUsed"),
+            timestamp=int(data.get("timestamp", 0)),
         )
 
     def health_check(self) -> bool:
         """Check if the engine is available and working."""
         if not self.engine_path.exists():
             return False
-        
+
         result = self._run_engine({"command": "health"})
-        return result.get('success', False)
+        return result.get("success", False)
 
     def get_quotes(self, legs: List[SwapLeg]) -> ExecutionResult:
         """
         Get quotes for multiple swap legs without executing.
-        
+
         Args:
             legs: List of SwapLeg objects
-            
+
         Returns:
             ExecutionResult with quote data for each leg
         """
@@ -203,7 +216,7 @@ class ExecutionBridge:
             "command": "quote",
             "legs": [leg.to_dict() for leg in legs],
         }
-        
+
         data = self._run_engine(command)
         return self._parse_result(data)
 
@@ -216,39 +229,39 @@ class ExecutionBridge:
     ) -> ExecutionResult:
         """
         Simulate a multi-leg swap without executing (seatbelt check).
-        
+
         Use this to verify a transaction would succeed before spending gas.
-        
+
         Args:
             legs: List of SwapLeg objects
             private_key: Base58-encoded wallet private key
             priority_fee: Priority fee in microlamports per CU
-            
+
         Returns:
             ExecutionResult with simulation status (no signature)
         """
         Logger.info(f"[EXEC] Simulating {len(legs)}-leg swap (seatbelt check)...")
-        
+
         command = {
             "command": "simulate",
             "legs": [leg.to_dict() for leg in legs],
             "privateKey": private_key,
         }
-        
+
         if priority_fee is not None:
             command["priorityFee"] = priority_fee
-            
+
         if rpc_url:
             command["rpcUrl"] = rpc_url
-        
+
         data = self._run_engine(command)
         result = self._parse_result(data)
-        
+
         if result.success:
             Logger.info(f"[EXEC] ✅ Simulation passed! CU: {result.compute_units_used}")
         else:
             Logger.warning(f"[EXEC] ⚠️ Simulation failed: {result.simulation_error}")
-        
+
         return result
 
     def execute_swap(
@@ -261,42 +274,42 @@ class ExecutionBridge:
     ) -> ExecutionResult:
         """
         Execute atomic multi-leg swap.
-        
+
         ⚠️ LIVE EXECUTION - Uses real funds!
-        
+
         Args:
             legs: List of SwapLeg objects (executed atomically)
             private_key: Base58-encoded wallet private key
             priority_fee: Priority fee in microlamports per CU (default: 50,000)
             jito_tip_lamports: Tip for Jito bundles (0 = no tip, 10000+ recommended)
             rpc_url: Optional custom RPC URL
-            
+
         Returns:
             ExecutionResult with transaction signature
         """
         Logger.info(f"[EXEC] Executing {len(legs)}-leg atomic swap...")
-        
+
         command = {
             "command": "swap",
             "legs": [leg.to_dict() for leg in legs],
             "privateKey": private_key,
             "jitoTipLamports": jito_tip_lamports,
         }
-        
+
         if priority_fee is not None:
             command["priorityFee"] = priority_fee
-            
+
         if rpc_url:
             command["rpcUrl"] = rpc_url
-        
+
         data = self._run_engine(command)
         result = self._parse_result(data)
-        
+
         if result.success:
             Logger.info(f"[EXEC] ✅ Atomic swap success: {result.signature}")
         else:
             Logger.error(f"[EXEC] ❌ Atomic swap failed: {result.error}")
-        
+
         return result
 
     def atomic_arb(
@@ -308,46 +321,46 @@ class ExecutionBridge:
     ) -> ExecutionResult:
         """
         Execute a two-leg atomic arbitrage.
-        
+
         Convenience method for the common case of buy→sell arb.
-        
+
         Args:
             leg1: First leg dict with keys: dex, pool, inputMint, outputMint, amount
             leg2: Second leg dict with same keys
             private_key: Optional private key (falls back to env var)
             priority_fee: Optional priority fee
-            
+
         Returns:
             ExecutionResult
         """
         # Get private key from env if not provided
-        pk = private_key or os.getenv('PHANTOM_PRIVATE_KEY')
+        pk = private_key or os.getenv("PHANTOM_PRIVATE_KEY")
         if not pk:
             return ExecutionResult(
                 success=False,
-                command='swap',
-                error='No private key provided or found in PHANTOM_PRIVATE_KEY env var',
+                command="swap",
+                error="No private key provided or found in PHANTOM_PRIVATE_KEY env var",
             )
-        
+
         legs = [
             SwapLeg(
-                dex=leg1['dex'],
-                pool=leg1['pool'],
-                input_mint=leg1.get('inputMint', leg1.get('input_mint', '')),
-                output_mint=leg1.get('outputMint', leg1.get('output_mint', '')),
-                amount=leg1['amount'],
-                slippage_bps=leg1.get('slippageBps', leg1.get('slippage_bps', 100)),
+                dex=leg1["dex"],
+                pool=leg1["pool"],
+                input_mint=leg1.get("inputMint", leg1.get("input_mint", "")),
+                output_mint=leg1.get("outputMint", leg1.get("output_mint", "")),
+                amount=leg1["amount"],
+                slippage_bps=leg1.get("slippageBps", leg1.get("slippage_bps", 100)),
             ),
             SwapLeg(
-                dex=leg2['dex'],
-                pool=leg2['pool'],
-                input_mint=leg2.get('inputMint', leg2.get('input_mint', '')),
-                output_mint=leg2.get('outputMint', leg2.get('output_mint', '')),
-                amount=leg2['amount'],
-                slippage_bps=leg2.get('slippageBps', leg2.get('slippage_bps', 100)),
+                dex=leg2["dex"],
+                pool=leg2["pool"],
+                input_mint=leg2.get("inputMint", leg2.get("input_mint", "")),
+                output_mint=leg2.get("outputMint", leg2.get("output_mint", "")),
+                amount=leg2["amount"],
+                slippage_bps=leg2.get("slippageBps", leg2.get("slippage_bps", 100)),
             ),
         ]
-        
+
         return self.execute_swap(legs, pk, priority_fee)
 
     def is_available(self) -> bool:
@@ -363,19 +376,19 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Unified Execution Bridge Test")
     print("=" * 60)
-    
+
     bridge = ExecutionBridge()
-    
+
     if not bridge.is_available():
         print("❌ Engine not available. Run:")
         print("   cd bridges; npm install; npm run build")
         exit(1)
-    
+
     print("\n1. Health check...")
     if bridge.health_check():
         print("   ✅ Engine is healthy")
     else:
         print("   ❌ Engine health check failed")
-    
+
     print("\n" + "=" * 60)
     print("Test complete!")

@@ -8,18 +8,17 @@ Use with send_telegram() from comms_daemon.
 
 Usage:
     from src.shared.system.telegram_templates import TradeTemplates, OrcaTemplates
-    
+
     msg = TradeTemplates.entry("WIF", "BUY", 25.00, 2.45, "MOMENTUM")
     send_telegram(msg, source="TRADE", priority="HIGH")
 """
 
-from typing import Optional
 from datetime import datetime
 
 
 class TradeTemplates:
     """Templates for trade alerts (HTML format)."""
-    
+
     @staticmethod
     def entry(
         symbol: str,
@@ -27,12 +26,12 @@ class TradeTemplates:
         amount: float,
         price: float,
         engine: str,
-        reason: str = ""
+        reason: str = "",
     ) -> str:
         """Format a trade entry alert."""
         emoji = "📈" if action.upper() == "BUY" else "📉"
         reason_line = f"\n• Signal: <i>{reason}</i>" if reason else ""
-        
+
         return f"""{emoji} <b>{action.upper()} EXECUTED</b>
 ━━━━━━━━━━━━━━━
 • Token: <code>{symbol}</code>
@@ -47,18 +46,18 @@ class TradeTemplates:
         pnl: float,
         pnl_pct: float,
         hold_time_mins: float,
-        exit_reason: str = ""
+        exit_reason: str = "",
     ) -> str:
         """Format a position exit alert."""
         emoji = "🟢" if pnl >= 0 else "🔴"
-        
+
         # Format hold time
         if hold_time_mins < 60:
             hold_str = f"{hold_time_mins:.0f}m"
         else:
             hours = hold_time_mins / 60
             hold_str = f"{hours:.1f}h"
-        
+
         return f"""{emoji} <b>POSITION CLOSED</b>
 ━━━━━━━━━━━━━━━
 • Token: <code>{symbol}</code>
@@ -80,14 +79,10 @@ class TradeTemplates:
 
 class OrcaTemplates:
     """Templates for Orca CLMM alerts."""
-    
+
     @staticmethod
     def position_open(
-        pool: str,
-        capital: float,
-        range_pct: float,
-        tick_lower: int,
-        tick_upper: int
+        pool: str, capital: float, range_pct: float, tick_lower: int, tick_upper: int
     ) -> str:
         """Format position opening alert."""
         return f"""🐋 <b>ORCA POSITION OPENED</b>
@@ -130,19 +125,19 @@ class OrcaTemplates:
 
 class DiscoveryTemplates:
     """Templates for multi-pad discovery alerts."""
-    
+
     @staticmethod
     def new_launch(platform: str, mint: str, symbol: str = "") -> str:
         """Format new token launch alert."""
         # Clean inputs
-        symbol = symbol.replace('<', '').replace('>', '')  # Sanitize
-        
+        symbol = symbol.replace("<", "").replace(">", "")  # Sanitize
+
         # Display logic
         if symbol and symbol != "UNKNOWN":
             header = f"🚀 <b>NEW LAUNCH: {symbol}</b>"
         else:
             header = "🚀 <b>NEW LAUNCH</b>"
-            
+
         return f"""{header}
 ━━━━━━━━━━━━━━━
 • Platform: <i>{platform}</i>
@@ -161,10 +156,7 @@ class DiscoveryTemplates:
 
     @staticmethod
     def snipe_opportunity(
-        mint: str,
-        confidence: str,
-        suggested_entry: float,
-        platform: str
+        mint: str, confidence: str, suggested_entry: float, platform: str
     ) -> str:
         """Format snipe opportunity alert."""
         emoji = "🎯" if confidence.lower() == "high" else "⚠️"
@@ -179,7 +171,7 @@ class DiscoveryTemplates:
 
 class SystemTemplates:
     """Templates for system status alerts."""
-    
+
     @staticmethod
     def startup(version: str, engines: list) -> str:
         """Format system startup alert."""
@@ -223,13 +215,16 @@ class SystemTemplates:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
+
 def format_trade_entry(*args, **kwargs) -> str:
     """Shortcut for TradeTemplates.entry()"""
     return TradeTemplates.entry(*args, **kwargs)
 
+
 def format_trade_exit(*args, **kwargs) -> str:
     """Shortcut for TradeTemplates.exit()"""
     return TradeTemplates.exit(*args, **kwargs)
+
 
 def format_orca_status(*args, **kwargs) -> str:
     """Shortcut for OrcaTemplates.status()"""
@@ -243,20 +238,24 @@ def format_orca_status(*args, **kwargs) -> str:
 if __name__ == "__main__":
     print("Telegram Templates Test")
     print("=" * 50)
-    
+
     print("\n1. Trade Entry:")
     print(TradeTemplates.entry("WIF", "BUY", 25.00, 2.4567, "MOMENTUM", "RSI oversold"))
-    
+
     print("\n2. Trade Exit:")
     print(TradeTemplates.exit("BONK", 3.50, 14.0, 45, "Take profit"))
-    
+
     print("\n3. Orca Position:")
     print(OrcaTemplates.position_open("Czfq3xZZ...", 50.0, 5.0, -1000, 1000))
-    
+
     print("\n4. Discovery Launch:")
-    print(DiscoveryTemplates.new_launch("pump.fun", "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", "PEPE2"))
-    
+    print(
+        DiscoveryTemplates.new_launch(
+            "pump.fun", "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", "PEPE2"
+        )
+    )
+
     print("\n5. System Startup:")
     print(SystemTemplates.startup("V51.0", ["MOMENTUM", "SCALPER", "ORCA"]))
-    
+
     print("\n✅ Templates working!")

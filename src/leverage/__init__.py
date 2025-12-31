@@ -6,4 +6,4 @@ Components for DeFi leverage and yield strategies.
 
 from src.shared.infrastructure.drift_adapter import DriftAdapter, get_drift_adapter
 
-__all__ = ['DriftAdapter', 'get_drift_adapter']
+__all__ = ["DriftAdapter", "get_drift_adapter"]

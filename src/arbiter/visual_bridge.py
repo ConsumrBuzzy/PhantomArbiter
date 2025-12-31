@@ -4,18 +4,18 @@ Visual Bridge
 Phase 25: Real-Time Visualization
 
 A WebSocket server that acts as the "Heartbeat" of the visual layer.
-It streams the current state of the Market Graph (Nodes/Links) to any 
+It streams the current state of the Market Graph (Nodes/Links) to any
 connected frontend (local browser, desktop app, etc.).
 """
 
 import asyncio
 import json
-import logging
 import websockets
 from websockets.server import serve
 
 from src.shared.persistence.market_manager import MarketManager
 from src.shared.system.logging import Logger
+
 
 class VisualBridge:
     def __init__(self, host="localhost", port=8765, update_interval=2.0):
@@ -52,10 +52,7 @@ class VisualBridge:
         """Sends current graph snapshot to a specific client."""
         try:
             data = self.market_manager.get_graph_data()
-            message = json.dumps({
-                "type": "graph_snapshot",
-                "data": data
-            })
+            message = json.dumps({"type": "graph_snapshot", "data": data})
             await websocket.send(message)
         except Exception as e:
             Logger.error(f"❌ Bridge Send Error: {e}")
@@ -70,26 +67,28 @@ class VisualBridge:
                     # Note: In a real high-freq scenario, we might want to check if data CHANGED
                     # before sending. For now, we send snapshots.
                     data = self.market_manager.get_graph_data()
-                    message = json.dumps({
-                        "type": "graph_update",
-                        "data": data,
-                        "meta": {"clients": len(self.connected_clients)}
-                    })
-                    
+                    message = json.dumps(
+                        {
+                            "type": "graph_update",
+                            "data": data,
+                            "meta": {"clients": len(self.connected_clients)},
+                        }
+                    )
+
                     # Broadcast
                     websockets.broadcast(self.connected_clients, message)
-                    
+
                 await asyncio.sleep(self.update_interval)
             except Exception as e:
                 Logger.error(f"❌ Broadcast Error: {e}")
-                await asyncio.sleep(1) # Backoff on error
+                await asyncio.sleep(1)  # Backoff on error
 
     async def start(self):
         """Starts the WebSocket server and the broadcast loop."""
         self.running = True
-        
+
         server = await serve(self.handler, self.host, self.port)
         Logger.info(f"🌉 Visual Bridge Running on ws://{self.host}:{self.port}")
-        
+
         # Run broadcast loop alongside server
         await self.broadcast_loop()

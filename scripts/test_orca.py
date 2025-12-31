@@ -1,8 +1,10 @@
 """Test Orca Adapter PDA Derivation"""
+
 import sys
+
 sys.path.insert(0, ".")
 
-from src.liquidity.orca_adapter import get_orca_adapter, SOL_MINT, USDC_MINT
+from src.liquidity.orca_adapter import get_orca_adapter
 
 print("\n🐋 Orca Adapter Test")
 print("=" * 50)
@@ -16,7 +18,7 @@ print(f"\n🔍 Testing with known pool: {KNOWN_SOL_USDC_POOL[:16]}...")
 state = adapter.get_whirlpool_state(KNOWN_SOL_USDC_POOL)
 
 if state:
-    print(f"\n✅ SUCCESS!")
+    print("\n✅ SUCCESS!")
     print(f"   Address: {state.address}")
     print(f"   Price: ${state.price:.4f}")
     print(f"   Tick: {state.tick_current}")

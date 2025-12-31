@@ -4,18 +4,22 @@ from dataclasses import dataclass, field
 from enum import Enum
 import time
 
+
 class SignalType(Enum):
     WHALE = "WHALE"
-    WHALE_ACTIVITY = "WHALE_ACTIVITY" # V140: Scavenger Intelligence (Failures/Bridges)
+    WHALE_ACTIVITY = "WHALE_ACTIVITY"  # V140: Scavenger Intelligence (Failures/Bridges)
     SCOUT = "SCOUT"
     ARB_OPP = "ARB_OPP"
     SCALP_SIGNAL = "SCALP_SIGNAL"
     SYSTEM_ALERT = "SYSTEM_ALERT"
     CONFIG_CHANGE = "CONFIG_CHANGE"
     MARKET_UPDATE = "MARKET_UPDATE"  # V134: Price changes for Global Feed
-    METADATA = "METADATA"         # V40.0: Shared Token Metadata Updates
-    STRATEGY_TIP = "STRATEGY_TIP" # V41.0: Cross-Strategy Hints (e.g. Scalper -> Arbiter)
-    NEW_TOKEN = "NEW_TOKEN"       # V140: Sauron Discovery -> Scout Metadata Scan
+    METADATA = "METADATA"  # V40.0: Shared Token Metadata Updates
+    STRATEGY_TIP = (
+        "STRATEGY_TIP"  # V41.0: Cross-Strategy Hints (e.g. Scalper -> Arbiter)
+    )
+    NEW_TOKEN = "NEW_TOKEN"  # V140: Sauron Discovery -> Scout Metadata Scan
+
 
 @dataclass
 class Signal:
@@ -24,13 +28,17 @@ class Signal:
     data: Dict[str, Any]
     timestamp: float = field(default_factory=time.time)
 
+
 class SignalBus:
     """
     Reactive Signal Bus for the Unified HFT OS.
     Allows agents to emit and subscribe to signals without direct coupling.
     """
+
     def __init__(self):
-        self._subscribers: Dict[SignalType, List[Callable]] = {t: [] for t in SignalType}
+        self._subscribers: Dict[SignalType, List[Callable]] = {
+            t: [] for t in SignalType
+        }
         self._history: List[Signal] = []
         self._max_history = 100
 
@@ -44,45 +52,48 @@ class SignalBus:
         self._history.append(signal)
         if len(self._history) > self._max_history:
             self._history.pop(0)
-            
+
         for callback in self._subscribers.get(signal.type, []):
             if asyncio.iscoroutinefunction(callback):
                 asyncio.create_task(callback(signal))
             else:
                 callback(signal)
 
+
 # Global Hub Accessor
 signal_bus = SignalBus()
+
 
 # V11.0: Intent Registry (Resource Locking)
 class IntentRegistry:
     """
     Prevents Strategy Collisions by locking resources (tokens).
     """
+
     def __init__(self):
-        self._locks: Dict[str, str] = {} # mint -> strategy_id
-        self._lock_times: Dict[str, float] = {} # mint -> timestamp
-        
+        self._locks: Dict[str, str] = {}  # mint -> strategy_id
+        self._lock_times: Dict[str, float] = {}  # mint -> timestamp
+
     def claim(self, mint: str, strategy_id: str, ttl: int = 60) -> bool:
         """Attempt to lock a token for exclusive use."""
         now = time.time()
-        
+
         # Check existing lock
         if mint in self._locks:
             owner = self._locks[mint]
             lock_time = self._lock_times.get(mint, 0)
-            
+
             # If same owner, refresh
             if owner == strategy_id:
                 self._lock_times[mint] = now + ttl
                 return True
-                
+
             # If expired, overwrite
             if now > lock_time:
-                pass # Proceed to claim
+                pass  # Proceed to claim
             else:
-                return False # Locked by someone else
-                
+                return False  # Locked by someone else
+
         # Create Lock
         self._locks[mint] = strategy_id
         self._lock_times[mint] = now + ttl
@@ -102,8 +113,9 @@ class IntentRegistry:
             if now <= self._lock_times.get(mint, 0):
                 return self._locks[mint]
             else:
-                 # Lazy cleanup
-                 self.release(mint, self._locks[mint])
+                # Lazy cleanup
+                self.release(mint, self._locks[mint])
         return None
+
 
 intent_registry = IntentRegistry()

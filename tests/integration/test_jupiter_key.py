@@ -9,14 +9,12 @@ if not api_key:
 
 url = "https://quote-api.jup.ag/v6/quote"
 params = {
-    "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
-    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF
-    "amount": "12000000", # 12 USDC
-    "slippageBps": "50"
+    "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
+    "outputMint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",  # WIF
+    "amount": "12000000",  # 12 USDC
+    "slippageBps": "50",
 }
-headers = {
-    "x-api-key": api_key
-}
+headers = {"x-api-key": api_key}
 
 try:
     print(f"Testing key: {api_key}")

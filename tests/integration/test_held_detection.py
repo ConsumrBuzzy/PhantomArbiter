@@ -23,6 +23,7 @@ TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 def get_wallet_pubkey():
     try:
         from solders.keypair import Keypair
+
         if not PRIVATE_KEY or "YOUR" in PRIVATE_KEY.upper():
             print("[ERROR] SOLANA_PRIVATE_KEY not set in .env")
             return None
@@ -36,30 +37,31 @@ def get_wallet_pubkey():
 def fetch_token_accounts(pubkey: str, program_id: str) -> dict:
     print(f"\n[RPC] Querying: {RPC_URL[:50]}...")
     print(f"[RPC] Program: {'SPL' if 'Tokenkeg' in program_id else 'Token2022'}")
-    
+
     payload = {
         "jsonrpc": "2.0",
         "id": 1,
         "method": "getTokenAccountsByOwner",
-        "params": [
-            pubkey,
-            {"programId": program_id},
-            {"encoding": "jsonParsed"}
-        ]
+        "params": [pubkey, {"programId": program_id}, {"encoding": "jsonParsed"}],
     }
-    
+
     try:
-        resp = requests.post(RPC_URL, json=payload, headers={"Content-Type": "application/json"}, timeout=15)
+        resp = requests.post(
+            RPC_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=15,
+        )
         data = resp.json()
-        
+
         if "error" in data:
             print(f"[ERROR] RPC Error: {data['error']}")
             return {}
-        
+
         tokens = {}
         accounts = data.get("result", {}).get("value", [])
         print(f"[RPC] Found {len(accounts)} token account(s)")
-        
+
         for account in accounts:
             try:
                 info = account["account"]["data"]["parsed"]["info"]
@@ -67,13 +69,13 @@ def fetch_token_accounts(pubkey: str, program_id: str) -> dict:
                 balance = float(info["tokenAmount"]["uiAmount"] or 0)
                 if balance > 0:
                     tokens[mint] = balance
-            except Exception as e:
+            except Exception:
                 continue
-        
+
         return tokens
-        
+
     except requests.exceptions.Timeout:
-        print(f"[ERROR] RPC Timeout (rate limited?)")
+        print("[ERROR] RPC Timeout (rate limited?)")
         return {}
     except Exception as e:
         print(f"[ERROR] RPC Error: {e}")
@@ -83,7 +85,7 @@ def fetch_token_accounts(pubkey: str, program_id: str) -> dict:
 def load_watchlist():
     watchlist_path = os.path.join(os.path.dirname(__file__), "data/watchlist.json")
     try:
-        with open(watchlist_path, 'r') as f:
+        with open(watchlist_path, "r") as f:
             data = json.load(f)
         mint_to_symbol = {}
         for symbol, info in data.get("assets", {}).items():
@@ -97,26 +99,26 @@ def load_watchlist():
 
 
 def check_broker_cache():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("BROKER CACHE STATUS")
-    print("="*60)
-    
+    print("=" * 60)
+
     try:
         from src.core.shared_cache import is_broker_alive, SharedPriceCache
-        
+
         alive = is_broker_alive()
         print(f"Broker Alive: {'YES' if alive else 'NO'}")
-        
+
         if alive:
             wallet_state = SharedPriceCache.get_wallet_state(max_age=300)
             if wallet_state:
-                print(f"Wallet State: FOUND")
+                print("Wallet State: FOUND")
                 print(f"USDC Balance: ${wallet_state.get('usdc', 0):.2f}")
                 print(f"SOL Balance:  {wallet_state.get('sol', 0):.4f}")
-                
+
                 held = wallet_state.get("held_assets", {})
                 print(f"Held Assets:  {len(held)} tokens")
-                
+
                 if held:
                     for sym, data in held.items():
                         bal = data.get("balance", 0) if isinstance(data, dict) else data
@@ -124,10 +126,10 @@ def check_broker_cache():
                 else:
                     print("  [WARN] EMPTY! This may prevent detection.")
             else:
-                print(f"Wallet State: NOT FOUND or STALE")
+                print("Wallet State: NOT FOUND or STALE")
         else:
             print("[INFO] Broker not running - bot will use direct RPC")
-            
+
     except ImportError:
         print("[WARN] Could not import shared_cache module")
     except Exception as e:
@@ -135,40 +137,40 @@ def check_broker_cache():
 
 
 def main():
-    print("="*60)
+    print("=" * 60)
     print("HELD TOKEN DETECTION DIAGNOSTIC")
-    print("="*60)
-    
+    print("=" * 60)
+
     pubkey = get_wallet_pubkey()
     if not pubkey:
         return 1
-    
+
     print(f"\nWallet: {pubkey[:8]}...{pubkey[-8:]}")
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("WATCHLIST MAPPINGS")
-    print("="*60)
+    print("=" * 60)
     mint_to_symbol = load_watchlist()
     print(f"Loaded {len(mint_to_symbol)} asset mappings")
-    
+
     check_broker_cache()
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("BLOCKCHAIN QUERY (SPL Token)")
-    print("="*60)
+    print("=" * 60)
     spl_tokens = fetch_token_accounts(pubkey, SPL_TOKEN_PROGRAM)
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("BLOCKCHAIN QUERY (Token2022)")
-    print("="*60)
+    print("=" * 60)
     token2022_tokens = fetch_token_accounts(pubkey, TOKEN_2022_PROGRAM)
-    
+
     all_tokens = {**spl_tokens, **token2022_tokens}
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("DETECTION RESULTS")
-    print("="*60)
-    
+    print("=" * 60)
+
     if not all_tokens:
         print("\n[WARN] NO TOKENS DETECTED!")
         print("Possible causes:")
@@ -176,24 +178,24 @@ def main():
         print("2. RPC is rate-limited (try different endpoint)")
         print("3. Private key is incorrect")
         return 1
-    
+
     tracked = []
     untracked = []
-    
+
     for mint, balance in all_tokens.items():
         symbol = mint_to_symbol.get(mint, None)
         if symbol:
             tracked.append((symbol, mint, balance))
         else:
             untracked.append((mint, balance))
-    
+
     print(f"\n[OK] TRACKED TOKENS ({len(tracked)}):")
     if tracked:
         for sym, mint, bal in tracked:
             print(f"  {sym}: {bal:.4f} tokens (Mint: {mint[:16]}...)")
     else:
         print("  (none)")
-    
+
     print(f"\n[WARN] UNTRACKED TOKENS ({len(untracked)}):")
     if untracked:
         print("These tokens are NOT in watchlist.json!")
@@ -202,22 +204,22 @@ def main():
             print(f"    Mint: {mint}")
     else:
         print("  (none - all tokens are mapped)")
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("DIAGNOSIS SUMMARY")
-    print("="*60)
-    
+    print("=" * 60)
+
     if tracked:
         print(f"[OK] {len(tracked)} token(s) should be detected by the bot")
-    
+
     if untracked:
         print(f"[ACTION] {len(untracked)} token(s) need to be added to watchlist.json")
-    
+
     if token2022_tokens:
         print(f"[ACTION] {len(token2022_tokens)} Token2022 tokens found!")
         print("  Current bot only queries SPL Token program.")
         print("  FIX: Update execution.py to also query Token2022.")
-    
+
     return 0
 
 

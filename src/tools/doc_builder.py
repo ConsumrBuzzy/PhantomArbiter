@@ -1,4 +1,3 @@
-
 import os
 import sys
 import inspect
@@ -17,8 +16,9 @@ MODULES_TO_DOC = [
     "src.strategy.watcher",
     "src.system.db_manager",
     "src.system.data_source_manager",
-    "src.execution.position_manager"
+    "src.execution.position_manager",
 ]
+
 
 def load_module_from_path(module_name):
     """Load a module dynamically."""
@@ -28,12 +28,13 @@ def load_module_from_path(module_name):
         print(f"Error loading {module_name}: {e}")
         return None
 
+
 def get_class_doc(cls):
     """Format class documentation."""
     doc = f"## {cls.__name__}\n\n"
     if cls.__doc__:
         doc += f"{inspect.cleandoc(cls.__doc__)}\n\n"
-    
+
     # Methods
     for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
         if not name.startswith("_") or name == "__init__":
@@ -44,6 +45,7 @@ def get_class_doc(cls):
                 doc += "*No documentation available.*\n\n"
     return doc
 
+
 def build_docs():
     """Generate API.md."""
     if not os.path.exists(DOCS_DIR):
@@ -51,22 +53,23 @@ def build_docs():
 
     output = "# PhantomTrader API Reference\n\n"
     output += "Auto-generated documentation for Core Components.\n\n"
-    
+
     for module_name in MODULES_TO_DOC:
         module = load_module_from_path(module_name)
         if not module:
             continue
-            
+
         output += f"# Module: `{module_name}`\n\n"
-        
+
         for name, obj in inspect.getmembers(module, predicate=inspect.isclass):
             if obj.__module__ == module_name:
                 output += get_class_doc(obj)
-                
+
     with open(os.path.join(DOCS_DIR, "API.md"), "w") as f:
         f.write(output)
-    
-    print(f"✅ Generated docs/API.md")
+
+    print("✅ Generated docs/API.md")
+
 
 if __name__ == "__main__":
     build_docs()

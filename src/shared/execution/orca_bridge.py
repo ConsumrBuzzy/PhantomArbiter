@@ -1,16 +1,16 @@
 import subprocess
 import json
-import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 from src.shared.system.logging import Logger
+
 
 class OrcaBridge:
     """
     Python wrapper for the persistent Orca Node.js Daemon.
     Handles IPC via stdin/stdout for sub-50ms latency.
     """
-    
+
     _instance = None
 
     def __new__(cls, bridge_path: str = None):
@@ -22,13 +22,17 @@ class OrcaBridge:
     def __init__(self, bridge_path: str = None):
         if self._initialized:
             return
-            
+
         if bridge_path:
             self.bridge_path = Path(bridge_path)
         else:
             # Auto-detect path relative to project root
-            self.bridge_path = Path(__file__).parent.parent.parent.parent / "bridges" / "orca_daemon.js"
-        
+            self.bridge_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "bridges"
+                / "orca_daemon.js"
+            )
+
         # State
         self.process = None
         self._initialized = True
@@ -40,7 +44,7 @@ class OrcaBridge:
 
         try:
             Logger.info(f"[ORCA] Starting Daemon: {self.bridge_path}")
-            
+
             # Start process with pipes
             self.process = subprocess.Popen(
                 ["node", str(self.bridge_path), "daemon"],
@@ -49,12 +53,12 @@ class OrcaBridge:
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,  # Line buffered
-                cwd=str(self.bridge_path.parent)
+                cwd=str(self.bridge_path.parent),
             )
-            
+
             # Read startup line (optional, purely for debug)
             # Our daemon prints "DEBUG: Orca Daemon Ready" to stderr on start
-            
+
         except Exception as e:
             Logger.error(f"[ORCA] Failed to start daemon: {e}")
             self.process = None
@@ -67,10 +71,7 @@ class OrcaBridge:
         if not self.process:
             return None
 
-        request = {
-            "cmd": "price",
-            "pool": pool_address
-        }
+        request = {"cmd": "price", "pool": pool_address}
 
         try:
             # Send request
@@ -93,6 +94,7 @@ class OrcaBridge:
                 self.process.kill()
                 self.process = None
             return None
+
 
 if __name__ == "__main__":
     # Internal test

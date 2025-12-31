@@ -1,8 +1,6 @@
-
 import os
 import sys
 import sqlite3
-import time
 
 # Add root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -10,10 +8,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.data_storage.db_manager import db_manager
 from config.settings import Settings
 
+
 def migrate_legacy():
     # Helper to map symbol -> mint
     symbol_to_mint = {v: k for k, v in Settings.ASSETS.items()}
-    
+
     # 1. Trading Journal (asset_snapshots)
     tj_path = os.path.join("data", "trading_journal.db")
     if os.path.exists(tj_path):
@@ -24,7 +23,9 @@ def migrate_legacy():
             # inspect_legacy_db output showed columns: symbol (TEXT), price (REAL), timestamp (REAL) usually
             # We try blind select based on index
             try:
-                cursor = conn.execute("SELECT symbol, price, timestamp FROM asset_snapshots")
+                cursor = conn.execute(
+                    "SELECT symbol, price, timestamp FROM asset_snapshots"
+                )
                 count = 0
                 for row in cursor:
                     sym, price, ts = row
@@ -45,7 +46,9 @@ def migrate_legacy():
         try:
             conn = sqlite3.connect(ph_path)
             try:
-                cursor = conn.execute("SELECT symbol, price, timestamp FROM market_snapshots")
+                cursor = conn.execute(
+                    "SELECT symbol, price, timestamp FROM market_snapshots"
+                )
                 count = 0
                 for row in cursor:
                     sym, price, ts = row
@@ -57,9 +60,10 @@ def migrate_legacy():
                 print(f"   ⚠️ Could not read market_snapshots: {e}")
             conn.close()
         except Exception as e:
-             print(f"   ⚠️ DB Error: {e}")
+            print(f"   ⚠️ DB Error: {e}")
 
     print("🚀 Legacy Migration Done")
+
 
 if __name__ == "__main__":
     migrate_legacy()

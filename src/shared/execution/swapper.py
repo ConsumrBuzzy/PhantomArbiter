@@ -1,8 +1,4 @@
-
-import os
 import base64
-import requests
-from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
 from solana.rpc.api import Client
 from solana.rpc.types import TxOpts
@@ -15,6 +11,7 @@ from src.shared.execution.wallet import WalletManager
 
 from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
 
+
 class JupiterSwapper:
     """
     V9.7: SRP-compliant Swap Executor.
@@ -22,19 +19,19 @@ class JupiterSwapper:
     V140: Uses RPC Balancer for robust transaction submission.
     Responsibility: Quoting and Executing Swaps via Jupiter.
     """
-    
+
     def __init__(self, wallet_manager: WalletManager):
         self.wallet = wallet_manager
         # Initialize with a robust provider from Balancer
         self.balancer = get_rpc_balancer()
         winner = self.balancer.get_winner()
         self.client = Client(winner.url if winner else Settings.RPC_URL)
-        
+
         self.router = SmartRouter()
-        
+
         # V12.3: JITO tip for block inclusion (1000 lamports = 0.000001 SOL)
         self.JITO_TIP_LAMPORTS = 1000
-        
+
         # V12.3: Initialize JITO private RPC for execution
         self.jito_client = None
         self.jito_available = False
@@ -43,27 +40,39 @@ class JupiterSwapper:
             try:
                 self.jito_client = Client(jito_url)
                 self.jito_available = True
-                Logger.info("🛡️ JITO Block Engine configured for front-running protection")
+                Logger.info(
+                    "🛡️ JITO Block Engine configured for front-running protection"
+                )
             except Exception as e:
                 Logger.warning(f"⚠️ JITO unavailable, using standard execution: {e}")
-        
-    def execute_swap(self, direction, amount_usd, reason, target_mint=None, priority_fee=None, override_atomic_amount=None):
+
+    def execute_swap(
+        self,
+        direction,
+        amount_usd,
+        reason,
+        target_mint=None,
+        priority_fee=None,
+        override_atomic_amount=None,
+    ):
         """
         Execute a Swap with Adaptive Slippage.
         """
         if not self.wallet.keypair:
             Logger.error("❌ FAILED: No wallet keypair loaded!")
             return {"success": False, "error": "No wallet keypair loaded"}
-            
+
         if not Settings.ENABLE_TRADING:
-            Logger.info(f"🔒 TRADING DISABLED: Would {direction} ${amount_usd} ({reason})")
+            Logger.info(
+                f"🔒 TRADING DISABLED: Would {direction} ${amount_usd} ({reason})"
+            )
             return {"success": False, "error": "Trading disabled in Settings"}
 
         # Defines
         mint = target_mint or Settings.TARGET_MINT
         input_mint = Settings.USDC_MINT if direction == "BUY" else mint
         output_mint = mint if direction == "BUY" else Settings.USDC_MINT
-        
+
         # Calculate amount
         amount_atomic = 0
         if direction == "BUY":
@@ -71,107 +80,128 @@ class JupiterSwapper:
         else:
             # SELL Direction (With HODL Protection)
             SOL_MINT = "So11111111111111111111111111111111111111112"
-            
+
             if mint == SOL_MINT:
                 avail_atomic = int(self.wallet.get_sol_balance() * 1_000_000_000)
                 ui_amount = self.wallet.get_sol_balance()
             else:
                 token_info = self.wallet.get_token_info(mint)
-                if not token_info: 
+                if not token_info:
                     Logger.error(f"❌ Sell Failed: No Balance helper for {mint[:6]}")
                     return {"success": False, "error": "No balance helper"}
                 avail_atomic = int(token_info["amount"])
                 ui_amount = float(token_info["uiAmount"])
-            
+
             if override_atomic_amount:
                 # Sell EXACTLY what we bought (Protection)
                 amount_atomic = min(avail_atomic, int(override_atomic_amount))
-                Logger.info(f"📉 SELLING Acquired Amount: {amount_atomic} units (HODL Protected)")
+                Logger.info(
+                    f"📉 SELLING Acquired Amount: {amount_atomic} units (HODL Protected)"
+                )
             elif amount_usd > 0:
-                 # Calculate atomic from USD if requested
-                 # We don't have price here, so we sell ALL as fallback if amount_usd is set but no atomic
-                 # Actually, if amount_usd is set, we should probably try to calculate units.
-                 # For now, let's just sell all if amount_usd is set but no atomic override.
-                 amount_atomic = avail_atomic 
+                # Calculate atomic from USD if requested
+                # We don't have price here, so we sell ALL as fallback if amount_usd is set but no atomic
+                # Actually, if amount_usd is set, we should probably try to calculate units.
+                # For now, let's just sell all if amount_usd is set but no atomic override.
+                amount_atomic = avail_atomic
             else:
-                 amount_atomic = avail_atomic
-                 Logger.info(f"📉 SELLING Entire Bag: {ui_amount:.4f} units")
-                 
+                amount_atomic = avail_atomic
+                Logger.info(f"📉 SELLING Entire Bag: {ui_amount:.4f} units")
+
         SLIPPAGE_TIERS = Settings.ADAPTIVE_SLIPPAGE_TIERS
         Logger.info(f"🚀 EXECUTION: {direction} ${amount_usd} ({reason})")
-        
+
         for tier_idx, slippage_bps in enumerate(SLIPPAGE_TIERS):
             try:
-                Logger.info(f"   📊 Tier {tier_idx+1}: Trying {slippage_bps/100:.1f}% slippage...")
-                
+                Logger.info(
+                    f"   📊 Tier {tier_idx + 1}: Trying {slippage_bps / 100:.1f}% slippage..."
+                )
+
                 # V9.6: Use SmartRouter for Quote
-                quote = self.router.get_jupiter_quote(input_mint, output_mint, amount_atomic, slippage_bps)
-                if not quote or "error" in quote: 
-                    if quote and "error" in quote: Logger.warning(f"   ⚠️ Quote Error: {quote}")
+                quote = self.router.get_jupiter_quote(
+                    input_mint, output_mint, amount_atomic, slippage_bps
+                )
+                if not quote or "error" in quote:
+                    if quote and "error" in quote:
+                        Logger.warning(f"   ⚠️ Quote Error: {quote}")
                     continue
-                
+
                 payload = {
                     "quoteResponse": quote,
                     "userPublicKey": str(self.wallet.get_public_key()),
                     "wrapAndUnwrapSol": True,
-                    "computeUnitPriceMicroLamports": priority_fee if priority_fee is not None else int(Settings.PRIORITY_FEE_MICRO_LAMPORTS),
-                    "dynamicSlippage": {"maxBps": slippage_bps + 200}
+                    "computeUnitPriceMicroLamports": priority_fee
+                    if priority_fee is not None
+                    else int(Settings.PRIORITY_FEE_MICRO_LAMPORTS),
+                    "dynamicSlippage": {"maxBps": slippage_bps + 200},
                 }
-                
+
                 # V9.6: Use SmartRouter for Swap Tx
                 swap_data = self.router.get_swap_transaction(payload)
-                if not swap_data or "swapTransaction" not in swap_data: 
+                if not swap_data or "swapTransaction" not in swap_data:
                     Logger.warning(f"   ⚠️ Swap Tx Error: {swap_data}")
                     continue
-                
+
                 # Sign & Send
                 raw_tx = base64.b64decode(swap_data["swapTransaction"])
                 tx = VersionedTransaction.from_bytes(raw_tx)
                 signed_tx = VersionedTransaction(tx.message, [self.wallet.keypair])
-                
+
                 opts = TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
-                
+
                 # V12.3: Use JITO private RPC for front-running protection
                 if self.jito_available and self.jito_client:
                     try:
                         Logger.info("   🛡️ Sending via JITO private relay...")
                         tx_sig = self.jito_client.send_transaction(signed_tx, opts=opts)
-                        Logger.success(f"✅ JITO Tx Sent: https://solscan.io/tx/{tx_sig.value}")
+                        Logger.success(
+                            f"✅ JITO Tx Sent: https://solscan.io/tx/{tx_sig.value}"
+                        )
                     except Exception as jito_err:
-                        Logger.warning(f"   ⚠️ JITO failed, falling back to robust RPC: {jito_err}")
+                        Logger.warning(
+                            f"   ⚠️ JITO failed, falling back to robust RPC: {jito_err}"
+                        )
                         # Fallback to Balancer
                         winner = self.balancer.get_winner()
-                        robust_client = Client(winner.url if winner else Settings.RPC_URL)
+                        robust_client = Client(
+                            winner.url if winner else Settings.RPC_URL
+                        )
                         tx_sig = robust_client.send_transaction(signed_tx, opts=opts)
-                        Logger.success(f"✅ Tx Sent (Standard): https://solscan.io/tx/{tx_sig.value}")
+                        Logger.success(
+                            f"✅ Tx Sent (Standard): https://solscan.io/tx/{tx_sig.value}"
+                        )
                 else:
                     # Robust Send using Balancer
                     winner = self.balancer.get_winner()
                     robust_client = Client(winner.url if winner else Settings.RPC_URL)
                     tx_sig = robust_client.send_transaction(signed_tx, opts=opts)
                     Logger.success(f"✅ Tx Sent: https://solscan.io/tx/{tx_sig.value}")
-                
+
                 # Invalidate Cache
                 try:
                     from src.core.shared_cache import SharedPriceCache
+
                     SharedPriceCache.invalidate_wallet_state()
-                except: pass
-                
+                except:
+                    pass
+
                 return {
-                    "success": True, 
+                    "success": True,
                     "signature": str(tx_sig.value),
-                    "outAmount": quote.get("outAmount")
+                    "outAmount": quote.get("outAmount"),
                 }
-                
+
             except Exception as e:
                 error_str = str(e)
                 if "0x1788" in error_str or "6024" in error_str:
                     if tier_idx < len(SLIPPAGE_TIERS) - 1:
-                        Logger.warning(f"   ⚠️ Slippage exceeded at Tier {tier_idx+1}, escalating...")
+                        Logger.warning(
+                            f"   ⚠️ Slippage exceeded at Tier {tier_idx + 1}, escalating..."
+                        )
                         continue
                 Logger.error(f"❌ Execution Error: {e}")
                 return {"success": False, "error": str(e)}
-                
+
         Logger.error("❌ All slippage tiers exhausted")
         return {"success": False, "error": "All slippage tiers exhausted"}
 
@@ -182,79 +212,93 @@ class JupiterSwapper:
         Uses 2-step Quote to determine input amount.
         """
         try:
-            Logger.info(f"⛽ Universal Recovery: Attempting to swap ${amount_usd} of {input_mint[:4]}... -> SOL")
-            
+            Logger.info(
+                f"⛽ Universal Recovery: Attempting to swap ${amount_usd} of {input_mint[:4]}... -> SOL"
+            )
+
             # Simple heuristic for now: Swap 5% of tokens? No, need precision.
             # Use Token Info to get decimals
             info = self.wallet.get_token_info(input_mint)
-            if not info: 
+            if not info:
                 Logger.error("❌ Token info not found")
                 return
-                
+
             decimals = int(info["decimals"])
             avail_atomic = int(info["amount"])
-            
-            # Strategy: We don't have price. 
+
+            # Strategy: We don't have price.
             # HEURISTIC: Swap 1000 units?
             # Better: Just try to swap 10% of the bag if it's large?
             # Or use SmartRouter to get quote for 1 unit -> SOL?
-            
+
             router = SmartRouter()
             SOL_MINT = "So11111111111111111111111111111111111111112"
-            
+
             # 1. Price Check (1 unit)
-            test_amount = 10 ** decimals
-            if test_amount > avail_atomic: test_amount = avail_atomic // 10
-            if test_amount == 0: return # Dust
-            
+            test_amount = 10**decimals
+            if test_amount > avail_atomic:
+                test_amount = avail_atomic // 10
+            if test_amount == 0:
+                return  # Dust
+
             quote = router.get_jupiter_quote(input_mint, SOL_MINT, test_amount)
             if not quote or "outAmount" not in quote:
                 Logger.error("❌ Price check failed")
                 return
-            
+
             sol_out = int(quote["outAmount"]) / 10**9
             # Price of 1 token in SOL = sol_out
-            if sol_out == 0: return
-            
-            TARGET_SOL = 0.03 # Target ~0.03 SOL ($5-6)
+            if sol_out == 0:
+                return
+
+            TARGET_SOL = 0.03  # Target ~0.03 SOL ($5-6)
             needed_tokens = TARGET_SOL / sol_out
             amount_atomic = int(needed_tokens * (10**decimals))
-            
-            if amount_atomic > avail_atomic: amount_atomic = avail_atomic
-            
-            Logger.info(f"   📉 Converting {amount_atomic / 10**decimals:.4f} tokens to Gas...")
-            
+
+            if amount_atomic > avail_atomic:
+                amount_atomic = avail_atomic
+
+            Logger.info(
+                f"   📉 Converting {amount_atomic / 10**decimals:.4f} tokens to Gas..."
+            )
+
             # 2. Execute
             payload = {
-                "quoteResponse": router.get_jupiter_quote(input_mint, SOL_MINT, amount_atomic, slippage_bps=500),
+                "quoteResponse": router.get_jupiter_quote(
+                    input_mint, SOL_MINT, amount_atomic, slippage_bps=500
+                ),
                 "userPublicKey": str(self.wallet.keypair.pubkey()),
                 "wrapAndUnwrapSol": True,
-                "computeUnitPriceMicroLamports": 100000 
+                "computeUnitPriceMicroLamports": 100000,
             }
-            
+
             tx_data = router.get_swap_transaction(payload)
             if tx_data:
                 raw_tx = base64.b64decode(tx_data["swapTransaction"])
                 tx = VersionedTransaction.from_bytes(raw_tx)
-                
+
                 # Sign manually
                 signed_tx = VersionedTransaction(tx.message, [self.wallet.keypair])
-                
+
                 client = Client(Settings.RPC_URL)
-                sig = client.send_transaction(signed_tx, opts=TxOpts(skip_preflight=True)).value
+                sig = client.send_transaction(
+                    signed_tx, opts=TxOpts(skip_preflight=True)
+                ).value
                 Logger.success(f"   ✅ Gas Refilled: {sig}")
                 return sig
-                
+
         except Exception as e:
             Logger.error(f"❌ Recovery Failed: {e}")
 
-    async def get_quote(self, input_mint: str, output_mint: str, amount: int, slippage: int = 50):
+    async def get_quote(
+        self, input_mint: str, output_mint: str, amount: int, slippage: int = 50
+    ):
         """
         Fetch a quote from Jupiter V6 API.
         'amount' must be in raw units (e.g., lamports or USDC 6-decimal units).
         """
         url = f"https://quote-api.jup.ag/v6/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&slippageBps={slippage}"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(url, timeout=10.0)
             response.raise_for_status()
@@ -270,37 +314,41 @@ class JupiterSwapper:
             "userPublicKey": str(self.wallet.keypair.pubkey()),
             "wrapAndUnwrapSol": True,
         }
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json=payload, timeout=10.0)
             response.raise_for_status()
             data = response.json()
-            
+
             # Helper to convert Jupiter JSON instruction to Solders Instruction object
             def deserialize_ix(ix_data):
-                if not ix_data: return None
+                if not ix_data:
+                    return None
                 return Instruction(
-                    program_id=Pubkey.from_string(ix_data['programId']),
+                    program_id=Pubkey.from_string(ix_data["programId"]),
                     accounts=[
                         AccountMeta(
-                            Pubkey.from_string(acc['pubkey']), 
-                            acc['isSigner'], 
-                            acc['isWritable']
-                        ) for acc in ix_data['accounts']
+                            Pubkey.from_string(acc["pubkey"]),
+                            acc["isSigner"],
+                            acc["isWritable"],
+                        )
+                        for acc in ix_data["accounts"]
                     ],
-                    data=base64.b64decode(ix_data['data'])
+                    data=base64.b64decode(ix_data["data"]),
                 )
 
             instructions = []
             # 1. Setup Instructions (usually ATA creation)
-            if data.get('setupInstructions'):
-                instructions.extend([deserialize_ix(ix) for ix in data['setupInstructions']])
-            
+            if data.get("setupInstructions"):
+                instructions.extend(
+                    [deserialize_ix(ix) for ix in data["setupInstructions"]]
+                )
+
             # 2. The main Swap Instruction
-            instructions.append(deserialize_ix(data['swapInstruction']))
-            
+            instructions.append(deserialize_ix(data["swapInstruction"]))
+
             # 3. Cleanup Instruction (optional, e.g., unwrapping WSOL)
-            if data.get('cleanupInstruction'):
-                instructions.append(deserialize_ix(data['cleanupInstruction']))
-                
+            if data.get("cleanupInstruction"):
+                instructions.append(deserialize_ix(data["cleanupInstruction"]))
+
             return [i for i in instructions if i is not None]

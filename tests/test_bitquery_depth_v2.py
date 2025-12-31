@@ -1,4 +1,3 @@
-
 import asyncio
 import json
 import websockets
@@ -32,25 +31,22 @@ subscription {
 }
 """
 
+
 async def test_bitquery_depth():
-    print(f"🔌 Connecting to Bitquery (URL Auth)...")
-    
+    print("🔌 Connecting to Bitquery (URL Auth)...")
+
     # Remove header auth, use URL only
-    async with websockets.connect(WS_URL, subprotocols=['graphql-transport-ws']) as ws:
+    async with websockets.connect(WS_URL, subprotocols=["graphql-transport-ws"]) as ws:
         # Handshake
         await ws.send(json.dumps({"type": "connection_init"}))
         ack = await ws.recv()
         print(f"🤝 Handshake: {ack}")
-        
+
         # Subscribe
-        msg = {
-            "id": "1",
-            "type": "subscribe",
-            "payload": {"query": QUERY}
-        }
+        msg = {"id": "1", "type": "subscribe", "payload": {"query": QUERY}}
         await ws.send(json.dumps(msg))
         print("📡 Subscription sent...")
-        
+
         # Listen
         start = asyncio.get_event_loop().time()
         while asyncio.get_event_loop().time() - start < 10:
@@ -58,16 +54,17 @@ async def test_bitquery_depth():
                 res = await asyncio.wait_for(ws.recv(), timeout=2.0)
                 data = json.loads(res)
                 if data.get("type") == "next":
-                    payload = data['payload']['data']['Solana']['OrderBook'][0]
-                    print(f"✅ DEPTH RECEIVED!")
+                    payload = data["payload"]["data"]["Solana"]["OrderBook"][0]
+                    print("✅ DEPTH RECEIVED!")
                     print(f"   Bids: {len(payload.get('Bids', []))} levels")
                     return
                 elif data.get("type") == "error":
                     print(f"❌ Error: {data}")
             except asyncio.TimeoutError:
                 print(".")
-                
+
     print("❌ No depth data received in 10s.")
+
 
 if __name__ == "__main__":
     if not API_KEY:

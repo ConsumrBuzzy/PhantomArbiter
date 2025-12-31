@@ -13,11 +13,11 @@ from src.scraper.discovery.migration_sniffer import (
 )
 
 __all__ = [
-    'LaunchpadMonitor',
-    'LaunchEvent',
-    'MigrationEvent',
-    'get_launchpad_monitor',
-    'MigrationSniffer',
-    'MigrationOpportunity',
-    'get_migration_sniffer',
+    "LaunchpadMonitor",
+    "LaunchEvent",
+    "MigrationEvent",
+    "get_launchpad_monitor",
+    "MigrationSniffer",
+    "MigrationOpportunity",
+    "get_migration_sniffer",
 ]

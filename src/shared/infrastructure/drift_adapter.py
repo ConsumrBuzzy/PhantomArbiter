@@ -20,18 +20,20 @@ from typing import Optional
 @dataclass
 class FundingRate:
     """Funding rate data from Drift (for backwards compatibility)."""
+
     market: str
-    rate: float           # Annualized rate
-    rate_hourly: float    # Hourly rate
-    next_payment: int     # Unix timestamp
-    is_positive: bool     # True = longs pay shorts
+    rate: float  # Annualized rate
+    rate_hourly: float  # Hourly rate
+    next_payment: int  # Unix timestamp
+    is_positive: bool  # True = longs pay shorts
 
 
 @dataclass
 class Position:
     """Open position on Drift (alias for DriftPosition)."""
+
     market: str
-    size: float           # Negative = short
+    size: float  # Negative = short
     entry_price: float
     mark_price: float
     unrealized_pnl: float
@@ -40,6 +42,7 @@ class Position:
 
 # Singleton
 _adapter: Optional[DriftAdapter] = None
+
 
 def get_drift_adapter() -> DriftAdapter:
     """Get or create DriftAdapter singleton."""
@@ -50,4 +53,10 @@ def get_drift_adapter() -> DriftAdapter:
 
 
 # For imports that use old class name
-__all__ = ["DriftAdapter", "DriftPosition", "FundingRate", "Position", "get_drift_adapter"]
+__all__ = [
+    "DriftAdapter",
+    "DriftPosition",
+    "FundingRate",
+    "Position",
+    "get_drift_adapter",
+]

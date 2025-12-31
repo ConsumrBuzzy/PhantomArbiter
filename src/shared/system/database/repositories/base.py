@@ -1,12 +1,13 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from src.shared.system.database.core import DatabaseCore
-from src.shared.system.logging import Logger
+
 
 class BaseRepository:
     """
     Base class for Domain-Specific Repositories.
     Provides easy access to the DB Core cursor and common helpers.
     """
+
     def __init__(self, db: DatabaseCore):
         self.db = db
 

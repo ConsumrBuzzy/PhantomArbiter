@@ -19,45 +19,45 @@ from src.shared.system.logging import Logger
 class BackgroundWorkerManager:
     """
     V133: Manages background worker threads for DataBroker agents.
-    
+
     This component encapsulates the threaded startup logic previously
     nested inside DataBroker.run().
     """
-    
+
     def __init__(self, broker: Any):
         """
         Initialize BackgroundWorkerManager.
-        
+
         Args:
             broker: The DataBroker instance to manage workers for
         """
         self.broker = broker
         self.threads = {}
-        
+
     def start_all(self):
         """Start all background workers with appropriate delays."""
         # 1. P2 Deferred Startup (Backfill/Validation)
         self._launch_thread("DeferredStartup", self._deferred_startup)
-        
+
         # 2. Delayed Hunter Start (T+5s)
         self._launch_thread("Hunter", self._delayed_hunter_start)
-        
+
         # 3. Agent Starts
         self._launch_thread("ScoutAgent", self._start_scout)
         self._launch_thread("WhaleWatcher", self._start_whales)
         self._launch_thread("SauronDiscovery", self._start_sauron)
         self._launch_thread("SniperAgent", self._start_sniper)
-        
+
         # 4. Optional Workers
         if self.broker.bitquery_adapter:
             self._launch_thread("BitqueryAdapter", self._start_bitquery)
-            
+
         # 5. Agent Wiring (V68.0+)
         # Wire Sauron -> Sniper callback
         self.broker.sauron.set_sniper_callback(self.broker.sniper.on_new_pool)
         # Wire Scout -> Sniper for Flash Audit
         self.broker.sniper.scout_agent = self.broker.scout_agent
-            
+
         Logger.success("[WORKER_MGR] All background tasks launched and wired")
 
     def _launch_thread(self, name: str, target: Any):
@@ -69,26 +69,22 @@ class BackgroundWorkerManager:
     def _deferred_startup(self):
         """P2 background initialization tasks (Backfill, Validation)."""
         time.sleep(0.1)  # Minimal pause
-        
+
         # Task A: Backfill
         threading.Thread(
-            target=self.broker._backfill_history, 
-            daemon=True, 
-            name="BackfillHistory"
+            target=self.broker._backfill_history, daemon=True, name="BackfillHistory"
         ).start()
-        
+
         # Task B: Validation
         threading.Thread(
-            target=self.broker._validate_tokens, 
-            daemon=True, 
-            name="ValidateTokens"
+            target=self.broker._validate_tokens, daemon=True, name="ValidateTokens"
         ).start()
-        
+
         Logger.success("[BROKER] P2 TASKS LAUNCHED IN BACKGROUND")
 
     def _delayed_hunter_start(self):
         """Hunter Daemon starting with delay."""
-        time.sleep(5) 
+        time.sleep(5)
         Logger.info("   🏹 Hunter Daemon Starting...")
         self.broker.hunter.run_loop()
 

@@ -1,23 +1,26 @@
-
 import subprocess
 import sys
 import shutil
-import os
 from pathlib import Path
 
 REQUIRED_VERSION = "3.12"
 
+
 def print_step(msg):
     print(f"\n🟦 {msg}")
+
 
 def print_success(msg):
     print(f"✅ {msg}")
 
+
 def print_error(msg):
     print(f"❌ {msg}")
 
+
 def print_warning(msg):
     print(f"⚠️  {msg}")
+
 
 def find_python_312():
     """Attempt to find a Python 3.12 executable."""
@@ -29,13 +32,18 @@ def find_python_312():
     if sys.platform == "win32" and shutil.which("py"):
         try:
             # Check if 3.12 is available via py
-            res = subprocess.run(["py", "-3.12", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            res = subprocess.run(
+                ["py", "-3.12", "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
             if res.returncode == 0:
                 print("Found Python 3.12 via 'py' launcher.")
-                return "py -3.12" 
+                return "py -3.12"
         except Exception:
             pass
-            
+
     # Check explicit binaries
     candidates = ["python3.12", "python3.12.exe", "python-3.12", "python"]
     for cand in candidates:
@@ -43,20 +51,23 @@ def find_python_312():
         if path:
             # Verify version
             try:
-                res = subprocess.run([path, "--version"], capture_output=True, text=True)
+                res = subprocess.run(
+                    [path, "--version"], capture_output=True, text=True
+                )
                 if "3.12" in res.stdout:
                     return path
             except:
                 continue
-             
+
     return None
+
 
 def check_env_file():
     print_step("Checking Environment Configuration...")
     env_path = Path(".env")
     template_path = Path(".env.template")
     example_path = Path(".env.example")
-    
+
     if env_path.exists():
         print_success(".env file exists.")
     else:
@@ -73,6 +84,7 @@ def check_env_file():
             print_error("No .env.template or .env.example found. Creating empty .env.")
             env_path.touch()
 
+
 def ensure_directories():
     print_step("Verifying Directory Structure...")
     dirs = ["data", "logs", "config"]
@@ -84,13 +96,14 @@ def ensure_directories():
         else:
             print_success(f"Directory exists: {d}")
 
+
 def setup_venv():
     print_step("Setting up Virtual Environment...")
-    
+
     # Try UV first
     uv_executable = shutil.which("uv")
     using_uv = False
-    
+
     if uv_executable:
         print("🚀 UV detected.")
         try:
@@ -106,15 +119,17 @@ def setup_venv():
             using_uv = True
             print_success("UV Setup Complete.")
         except subprocess.CalledProcessError:
-            print_warning("UV sync failed or not configured fully. Falling back to standard venv logic but using uv venv.")
+            print_warning(
+                "UV sync failed or not configured fully. Falling back to standard venv logic but using uv venv."
+            )
             using_uv = True
-    
+
     if not using_uv:
         python_exe = find_python_312()
         if not python_exe:
             print_error(f"Python {REQUIRED_VERSION} not found on this system.")
             sys.exit(1)
-            
+
         venv_path = Path(".venv")
         if not venv_path.exists():
             print(f"Creating venv at {venv_path}...")
@@ -131,13 +146,13 @@ def setup_venv():
     # Install Dependencies
     print_step("Installing Dependencies...")
     venv_path = Path(".venv")
-    
+
     # Determine Pip Path
     if sys.platform == "win32":
         pip_path = venv_path / "Scripts" / "pip.exe"
     else:
         pip_path = venv_path / "bin" / "pip"
-        
+
     if not pip_path.exists():
         # Fallback for uv structure sometimes varying?
         # UV creates standard venv structure usually.
@@ -167,23 +182,25 @@ def setup_venv():
 
     print_success("Dependencies Installed.")
 
+
 def main():
-    print("="*60)
+    print("=" * 60)
     print("    🏗️  PhantomArbiter Station Builder  🏗️")
-    print("="*60)
-    
+    print("=" * 60)
+
     check_env_file()
     ensure_directories()
     setup_venv()
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("    🎉  Station Setup Complete!  🎉")
-    print("="*60)
+    print("=" * 60)
     print("To activate:")
     if sys.platform == "win32":
         print("    .venv\\Scripts\\activate")
     else:
         print("    source .venv/bin/activate")
+
 
 if __name__ == "__main__":
     main()

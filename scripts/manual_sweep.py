@@ -17,7 +17,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.shared.execution.wallet import WalletManager
 from src.shared.execution.swapper import JupiterSwapper
-from src.shared.system.logging import Logger
 from config.settings import Settings
 
 load_dotenv()
@@ -35,6 +34,7 @@ STRAY_TOKENS = [
     # ("CASH", "...mint address..."),
 ]
 
+
 async def get_price(mint: str) -> float:
     """Fetch price from Jupiter."""
     try:
@@ -50,67 +50,67 @@ async def get_price(mint: str) -> float:
 
 
 async def main():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("   🧹 MANUAL TOKEN SWEEPER")
-    print("="*60)
-    
+    print("=" * 60)
+
     wm = WalletManager()
     if not wm.keypair:
         print("   ❌ No wallet loaded. Check PHANTOM_PRIVATE_KEY in .env")
         return
-    
+
     swapper = JupiterSwapper(wm)
     public_key = wm.get_public_key()
     print(f"\n   Wallet: {public_key}")
-    
+
     # Show current balances
     sol_bal = wm.get_sol_balance()
     usdc_bal = wm.get_balance(Settings.USDC_MINT)
     print(f"   SOL:  {sol_bal:.4f}")
     print(f"   USDC: ${usdc_bal:.2f}")
-    
-    print("\n" + "-"*40)
+
+    print("\n" + "-" * 40)
     print("   Checking stray tokens...")
-    
+
     sold_count = 0
     total_recovered = 0.0
-    
+
     for symbol, mint in STRAY_TOKENS:
         info = wm.get_token_info(mint)
-        
+
         if not info:
             print(f"   ⏭️  {symbol}: No balance (skip)")
             continue
-        
+
         ui_amount = float(info.get("uiAmount", 0))
-        
+
         if ui_amount <= 0:
             print(f"   ⏭️  {symbol}: Zero balance (skip)")
             continue
-        
+
         # Get price
         price = await get_price(mint)
         usd_value = ui_amount * price if price > 0 else 0
-        
+
         print(f"\n   📦 Found {symbol}:")
         print(f"      Amount:  {ui_amount:.6f}")
         print(f"      Price:   ${price:.8f}")
         print(f"      Value:   ${usd_value:.4f}")
-        
+
         # Force sell regardless of value (user explicitly requested cleanup)
         if ui_amount <= 0:
-            print(f"      ⏭️  Zero amount, skipping")
+            print("      ⏭️  Zero amount, skipping")
             continue
-        
+
         # Execute sell
         print(f"      🔄 Selling {symbol} → USDC...")
         result = swapper.execute_swap(
             direction="SELL",
             amount_usd=0,  # 0 = sell entire balance
             reason="SWEEP",
-            target_mint=mint
+            target_mint=mint,
         )
-        
+
         if result and result.get("success"):
             sig = result.get("signature", "")[:16]
             print(f"      ✅ Success: {sig}...")
@@ -119,24 +119,24 @@ async def main():
         else:
             error = result.get("error", "Unknown") if result else "No result"
             print(f"      ❌ Failed: {error}")
-        
+
         # Rate limit
         await asyncio.sleep(1.0)
-    
-    print("\n" + "-"*40)
-    print(f"   📊 Summary:")
+
+    print("\n" + "-" * 40)
+    print("   📊 Summary:")
     print(f"      Tokens sold:     {sold_count}")
     print(f"      Est. recovered:  ${total_recovered:.2f}")
-    
+
     # Show new balances
     sol_bal = wm.get_sol_balance()
     usdc_bal = wm.get_balance(Settings.USDC_MINT)
     print(f"\n   New USDC: ${usdc_bal:.2f}")
     print(f"   SOL:      {sol_bal:.4f}")
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("   ✨ Sweep complete!")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":

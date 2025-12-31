@@ -12,27 +12,29 @@ import asyncio
 import logging
 
 # Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.arbiter.visual_bridge import VisualBridge
-from src.shared.system.logging import Logger
+
 
 def configure_logging():
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
 
 async def main():
     configure_logging()
     print("🌉 Starting Visual Bridge...")
-    
+
     bridge = VisualBridge(host="localhost", port=8765, update_interval=2.0)
-    
+
     try:
         await bridge.start()
     except KeyboardInterrupt:
         print("\n🛑 Bridge Stopped.")
+
 
 if __name__ == "__main__":
     try:

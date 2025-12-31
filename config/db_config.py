@@ -70,9 +70,7 @@ PG_POOL_MIN_CONN = 1
 PG_POOL_MAX_CONN = 10
 
 # SQLite Settings
-SQLITE_DB_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "data", "market_data.db"
-)
+SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "market_data.db")
 
 
 def get_backend_info() -> dict:

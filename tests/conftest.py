@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # PYTEST MARKERS
 # ============================================================================
 
+
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line(
@@ -24,14 +25,13 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "network: marks tests that require network access"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks integration tests"
-    )
+    config.addinivalue_line("markers", "integration: marks integration tests")
 
 
 # ============================================================================
 # SHARED FIXTURES
 # ============================================================================
+
 
 @pytest.fixture
 def mock_settings(monkeypatch):
@@ -45,13 +45,13 @@ def mock_settings(monkeypatch):
 def mock_datafeed():
     """Create a mock DataFeed with realistic test data."""
     from src.core.data import DataFeed
-    
+
     # Create DataFeed without network calls
     feed = object.__new__(DataFeed)
     feed.raw_prices = [1.0 + i * 0.01 for i in range(50)]  # Rising prices
     feed.raw_volumes = [1000.0] * 50
     feed.candles = []
-    feed.current_candle = {'open': 0, 'high': 0, 'low': 0, 'close': 0, 'ticks': 0}
+    feed.current_candle = {"open": 0, "high": 0, "low": 0, "close": 0, "ticks": 0}
     feed.current_rsi = 50.0
     feed.last_source = "MOCK"
     feed.mint = "MockMint123"
@@ -60,7 +60,7 @@ def mock_datafeed():
     feed.liquidity_usd = 100000.0
     feed.volume_h1 = 50000.0
     feed.last_metadata_update = 0
-    
+
     return feed
 
 
@@ -71,13 +71,13 @@ def sample_watchlist():
         "SOL": {
             "mint": "So11111111111111111111111111111111111111112",
             "symbol": "SOL",
-            "decimals": 9
+            "decimals": 9,
         },
         "BONK": {
             "mint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
             "symbol": "BONK",
-            "decimals": 5
-        }
+            "decimals": 5,
+        },
     }
 
 
@@ -88,5 +88,5 @@ def paper_wallet_state():
         "cash_balance": 10000.0,
         "sol_balance": 0.5,
         "positions": {},
-        "trade_history": []
+        "trade_history": [],
     }
