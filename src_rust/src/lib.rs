@@ -473,5 +473,9 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // SignalScorer (Phase 4: Institutional Realism)
     scorer::register_scorer_classes(m)?;
 
+    // V140: Narrow Path (Multi-Hop Arbitrage)
+    graph::register_graph_classes(m)?;
+    cycle_finder::register_cycle_finder_classes(m)?;
+
     Ok(())
 }
