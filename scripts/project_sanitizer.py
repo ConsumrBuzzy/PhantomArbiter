@@ -19,7 +19,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.shared.persistence.market_manager import MarketManager
 from src.shared.persistence.token_registry import TokenRegistry
-from src.shared.system.logging import Logger
 
 def run_rust_audit():
     print("\n🦀 Running Rust Audit (Cargo Clippy)...")
@@ -62,6 +61,21 @@ def run_rust_fix():
             
     except Exception as e:
         print(f"   ❌ Rust Fix Failed: {e}")
+
+def run_python_fix():
+    print("\n🐍 Running Python Auto-Fix (Ruff)...")
+    try:
+        if not shutil.which("ruff"):
+            print("   ⚠️ Ruff not found. Skipping auto-fix.")
+            return
+
+        print("   Checking for fixes...")
+        subprocess.run(["ruff", "check", "--fix", "."], check=False)
+        print("   Formatting code...")
+        subprocess.run(["ruff", "format", "."], check=False)
+        print("   ✅ Python Fixes Applied.")
+    except Exception as e:
+        print(f"   ❌ Python Fix Failed: {e}")
 
 def run_python_audit():
     print("\n🐍 Running Python Audit (Vulture)...")
@@ -128,6 +142,7 @@ def main():
     
     if auto_fix:
         run_rust_fix()
+        run_python_fix()
     
     run_rust_audit()
     run_python_audit()
