@@ -19,6 +19,7 @@ from typing import List, Dict, Any
 from src.arbiter.core.reporter import ArbiterReporter
 from src.arbiter.ui.fragments.registry import registry
 from src.arbiter.ui.fragments.scavenger import ScavengerFragment, FlowFragment
+from src.arbiter.ui.fragments.base import BaseFragment
 from config.settings import Settings
 
 class PulsedDashboard:
@@ -72,18 +73,20 @@ class PulsedDashboard:
             registry.register("stats", JitoBundleFragment())
         else:
             # Legacy Mode / Scalper Mode
+            # Placeholder ShadowFragment if not in narrow_path
+            from src.arbiter.ui.fragments.narrow_path import ShadowFragment
             registry.register("shadow", ShadowFragment())
             # registry.register("stats", StandardStatsFragment())
 
     def generate_header(self, state: Any):
         """Render header with Real/Paper split."""
         # Real Wallet
-        real_usdc = state.wallet_live.balance_usdc
-        real_sol = state.wallet_live.balance_sol
+        real_usdc = getattr(state.wallet_live, 'balance_usdc', 0.0)
+        real_sol = getattr(state.wallet_live, 'balance_sol', 0.0)
         
         # Paper Wallet
-        paper_usdc = state.wallet_paper.balance_usdc
-        paper_sol = state.wallet_paper.balance_sol
+        paper_usdc = getattr(state.wallet_paper, 'balance_usdc', 0.0)
+        paper_sol = getattr(state.wallet_paper, 'balance_sol', 0.0)
         
         pod_status = state.stats.get('pod_status', "")
         pod_str = f" | 🔭 {pod_status}" if pod_status else ""
@@ -135,14 +138,18 @@ class PulsedDashboard:
         
         for sig in list(signals)[:10]:
             ts = datetime.fromtimestamp(sig.timestamp).strftime("%H:%M:%S")
-            s_type = sig.type.value
+            s_type = getattr(sig, 'type', 'UNKNOWN')
+            if hasattr(s_type, 'value'): s_type = s_type.value
+            
             color = "white"
             if s_type == "WHALE": color = "bold blue"
             elif s_type == "SCOUT": color = "bold green"
             elif s_type == "ARB_OPP": color = "cyan"
             
-            summary = str(sig.data.get("symbol", sig.data.get("message", "Data...")))
-            table.add_row(ts, f"[{color}]{s_type}[/{color}]", sig.source, summary)
+            # Flexible data access
+            data = getattr(sig, 'data', {})
+            summary = str(data.get("symbol", data.get("message", "Data...")))
+            table.add_row(ts, f"[{color}]{s_type}[/{color}]", getattr(sig, 'source', 'sys'), summary)
             
         return Panel(table, title="Signal Intelligence (Global Feed)", border_style="magenta")
         
@@ -175,6 +182,9 @@ class RichPulseReporter(ArbiterReporter):
         Logger.set_silent(True) # V135: Silence console logs to prevent TUI artifacts
         self.dashboard = PulsedDashboard()
         self.live = Live(self.dashboard.layout, refresh_per_second=2, screen=True) 
+        # self.live.start() # Don't auto-start in verification script
+        
+    def start(self):
         self.live.start()
         
     def update_from_state(self, app_state):
@@ -195,11 +205,10 @@ class RichPulseReporter(ArbiterReporter):
             self.dashboard.layout["scalper"].update(scalper_panel)
         else:
             self.dashboard.layout["scalper"].update(
-                self.dashboard.generate_scalper_panel(app_state.scalp_signals, app_state.market_pulse)
+                self.dashboard.generate_scalper_panel(app_state.scalp_signals, getattr(app_state, 'market_pulse', None))
             )
         
         # 3b. Signals (Left Bottom) - Legacy
-        # Currently no fragment for signals, sticking to legacy
         self.dashboard.layout["signals"].update(
              self.dashboard.generate_signal_panel(app_state.system_signals)
         )
