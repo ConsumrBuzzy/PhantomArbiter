@@ -623,8 +623,7 @@ class TradeExecutor:
                     if loop.is_running():
                         loop.create_task(self.shadow_manager.audit_trade("BUY", watcher.symbol, price, paper_result, live_result))
                 except Exception as e:
-                    print(f"DEBUG: SHADOW AUDIT EXCEPTION: {e}")
-                    # Logger.warning(f"[SHADOW] Failed to trigger audit: {e}")
+                    Logger.warning(f"[SHADOW] Failed to trigger audit: {e}")
 
             return live_result
         else:

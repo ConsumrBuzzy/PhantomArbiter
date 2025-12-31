@@ -63,8 +63,7 @@ async def run_verification():
     print("✅ Core Initialized & Shadow Manager Detected")
     
     # Funding Paper Wallet for test
-    core.executor.paper_wallet.deposit("SOL", 10.0, 150.0)
-    core.executor.paper_wallet.deposit("USDC", 1500.0, 1.0)
+    core.executor.paper_wallet.init_from_real(real_usdc=1500.0, real_sol=10.0)
     print("✅ Paper Wallet Funded")
     
     # 4. Trigger Buy
