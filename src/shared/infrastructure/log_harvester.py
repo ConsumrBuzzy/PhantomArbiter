@@ -243,8 +243,8 @@ class LogHarvester:
                     await self._subscribe(ws, METEORA_DLMM_ID)
                     
                     # V140: Subscribe to Bridge Programs
-                    await self._subscribe(ws, self.CIRCLE_CCTP_ID)
-                    await self._subscribe(ws, self.WORMHOLE_BRIDGE_ID)
+                    await self._subscribe(ws, CIRCLE_CCTP_ID)
+                    await self._subscribe(ws, WORMHOLE_BRIDGE_ID)
                     
                     while self.is_running:
                         msg = await ws.recv()
@@ -330,7 +330,7 @@ class LogHarvester:
         amount_usd = 0.0
         
         for log in logs:
-            if self.CIRCLE_CCTP_ID in log:
+            if CIRCLE_CCTP_ID in log:
                 is_bridge = True
                 protocol = "CCTP"
                 # Look for "Mint" or "DepositForBurn"
@@ -338,7 +338,7 @@ class LogHarvester:
                     amount_usd = self._extract_amount_from_logs(logs, "CCTP")
                 break
             
-            if self.WORMHOLE_BRIDGE_ID in log:
+            if WORMHOLE_BRIDGE_ID in log:
                 is_bridge = True
                 protocol = "WORMHOLE"
                 if "complete" in log.lower() or "transfer" in log.lower():

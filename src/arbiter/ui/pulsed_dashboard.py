@@ -199,6 +199,49 @@ class PulsedDashboard:
             table.add_row("5", "[dim]Deep Path (Complex)[/dim]", "-", "-")
             return Panel(table, title="[cyan]🌌 Multiverse Hop Scanner[/cyan]", border_style="cyan")
         
+        for hop_count, details in cycles_by_hops.items():
+            path = details.get('path', 'unknown')
+            profit = details.get('profit_pct', 0)
+            liq = details.get('liquidity_usd', 0)
+            table.add_row(str(hop_count), path, f"{profit:.3f}%", f"${liq:,.0f}")
+            
+        return Panel(table, title="[cyan]🌌 Multiverse Hop Scanner[/cyan]", border_style="cyan")
+
+    def generate_scavenger_panel(self, hot_pools: List[Dict] = None):
+        """V140: Show pools under pressure from FailureTracker."""
+        table = Table(box=box.SIMPLE, expand=True)
+        table.add_column("Pool", style="yellow")
+        table.add_column("Fails (30s)", justify="center")
+        table.add_column("Status", justify="right")
+        
+        if not hot_pools:
+            table.add_row("[dim]Stable[/dim]", "0", "[green]NOMINAL[/green]")
+        else:
+            for item in hot_pools[:5]:
+                pool = item.get('pool', 'unknown')[:8] + "..."
+                fails = str(item.get('failures', 0))
+                recoil = "[bold green]RECOIL[/bold green]" if item.get('recoil') else "🔥 HOT"
+                table.add_row(pool, fails, recoil)
+                
+        return Panel(table, title="[bold yellow]🦂 Scavenger (Hot Pools)[/bold yellow]", border_style="yellow")
+
+    def generate_flow_panel(self, bridge_stats: Dict = None):
+        """V140: Show institutional liquidity inflows from BridgePod."""
+        table = Table(box=box.SIMPLE, expand=True)
+        table.add_column("Period", style="cyan")
+        table.add_column("Inflow (USD)", justify="right")
+        table.add_column("Whales", justify="center")
+        
+        if not bridge_stats:
+            table.add_row("1h", "$0", "0")
+        else:
+            inflow = bridge_stats.get('inflow_1h_usd', 0)
+            whales = str(bridge_stats.get('whale_count', 0))
+            table.add_row("1h Total", f"[green]${inflow:,.0f}[/green]", whales)
+            
+        # Add a progress bar or indicator for inflow pressure?
+        return Panel(table, title="[bold cyan]🌉 Institutional Flow[/bold cyan]", border_style="cyan")
+        
         # Show best cycle at each hop level
         for hop_count in [2, 3, 4, 5]:
             cycles = cycles_by_hops.get(hop_count, [])
@@ -400,25 +443,42 @@ class RichPulseReporter(ArbiterReporter):
             self.dashboard.generate_signal_panel(app_state.system_signals)
         )
         
-        # 3c. Shadow (Left Bottom 2)
-        shadow_stats = getattr(app_state, 'shadow_stats', {})
-        self.dashboard.layout["shadow"].update(
-            self.dashboard.generate_shadow_panel(shadow_stats)
-        )
-        
-        # 4. Inventory (Right Mid)
-        self.dashboard.layout["inventory"].update(
-            self.dashboard.generate_inventory_panel(app_state.inventory)
-        )
-        
-        # 5. Stats
-        self.dashboard.layout["stats"].update(
-            self.dashboard.generate_stats_panel(
-                trades=app_state.stats.get('total_trades', 0),
-                volume=app_state.stats.get('volume', 0),
-                turnover=0
+        # 3c. Shadow or Scavenger (Left Bottom 2)
+        from config.settings import Settings
+        if getattr(Settings, 'HOP_ENGINE_ENABLED', False):
+            # Show Scavenger info (Hot Pools)
+            pod_stats = getattr(app_state, 'pod_stats', {})
+            # Look for scavenger/sniffer pods
+            hot_pools = []
+            bridge_stats = {}
+            
+            for pod_id, stats in pod_stats.items():
+                if "harvester" in pod_id.lower():
+                    hot_pools = stats.get('hot_pools', [])
+                if "sniffer" in pod_id.lower() or "bridge" in pod_id.lower():
+                    bridge_stats = stats
+            
+            self.dashboard.layout["shadow"].update(
+                self.dashboard.generate_scavenger_panel(hot_pools)
             )
-        )
+            # Re-use stats or another slot for Bridge Flow?
+            # Let's put Bridge Flow in the "stats" panel if Hop Mode is on
+            self.dashboard.layout["stats"].update(
+                self.dashboard.generate_flow_panel(bridge_stats)
+            )
+        else:
+            shadow_stats = getattr(app_state, 'shadow_stats', {})
+            self.dashboard.layout["shadow"].update(
+                self.dashboard.generate_shadow_panel(shadow_stats)
+            )
+            # Standard Stats
+            self.dashboard.layout["stats"].update(
+                self.dashboard.generate_stats_panel(
+                    trades=app_state.stats.get('total_trades', 0),
+                    volume=app_state.stats.get('volume', 0),
+                    turnover=0
+                )
+            )
         
         # 6. Footer
         now = datetime.now().strftime("%H:%M:%S")
