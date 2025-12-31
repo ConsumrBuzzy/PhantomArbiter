@@ -17,5 +17,10 @@
     "svelte-check": "^4.3.4",
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
+  },
+  "dependencies": {
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "sigma": "^3.0.2"
   }
 }
