@@ -129,3 +129,15 @@ class MarketOrchestrator:
                 self.frontend_process.kill()
                 
         print("✅ System Shutdown Complete.")
+
+    async def keep_alive(self):
+        """
+        Keeps the main event loop running indefinitely.
+        Used when running in Headless/Pure-Web mode (No TUI).
+        """
+        logger.info("[Orchestrator] Entering Keep-Alive Loop. Press Ctrl+C to exit.")
+        try:
+            while self.is_running:
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            pass

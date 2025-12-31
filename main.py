@@ -570,37 +570,10 @@ async def cmd_arbiter(args: argparse.Namespace) -> None:
 
 
 async def cmd_pulse(args: argparse.Namespace) -> None:
-    """Handle pulse subcommand - CLI Dashboard (Full Stack)."""
-    from rich.console import Console
-    from src.engine.director import Director
-    from src.arbiter.ui.pulsed_dashboard import RichPulseReporter
-
-    # 1. Init
-    console = Console()
-    console.clear()
-
-    # 2. Start Engines (Director)
-    # Using defaults or args
-    director = Director(lite_mode=True)
-    engine_task = asyncio.create_task(director.start())
-
-    # 3. Start UI (Pulse Reporter)
-    reporter = RichPulseReporter()
-
-    try:
-        # Main Loop
-        while True:
-            reporter.update_from_state(app_state)
-            await asyncio.sleep(0.1)
-
-    except asyncio.CancelledError:
-        pass
-    except KeyboardInterrupt:
-        pass
-    finally:
-        reporter.stop()
-        engine_task.cancel()
-        await director.stop()
+    """Handle pulse subcommand."""
+    print("⚠️ 'pulse' command is deprecated in favor of the Web HUD.")
+    print("   Redirecting to 'dashboard'...")
+    await cmd_dashboard(args)
 
 
 async def cmd_graduation(args: argparse.Namespace) -> None:
@@ -744,16 +717,13 @@ async def cmd_clean(args: argparse.Namespace) -> None:
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Run the TUI Dashboard with the Director orchestrator."""
+    """Run the Headless Server with Web HUD."""
     from src.engine.orchestrator import MarketOrchestrator
-    from src.dashboard.tui_app import PhantomDashboard
     from config.settings import Settings
 
-    Settings.SILENT_MODE = True
+    Settings.SILENT_MODE = False # Enable logs for headless mode
     
-    # Check for HUD flag (add to parser later if needed, or default based on logic)
-    # For now, let's assume we want HUD unless specified otherwise.
-    # The user prompt implies main.py should do it all.
+    # Check for HUD flag
     launch_hud = not getattr(args, "no_hud", False) 
 
     # 1. Initialize Orchestrator (Mission Control)
@@ -762,23 +732,23 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     # 2. Run Hygiene
     orchestrator.run_hygiene_check()
 
-    # 3. Initialize Dashboard ( The Face)
-    # We initialize dashboard *before* igniting system to capture startup logs effectively if wired
-    app = PhantomDashboard()
-
-    # 4. Ignite System (Background)
+    # 3. Ignite System (Background)
     bridge_task, engine_task = await orchestrator.ignite_system()
     
-    # 5. Launch Frontend (Process)
+    # 4. Launch Frontend (Process)
     orchestrator.launch_frontend()
     
-    print("\n   🔮 PRISM HUD ONLINE: http://localhost:5173\n")
+    print("\n" + "="*40)
+    print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
+    print(" 🔮 PRISM HUD: http://localhost:5173")
+    print(" 📋 LOGS: Streaming below...")
+    print("="*40 + "\n")
 
-    # 6. Launch TUI (Instant)
+    # 5. Keep Alive (Headless Server)
     try:
-        await app.run_async()
+        await orchestrator.keep_alive()
     finally:
-        # 7. Cleanup
+        # 6. Cleanup
         bridge_task.cancel()
         engine_task.cancel()
         await orchestrator.shutdown()
