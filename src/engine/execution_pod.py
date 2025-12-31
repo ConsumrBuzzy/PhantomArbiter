@@ -421,6 +421,14 @@ class ExecutionPod(BasePod):
                 Logger.info(f"[ExecutionPod] 👻 GHOST RUN: Skipping submission for {hop_count}-hop bundle")
                 Logger.info(f"               Tip: {tip_lamports} | Expected Profit: {actual_profit_pct:.3f}%")
                 signature = f"ghost_{cycle_id}"
+                
+                # Trigger Ghost Validation (Look-Back)
+                if self._ghost_validator:
+                    asyncio.create_task(self._ghost_validator.validate_later(
+                        cycle_id=cycle_id,
+                        path=path,
+                        original_profit=actual_profit_pct
+                    ))
             else:
                 signature = self._hop_builder.build_and_submit(
                     swap_legs=swap_legs,
@@ -457,13 +465,16 @@ class ExecutionPod(BasePod):
         # Remove executions older than 1 minute
         self._execution_times = [t for t in self._execution_times if now - t < 60]
         return len(self._execution_times) < self.max_execution_per_minute
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get ExecutionPod statistics."""
         success_rate = (
             self.executions_succeeded / self.executions_attempted * 100
             if self.executions_attempted > 0 else 0
         )
+        
+        # Count ghost validations if any
+        ghost_validations = self._ghost_validator.pending_validations if self._ghost_validator else 0
         
         return {
             "pod_id": self.id,
@@ -478,4 +489,5 @@ class ExecutionPod(BasePod):
             "min_profit_pct": self.min_profit_pct,
             "uptime_seconds": time.time() - self.created_at,
             "recent_history": [r.__dict__ for r in self.execution_history[-5:]],
+            "ghost_pending": ghost_validations
         }
