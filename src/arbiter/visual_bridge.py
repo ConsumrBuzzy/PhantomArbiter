@@ -85,6 +85,7 @@ class VisualBridge:
                     tasks = [self.send_update(client, payload) for client in self.connected_clients]
                     if tasks:
                         await asyncio.gather(*tasks)
+                        logger.info(f"📤 Broadcast: {len(payload_data.get('nodes', []))} nodes to {len(self.connected_clients)} clients.")
                         
             except Exception as e:
                 logger.error(f"❌ Broadcast Error: {e}")

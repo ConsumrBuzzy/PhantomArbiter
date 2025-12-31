@@ -31,7 +31,7 @@ class MarketManager:
         self.repo = MarketRepository(DatabaseCore())
         self.last_snapshot: Optional[GraphSnapshot] = None
         
-    def dehydrate(self) -> Dict[str, int]:
+    def rehydrate(self) -> int:
         """
         Loads pool graph from JSON archive into SQLite.
         """
