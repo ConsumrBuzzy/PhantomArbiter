@@ -459,6 +459,28 @@ class Settings:
     # Format: ["SOL/USDC", "WIF/USDC"]
     WATCHER_PAIRS = [] 
 
+    # ═══════════════════════════════════════════════════════════════════
+    # V140: NARROW PATH CONFIGURATION (Multi-Hop Token Hopping)
+    # ═══════════════════════════════════════════════════════════════════
+    # Strategic Pivot: Disable Scalper/Intelligence, enable Graph Arb
+    
+    HOP_ENGINE_ENABLED = True             # Enable Multi-Hop Arbiter (disables Scalper agents)
+    SCALPER_ENABLED = False               # Disable Token Scalper (latency war = losing battle)
+    
+    # ─── Graph Pathfinding Parameters ───
+    HOP_MAX_LEGS = 4                      # Maximum hops (3, 4, or 5)
+    HOP_MIN_PROFIT_PCT = 0.20             # Minimum theoretical profit (0.2%)
+    HOP_MIN_LIQUIDITY_USD = 5000          # Minimum pool liquidity for consideration
+    HOP_SCAN_INTERVAL_SEC = 2.0           # Graph scan frequency
+    
+    # ─── Pool Matrix Config ───
+    HOP_STALE_SLOT_THRESHOLD = 150        # Prune edges older than ~60s (150 slots)
+    HOP_MAX_POOLS = 10000                 # Memory guard: max pools in graph
+    
+    # ─── Jito Bundle Config ───
+    HOP_TIP_LAMPORTS = 10000              # Default Jito tip for multi-hop bundles
+    HOP_MAX_BUNDLE_SIZE = 5               # Max instructions per bundle (1 tip + 4 swaps)
+
 
 try:
     a, v, w, s, all_a, meta, wp = Settings.load_assets()

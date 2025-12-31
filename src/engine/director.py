@@ -82,9 +82,12 @@ class Director:
         # Pass to Arbiter too?
         if hasattr(self.agents["arbiter"], 'set_risk_governor'):
              self.agents["arbiter"].set_risk_governor(self.risk_governor)
-
         
-        if not self.lite_mode:
+        # V140: Narrow Path Mode Check
+        from config.settings import Settings
+        hop_mode = getattr(Settings, 'HOP_ENGINE_ENABLED', False)
+        
+        if not self.lite_mode and not hop_mode:
             # Whale Watcher (V23, V67.0: Whale-Pulse with metadata registry)
             from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
             self.agents["whale"] = WhaleWatcherAgent(metadata_registry=self.token_registry)
@@ -97,6 +100,12 @@ class Director:
             # Landlord (V23)
             from src.engine.landlord_core import get_landlord
             self.agents["landlord"] = get_landlord()
+        elif hop_mode:
+            # V140: Narrow Path Mode - Skip intelligence agents for graph arb
+            state.log("[Director] ⚡ Narrow Path Mode: Skipping Whale/Scout/Landlord agents.")
+            self.agents["whale"] = None
+            self.agents["scout"] = None
+            self.agents["landlord"] = None
         else:
             # Mock or Skip
             self.agents["whale"] = None
@@ -194,31 +203,38 @@ class Director:
         )
 
         if not self.lite_mode:
-            # Whale Watcher (Internal Loop)
-            self.agents["whale"].start() 
+            # V140: Check for Narrow Path mode
+            from config.settings import Settings
+            hop_mode = getattr(Settings, 'HOP_ENGINE_ENABLED', False)
             
-            # 4. Launch SLOW TIER (Maintenance)
-            self.agents["scout"].start() 
-            
-            # Landlord Monitoring
-            self.tasks["slow"]["landlord"] = asyncio.create_task(
-                self.agents["landlord"].run_monitoring_loop(),
-                name="Landlord_Monitor"
-            )
-            
-            # Discovery Service
-            from src.services.discovery_service import discovery_monitor_loop
-            self.tasks["slow"]["discovery"] = asyncio.create_task(
-                discovery_monitor_loop(),
-                name="Discovery_Monitor"
-            )
-            
-            # Liquidity Service
-            from src.services.liquidity_service import liquidity_cycle_loop
-            self.tasks["slow"]["liquidity"] = asyncio.create_task(
-                liquidity_cycle_loop(),
-                name="Liquidity_Manager"
-            )
+            if not hop_mode:
+                # Whale Watcher (Internal Loop)
+                self.agents["whale"].start() 
+                
+                # 4. Launch SLOW TIER (Maintenance)
+                self.agents["scout"].start() 
+                
+                # Landlord Monitoring
+                self.tasks["slow"]["landlord"] = asyncio.create_task(
+                    self.agents["landlord"].run_monitoring_loop(),
+                    name="Landlord_Monitor"
+                )
+                
+                # Discovery Service
+                from src.services.discovery_service import discovery_monitor_loop
+                self.tasks["slow"]["discovery"] = asyncio.create_task(
+                    discovery_monitor_loop(),
+                    name="Discovery_Monitor"
+                )
+                
+                # Liquidity Service
+                from src.services.liquidity_service import liquidity_cycle_loop
+                self.tasks["slow"]["liquidity"] = asyncio.create_task(
+                    liquidity_cycle_loop(),
+                    name="Liquidity_Manager"
+                )
+            else:
+                state.log("[Director] ⚡ Narrow Path Mode: Skipping slow tier (Whale/Scout/Discovery/Liquidity).")
         else:
             state.log("[Director] ⚡ Lite Mode Active: Skipping non-essential background daemons.")
         
