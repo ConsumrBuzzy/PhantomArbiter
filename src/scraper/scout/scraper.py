@@ -11,6 +11,47 @@ class TokenScraper:
         self.birdeye_key = os.getenv("BIRDEYE_API_KEY")
         self.seen_tokens = set()
 
+    async def start_scanning(self, interval: float = 60.0):
+        """Background scanning loop for new tokens."""
+        import asyncio
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        from src.shared.system.logging import Logger
+        
+        Logger.info("[SCRAPER] 🦅 Starting background scan for Trending Solana Tokens...")
+        
+        while True:
+            try:
+                # Run the synchronous scrape in a thread
+                candidates = await asyncio.to_thread(self.get_candidates)
+                
+                new_count = 0
+                for c in candidates:
+                    sig_id = c['address']
+                    if sig_id not in self.seen_tokens:
+                        self.seen_tokens.add(sig_id)
+                        new_count += 1
+                        
+                        # Emit Discovery Signal (Purple Flash)
+                        signal_bus.emit(Signal(
+                            type=SignalType.MARKET_UPDATE, # Use update to trigger flash
+                            data={
+                                "source": "DISCOVERY",
+                                "symbol": c.get("symbol", "NEW"),
+                                "mint": c.get("address"),
+                                "token": c.get("address"),
+                                "price": 0.0, # Unknown price usually
+                                "timestamp": asyncio.get_event_loop().time()
+                            }
+                        ))
+                
+                if new_count > 0:
+                    Logger.info(f"[SCRAPER] 🔭 Discovered {new_count} new trending tokens")
+                    
+            except Exception as e:
+                Logger.warning(f"[SCRAPER] Error: {e}")
+                
+            await asyncio.sleep(interval)
+
     def get_candidates(self):
         """Dispatches to the best available source."""
         if self.birdeye_key:

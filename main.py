@@ -327,9 +327,10 @@ async def main() -> None:
 
     # DEFAULT TO DASHBOARD IF NO ARGS
     if args.command is None:
-        # Manually invoke dashboard handler with default args
-        print("ℹ️  No command specified. Defaulting to Dashboard (Paper Mode).")
-        args.live = False
+        # V33: Auto-launch Dashboard (Full Spectrum Mode)
+        print("ℹ️  Auto-Launching Full Spectrum Dashboard...")
+        args.live = False 
+        args.no_hud = False # Ensure HUD launches
         await cmd_dashboard(args)
         return
 

@@ -54,10 +54,56 @@ class DydxAdapter:
         "mainnet": "https://indexer.dydx.exchange",
     }
 
+    async def _publish_updates(self, market_data: Dict[str, float]):
+        """Emit MARKET_UPDATE signals for dYdX prices."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
+        timestamp = asyncio.get_event_loop().time()
+        for symbol, price in market_data.items():
+            # Convert ETH-USD -> ETH for matching
+            token = symbol.split("-")[0]
+            
+            signal_bus.emit(Signal(
+                type=SignalType.MARKET_UPDATE,
+                data={
+                    "source": "DYDX",
+                    "symbol": token,
+                    "token": token,
+                    "mint": token, # Map if possible, else use symbol
+                    "price": price,
+                    "timestamp": timestamp
+                }
+            ))
+
+    async def start_polling(self, symbols: List[str] = None, interval: float = 2.0):
+        """Start background polling loop for dYdX signals."""
+        if not symbols:
+            # V33: Solana Clean Room
+            symbols = ["SOL-USD", "JUP-USD", "RAY-USD"] # Only major Solana perps
+            
+        while True:
+            try:
+                # Batch fetch if possible, or iterate
+                # dYdX v4 API usually allows fetching all markets
+                # For efficiency, we just fetch tickers for our list
+                updates = {}
+                for sym in symbols:
+                    ticker = await self.get_ticker(sym)
+                    if ticker:
+                        updates[sym] = ticker['price']
+                
+                if updates:
+                    await self._publish_updates(updates)
+                    
+            except Exception as e:
+                Logger.warning(f"⚠️ dYdX Poll Error: {e}")
+                
+            await asyncio.sleep(interval)
+
     def __init__(self, network: str = "testnet"):
         """
         Initialize adapter (does not connect yet).
-
+        
         Args:
             network: "testnet" or "mainnet"
         """

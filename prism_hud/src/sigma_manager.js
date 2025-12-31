@@ -101,6 +101,21 @@ export class SigmaManager {
 
     // Process a high-speed flash event
     processFlash(flash) {
+        if (!this.graph.hasNode(flash.node)) {
+            // V32: Organic Sprouting (Auto-Discovery)
+            // If the node doesn't exist, Create It!
+            console.log(`🌱 Sprouting Node: ${flash.label || flash.node}`);
+
+            this.graph.addNode(flash.node, {
+                label: flash.label || flash.node.slice(0, 4),
+                x: Math.random() * 100,
+                y: Math.random() * 100,
+                size: 5,
+                color: '#00ffff',
+                energy: 0
+            });
+        }
+
         if (this.graph.hasNode(flash.node)) {
             // Instant energy injection
             this.graph.setNodeAttribute(flash.node, 'energy', flash.energy || 1.0);

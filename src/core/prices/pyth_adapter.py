@@ -107,6 +107,49 @@ class PythAdapter(PriceProvider):
         # For now, return empty and use fetch_with_confidence() for full data
         return {}
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # V48.1 SIGNAL INTEGRATION (Phase 33)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def _publish_updates(self, results: Dict[str, PythPrice]):
+        """Emit MARKET_UPDATE signals for fresh prices."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
+        timestamp = time.time()
+        for symbol, p_price in results.items():
+            # Emit "Truth" Signal
+            signal_bus.emit(Signal(
+                type=SignalType.MARKET_UPDATE,
+                data={
+                    "source": "PYTH",
+                    "symbol": symbol,
+                    "token": symbol, # Use symbol as token ID if mint unknown
+                    "mint": symbol,  # Map symbol to mint if possible, else use symbol
+                    "price": p_price.price,
+                    "confidence": p_price.confidence,
+                    "timestamp": timestamp
+                }
+            ))
+
+    async def start_polling(self, symbols: List[str] = None, interval: float = 1.0):
+        """Start background polling loop for signals."""
+        import asyncio
+        if not symbols:
+            # V33: Solana Clean Room (No BTC/ETH noise)
+            symbols = ["SOL", "USDC", "JUP", "RAY", "BONK", "WIF", "JITOSOL"]
+            
+        while True:
+            try:
+                # We use the sync fetch here but wrap in thread if blocking
+                # Pyth adapter fetch is requests-based (blocking IO)
+                # Ideally we use aiohttp, but for now toThread is fine
+                results = await asyncio.to_thread(self.fetch_with_confidence, symbols)
+                self._publish_updates(results)
+            except Exception as e:
+                print(f"⚠️ Pyth Poll Error: {e}")
+                
+            await asyncio.sleep(interval)
+
     def fetch_with_confidence(self, symbols: List[str]) -> Dict[str, PythPrice]:
         """
         Fetch prices with confidence intervals for multiple symbols.
@@ -137,8 +180,21 @@ class PythAdapter(PriceProvider):
                     uncached_symbols.append(symbol)
             else:
                 uncached_symbols.append(symbol)
+        
+        # If we have cached results, publish them too? 
+        # No, explicitly published in the polling loop or by caller.
+        # But wait, purely fetching shouldn't side-effect emit signal unless intended?
+        # Actually, for "Maximal Feeds", ANY fetch is a valid signal.
+        if results:
+             pass # avoiding duplicate emits if we call _publish via poll
+             # BUT, if TradingCore calls this, we WANT a signal.
+             # Let's emit here for maximum coverage.
+             # self._publish_updates(results) # CAREFUL with circular logic/perf
+             # Let's keep explicit polling separate.
 
         if not uncached_symbols:
+            # If everything was cached, return.
+            # But we might want to emit signals for these cached values if this was a refresh?
             return results
 
         # Rate limiting
@@ -197,13 +253,17 @@ class PythAdapter(PriceProvider):
 
                 results[symbol] = pyth_price
                 self._cache[symbol] = (time.time(), pyth_price)
+            
+            # Publish fresh updates
+            # self._publish_updates(results) # Avoid side effect here, let polling loop handle or caller
 
         except requests.exceptions.Timeout:
             print("      ⚠️ Pyth API timeout")
         except requests.exceptions.ConnectionError:
             print("      ⚠️ Pyth API connection error")
         except Exception as e:
-            print(f"      ⚠️ Pyth API error: {e}")
+            pass
+            # print(f"      ⚠️ Pyth API error: {e}")
 
         return results
 

@@ -33,27 +33,52 @@ class VisualBridge:
         self._setup_signal_listener()
 
     def _setup_signal_listener(self):
-        """Wires the Neural Link from SignalBus to the Bridge."""
-        def handle_market_update(sig: Signal):
-            # Only broadcast if we have clients
-            if not self.connected_clients:
-                return
-                
+        """Subscribe to SignalBus for real-time events."""
+        
+        async def handle_market_update(sig: Signal):
             # Construct heavyweight "Flash" packet
             # We use fire-and-forget to avoid blocking the bus
             mint = sig.data.get("mint") or sig.data.get("token")
+            symbol = sig.data.get("symbol", "???")
+            source = sig.data.get("source", "DEX") # Default to DEX
+            
+            # Phase 33: Full Spectrum Colors
+            # Helius (DEX) = Neon Green
+            # Pyth (Oracle) = Cyan Blue
+            # dYdX (CEX) = Orange
+            # Arb/Spread = Red (Warning)
+            
+            color = "#39ff14" # Default Green (DEX)
+            if source == "PYTH":
+                color = "#00ffff" # Cyan
+            elif source == "DYDX":
+                color = "#ffaa00" # Orange
+            elif source == "PUMP_GRAD":
+                color = "#ffaa00" # Orange (Graduation)
+            elif source == "DISCOVERY":
+                color = "#9945ff" # Purple (Solana/Discovery)
+            elif source == "LAUNCHPAD":
+                color = "#ff00ff" # Magenta (Raydium/Meteora/etc)
+            elif source == "MIGRATION":
+                color = "#ffd700" # Gold (Migration Event)
+            elif source == "ORCA":
+                color = "#008080" # Teal (Concentrated Liquidity)
+            elif source == "ARB":
+                color = "#ff0000" # Red Warning
+            
             if mint:
                 flash_packet = json.dumps({
                     "type": "flash",
                     "node": mint,
+                    "label": symbol,
                     "energy": 1.0,
-                    "color": "#00FF00" # Default flash color
+                    "color": color
                 })
                 # Schedule broadcast on the event loop
                 asyncio.create_task(self._broadcast_flash(flash_packet))
 
         signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_update)
-        signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update)
+        signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update) # Treat scalp signals as updates too
 
     async def _broadcast_flash(self, payload: str):
         """High-speed broadcast for flash events."""

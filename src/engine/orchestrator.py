@@ -95,7 +95,36 @@ class MarketOrchestrator:
         self.is_running = True
         
         # 1. Visual Bridge (The Eyes)
+        self.executor_loop = asyncio.events.new_event_loop()
         self.visual_bridge = VisualBridge()
+        
+        # V33: Ignite Pyth Polling for Full Spectrum
+        from src.core.prices.pyth_adapter import PythAdapter
+        self.pyth = PythAdapter()
+        asyncio.create_task(self.pyth.start_polling(interval=2.0))
+
+        # V33: Ignite Pump.fun Monitor (Orange Layer - Graduation)
+        # Tracking "Graduations" to Raydium as high-signal events
+        from src.engine.pump_monitor import PumpFunMonitor
+        self.pump_monitor = PumpFunMonitor()
+        asyncio.create_task(self.pump_monitor.start_monitoring(interval=0.2)) # High freq
+        
+        # V33: Ignite Scraper (Purple Layer - Discovery)
+        from src.scraper.scout.scraper import TokenScraper
+        self.scraper = TokenScraper()
+        asyncio.create_task(self.scraper.start_scanning(interval=30.0))
+        
+        # V33: Ignite Launchpad Monitor (Magenta Layer - Multi-Platform)
+        from src.scraper.discovery.launchpad_monitor import get_launchpad_monitor
+        self.launchpad = get_launchpad_monitor()
+        asyncio.create_task(self.launchpad.start())
+        
+        # V33: Ignite Orca Adapter (Teal Layer - Liquidity)
+        from src.liquidity.orca_adapter import OrcaAdapter
+        self.orca = OrcaAdapter()
+        asyncio.create_task(self.orca.start_polling(interval=5.0))
+        
+        return bridge_task, engine_task
         bridge_task = asyncio.create_task(self.visual_bridge.start())
         
         # 2. Director (The Brain)

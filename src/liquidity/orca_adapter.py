@@ -92,6 +92,43 @@ class OrcaAdapter:
         )
         Logger.info("   🐋 [ORCA] Whirlpools Adapter Initialized (PDA Mode)")
 
+    async def start_polling(self, pools: Dict[str, str] = None, interval: float = 5.0):
+        """Start background polling for Orca pool states."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        import asyncio
+        
+        if not pools:
+            pools = KNOWN_POOLS # Default to mainnet pools
+            
+        while True:
+            try:
+                for name, address in pools.items():
+                    # We run blocking RPC calls in thread
+                    state = await asyncio.to_thread(self.get_whirlpool_state, address)
+                    
+                    if state:
+                        timestamp = asyncio.get_event_loop().time()
+                        signal_bus.emit(Signal(
+                            type=SignalType.MARKET_UPDATE,
+                            data={
+                                "source": "ORCA", # Teal Flash
+                                "symbol": name.split("-")[0], # "SOL" from "SOL-USDC-..."
+                                "label": name,
+                                "token": state.token_mint_a, # Or B? usually we track base
+                                "mint": state.token_mint_a,
+                                "price": state.price,
+                                "timestamp": timestamp,
+                                "meta": {"liquidity": state.liquidity}
+                            }
+                        ))
+                    
+                    await asyncio.sleep(0.1) # stagger requests
+                    
+            except Exception as e:
+                Logger.warning(f"   🐋 [ORCA] Poll Error: {e}")
+                
+            await asyncio.sleep(interval)
+
     # =========================================================================
     # PDA DERIVATION
     # =========================================================================

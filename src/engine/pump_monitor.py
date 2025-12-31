@@ -54,6 +54,70 @@ class PumpFunMonitor:
         except Exception as e:
             Logger.error(f"❌ [PumpMonitor] Failed to start aggregator: {e}")
 
+    def _process_graduation(self, event):
+        """Extract Mint and Alert."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        import asyncio
+        
+        # ... (Existing extraction logic) ...
+        # Simplified for brevity in this replace call, utilizing existing logic structure
+        
+        Logger.info(f"🎓 [PumpMonitor] GRADUATION DETECTED! Sig: {event.signature}")
+
+        mint = None
+        for log in event.logs:
+            m = re.search(r"Mint: ([1-9A-HJ-NP-Za-km-z]{32,44})", log)
+            if m:
+                mint = m.group(1)
+                break
+        
+        if mint:
+            # Emit "Graduation" Signal (Orange Flash)
+            timestamp = asyncio.get_event_loop().time()
+            signal_bus.emit(Signal(
+                type=SignalType.MARKET_UPDATE,
+                data={
+                    "source": "PUMP_GRAD",
+                    "symbol": "GRAD", # Label text
+                    "token": mint,
+                    "mint": mint,
+                    "price": 0.0,
+                    "timestamp": timestamp
+                }
+            ))
+
+            priority_queue.add(
+                1, "LOG",
+                {"level": "SUCCESS", "message": f"🚀 [PumpMonitor] BONDING CURVE COMPLETE: {mint}"}
+            )
+        else:
+            # Fallback log
+            priority_queue.add(
+                2,
+                "LOG",
+                {
+                    "level": "INFO",
+                    "message": f"⚠️ [PumpMonitor] Graduation event found (No Mint parsed). Sig: {event.signature}",
+                },
+            )
+
+    async def start_monitoring(self, interval: float = 0.1):
+        """Async polling loop for the Rust Aggregator."""
+        import asyncio
+        self.start() # Init Aggregator
+        
+        Logger.info("[PumpMonitor] 🔭 Rust-Accelerated Graduation Monitor Active")
+        
+        while self.is_running:
+            try:
+                # Poll events from Rust channel
+                # We can run this frequently as it's just reading a queue
+                await asyncio.to_thread(self.poll)
+            except Exception as e:
+                Logger.error(f"❌ [PumpMonitor] Poll Error: {e}")
+                
+            await asyncio.sleep(interval)
+
     def poll(self):
         """Poll for new graduation events."""
         if not self.is_running or not self.aggregator:
@@ -66,56 +130,14 @@ class PumpFunMonitor:
                 continue
 
             self.processed_sigs.add(event.signature)
-
-            # Analyze logs for Mint info
             self._process_graduation(event)
-
-    def _process_graduation(self, event):
-        """Extract Mint and Alert."""
-        # Find potential Mint address in logs
-        # Logic: Look for "Initialize2" or other context, OR just find the first Base58 string that isn't the program ID
-        # For now, we'll dump the logs to inspect structure in dev mode
-
-        # Simple heuristic: The mint is often the 2nd account in the transaction or mentioned in logs
-        # If we can't find it easily from logs, we might need a quick RPC fetch (async)
-        # But 'Complete' event usually implies we should look at the transaction.
-
-        Logger.info(f"🎓 [PumpMonitor] GRADUATION DETECTED! Sig: {event.signature}")
-
-        # Extract potential mints from logs?
-        # Pattern: "Program log: Mint: <ADDRESS>"
-        mint = None
-        for log in event.logs:
-            # Example: "Program log: Mint: 845..."
-            # We rely on specific Pump.fun log patterns
-            m = re.search(r"Mint: ([1-9A-HJ-NP-Za-km-z]{32,44})", log)
-            if m:
-                mint = m.group(1)
-                break
-
-        if mint:
-            priority_queue.add(
-                1,
-                "LOG",
-                {
-                    "level": "SUCCESS",
-                    "message": f"🚀 [PumpMonitor] BONDING CURVE COMPLETE: {mint} https://solscan.io/tx/{event.signature}",
-                },
-            )
-            # Trigger Signal Bus?
-            # signal_bus.emit(SignalType.SCOUT, {'type': 'GRADUATION', 'mint': mint, 'source': 'PUMP_FUN'})
-        else:
-            # Fallback log
-            priority_queue.add(
-                2,
-                "LOG",
-                {
-                    "level": "INFO",
-                    "message": f"⚠️ [PumpMonitor] Graduation event found (No Mint parsed). Sig: {event.signature}",
-                },
-            )
+            
+            # Keep set size managed
+            if len(self.processed_sigs) > 10000:
+                self.processed_sigs.clear()
 
     def stop(self):
         if self.aggregator:
             self.aggregator.stop()
         self.is_running = False
+```

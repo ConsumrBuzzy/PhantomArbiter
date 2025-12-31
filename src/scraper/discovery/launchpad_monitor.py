@@ -453,11 +453,28 @@ class LaunchpadMonitor:
         pass
 
     async def _emit_launch(self, event: LaunchEvent) -> None:
-        """Emit launch event to all handlers."""
+        """Emit launch event to all handlers and SignalBus."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
         self._launches_detected += 1
         Logger.info(
             f"   🔍 [DISCOVERY] Launch: {event.symbol} on {event.platform.value}"
         )
+        
+        # V33: Signal Bus Integration
+        signal_bus.emit(Signal(
+            type=SignalType.MARKET_UPDATE,
+            data={
+                "source": "LAUNCHPAD", # Magenta Flash
+                "symbol": event.symbol or "NEW",
+                "label": f"{event.symbol} ({event.platform.value})",
+                "token": event.mint,
+                "mint": event.mint,
+                "price": 0.0,
+                "timestamp": event.timestamp,
+                "meta": {"platform": event.platform.value}
+            }
+        ))
 
         for handler in self._launch_handlers:
             try:
@@ -466,11 +483,28 @@ class LaunchpadMonitor:
                 Logger.error(f"   🔍 [DISCOVERY] Handler error: {e}")
 
     async def _emit_migration(self, event: MigrationEvent) -> None:
-        """Emit migration event to all handlers."""
+        """Emit migration event to all handlers and SignalBus."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
         self._migrations_detected += 1
         Logger.info(
             f"   🔍 [DISCOVERY] Migration: {event.mint[:16]}... -> {event.destination_dex}"
         )
+        
+        # V33: Signal Bus Integration
+        signal_bus.emit(Signal(
+            type=SignalType.MARKET_UPDATE,
+            data={
+                "source": "MIGRATION", # Gold/Orange Flash
+                "symbol": "MIGRATION",
+                "label": f"To {event.destination_dex}",
+                "token": event.mint,
+                "mint": event.mint,
+                "price": 0.0,
+                "timestamp": event.timestamp,
+                "meta": {"dex": event.destination_dex}
+            }
+        ))
 
         for handler in self._migration_handlers:
             try:
