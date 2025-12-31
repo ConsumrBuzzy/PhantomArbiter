@@ -784,6 +784,73 @@ class PodManager:
             if isinstance(pod, CyclePod):
                 return pod
         return None
+    
+    def spawn_execution_pod(
+        self,
+        name: str = "striker",
+        mode: str = "paper",
+        min_profit_pct: float = 0.15,
+        cooldown: float = 0.5,
+    ):
+        """
+        Spawn the ExecutionPod (The Striker).
+        
+        Only one ExecutionPod should exist - it processes all 
+        HOP_OPPORTUNITY signals from the queue.
+        
+        Args:
+            name: Human-readable name for the pod
+            mode: "paper", "live", or "disabled"
+            min_profit_pct: Minimum profit % to execute
+            cooldown: Seconds between execution checks
+            
+        Returns:
+            The created ExecutionPod, or existing one if already spawned
+        """
+        from src.engine.execution_pod import ExecutionPod, ExecutionMode
+        
+        # Check if we already have an ExecutionPod
+        for pod in self.pods.values():
+            if isinstance(pod, ExecutionPod):
+                Logger.debug(f"[PodManager] ExecutionPod already exists: {pod.id}")
+                return pod
+        
+        # Map string mode to enum
+        mode_map = {
+            "paper": ExecutionMode.PAPER,
+            "live": ExecutionMode.LIVE,
+            "disabled": ExecutionMode.DISABLED,
+        }
+        exec_mode = mode_map.get(mode.lower(), ExecutionMode.PAPER)
+        
+        config = PodConfig(
+            pod_type=PodType.SCOUT,  # Reuse SCOUT type for execution
+            name=name,
+            params={
+                "min_profit_pct": min_profit_pct,
+            },
+            cooldown_seconds=cooldown,
+            max_signals_per_minute=60,  # Higher limit for execution results
+        )
+        
+        pod = ExecutionPod(
+            config=config,
+            signal_callback=self.signal_callback,
+            mode=exec_mode,
+            min_profit_pct=min_profit_pct,
+        )
+        self.pods[pod.id] = pod
+        
+        Logger.info(f"[PodManager] Spawned ExecutionPod: {pod.id} (mode={mode})")
+        return pod
+    
+    def get_execution_pod(self):
+        """Get the singleton ExecutionPod if it exists."""
+        from src.engine.execution_pod import ExecutionPod
+        for pod in self.pods.values():
+            if isinstance(pod, ExecutionPod):
+                return pod
+        return None
 
     async def start_all(self) -> None:
         """Start all pods."""

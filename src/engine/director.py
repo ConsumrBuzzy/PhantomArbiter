@@ -133,6 +133,16 @@ class Director:
             )
             if self.cycle_pod:
                 state.log(f"[Director] 🧠 Spawned CyclePod: {self.cycle_pod.id} (Governor of Wisdom)")
+            
+            # Spawn ExecutionPod - the "Striker" for atomic bundle execution
+            self.execution_pod = self.pod_manager.spawn_execution_pod(
+                name="striker",
+                mode="paper",  # Start in paper mode for safety
+                min_profit_pct=getattr(Settings, 'HOP_MIN_PROFIT_PCT', 0.15),
+                cooldown=0.5,
+            )
+            if self.execution_pod:
+                state.log(f"[Director] ⚔️ Spawned ExecutionPod: {self.execution_pod.id} (mode=paper)")
         else:
             # Lite Mode - Mock or Skip
             self.agents["whale"] = None
@@ -343,6 +353,11 @@ class Director:
                                 "data": opp_data,
                                 "priority": signal.priority
                             })
+                            
+                            # Also enqueue to ExecutionPod for paper/live execution
+                            exec_pod = self.pod_manager.get_execution_pod() if self.pod_manager else None
+                            if exec_pod:
+                                asyncio.create_task(exec_pod.enqueue_opportunity(opp_data))
                     
                     elif signal.signal_type == "WARNING":
                         state.log(f"[Pod] ⚠️ {signal.pod_id}: {signal.data.get('message', 'Warning')}")
