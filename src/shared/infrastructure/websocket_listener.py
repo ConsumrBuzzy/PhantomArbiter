@@ -94,7 +94,7 @@ class WebSocketListener:
             print("   ⚠️ HELIUS_WS_URL not set. WebSocket disabled.")
         else:
             wss_log(f"Monitoring: {list(watched_mints.values())[:5]}...")
-            wss_log(f"RPC: {'Helius' if 'helius' in self.rpc_url else 'Public'}")
+            wss_log(f"RPC: {'Helius' if 'helius' in self.ws_url else 'Public'}")
 
     def start(self):
         if self.running or not self.ws_url:
