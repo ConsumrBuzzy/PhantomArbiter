@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import Graph from "graphology";
     import Sigma from "sigma";
+    import forceAtlas2 from "graphology-layout-forceatlas2";
     import type { GraphPayload, GraphNode, GraphLink } from "./types";
 
     export let initialData: GraphPayload | null = null;
@@ -63,11 +64,18 @@
             });
         } else {
             graph.addNode(n.id, {
+                x: Math.random(),
+                y: Math.random(),
                 label: n.label,
                 color: n.color,
                 size: n.size,
                 ...n.meta
             });
+            
+            // Re-sync layout if needed
+            if (!forceAtlas2.isRunning(graph)) {
+                forceAtlas2.assign(graph, { iterations: 50, settings: { gravity: 1 } });
+            }
         }
     }
 
