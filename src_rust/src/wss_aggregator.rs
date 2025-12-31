@@ -156,7 +156,7 @@ impl WssAggregator {
     /// * `endpoints` - List of WSS URLs (e.g., ["wss://mainnet.helius-rpc.com/?api-key=xxx"])
     /// * `program_ids` - List of program IDs to subscribe to (e.g., Raydium, Orca)
     /// * `commitment` - Commitment level ("processed", "confirmed", "finalized")
-    #[pyo3(signature = (endpoints, program_ids, commitment="processed"))]
+    #[pyo3(signature = (endpoints, program_ids, commitment="processed", log_filters=None))]
     pub fn start(
         &mut self,
         endpoints: Vec<String>,
