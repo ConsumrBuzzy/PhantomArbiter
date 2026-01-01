@@ -1,1 +1,18 @@
-{}
+{
+    "assets": {
+        "KIND": {
+            "mint": "V5cCiSixPLAiEDX2zZquT5VuLm4prr5t35PWmjNpump",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767304858.5806983
+        },
+        "USCR": {
+            "mint": "USCRdwZP5UkKhJzhWuD7XjTUviHBtZJbLG7XpbKng9S",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767304858.5897853
+        }
+    }
+}
