@@ -69,12 +69,12 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 # Debug: Check for NaN
-                # import json
-                # try:
-                #    json.dumps(message, allow_nan=False)
-                # except ValueError:
-                #    Logger.error(f"❌ [API] JSON NaN detected in payload: {message}")
-                #    continue
+                import json
+                try:
+                   json.dumps(message, allow_nan=False)
+                except ValueError:
+                   Logger.error(f"❌ [API] JSON NaN detected in payload: {message}")
+                   continue
 
                 await connection.send_json(message)
             except Exception as e:
