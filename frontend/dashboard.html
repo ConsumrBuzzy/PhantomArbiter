@@ -464,6 +464,9 @@
                     }
                 });
             }
+
+            // Update hop connection lines
+            hopConnections.forEach(conn => conn.update());
         }
 
         // --- DATA SYNC ---
