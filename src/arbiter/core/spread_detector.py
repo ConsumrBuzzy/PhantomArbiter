@@ -582,6 +582,25 @@ class SpreadDetector:
                     timestamp=time.time(),
                 )
             )
+            
+            # V40: Emit ARB_OPP signal for dashboard visualization (hop lines)
+            try:
+                from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+                signal_bus.emit(Signal(
+                    type=SignalType.ARB_OPP,
+                    source="SPREAD_DETECTOR",
+                    data={
+                        "pair": pair_name,
+                        "path": [base_mint, quote_mint],  # Simplified 2-hop path
+                        "buy_dex": buy_dex,
+                        "sell_dex": sell_dex,
+                        "spread_pct": spread_pct,
+                        "profit": net_profit / trade_size if trade_size > 0 else 0,  # As decimal
+                        "status": "PROFITABLE" if net_profit > 0 else "UNPROFITABLE"
+                    }
+                ))
+            except Exception:
+                pass  # Don't crash spread detection
 
         # ═══ V131: Liquidity Blocklist Filter ═══
         # Filter out pairs with >80% LIQ failure rate (temporary block)
