@@ -4,7 +4,7 @@ from typing import List, Optional
 from src.shared.system.logging import Logger
 from src.utils.boot_utils import BootTimer
 from src.core.data_broker import DataBroker
-from src.engine.landlord_core import get_landlord
+from src.strategies.components.landlord_core import get_landlord
 
 # Services
 from src.services.ml_scheduler import (

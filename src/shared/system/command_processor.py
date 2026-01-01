@@ -225,7 +225,7 @@ class CommandProcessor:
 
         send_telegram(f"🏠 Start Landlord ${size}...", source="BROKER", priority="HIGH")
         try:
-            from src.engine.landlord_core import get_landlord
+            from src.strategies.components.landlord_core import get_landlord
 
             res = get_landlord().start_landlord_sync(size)
             send_telegram(res.get("message", "Done"), source="BROKER", priority="HIGH")
@@ -235,7 +235,7 @@ class CommandProcessor:
     def _handle_close_landlord(self):
         send_telegram("🏠 Closing Landlord...", source="BROKER", priority="HIGH")
         try:
-            from src.engine.landlord_core import get_landlord
+            from src.strategies.components.landlord_core import get_landlord
 
             res = get_landlord().close_landlord_sync()
             send_telegram(res.get("message", "Done"), source="BROKER", priority="HIGH")
@@ -244,7 +244,7 @@ class CommandProcessor:
 
     def _handle_landlord_status(self):
         try:
-            from src.engine.landlord_core import get_landlord
+            from src.strategies.components.landlord_core import get_landlord
 
             status = get_landlord().get_status()
             msg = (
