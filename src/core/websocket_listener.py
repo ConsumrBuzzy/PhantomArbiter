@@ -44,9 +44,10 @@ class WebSocketListener:
     Connects to 3-5 providers in parallel and deduplicates signals.
     """
 
-    def __init__(self, price_cache, watched_mints: dict):
+    def __init__(self, price_cache, watched_mints: dict, on_price_update=None):
         self.price_cache = price_cache
         self.watched_mints = watched_mints
+        self.on_price_update = on_price_update
         self.symbol_to_mint = {v: k for k, v in watched_mints.items()}
 
         # Phase 17: Provider Pool
@@ -162,69 +163,46 @@ class WebSocketListener:
         # Logs are already parsed list of strings
         logs = event.logs
 
-        # Check for swap keywords
-        # Rust might eventually filter this too
-        is_swap = False
-        dex = "OTHER"
+        try:
+            # V7.0.1: Use Rust Parser for Price Extraction
+            # parse_universal_log returns a SwapEvent or None
+            # SwapEvent struct: { pool_id, amount_in, amount_out, price, dex_type }
+            swap_event = parse_universal_log(logs)
+            
+            if swap_event:
+                self.stats["swaps_detected"] += 1
+                self.stats["prices_updated"] += 1
+                
+                # Emit to listener
+                if self.on_price_update:
+                    # Provide standard format: (pool, price, timestamp, dex)
+                    # We might need to resolve pool->tokens lookup here or downstream.
+                    # For now, pass raw pool_id.
+                    self.on_price_update({
+                        "pool": swap_event.pool_id,
+                        "price": swap_event.price,
+                        "timestamp": time.time(),
+                        "dex": swap_event.dex_type,
+                        "signature": event.signature
+                    })
+                    
+                # Update internal stats
+                if "RAYDIUM" in swap_event.dex_type:
+                    self.stats["raydium_swaps"] += 1
+                elif "ORCA" in swap_event.dex_type:
+                    self.stats["orca_swaps"] += 1
 
-        # Quick check first 5 logs contains standard swap signatures
-        for log in logs[:10]:
-            if "ray_log" in log:
-                dex = "RAYDIUM"
-                is_swap = True
-                break
-            if "Instruction: Swap" in log or "Instruction: SwapV2" in log:
-                # Check program ID in logs usually appears before
-                is_swap = True
-                if not dex or dex == "OTHER":
-                    # Infer logic
+                # Legacy Scraper Hook (Optional, for analytics)
+                try:
+                    from src.scraper.discovery.scrape_intelligence import get_scrape_intelligence
+                    get_scrape_intelligence().add_signature(event.signature, dex=swap_event.dex_type)
+                except:
                     pass
 
-        if not is_swap:
-            # Broad check
-            if any("Swap" in log for log in logs) or any("swap" in log for log in logs):
-                is_swap = True
-
-        if not is_swap:
-            return
-
-        self.stats["swaps_detected"] += 1
-
-        if dex == "RAYDIUM":
-            self.stats["raydium_swaps"] += 1
-        else:
-            # Check program IDs manually if not identified by log content "ray_log"
-            logs_concat = "".join(logs)
-            if RAYDIUM_CLMM_PROGRAM in logs_concat:
-                self.stats["clmm_swaps"] += 1
-                dex = "CLMM"
-            elif ORCA_WHIRLPOOLS_PROGRAM in logs_concat:
-                self.stats["orca_swaps"] += 1
-                dex = "ORCA"
-
-        # V22: Parse price if possible and update State (Flux)
-        try:
-            # Very simple heuristic extraction for Demo/V1
-            # In production we'd use parsing of Transfer/Swap instructions
-            # Here we just look for 'ray_log' or similar if available
-            pass
-        except:
-            pass
-
-        # Queue signature for Intelligence Scraper
-        # This keeps the "Analyst" workflow alive
-        try:
-            # We use local import to avoid circular dependency
-            from src.scraper.discovery.scrape_intelligence import (
-                get_scrape_intelligence,
-            )
-
-            scraper = get_scrape_intelligence()
-            scraper.add_signature(event.signature, dex=dex)
-        except ImportError:
-            pass  # Scraper not available
-        except Exception:
-            pass
+        except Exception as e:
+            if WSS_DEBUG and self.stats["swaps_detected"] < 5:
+                # Log first few errors only to avoid spam
+                wss_log(f"Parse error: {e}")
 
         # V22: Trigger State Pulse for known mints (simulated for now if not parsed)
         # This ensures the Flux Gauge moves even without full parsing
@@ -285,5 +263,5 @@ class WebSocketListener:
             self.symbol_to_mint.pop(symbol, None)
 
 
-def create_websocket_listener(price_cache, watched_mints: dict) -> WebSocketListener:
-    return WebSocketListener(price_cache, watched_mints)
+def create_websocket_listener(price_cache, watched_mints: dict, on_price_update=None) -> WebSocketListener:
+    return WebSocketListener(price_cache, watched_mints, on_price_update)

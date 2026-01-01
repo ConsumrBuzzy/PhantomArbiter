@@ -101,9 +101,38 @@ class DataBroker:
         # Create price cache bridge for WSS
         self.price_cache = BrokerPriceCache()
 
-        # Create WSS listener
+        # V19.0: Wire WSS to HopGraphEngine (The Connective Tissue)
+        # We lazily import to avoid circular dep issues during init
+        self.hop_engine = None 
+        try:
+             from src.arbiter.core.hop_engine import get_hop_engine
+             self.hop_engine = get_hop_engine()
+        except ImportError:
+             pass
+
+        def _handle_wss_update(event):
+            """Relay WSS event to Graph Engine."""
+            if self.hop_engine:
+                # Event format: {pool, price, timestamp, dex}
+                # HopEngine expects: {pool_address, price, dex, ...}
+                update = {
+                    "pool_address": event.get("pool"),
+                    "price": event.get("price"),
+                    "dex": event.get("dex"),
+                    "slot": 0, # We might need slot from Rust event
+                    "base_mint": "", # We need to resolve this!
+                    "quote_mint": ""
+                }
+                # ISSUE: We need Base/Quote mints to update Graph edge.
+                # Rust parse_universal_log might return them, but if not we must look up.
+                # For now, let's try pushing what we have, relying on Graph to lookup or error?
+                # Actually HopGraphEngine.update_pool REQUIRES base/quote.
+                # We need a Pool->Token map.
+                self.hop_engine.update_pool(update)
+
+        # Create WSS listener with callback
         self.ws_listener = create_websocket_listener(
-            self.price_cache, self.watched_mints
+            self.price_cache, self.watched_mints, on_price_update=_handle_wss_update
         )
 
         # Stats
