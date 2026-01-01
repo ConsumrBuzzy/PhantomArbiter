@@ -409,7 +409,22 @@
             const labelEl = createLabel(id, `${dexLabel}`, liqStr);
             moon.userData.labelEl = labelEl;
 
-            // Add moon to parent's group or scene
+            // Create orbital line connecting moon to parent center
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: new THREE.Color(params.hex_color || '#444444'),
+                transparent: true,
+                opacity: 0.3
+            });
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),  // Parent center (local coords)
+                moon.position.clone()
+            ]);
+            const orbitalLine = new THREE.Line(lineGeometry, lineMaterial);
+            orbitalLine.userData.isMoonLine = true;
+            moon.userData.orbitalLine = orbitalLine;
+            parentNode.add(orbitalLine);  // Add line to parent too
+
+            // Add moon to parent's group
             parentNode.add(moon);  // Make moon child of parent
             nodes.set(id, moon);
 
