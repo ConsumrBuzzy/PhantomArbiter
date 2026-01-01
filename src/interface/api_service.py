@@ -158,6 +158,15 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 # --- Static Files ---
+import os
+# Robust path resolution: Get project root relative to this file (src/interface/api_service.py)
+# src/interface/api_service.py -> src/interface -> src -> root
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(CURRENT_DIR))
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
+
+Logger.info(f"   📂 [API] Serving Frontend from: {FRONTEND_DIR}")
+
 # Mount frontend directory to serve dashboard.html
 # Access at http://localhost:8000/dashboard.html by default if in root of frontend
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
