@@ -1,64 +1,74 @@
 # System Inventory & Component Audit
 
-**Last Updated:** 2025-12-30
+**Last Updated:** 2026-01-01
 
 ## 🏷️ Status Legend
 
 * 🟢 **Active**: Critical path, currently running in production.
-* 🟡 **Legacy / Maintenance**: usage discouraged, superseded by newer systems, but still imported.
-* 🔴 **Deprecated / Dead**: Code that is no longer used and should be archived/deleted.
-* 🟣 **Restorable**: Valuable logic that is currently disconnected but worth preserving.
+* 🟡 **Legacy / Maintenance**: Usage discouraged, superseded by newer systems.
+* 🔴 **Deprecated / Dead**: Archived or deleted.
+* 🟣 **Restorable**: Valuable logic that is currently disconnected.
 
 ## 🧠 Core Engine
 
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **Director** | `src/engine/director.py` | 🟢 Active | Main Orchestrator, manages Strategy Bridge and Agents. |
+| **Director** | `src/director.py` | 🟢 Active | Main Orchestrator, manages Strategy Bridge and Agents. |
 | **Arbiter** | `src/arbiter/arbiter.py` | 🟢 Active | High-frequency arbitrage agent (Fast Lane). |
-| **Scalper** | `src/engine/trading_core.py` | 🟢 Active | Execution engine for Scalping strategies (Mid Lane). |
-| **DecisionEngine** | `src/engine/decision_engine.py` | 🟡 Legacy | Mostly delegated to `MerchantEnsemble`, but still provides base structure. |
+| **TacticalStrategy** | `src/strategies/tactical.py` | 🟢 Active | Execution engine (replaces old TradingCore). |
+| **DecisionEngine** | `src/strategies/components/decision_engine.py` | 🟢 Active | Trade logic analysis. |
 
 ## 💰 Financial & Execution
 
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **CapitalManager** | `src/shared/system/capital_manager.py` | 🟢 Active | **Source of Truth** for PnL, Positions, and Equity. |
-| **PaperWallet** | `src/shared/execution/paper_wallet.py` | 🟢 Active | V45 Adapter. Wraps CapitalManager (Live). |
-| **PortfolioManager**| `src/strategy/portfolio.py` | 🟡 Legacy | Superseded by CapitalManager (V40.0). refactor planned. |
-| **CapitalManager (Dup)**| `src/core/capital_manager.py` | 💀 Deleted | removed as duplicate of `shared/system` (V40.0 matched). |
-| **JupiterSwapper** | `src/shared/execution/swapper.py` | 🟢 Active | Handles Jito tips, Smart Routing, and Jupiter V6 API. |
+| **CapitalManager** | `src/shared/system/capital_manager.py` | 🟢 Active | Source of Truth for PnL, Positions, Equity. |
+| **PaperWallet** | `src/shared/execution/paper_wallet.py` | 🟢 Active | V45 Adapter wrapping CapitalManager. |
+| **ExecutionBackend** | `src/shared/execution/execution_backend.py` | 🟢 Active | Paper/Live backend protocol. |
+| **PortfolioManager** | `src/strategy/portfolio.py` | 🟡 Legacy | Superseded by CapitalManager (V40.0). |
+| **JupiterSwapper** | `src/shared/execution/swapper.py` | 🟢 Active | Jito tips, Smart Routing, Jupiter V6 API. |
 
 ## 📡 Infrastructure & Data
 
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **SignalBus** | `src/shared/system/signal_bus.py` | 🟢 Active | Cross-Strategy Nerve Link (`SCALP`, `ARB`, `TIP`). |
-| **SmartRouter** | `src/shared/system/smart_router.py` | 🟢 Active | RPC Load Balancing & Rate Limit management. |
-| **SharedPriceCache** | `src/core/shared_cache.py` | 🟢 Active | Atomic IPC lock for price sharing between Broker and Engines. |
-| **PhantomCore** | `src_rust/` | 🟢 Active | Rust Extension for heavy calculation (RSI, EMAs) & WSS Race-to-First. |
-| **FastClient** | `src/shared/system/fast_client.py` | 🟢 Active | Python-side Bridge for Rust WSS Aggregator. |
-| **RaceSpeedometer** | `src/dashboard/race_tracker.py` | 🟢 Active | Real-time RPC Performance Dashboard (Rich TUI). |
+| **SignalBus** | `src/shared/system/signal_bus.py` | 🟢 Active | Cross-Strategy Nerve Link. |
+| **SmartRouter** | `src/shared/system/smart_router.py` | 🟢 Active | RPC Load Balancing & Rate Limit. |
+| **SharedPriceCache** | `src/core/shared_cache.py` | 🟢 Active | Atomic IPC lock for price sharing. |
+| **PhantomCore** | `src_rust/` | 🟢 Active | Rust Extension (RSI, EMAs, WSS). |
+| **FastClient** | `src/shared/system/fast_client.py` | 🟢 Active | Python-side Bridge for Rust WSS. |
+| **DataBroker** | `src/core/data_broker.py` | 🟢 Active | Central data orchestrator. |
 
-## 🧪 Backtesting & Simulation (The "Extensive System")
+## 🌌 Visualization
 
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **Backtester** | `src/shared/backtesting/backtester.py` | 🟢 Active | **V9.0 Unified**: Uses `CapitalManager` for realistic PnL/Fee simulation. |
+| **Galaxy Map** | `frontend/dashboard.html` | 🟢 **CANONICAL** | Three.js 3D visualization. |
+| **Rich TUI** | `src/dashboard/tui_app.py` | 🟢 Active | Terminal UI dashboard. |
+| **viz/** | `_deprecated/viz/` | 🔴 Archived | Superseded by Galaxy Map. |
+| **prism_hud/** | `_deprecated/prism_hud/` | 🔴 Archived | Superseded by Galaxy Map. |
+
+## 🧪 Backtesting & Simulation
+
+| Component | Path | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| **Backtester** | `src/shared/backtesting/backtester.py` | 🟢 Active | Uses CapitalManager for PnL simulation. |
 | **DataFetcher** | `src/shared/backtesting/data_fetcher.py` | 🟣 Restorable | Historical data integration. |
-| **Adapters** | `src/shared/backtesting/adapters.py` | 🟢 Active | Bridges for strategy logic to run in backtest mode. |
-| **WSS Monitor** | `scripts/monitor_race.py` | 🟢 Active | Standalone visualizer for WSS latency stats. |
-| **Latency Trace** | `scripts/trace_latency.py` | 🟢 Active | Signal-to-Execution lag measurement utility. |
 
 ## 📚 Documentation
 
 | Component | Path | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **Master TODO** | `docs/TODO.md` | 🟢 Active | Central project tracking and sprint planning. |
-| **Optimization** | `docs/PHASE_OPTIMIZATION.md` | 🟢 Active | Details on "Institutional Realism" phase (Rust, Latency). |
+| **Master TODO** | `docs/TODO.md` | 🟢 Active | Central sprint planning. |
+| **Architecture** | `ARCHITECTURE.md` | 🟢 Active | 3-layer system design. |
 | **Inventory** | `docs/INVENTORY.md` | 🟢 Active | This file. |
 
-## 🧹 Housekeeping Actions
+## 🧹 Housekeeping Status
 
-1. **Delete** `src/core/capital_manager.py` (Avoid confusion).
-2. **Migrate** remaining `PortfolioManager` refs to `CapitalManager`.
-3. **Docs**: Ensure usage of `src/backtesting` is documented in `README.md` if we plan to use it.
+| Action | Status |
+| :--- | :--- |
+| ~~Delete `src/core/capital_manager.py`~~ | ✅ Done (V40.0) |
+| ~~Delete `src/engine/` source files~~ | ✅ Done (refactored to strategies/) |
+| ~~Archive `viz/` and `prism_hud/`~~ | ✅ Done (2026-01-01) |
+| Migrate `PortfolioManager` refs | 📋 Planned |
+| Restore `src/scraper/` agents | 📋 Planned |

@@ -1,71 +1,149 @@
 # PhantomArbiter Architecture
 
-## Overview
-PhantomArbiter operates on a **Single Engine Base** architecture. The system uses a unified, high-performance execution core (`src/engine`) which is driven by two distinct **Market Methods** depending on the operational context:
-1.  **Arbiter**: Spatial/Triangular arbitrage for established pools.
-2.  **Scraper**: High-speed discovery and sniping for new launches.
+> **Last Updated**: 2026-01-01 | **Phase**: 19 (Great Unification)
 
-**System Status**: Active Development
-**Python Version**: 3.12+
+## Overview
+
+PhantomArbiter is an **Institutional-Grade Solana Trading System** built on a 3-layer architecture:
+
+| Layer | Purpose | Core Component |
+|-------|---------|----------------|
+| **A. Market Monitor** | Data ingestion & price discovery | `DataBroker`, `SharedPriceCache`, Rust WSS |
+| **B. Execution Layer** | Trade logic & blockchain interaction | `TacticalStrategy`, `ExecutionBackend` |
+| **C. Visualization** | Real-time observability | Galaxy Map (Three.js), Rich TUI |
+
+**System Status**: Active Development  
+**Python Version**: 3.12+  
+**Rust Extension**: `phantom_core` (PyO3/Maturin)
+
+---
 
 ## 🏗️ Project Structure
 
 ```
 PhantomArbiter/
-├── main.py                    # Unified CLI Entrypoint ("Select Your Method")
-├── config/                    # Shared Configuration
-├── build_station.py           # Universal Station Setup Script
-├── data/                      # Shared Persistence Layer
+├── main.py                       # Unified CLI Entrypoint
+├── config/                       # Shared Configuration
+├── build_station.py              # Universal Station Setup
+├── data/                         # Persistence Layer (SQLite, JSON)
+├── frontend/
+│   └── dashboard.html            # 🌌 GALAXY MAP (Three.js Visualization)
+│
 ├── src/
-│   ├── engine/                # ⚡ THE ENGINE BASE (Shared Core)
-│   │   ├── trading_core.py    # Zero-alloc tick loop
-│   │   ├── decision_engine.py # Logic processor
-│   │   └── execution/         # Abstracted Executor
+│   ├── strategies/               # ⚡ EXECUTION CORE (Trading Brain)
+│   │   ├── tactical.py           # TacticalStrategy (P0 Orchestrator)
+│   │   └── components/           # SRP-Extracted Modules
+│   │       ├── decision_engine.py    # Trade Signal Analysis
+│   │       ├── trade_executor.py     # Execution Lifecycle
+│   │       ├── shadow_manager.py     # Paper/Live Audit
+│   │       ├── slippage_calibrator.py
+│   │       └── congestion_monitor.py
 │   │
-│   ├── arbiter/               # 🚀 METHOD 1: Arbitrage
-│   │   ├── strategies/        # Logic: "Find price discrepancies"
-│   │   └── core/              # Adapters to feed Engine with Arb signals
+│   ├── arbiter/                  # 🚀 ARBITRAGE METHOD
+│   │   ├── arbiter.py            # Fast-lane arb engine
+│   │   ├── core/                 # Spread detection, atomic execution
+│   │   └── strategies/           # Multi-hop, triangular arb
 │   │
-│   ├── scraper/               # 🔎 METHOD 2: Scraper
-│   │   ├── discovery/         # Logic: "Find new tokens"
-│   │   └── agents/            # Adapters to feed Engine with Snipe signals
+│   ├── core/                     # 📡 MARKET MONITOR
+│   │   ├── data_broker.py        # Central data orchestrator
+│   │   ├── shared_cache.py       # Atomic price cache (IPC)
+│   │   └── scout/                # Token discovery agents
 │   │
-│   └── shared/                # Common Infrastructure (Feeds, Logs)
-└── tests/                     # Comprehensive Test Suite
+│   ├── shared/                   # 🔧 INFRASTRUCTURE
+│   │   ├── execution/            # Paper/Live backends, DEX bridges
+│   │   ├── system/               # SignalBus, CapitalManager, DB
+│   │   ├── infrastructure/       # RPC, Jito, WebSocket
+│   │   └── feeds/                # Price feed adapters
+│   │
+│   ├── dashboard/                # 📺 RICH TUI (Terminal)
+│   │   └── tui_app.py
+│   │
+│   └── interface/                # 🌐 REST/WS API
+│       └── api_service.py        # FastAPI (/api/v1/galaxy)
+│
+├── src_rust/                     # ⚡ RUST ACCELERATION
+│   └── src/
+│       ├── wss_aggregator.rs     # Multi-RPC deduplication
+│       ├── scorer.rs             # Signal scoring (<1ms)
+│       ├── multiverse.rs         # Multi-hop path scanner
+│       └── graph.rs              # Pool matrix
+│
+├── bridges/                      # 🔗 TypeScript DEX Daemons
+│   ├── raydium_daemon.ts
+│   ├── orca_daemon.ts
+│   └── meteora_dlmm.ts
+│
+└── tests/                        # Test Suite
 ```
+
+---
 
 ## 🧠 System Design Principles
 
-### 1. Single Engine, Multiple Methods
-The **Engine Base** (`src/engine`) provides the "Muscle":
-- **Tick Loop**: <10ms event processing.
-- **Position Management**: Validating and holding state.
-- **Execution**: Routing trades to the blockchain.
+### 1. Three-Layer Separation
 
-The **Methods** provide the "Brain":
-- **Arbiter Method**: Scans for spread > fees. Injects `BUY` signal into Engine.
-- **Scraper Method**: Scans for new pool creation. Injects `SNIPE` signal into Engine.
+```
+┌─────────────────────────────────────────────────┐
+│           LAYER C: VISUALIZATION                │
+│   Galaxy Map (WebSocket) ←→ Rich TUI (Polling)  │
+└─────────────────────────────────────────────────┘
+                      ↑ Events
+┌─────────────────────────────────────────────────┐
+│           LAYER B: EXECUTION                    │
+│  TacticalStrategy → ExecutionBackend → Chain    │
+│         ↓ Paper          ↓ Live                 │
+│    ShadowManager (Audit Comparison)             │
+└─────────────────────────────────────────────────┘
+                      ↑ Signals
+┌─────────────────────────────────────────────────┐
+│           LAYER A: MARKET MONITOR               │
+│  WSS Aggregator → DataBroker → SharedPriceCache │
+│  (Rust <1ms)       (Python)     (Atomic)        │
+└─────────────────────────────────────────────────┘
+```
 
 ### 2. Execution Tiers (SRP)
-The Core Engine ensures zero-delay execution by enforcing strict tiers.
 
-#### 🔴 P0: Execution Core
-- **Cycle Time**: <10ms
-- **Responsibility**: Takes a Signal from *any* Method and executes it blindly and immediately.
-- **Optimization**: No memory allocation in the hot loop.
+| Tier | Latency | Responsibility |
+|------|---------|----------------|
+| 🔴 **P0** | <10ms | `TacticalStrategy.execute_signal()` - blind execution |
+| 🟡 **P1** | <100ms | `DecisionEngine.analyze_tick()` - logic filtering |
+| 🟢 **P2** | >100ms | Logging, DB writes, Telegram notifications |
 
-#### 🟡 P1: Logic Adaptation (The Methods)
-- **Cycle Time**: <100ms
-- **Arbiter**: Calculates cross-DEX spreads.
-- **Scraper**: Filters HoneyPot/RugPull risks.
-- **Output**: Standardized `TradeSignal` passed to P0.
+### 3. Paper = Live Parity
 
-#### 🟢 P2: Infrastructure
-- **Responsibility**: Logging, Database, Async API calls.
+The `ExecutionBackend` protocol ensures identical slippage calculation:
+
+```python
+class ExecutionBackend(Protocol):
+    def execute_buy(self, ...) -> TradeResult: ...
+    def execute_sell(self, ...) -> TradeResult: ...
+    def calculate_slippage(self, ...) -> float: ...  # SHARED
+
+# Implementations
+PaperBackend  → Simulates fills, updates CapitalManager
+LiveBackend   → Submits via Jito, returns real tx_id
+```
+
+`ShadowManager` compares both and logs drift to `shadow_audits.csv`.
+
+---
 
 ## 🛠️ Station Setup
-Use the unified builder to set up any workstation:
+
 ```powershell
 python build_station.py
 ```
-This handles Python 3.12 checks, `venv` creation, and dependency installation.
+
+This handles Python 3.12 checks, venv creation, dependency installation, and Rust extension build.
+
+---
+
+## 📚 Related Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [COMPONENT_INVENTORY.md](docs/COMPONENT_INVENTORY.md) | Detailed component status |
+| [VISUAL_ARCHITECTURE.md](docs/VISUAL_ARCHITECTURE.md) | Signal flow diagrams |
+| [TODO.md](docs/TODO.md) | Sprint tracking |
+| [AGENT.md](docs/AGENT.md) | AI session resume guide |

@@ -1,67 +1,78 @@
 # PhantomArbiter Component Inventory
 
+> **Last Updated**: 2026-01-01 | **Phase**: 19 (Great Unification)
+
 ## 🧠 System Core (Orchestration)
-The central nervous system managing data flow and lifecycle.
 
 | Component | File Path | Status | Description |
 |-----------|-----------|--------|-------------|
-| **Director** | `src/engine/director.py` | ✅ Active | Top-level supervisor. Manages Fast/Mid/Slow lanes and task lifecycle. |
-| **GlobalRiskGovernor** | `src/engine/risk_governor.py` | ✅ **NEW** | **Safety**: Enforces capital partitioning (70/30) and kill switches. |
-| **SignalBus** | `src/shared/system/signal_bus.py` | ✅ Active | Unified Event Bus (Pub/Sub) connecting detailed components. |
-| **IntentRegistry** | `src/shared/system/signal_bus.py` | ✅ **NEW** | **Mutex**: Prevents strategy collisions by locking tokens. |
+| **Director** | `src/director.py` | ✅ Active | Top-level supervisor. Manages Fast/Mid/Slow lanes. |
+| **SignalBus** | `src/shared/system/signal_bus.py` | ✅ Active | Unified Event Bus (Pub/Sub) connecting components. |
+| **IntentRegistry** | `src/shared/system/signal_bus.py` | ✅ Active | Mutex: Prevents strategy collisions by locking tokens. |
 | **App State** | `src/shared/state/app_state.py` | ✅ Active | Shared memory for TUI updates and global status. |
 
 ## ⚙️ Trading Engine (Mid-Lane / Intelligence)
-The primary decision-making brain for scalping and trend trading.
 
 | Component | File Path | Status | Description |
 |-----------|-----------|--------|-------------|
-| **TradingCore** | `src/engine/trading_core.py` | ✅ Active | Main logic hub. Wires up components and manages the trade loop. |
-| **DecisionEngine** | `src/engine/decision_engine.py` | ✅ Active | Strategy Logic: Analyzes signals, checks RSI/Trends, issues Buy/Sell commands. |
-| **TradeExecutor** | `src/engine/trade_executor.py` | ✅ Active | Execution Lifecycle: Handles Risk, Order Creation, and Audit Hooks. |
-| **ShadowManager** | `src/engine/shadow_manager.py` | ✅ Active | **Audit Layer**: Compares Live vs. Paper execution to track "Drift". |
-| **CongestionMonitor** | `src/engine/congestion_monitor.py` | ✅ Active | **Dynamic Speed**: Scales Jito tips based on network lag. |
-| **SlippageCalibrator** | `src/engine/slippage_calibrator.py` | ✅ Active | **Self-Correction**: Adjusts tolerance based on recent drift. |
-| **PositionSizer** | `src/engine/position_sizer.py` | ✅ Active | Risk Management: Calculates trade size based on Kelly/ATR. |
-| **ML Filter** | `src/ml/xgboost_filter.py` | 🟡 Linked | Loaded dynamically if `.pkl` model exists. |
+| **TacticalStrategy** | `src/strategies/tactical.py` | ✅ Active | Main orchestrator (formerly TradingCore). Tick loop. |
+| **DecisionEngine** | `src/strategies/components/decision_engine.py` | ✅ Active | Strategy Logic: RSI/Trends, Buy/Sell commands. |
+| **TradeExecutor** | `src/strategies/components/trade_executor.py` | ✅ Active | Execution Lifecycle: Risk, Order Creation, Audit. |
+| **ShadowManager** | `src/strategies/components/shadow_manager.py` | ✅ Active | Audit Layer: Compares Live vs. Paper drift. |
+| **CongestionMonitor** | `src/strategies/components/congestion_monitor.py` | ✅ Active | Dynamic Speed: Scales Jito tips based on lag. |
+| **SlippageCalibrator** | `src/strategies/components/slippage_calibrator.py` | ✅ Active | Self-Correction: Adjusts tolerance based on drift. |
+| **PositionSizer** | `src/strategies/components/position_sizer.py` | ✅ Active | Risk Management: Kelly/ATR position sizing. |
+| **LandlordCore** | `src/strategies/components/landlord_core.py` | ✅ Active | Inventory Manager: Dust cleanup, rent exemption. |
+| **ML Filter** | `src/ml/xgboost_filter.py` | 🟡 Optional | Loaded dynamically if `.pkl` model exists. |
 
 ## ⚡ Arbitrage Engine (Fast-Lane)
-High-frequency module for detecting and executing rigid arbitrage opportunities.
 
 | Component | File Path | Status | Description |
 |-----------|-----------|--------|-------------|
 | **PhantomArbiter** | `src/arbiter/arbiter.py` | ✅ Active | Dedicated Arb engine entry point. |
 | **SpreadDetector** | `src/arbiter/core/spread_detector.py` | ✅ Active | Scans for price discrepancies across pools. |
-| **AtomicExecutor** | `src/arbiter/core/atomic_executor.py` | ✅ Active | Handles atomic transaction building (buy+sell in one tx). |
-| **ArbDetector** | `src/shared/execution/arb_detector.py` | ✅ Active | Shared logic for detecting arb opps. |
+| **AtomicExecutor** | `src/arbiter/core/atomic_executor.py` | ✅ Active | Atomic transaction building (buy+sell in one tx). |
+| **ArbDetector** | `src/shared/execution/arb_detector.py` | ✅ Active | Shared logic for detecting arb opportunities. |
+| **HopGraphEngine** | `src/arbiter/core/hop_engine.py` | ✅ Active | Multi-hop path calculation via Rust. |
 
 ## 🕵️ Intelligence Agents (Slow-Lane)
-Async agents performing heavy analysis and discovery.
 
 | Component | File Path | Status | Description |
 |-----------|-----------|--------|-------------|
-| **ScoutAgent** | `src/scraper/agents/scout_agent.py` | ✅ Active | Token Discovery: Hunts new pools and filters for rug checks. |
-| **WhaleWatcher** | `src/scraper/agents/whale_watcher_agent.py` | ✅ Active | **Confidence Injection**: Monitors large wallets for social proof. |
-| **Landlord** | `src/engine/landlord_core.py` | ✅ Active | Inventory Manager: Cleans up dust and enforces rent exemptions. |
-| **SniperAgent** | `src/scraper/agents/sniper_agent.py` | ✅ Active | **Graduation Sniper**: Targets pump.fun -> Raydium migrations. |
+| **ScoutAgent** | 🔴 **MISSING** | ❌ Broken | Token Discovery: needs restoration. |
+| **WhaleWatcher** | 🔴 **MISSING** | ❌ Broken | Confidence Injection: needs restoration. |
+| **SniperAgent** | 🔴 **MISSING** | ❌ Broken | Graduation Sniper: needs restoration. |
 
-## 🏗️ Execution & Infrastructure (The Body)
-The "limbs" that interact with the blockchain.
+*Note: Agent files were orphaned in `src/scraper/`. Restoration planned for Phase 5.*
+
+## 🏗️ Execution & Infrastructure
 
 | Component | File Path | Status | Description |
 |-----------|-----------|--------|-------------|
-| **RpcConnectionManager** | `src/shared/infrastructure/rpc_manager.py` | ✅ Active | **Failover**: Auto-switches RPCs on failure; Latency routing. |
-| **WebSocketListener** | `src/shared/infrastructure/websocket_listener.py` | ✅ Active | Data Ingestion: Consumes Raydium/Orca logs. |
 | **ExecutionBackend** | `src/shared/execution/execution_backend.py` | ✅ Active | Unified interface for Live/Paper backends. |
+| **CapitalManager** | `src/shared/system/capital_manager.py` | ✅ Active | Source of Truth for PnL, Positions, Equity. |
+| **RpcConnectionManager** | `src/shared/infrastructure/rpc_manager.py` | ✅ Active | Failover: Auto-switches RPCs on failure. |
+| **WebSocketListener** | `src/shared/infrastructure/websocket_listener.py` | ✅ Active | Data Ingestion: Raydium/Orca logs. |
 | **RaydiumBridge** | `src/shared/execution/raydium_bridge.py` | ✅ Active | Adapter for Raydium swaps (v4/AMM). |
 | **OrcaBridge** | `src/shared/execution/orca_bridge.py` | ✅ Active | Adapter for Orca Whirlpools. |
-| **MeteoraBridge** | `src/shared/execution/meteora_bridge.py` | ✅ Active | Adapter for Meteora DLMM (Dynamic Liquidity). |
-| **JitoAdapter** | `src/speed/jito_adapter.py` | ✅ Active | **MEV Protection**: Sends bundled transactions via Jito. |
+| **MeteoraBridge** | `src/shared/execution/meteora_bridge.py` | ✅ Active | Adapter for Meteora DLMM. |
+| **JitoAdapter** | `src/shared/infrastructure/jito_adapter.py` | ✅ Active | MEV Protection: Bundled transactions. |
+| **JupiterSwapper** | `src/shared/execution/swapper.py` | ✅ Active | Jupiter V6 API integration. |
 
-## 🔮 Potential & External Components
-Components referenced but currently external, simulated, or missing.
+## 🦀 Rust Extension (phantom_core)
 
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **phantom_core (Rust)** | ❌ Missing | Compiled Rust extension for Flash Log Decryption. Currently mocked/bypassed via Python. |
-| **WssAggregator (Rust)** | ❌ Simulated | High-speed deduplication. Currently handled by `WebSocketListener` (Python). |
+| Component | File Path | Status | Description |
+|-----------|-----------|--------|-------------|
+| **WssAggregator** | `src_rust/src/wss_aggregator.rs` | ✅ Active | Multi-RPC deduplication (<1ms). |
+| **SignalScorer** | `src_rust/src/scorer.rs` | ✅ Active | Go/No-Go signal scoring. |
+| **Multiverse** | `src_rust/src/multiverse.rs` | ✅ Active | 2-5 Hop path scanner. |
+| **CycleFinder** | `src_rust/src/cycle_finder.rs` | ✅ Active | Bellman-Ford cycle detection. |
+
+## 🌌 Visualization
+
+| Component | File Path | Status | Description |
+|-----------|-----------|--------|-------------|
+| **Galaxy Map** | `frontend/dashboard.html` | ✅ **CANONICAL** | Three.js 3D visualization. |
+| **Rich TUI** | `src/dashboard/tui_app.py` | ✅ Active | Terminal UI dashboard. |
+| **viz/** | `_deprecated/viz/` | 🔴 Archived | Superseded Svelte+TS app. |
+| **prism_hud/** | `_deprecated/prism_hud/` | 🔴 Archived | Superseded Svelte+Tailwind app. |
