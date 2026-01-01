@@ -21,6 +21,7 @@ from typing import Dict, Optional
 from src.core.data_broker import DataBroker
 from src.shared.state.app_state import state
 from src.shared.system.logging import Logger
+from src.shared.system.priority_queue import priority_queue # V140
 from config.settings import Settings
 
 # Engines
@@ -49,6 +50,9 @@ class UnifiedDirector:
         self.tasks = {}
 
         Logger.section("UNIFIED DIRECTOR INITIATING")
+        
+        # V140: Start System Queue
+        priority_queue.start()
 
         # 1. The Nervous System (DataBroker)
         # Initialize as SENSORS ONLY (enable_engines=False)

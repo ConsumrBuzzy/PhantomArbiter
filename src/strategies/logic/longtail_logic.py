@@ -47,9 +47,14 @@ class LongtailLogic:
 
         self.win_rate = db_manager.get_win_rate(limit=20)
         self.last_mode_update = time.time()
-        Logger.info(
-            f"🔭 Longtail Mode: MACD 12/26/9 (Win Rate: {self.win_rate * 100:.1f}%)"
+        priority_queue.add(
+            priority_queue.PRIORITY_NORMAL,
+            "LOG",
+            {"level": "INFO", "message": f"[LONGTAIL] Mode: MACD 12/26/9 (Win Rate: {self.win_rate * 100:.1f}%)"}
         )
+        # Logger.info(
+        #     f"🔭 Longtail Mode: MACD 12/26/9 (Win Rate: {self.win_rate * 100:.1f}%)"
+        # )
 
     def _calculate_ema(self, prices: list, period: int) -> float:
         """Calculate Exponential Moving Average."""
