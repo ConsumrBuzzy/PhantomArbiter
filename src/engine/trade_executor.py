@@ -1035,23 +1035,19 @@ class TradeExecutor:
                 True, f"SIMULATED SELL {watcher.symbol}", "sim_tx_id", pnl_usd
             )
 
-        tx_id = None
-        pnl_usd = 0.0
+        # V49.0: Unified Backend Execution (Delegated)
+        execution_result = self.execution_backend.execute_sell(
+            token=watcher.symbol,
+            mint=watcher.mint,
+            quantity=size_token_log,
+            signal_price=price,
+            entry_price=entry_price_log,
+            liquidity_usd=watcher.get_liquidity() if hasattr(watcher, "get_liquidity") else 0.0,
+            reason=reason,
+        )
 
-        if self.live_mode:
-            # LIVE EXECUTION
-            tx_id = self.swapper.execute_swap(
-                direction="SELL",
-                amount_usd=0,  # 0 means ALL
-                reason=reason,
-                target_mint=watcher.mint,
-            )
-        else:
-            # PAPER EXECUTION
-            paper_res = self._execute_paper_sell(watcher, price, reason)
-            tx_id = paper_res.tx_id
-            pnl_usd = paper_res.pnl_usd if paper_res.pnl_usd else 0.0
-            pnl_usd = self._last_paper_pnl  # Use the tracked one for consistency
+        tx_id = execution_result.tx_id if execution_result.success else None
+        pnl_usd = execution_result.pnl_usd or 0.0
 
         if tx_id:
             # Success path
