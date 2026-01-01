@@ -748,28 +748,23 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
 
 
     # V3 (Decoupled API): Ignite The Void via FastAPI/Uvicorn
-    # We run Uvicorn in the existing loop to share memory (SignalBus)
+    # We run Uvicorn as an ASYNC TASK on the SAME LOOP to allow SignalBus <-> Websocket communication
     Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
     
-    import threading
-
-    # Configure Uvicorn (Threaded Mode)
-    # Port 8000 covers both REST API and WebSocket stream
-    def run_api():
-        try:
-             # uvicorn.run maps closely to uvicorn.Server(Config(...)).run() which blocks the thread
-             uvicorn.run(fast_app, host="0.0.0.0", port=8000, log_level="info")
-        except Exception as e:
-             Logger.error(f"❌ API Server Crash: {e}")
-
-    # Launch Uvicorn in a daemon thread so it dies when main process dies
-    api_thread = threading.Thread(target=run_api, daemon=True)
-    api_thread.start()
+    config = uvicorn.Config(
+        fast_app, 
+        host="0.0.0.0", 
+        port=8000, 
+        log_level="critical", 
+        loop="asyncio"
+    )
+    server = uvicorn.Server(config)
+    
+    # Launch Uvicorn as a background task
+    api_task = asyncio.create_task(server.serve())
     
     # Wait a moment for it to bind
     await asyncio.sleep(1.0)
-    
-    Logger.info("   🚀 Void API Online: http://localhost:8000/dashboard.html")
     
     Logger.info("   🚀 Void API Online: http://localhost:8000/dashboard.html")
     Logger.info("   🎙️  Signal Stream: ws://localhost:8000/ws/v1/stream")
