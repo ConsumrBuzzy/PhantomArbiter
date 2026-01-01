@@ -452,6 +452,16 @@
                         r * Math.sin(node.userData.orbitAngle)
                     );
                     node.rotation.y += 0.03;  // Self rotation
+
+                    // Update orbital line endpoint
+                    if (node.userData.orbitalLine) {
+                        const lineGeo = node.userData.orbitalLine.geometry;
+                        const positions = lineGeo.attributes.position.array;
+                        positions[3] = node.position.x;
+                        positions[4] = node.position.y;
+                        positions[5] = node.position.z;
+                        lineGeo.attributes.position.needsUpdate = true;
+                    }
                 }
                 // Regular node movement
                 else if (node.userData.velocity) {
