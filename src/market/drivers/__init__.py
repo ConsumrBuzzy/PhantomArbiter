@@ -31,8 +31,11 @@ def get_jupiter_driver() -> "JupiterFeed":
     return JupiterFeed()
 
 
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
 def get_raydium_driver() -> "RaydiumFeed":
-    """Get Raydium feed driver."""
+    """Get Raydium feed driver (Singleton)."""
     from src.market.drivers.raydium_feed import RaydiumFeed
     return RaydiumFeed()
 
