@@ -74,7 +74,7 @@ class Watcher:
             # Try legacy recovery
             # This requires token balance which we don't have here easily without WalletManager.
             # For strict SRP, we can't easily access wallet here.
-            # TradingCore should handle reconciliation?
+            # TacticalStrategy should handle reconciliation?
             # For now, we assume simple load.
             return
 

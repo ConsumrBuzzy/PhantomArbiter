@@ -7,7 +7,7 @@ The MarketContext is the "single source of truth" for global market
 conditions. It is updated by the CyclePod and consumed by:
 - DecisionEngine (adjusts risk parameters)
 - HopPods (adjusts minimum profit thresholds)
-- TradingCore (decides whether to execute)
+- TacticalStrategy (decides whether to execute)
 
 This enables the "Wise Pod" pattern where specialized pods can focus
 on their niche while a global context prevents loss-making trades.

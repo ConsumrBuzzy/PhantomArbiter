@@ -65,7 +65,7 @@ class TacticalStrategy:
     """
     P0 Orchestrator for the V10.2 SRP Architecture.
 
-    The TradingCore is responsible for the high-frequency event loop (Tick Loop).
+    The TacticalStrategy is responsible for the high-frequency event loop (Tick Loop).
     It delegating specialized tasks to sub-components while maintaining
     strict zero-delay execution for the core cycle.
 
@@ -83,7 +83,7 @@ class TacticalStrategy:
     def __init__(
         self, strategy_class=None, engine_name="PRIMARY", registry: Dict = None
     ):
-        """Initialize TradingCore.
+        """Initialize TacticalStrategy.
 
         Args:
             strategy_class: Optional custom strategy class (e.g., LongtailLogic).

@@ -1,5 +1,5 @@
 """
-V133: WatcherManager - Extracted from TradingCore (SRP Refactor)
+V133: WatcherManager - Extracted from TacticalStrategy (SRP Refactor)
 =================================================================
 Encapsulates Watcher lifecycle and position tracking.
 
@@ -25,7 +25,7 @@ class WatcherManager:
     """
     V133: Manages Watcher lifecycle and position tracking.
 
-    This component was extracted from TradingCore to follow SRP.
+    This component was extracted from TacticalStrategy to follow SRP.
     It handles all watcher-related operations including initialization,
     discovery ingestion, and position synchronization.
     """

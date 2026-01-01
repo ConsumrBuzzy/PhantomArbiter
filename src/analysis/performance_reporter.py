@@ -40,7 +40,7 @@ class PerformanceReporter:
         self.lookback_hours = lookback_hours
         self.lookback_seconds = lookback_hours * 3600
 
-        # Runtime counters (updated by TradingCore)
+        # Runtime counters (updated by TacticalStrategy)
         self.signals_total = 0
         self.signals_blocked = 0
 
@@ -406,7 +406,7 @@ class PerformanceReporter:
     def record_signal(self, was_blocked: bool = False):
         """
         Record a signal for filter rate tracking.
-        Called by TradingCore when evaluating signals.
+        Called by TacticalStrategy when evaluating signals.
         """
         self.signals_total += 1
         if was_blocked:

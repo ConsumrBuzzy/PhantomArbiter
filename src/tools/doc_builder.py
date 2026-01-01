@@ -10,7 +10,7 @@ DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
 
 # Configuration
 MODULES_TO_DOC = [
-    "src.engine.trading_core",
+    "src.strategies.tactical",
     "src.engine.decision_engine",
     "src.engine.data_feed_manager",
     "src.strategy.watcher",

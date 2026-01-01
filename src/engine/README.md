@@ -15,7 +15,7 @@ Core trading engines responsible for trade execution and decision making.
 ## Architecture
 
 ```
-TradingCore
+TacticalStrategy
     ├── DecisionEngine (signal resolution)
     ├── TradeExecutor (order execution)
     └── CapitalManager (risk/sizing)
@@ -24,6 +24,6 @@ TradingCore
 ## Usage
 
 ```python
-from src.engine.trading_core import TradingCore
+from src.strategies.tactical import TacticalStrategy
 from src.engine.decision_engine import DecisionEngine
 ```

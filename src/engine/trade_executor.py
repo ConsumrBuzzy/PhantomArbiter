@@ -40,7 +40,7 @@ class TradeExecutor:
     """
     V48.0: Dedicated trade execution handler.
 
-    Extracted from TradingCore to isolate execution logic and improve testability.
+    Extracted from TacticalStrategy to isolate execution logic and improve testability.
     All dependencies are injected for flexibility and testing.
     """
 
@@ -117,7 +117,7 @@ class TradeExecutor:
         self.consecutive_losses = 0
 
     def update_watchers(self, watchers: Dict, scout_watchers: Dict) -> None:
-        """Update watcher references (called from TradingCore)."""
+        """Update watcher references (called from TacticalStrategy)."""
         self.watchers = watchers
         self.scout_watchers = scout_watchers
 

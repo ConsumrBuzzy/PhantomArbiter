@@ -526,7 +526,7 @@ class DataBroker:
             # If we hold a position, we MUST keep watching it even if config removed it.
             if hasattr(self, "merchant_engines") and self.merchant_engines:
                 for name, engine in self.merchant_engines.items():
-                    # Get held mints from engine (TradingCore has this method?)
+                    # Get held mints from engine (TacticalStrategy has this method?)
                     # If not, access watchers directly carefully
                     if hasattr(engine, "get_held_mints"):
                         held_mints = engine.get_held_mints()

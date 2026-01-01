@@ -13,7 +13,7 @@ Pod Types:
 - PerformerPod: Individual token tracking with TSL logic
 
 Architecture:
-- P0 (Doer): TradingCore only receives verified signals
+- P0 (Doer): TacticalStrategy only receives verified signals
 - P1 (Thinker): Pods live here, doing specialized analysis
 - P2 (Helper): DiscoveryDaemon spawns new pods based on Scout input
 """

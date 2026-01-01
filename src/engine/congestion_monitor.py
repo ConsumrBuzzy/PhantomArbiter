@@ -157,7 +157,7 @@ class CongestionMonitor:
         }
 
 
-# Singleton (optional, generally managed by TradingCore)
+# Singleton (optional, generally managed by TacticalStrategy)
 _monitor: Optional[CongestionMonitor] = None
 
 

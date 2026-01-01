@@ -1,5 +1,5 @@
 """
-V133: SignalScanner - Extracted from TradingCore (SRP Refactor)
+V133: SignalScanner - Extracted from TacticalStrategy (SRP Refactor)
 ================================================================
 Encapsulates signal generation logic from watchers.
 
@@ -23,7 +23,7 @@ class SignalScanner:
     """
     V133: Generates trading signals from watchers.
 
-    This component was extracted from TradingCore to follow SRP.
+    This component was extracted from TacticalStrategy to follow SRP.
     It handles all signal generation including ML scoring and exit checks.
     """
 

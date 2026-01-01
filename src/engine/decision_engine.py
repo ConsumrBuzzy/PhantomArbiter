@@ -1,7 +1,7 @@
 """
 V11.0 Decision Engine (DSA) - V37.0 Refactored
 ===============================================
-Centralized trading logic component for TradingCore (P1).
+Centralized trading logic component for TacticalStrategy (P1).
 V37.0: Now inherits from BaseStrategy for shared functionality.
 """
 
@@ -80,11 +80,11 @@ class DecisionEngine(BaseStrategy):
         # 3. Check Entries (If handling active trading)
         if not Settings.ENABLE_TRADING:
             # Even if trading is disabled, we might want to check for PAPER TRADES (implied)
-            # But the caller (TradingCore) handles ENABLE_TRADING logic for execution vs paper.
+            # But the caller (TacticalStrategy) handles ENABLE_TRADING logic for execution vs paper.
             # analyze_tick typically evaluates pure logic.
             # However, original code returned HOLD if !ENABLE_TRADING at step 3.
             # V11.15 allows Paper Trading, so logic must proceed to _evaluate_entry even if trading disabled?
-            # Actually, TradingCore calls analyze_tick. If analyze_tick returns HOLD because !ENABLE_TRADING, paper trade won't happen.
+            # Actually, TacticalStrategy calls analyze_tick. If analyze_tick returns HOLD because !ENABLE_TRADING, paper trade won't happen.
             # Let's check original code:
             # if not Settings.ENABLE_TRADING: return 'HOLD', '', 0.0
             # This prevents Paper Trading! We must fix this if Paper Trading relies on analyze_tick returning BUY.

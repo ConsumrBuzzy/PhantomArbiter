@@ -1,5 +1,5 @@
 """
-V133: PositionSizer - Extracted from TradingCore (SRP Refactor)
+V133: PositionSizer - Extracted from TacticalStrategy (SRP Refactor)
 ================================================================
 Calculates position sizes based on confidence tiers.
 

@@ -1,5 +1,5 @@
 """
-V133: MaintenanceService - Extracted from TradingCore (SRP Refactor)
+V133: MaintenanceService - Extracted from TacticalStrategy (SRP Refactor)
 ====================================================================
 Handles periodic maintenance tasks on configurable intervals.
 
@@ -17,7 +17,7 @@ class MaintenanceService:
     """
     V133: Manages periodic maintenance tasks with configurable intervals.
 
-    This component was extracted from TradingCore to follow SRP.
+    This component was extracted from TacticalStrategy to follow SRP.
     It handles scheduling and executing maintenance callbacks.
     """
 

@@ -5,7 +5,7 @@ Single entry point for the PhantomArbiter system.
 Eliminates the "Two Brains" fracture by centralizing:
 1. Data Flow (DataBroker) - Sensors & Data Feeds
 2. Execution (PhantomArbiter) - High-frequency Arbitrage
-3. Execution (TradingCore) - Scalping & Strategies
+3. Execution (TacticalStrategy) - Scalping & Strategies
 
 Usage:
     python src/director.py --live
@@ -25,7 +25,7 @@ from config.settings import Settings
 
 # Engines
 from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
-from src.engine.trading_core import TradingCore 
+from src.strategies.tactical import TacticalStrategy 
 
 # Rust Acceleration
 try:
@@ -40,7 +40,7 @@ class UnifiedDirector:
     Orchestrates the lifecycle of:
     - DataBroker (Senses: WSS, Scraper)
     - PhantomArbiter (Fast Lane: 1-cycle Arb)
-    - TradingCore (Mid Lane: Scalping)
+    - TacticalStrategy (Mid Lane: Scalping)
     """
 
     def __init__(self, live_mode: bool = False):
@@ -52,7 +52,7 @@ class UnifiedDirector:
 
         # 1. The Nervous System (DataBroker)
         # Initialize as SENSORS ONLY (enable_engines=False)
-        # This prevents DataBroker from spawning its own TradingCore/Arbiter
+        # This prevents DataBroker from spawning its own TacticalStrategy/Arbiter
         Logger.info("[Brain] Initializing Nervous System (DataBroker)...")
         self.broker = DataBroker(enable_engines=False)
         
@@ -77,7 +77,7 @@ class UnifiedDirector:
 
         # 4. Mid Lane (Scalper)
         Logger.info("[Brain] Initializing Mid Lane (Scalper)...")
-        self.scalper = TradingCore(engine_name="SCALPER")
+        self.scalper = TacticalStrategy(engine_name="SCALPER")
         if self.live_mode:
              # Configure scalper for live mode if needed (usually follows settings)
              pass
@@ -117,7 +117,7 @@ class UnifiedDirector:
         )
         
         # 2. Scalper (Mid Lane)
-        # TradingCore needs a loop wrapper
+        # TacticalStrategy needs a loop wrapper
         Logger.info("[Brain] Igniting Scalper Engine...")
         self.tasks['scalper'] = asyncio.create_task(
             self._run_scalper_loop(), name="Scalper"
@@ -143,8 +143,8 @@ class UnifiedDirector:
         while self.is_running:
             try:
                 # Scalper has its own interval logic usually?
-                # TradingCore.run_tick() style?
-                # TradingCore acts on signals.
+                # TacticalStrategy.run_tick() style?
+                # TacticalStrategy acts on signals.
                 # But it also needs a heartbeat/tick?
                 if hasattr(self.scalper, "on_tick"):
                     self.scalper.on_tick()

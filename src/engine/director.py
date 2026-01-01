@@ -3,7 +3,7 @@ from src.shared.state.app_state import state
 from src.shared.infrastructure.websocket_listener import WebSocketListener
 from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
 from src.strategy.ensemble import MerchantEnsemble
-from src.engine.trading_core import TradingCore
+from src.strategies.tactical import TacticalStrategy
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 
 
@@ -81,10 +81,10 @@ class Director:
 
         # 3. MID TIER AGENTS
         # Scalper (Inject Governor)
-        # Note: TradingCore init might need update or we set it post-init?
-        # TradingCore.__init__ signature doesn't take governor yet.
+        # Note: TacticalStrategy init might need update or we set it post-init?
+        # TacticalStrategy.__init__ signature doesn't take governor yet.
         # We can perform dependency injection property setting.
-        self.agents["scalper"] = TradingCore(
+        self.agents["scalper"] = TacticalStrategy(
             strategy_class=MerchantEnsemble, engine_name="SCALPER"
         )
         self.agents["scalper"].risk_governor = self.risk_governor
@@ -327,7 +327,7 @@ class Director:
         """
         V140: Consume signals from HopPods and route to SignalBus/Dashboard.
 
-        This bridges the autonomous Pod system with the TradingCore.
+        This bridges the autonomous Pod system with the TacticalStrategy.
         High-priority signals can trigger immediate execution.
         """
         from src.engine.pod_manager import PodType
@@ -683,7 +683,7 @@ class Director:
                     paper_equity = 0.0
                     inventory_items = []
 
-                    # 1. Scalper (TradingCore) Paper Wallet
+                    # 1. Scalper (TacticalStrategy) Paper Wallet
                     if scalper and hasattr(scalper, "paper_wallet"):
                         # Calculate total value
                         # Need current prices for assets
@@ -765,7 +765,7 @@ class Director:
 
         # 2. Update Scalper
         if "scalper" in self.agents:
-            # We add this method to TradingCore
+            # We add this method to TacticalStrategy
             self.agents["scalper"].set_live_mode(is_live)
 
         # 3. Update Other Components

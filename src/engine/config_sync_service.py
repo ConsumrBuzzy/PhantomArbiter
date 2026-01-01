@@ -1,5 +1,5 @@
 """
-V133: ConfigSyncService - Extracted from TradingCore (SRP Refactor)
+V133: ConfigSyncService - Extracted from TacticalStrategy (SRP Refactor)
 ===================================================================
 Handles synchronization of global configuration state.
 
@@ -19,7 +19,7 @@ class ConfigSyncService:
     """
     V133: Synchronizes global configuration state with local settings.
 
-    This component was extracted from TradingCore to follow SRP.
+    This component was extracted from TacticalStrategy to follow SRP.
     It reads from GlobalState and updates Settings accordingly.
     """
 

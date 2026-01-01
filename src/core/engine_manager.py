@@ -12,7 +12,7 @@ Responsibilities:
 from typing import Dict
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.engine.trading_core import TradingCore
+from src.strategies.tactical import TacticalStrategy
 
 
 class EngineManager:
@@ -23,7 +23,7 @@ class EngineManager:
     """
 
     def __init__(self):
-        self.merchant_engines: Dict[str, TradingCore] = {}
+        self.merchant_engines: Dict[str, TacticalStrategy] = {}
         self.scout_agent = None
         self.whale_watcher = None
         self.sauron = None
@@ -50,7 +50,7 @@ class EngineManager:
             from src.strategy.ensemble import MerchantEnsemble
 
             # The Unified Merchant
-            merchant = TradingCore(
+            merchant = TacticalStrategy(
                 strategy_class=MerchantEnsemble, engine_name="MERCHANT"
             )
             self.merchant_engines["MERCHANT"] = merchant

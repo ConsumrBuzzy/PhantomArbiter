@@ -187,7 +187,7 @@ class PythAdapter(PriceProvider):
         # Actually, for "Maximal Feeds", ANY fetch is a valid signal.
         if results:
              pass # avoiding duplicate emits if we call _publish via poll
-             # BUT, if TradingCore calls this, we WANT a signal.
+             # BUT, if TacticalStrategy calls this, we WANT a signal.
              # Let's emit here for maximum coverage.
              # self._publish_updates(results) # CAREFUL with circular logic/perf
              # Let's keep explicit polling separate.

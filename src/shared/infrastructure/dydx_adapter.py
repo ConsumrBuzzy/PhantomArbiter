@@ -709,7 +709,7 @@ class DydxAdapter:
             return {"success": False, "error": str(e)}
 
     # ═══════════════════════════════════════════════════════════════════════
-    # SYNC WRAPPERS (For non-async TradingCore integration)
+    # SYNC WRAPPERS (For non-async TacticalStrategy integration)
     # ═══════════════════════════════════════════════════════════════════════
 
     def get_markets_sync(self) -> List[str]:

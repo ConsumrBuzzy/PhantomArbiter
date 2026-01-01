@@ -2,7 +2,7 @@
 V16.0: Paper Wallet Simulation (Adapter)
 ========================================
 V45.0: Now acts as an ADAPTER for the centralized CapitalManager.
-This ensures TradingCore can access engine-specific state without refactoring
+This ensures TacticalStrategy can access engine-specific state without refactoring
 internal logic, while CapitalManager maintains the single source of truth.
 """
 
@@ -21,7 +21,7 @@ class PaperAsset:
 
 
 class PaperWallet:
-    """V45.0: Adapter Class linking TradingCore to CapitalManager."""
+    """V45.0: Adapter Class linking TacticalStrategy to CapitalManager."""
 
     def __init__(self, engine_name: str = "PRIMARY"):
         self.engine_name = engine_name

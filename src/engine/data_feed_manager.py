@@ -1,7 +1,7 @@
 """
 V10.2 DataFeed Manager
 ======================
-Centralized price fetching component for TradingCore (P1).
+Centralized price fetching component for TacticalStrategy (P1).
 Responsibility:
 1. Batch fetch prices from SmartRouter/Jupiter.
 2. Inject prices into Watchers.
@@ -14,7 +14,7 @@ from src.strategy.watcher import Watcher
 
 class DataFeedManager:
     """
-    Manages data Ingestion for the TradingCore.
+    Manages data Ingestion for the TacticalStrategy.
     Decouples 'How to get data' from the Core Loop.
     """
 

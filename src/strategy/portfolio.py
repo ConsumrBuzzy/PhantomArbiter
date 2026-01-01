@@ -367,7 +367,7 @@ class PortfolioManager:
         if Settings.MAX_TOTAL_EXPOSURE_USD < 10.0:
             return False
 
-        # NOTE: We rely on TradingCore to pass 'current_exposure' or we'd need
+        # NOTE: We rely on TacticalStrategy to pass 'current_exposure' or we'd need
         # to sum held assets here. Since held_assets is updated by scan_wallet
         # (which runs frequently via DataBroker), we can try to estimate it here.
 

@@ -45,7 +45,7 @@ class HeartbeatReporter:
     """
     V48.0: Dedicated heartbeat and status reporting.
 
-    Extracted from TradingCore to isolate display/formatting logic.
+    Extracted from TacticalStrategy to isolate display/formatting logic.
     """
 
     # Heartbeat interval in seconds
