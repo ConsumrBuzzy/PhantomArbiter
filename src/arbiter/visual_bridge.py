@@ -53,8 +53,9 @@ class VisualBridge:
                 packet = json.dumps(payload)
                 asyncio.create_task(self._broadcast_flash(packet))
 
-        signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_update)
-        signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update)
+        # V37: Disabled - api_service.py already subscribes and broadcasts
+        # signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_update)
+        # signal_bus.subscribe(SignalType.SCALP_SIGNAL, handle_market_update)
 
     async def _broadcast_flash(self, payload: str):
         """High-speed broadcast for flash events."""

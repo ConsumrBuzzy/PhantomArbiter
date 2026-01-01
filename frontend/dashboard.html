@@ -175,6 +175,83 @@
             }
         }
 
+        // --- HOP CONNECTION LINES ---
+        // Visualize arbitrage paths between tokens
+        const hopConnections = new Map();  // "from:to" -> Line3D
+
+        class HopConnection {
+            constructor(scene, fromNode, toNode, color = '#00ff88', profit = 0) {
+                this.scene = scene;
+                this.fromNode = fromNode;
+                this.toNode = toNode;
+                this.profit = profit;
+
+                // Create curved line between nodes
+                const start = fromNode.position;
+                const end = toNode.position;
+                const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                mid.y += 5;  // Arc upward
+
+                const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+                const points = curve.getPoints(20);
+
+                this.geometry = new THREE.BufferGeometry().setFromPoints(points);
+                this.material = new THREE.LineBasicMaterial({
+                    color: new THREE.Color(color),
+                    transparent: true,
+                    opacity: 0.5 + Math.min(profit * 10, 0.5),  // Brighter = more profit
+                    linewidth: 1
+                });
+
+                this.line = new THREE.Line(this.geometry, this.material);
+                scene.add(this.line);
+            }
+
+            update() {
+                // Recalculate positions if nodes moved
+                const start = this.fromNode.position;
+                const end = this.toNode.position;
+                const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                mid.y += 5;
+
+                const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+                const points = curve.getPoints(20);
+
+                this.geometry.setFromPoints(points);
+            }
+
+            dispose() {
+                this.scene.remove(this.line);
+                this.geometry.dispose();
+                this.material.dispose();
+            }
+        }
+
+        function createHopConnection(fromMint, toMint, profit = 0.01) {
+            const key = `${fromMint}:${toMint}`;
+            if (hopConnections.has(key)) return;
+
+            const fromNode = nodes.get(fromMint);
+            const toNode = nodes.get(toMint);
+
+            if (!fromNode || !toNode) return;
+
+            const color = profit > 0.02 ? '#00ff00' : profit > 0.01 ? '#ffff00' : '#ff8800';
+            const connection = new HopConnection(scene, fromNode, toNode, color, profit);
+            hopConnections.set(key, connection);
+
+            console.log(`🔗 Hop Connection: ${fromMint.slice(0, 6)} → ${toMint.slice(0, 6)} (${(profit * 100).toFixed(2)}%)`);
+        }
+
+        function removeHopConnection(fromMint, toMint) {
+            const key = `${fromMint}:${toMint}`;
+            const conn = hopConnections.get(key);
+            if (conn) {
+                conn.dispose();
+                hopConnections.delete(key);
+            }
+        }
+
         // --- NODE LOGIC ---
         function hashCode(str) {
             let hash = 0;
@@ -450,20 +527,25 @@
 
                     if (data.type === 'ARCHETYPE_UPDATE') {
                         triggerArchetypeUpdate(data);
+                    } else if (data.type === 'HOP_PATH') {
+                        // Visualize arbitrage path as connected lines
+                        const path = data.path || [];  // Array of mints
+                        const profit = data.profit || 0.01;
+                        for (let i = 0; i < path.length - 1; i++) {
+                            createHopConnection(path[i], path[i + 1], profit);
+                        }
+                        logEvent(`⚡ Hop Path: ${path.length} tokens @ ${(profit * 100).toFixed(2)}%`);
                     } else if (data.type === 'snapshot') {
-                        // Legacy handling or if WS pushes snapshot
                         logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
                         data.nodes.forEach(n => createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1, emissive_intensity: 1, roughness: 0.5 }));
                     } else if (data.type === 'PING') {
-                        // Optional heartbeat log
-                        // logEvent("❤️ PING");
+                        // Heartbeat
                     } else {
-                        // logEvent(`❓ Unknown Type: ${data.type}`); // Be less noisy
+                        // Unknown type
                     }
 
                 } catch (e) {
                     console.error("Parse error", e);
-                    // Show what broke it (first 50 chars) + Error Message
                     const snippet = typeof event.data === 'string' ? event.data.substring(0, 50) : String(event.data);
                     logEvent(`❌ ${e.message} in: ${snippet}...`);
                 }
