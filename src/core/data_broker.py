@@ -17,6 +17,7 @@ import signal
 
 from src.shared.system.logging import Logger
 from src.shared.system.smart_router import SmartRouter
+from config.settings import Settings
 
 # V48.0: Universal Watcher
 from src.core.prices.dexscreener import DexScreenerProvider
@@ -596,7 +597,7 @@ class DataBroker:
         self.metadata_resolver.start()
 
         # V84.0: Start Swap Intelligence (Solscan scraper)
-        from src.shared.infrastructure.smart_scraper import get_scrape_intelligence
+        from src.core.scout.discovery.scrape_intelligence import get_scrape_intelligence
 
         self.scrape_intel = get_scrape_intelligence()
         self.scrape_intel.start()
