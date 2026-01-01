@@ -104,7 +104,24 @@ async def async_signal_handler(signal: Signal):
 # Subscribe to relevant signals
 signal_bus.subscribe(SignalType.MARKET_UPDATE, async_signal_handler)
 signal_bus.subscribe(SignalType.NEW_TOKEN, async_signal_handler)
-# Add other types as needed by VisualTransformer
+
+# Arbitrage opportunity -> Hop Path visualization
+async def async_arb_handler(signal: Signal):
+    """Convert ARB_OPP signals to HOP_PATH visualization."""
+    data = signal.data
+    path = data.get("path") or data.get("cycle") or []
+    profit = data.get("profit") or data.get("expected_profit") or 0.01
+    
+    if path and len(path) >= 2:
+        hop_payload = {
+            "type": "HOP_PATH",
+            "path": path,
+            "profit": profit,
+            "source": signal.source
+        }
+        await manager.broadcast(hop_payload)
+
+signal_bus.subscribe(SignalType.ARB_OPP, async_arb_handler)
 
 # --- Endpoints ---
 
