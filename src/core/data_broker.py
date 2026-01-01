@@ -72,7 +72,7 @@ class DataBroker:
 
         # Watchlist Monitor
         self.watchlist_file = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "data/watchlist.json")
+            os.path.join(os.path.dirname(__file__), "../../data/watchlist.json")
         )
         self.last_config_mtime = 0
         try:

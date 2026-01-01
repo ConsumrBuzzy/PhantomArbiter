@@ -28,7 +28,7 @@ class ActiveCoinAuditor:
     """
 
     WATCHLIST_FILE = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../data/watchlist.json")
+        os.path.join(os.path.dirname(__file__), "../../../data/watchlist.json")
     )
 
     def __init__(self):

@@ -3,7 +3,7 @@ import json
 import os
 # from src.scout.scraper import TokenScraper
 from src.scraper.scout.scraper import TokenScraper
-from src.scout.gatekeeper import Gatekeeper
+from src.scraper.scout.gatekeeper import Gatekeeper
 from src.shared.system.logging import Logger
 from config.thresholds import (
     HUNTER_INTERVAL_SECONDS,

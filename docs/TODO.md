@@ -6,16 +6,16 @@
 
 ---
 
-## 🚀 Active Sprint: "Battle Test" (Phase 17)
+## 🚀 Active Sprint: "The Great Unification" (Phase 19)
 
-**Goal**: Validate the Narrow Path infrastructure via Ghost Executions and Paper Mode soak testing.
+**Goal**: Unify the fractured codebase, repair legacy scraper components, and wire the Rust WSS Aggregator to the Arbitrage Engine.
 
 | Priority | Task | Status | Owner | Linked Doc |
 | :--- | :--- | :--- | :--- | :--- |
-| **P0** | **Ghost Execution**: Dry-run 4-leg Jito bundles | 📋 Plan | Executor | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
-| **P0** | **Scavenger Validation**: Test FailureTracker & BridgePod signals | 📋 Plan | Intelligence | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
-| **P1** | **Paper Soak**: 24-hour paper mode stability test | 📋 Plan | System | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
-| **P2** | **Live Checklist**: Final validation before live trading | ⚪ Upcoming | Core | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **P0** | **Rehabilitation**: Fix broken imports in `src/scraper` | 🚧 In Progress | Core | [PHASE_REHABILITATION.md](../PHASE_REHABILITATION.md) |
+| **P0** | **Cleanup**: Remove ghost code in `src/scalper` | 📋 Plan | Core | [PHASE_REHABILITATION.md](../PHASE_REHABILITATION.md) |
+| **P0** | **Wiring**: Connect WSS to HopGraphEngine | 🚧 In Progress | Core | [PHASE_UNIFICATION.md](../PHASE_UNIFICATION.md) |
+| **P1** | **Battle Test**: Resume soak testing (Phase 17) | ⏸️ Paused | Test | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
 
 ---
 
@@ -46,13 +46,17 @@
 | Phase | Description | Status | Tracking Doc |
 | :--- | :--- | :--- | :--- |
 | **Phase 4** | **Optimization & Realism** (Rust, Latency) | ✅ Complete | [PHASE_INSTITUTIONAL.md](./PHASE_INSTITUTIONAL.md) |
-| **Phase 5** | **Intelligence** (ML Advisor, Whale Watcher) | ⏸️ Paused | `PHASE_INTELLIGENCE.md` |
-| **Phase 6** | **Universal Discovery** (Lifecycle Arbitrage) | ⏸️ Paused | [PHASE_6_PLAN.md](./PHASE_6_UNIVERSAL_DISCOVERY.md) |
+| **Phase 5** | **Intelligence** (ML Advisor) | ⏸️ Paused | `PHASE_INTELLIGENCE.md` |
+| **Phase 5A** | **Whale Pulse** (Smart Money) | ⏸️ Paused | [PHASE_WHALE_PULSE.md](./PHASE_WHALE_PULSE.md) |
+| **Phase 5C** | **Auto-Slippage** (Drift Calibration) | ✅ Complete | [PHASE_AUTO_SLIPPAGE.md](./PHASE_AUTO_SLIPPAGE.md) |
+| **Phase 5D** | **Congestion Multiplier** (Gas Logic) | 📋 Plan | [PHASE_CONGESTION_MULTIPLIER.md](./PHASE_CONGESTION_MULTIPLIER.md) |
+| **Phase 6** | **Dashboard Overhaul** (Observability) | 📋 Plan | [PHASE_DASHBOARD_OVERHAUL.md](./PHASE_DASHBOARD_OVERHAUL.md) |
 | **Phase 7** | **PnL Audit & Risk Hardening** | ✅ Complete | `PHASE_7_AUDIT.md` |
 | **Phase 8-15** | **Narrow Path** (Multi-Hop Token Hopping) | ✅ Complete | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
 | **Phase 16** | **Scavenger Intelligence** (FailureTracker, BridgePod) | ✅ Complete | `PHASE_16_SCAVENGER.md` |
 | **Phase 17** | **Battle Test** (Ghost Execution, Soak Testing) | 🟡 Active | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
 | **Phase 18** | **🆕 Rust Acceleration** (TA Engine, PDA Cache, Fees) | 📋 Plan | [PHASE_RUST_ACCELERATION.md](./PHASE_RUST_ACCELERATION.md) |
+| **Phase 19** | **Refactor & Unify** (DataBroker, Scraper repair) | 🟡 Active | [PHASE_UNIFICATION.md](../PHASE_UNIFICATION.md) |
 | **Phase 20** | **Nomad Persistence** (Auto-Hydration) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
 | **Phase 21** | **Privacy Shield** (Ephemeral Wallets) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
 | **Phase 22** | **Token Memory** (Metadata Persistence) | ✅ Complete | [PHASE_22_23_PERSISTENCE.md](./PHASE_22_23_PERSISTENCE.md) |
