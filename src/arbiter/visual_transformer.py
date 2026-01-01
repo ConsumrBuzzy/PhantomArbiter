@@ -159,15 +159,36 @@ class VisualTransformer:
                 "roughness": 0.2
             })
             
-        # ORACLES / WATCHED TOKENS (Cyan Planet - Stable)
+        # ORACLES / WATCHED TOKENS (RSI-colored Planet)
         elif source == "PYTH":
             archetype = "PLANET"
-            color = "#00ffff"
+            
+            # V40: RSI-based color gradient
+            # RSI < 30 = Oversold (Red)
+            # RSI 30-50 = Weak (Orange/Yellow)
+            # RSI 50-70 = Neutral (Cyan)
+            # RSI > 70 = Overbought (Green)
+            rsi = data.get("rsi", 50) or 50
+            
+            if rsi < 30:
+                color = "#ff4444"  # Red - oversold
+            elif rsi < 50:
+                color = "#ffaa00"  # Orange - weak
+            elif rsi < 70:
+                color = "#00ffff"  # Cyan - neutral
+            else:
+                color = "#00ff88"  # Green - overbought
+            
+            # Override with magenta if holding position
+            if data.get("in_position"):
+                color = "#ff00ff"
+            
             params.update({
                 "radius": base_radius * 1.5,
                 "emissive_intensity": 1.5 + (1 if data.get("in_position") else 0),
-                "hex_color": "#ff00ff" if data.get("in_position") else color,  # Magenta if holding
-                "roughness": 0.8
+                "hex_color": color,
+                "roughness": 0.8,
+                "rsi": rsi  # Pass to frontend for label
             })
             
         # DISCOVERIES (Purple Comet)
