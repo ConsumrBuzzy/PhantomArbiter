@@ -184,6 +184,29 @@ class VisualTransformer:
                 "roughness": 0.0,
                 "velocity_factor": 0.0
             })
+        
+        # POOL / MOON (Orbits parent token)
+        elif source in ("POOL", "ORCA_POOL", "RAYDIUM_POOL", "METEORA_POOL"):
+            archetype = "MOON"
+            # Color by DEX
+            dex_colors = {
+                "ORCA_POOL": "#00d4aa",
+                "RAYDIUM_POOL": "#5ac4be", 
+                "METEORA_POOL": "#ffd700"
+            }
+            color = dex_colors.get(source, "#aaaaaa")
+            params.update({
+                "radius": max(0.3, base_radius * 0.4),  # Small moon
+                "emissive_intensity": 1.5,
+                "hex_color": color,
+                "roughness": 0.6,
+                "parent_mint": data.get("parent_mint") or data.get("token_mint"),
+                "pool_address": data.get("pool_address") or mint,
+                "dex": source.replace("_POOL", ""),
+                "orbit_speed": 0.02,
+                "orbit_radius": 5 + (volume_log * 2)  # Larger pools orbit further
+            })
+            node_type = "MOON"
 
         # Log whale/major events
         if is_whale or archetype in ("SUPERNOVA", "WHALE"):

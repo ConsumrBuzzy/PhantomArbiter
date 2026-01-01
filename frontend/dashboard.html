@@ -176,10 +176,31 @@
         }
 
         // --- NODE LOGIC ---
-        function createNode(id, label, archetype, params) {
-            if (nodes.has(id)) {
-                // Update logic could go here
-                return nodes.get(id);
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return hash;
+        }
+
+        function createNode(id, label, archetype, params, nodeType = 'TOKEN') {
+            const existing = nodes.get(id);
+            if (existing) {
+                // Update existing node (price change, etc)
+                if (params.price) {
+                    const details = `$${params.price.toFixed(6)} ${params.is_whale ? '🐋' : ''}`;
+                    if (existing.userData.labelEl) {
+                        existing.userData.labelEl.innerHTML = `<strong>${label}</strong><br><span style="font-size:10px; color:#aaa">${details}</span>`;
+                    }
+                }
+                // Flash effect for events
+                if (nodeType === 'EVENT' && params.flash) {
+                    existing.material.emissiveIntensity = 10;
+                    setTimeout(() => { existing.material.emissiveIntensity = params.emissive_intensity || 2; }, 200);
+                }
+                return existing;
             }
 
             // Geometry based on archetype
@@ -189,6 +210,9 @@
                 case 'PLANET': geometry = new THREE.SphereGeometry(params.radius || 3, 32, 32); break;
                 case 'SUPERNOVA': geometry = new THREE.IcosahedronGeometry(params.radius || 5, 1); break;
                 case 'PULSAR': geometry = new THREE.OctahedronGeometry(params.radius || 2, 0); break;
+                case 'NOVA': geometry = new THREE.DodecahedronGeometry(params.radius || 2, 0); break;
+                case 'COMET': geometry = new THREE.ConeGeometry(params.radius || 1, params.radius * 2, 8); break;
+                case 'WHALE': geometry = new THREE.TorusKnotGeometry(params.radius || 3, 0.5, 64, 8); break; // Unique whale shape
                 default: geometry = new THREE.TetrahedronGeometry(params.radius || 1, 0);
             }
 
@@ -198,15 +222,27 @@
                 emissiveIntensity: params.emissive_intensity || 0.5,
                 roughness: params.roughness !== undefined ? params.roughness : 0.5,
                 metalness: params.metalness !== undefined ? params.metalness : 0.8,
-                wireframe: params.roughness < 0.2 // Wireframe for techy nodes
+                wireframe: params.roughness < 0.2
             });
 
             const mesh = new THREE.Mesh(geometry, material);
 
-            // Random Position in Sphere
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos((Math.random() * 2) - 1);
-            const r = Math.pow(Math.random(), 0.3) * GALAXY_RADIUS; // Cluster near center-ish
+            // Position Logic: TOKEN = stable hash-based, EVENT = random
+            let r, theta, phi;
+            const distFactor = params.distance_factor || 0.5;
+
+            if (nodeType === 'TOKEN') {
+                // Stable position based on mint hash
+                const hash = hashCode(id);
+                theta = (hash % 360) * Math.PI / 180;
+                phi = Math.acos(((hash >> 8) % 200 - 100) / 100);
+                r = GALAXY_RADIUS * distFactor * 0.8; // Closer = higher liquidity
+            } else {
+                // Random for events
+                theta = Math.random() * Math.PI * 2;
+                phi = Math.acos((Math.random() * 2) - 1);
+                r = Math.pow(Math.random(), 0.3) * GALAXY_RADIUS * distFactor;
+            }
 
             mesh.position.set(
                 r * Math.sin(phi) * Math.cos(theta),
@@ -214,18 +250,21 @@
                 r * Math.cos(phi)
             );
 
-            // Velocity
-            const vel = new THREE.Vector3().randomDirection().multiplyScalar((params.velocity_factor || 0.1) * 0.5);
-            mesh.userData = { id, label, velocity: vel, type: archetype };
+            // Velocity: TOKENs are mostly static, EVENTs move
+            const velMag = nodeType === 'EVENT' ? (params.velocity_factor || 0.5) * 0.5 : 0.02;
+            const vel = new THREE.Vector3().randomDirection().multiplyScalar(velMag);
+            mesh.userData = { id, label, velocity: vel, type: archetype, nodeType, params };
 
-            // Trails for moving objects
-            if (params.velocity_factor > 0.5) {
+            // Trails for comets and fast movers
+            if (archetype === 'COMET' || params.velocity_factor > 1.0) {
                 mesh.userData.trail = new TrailRenderer(scene, params.hex_color, 20);
             }
 
-            // Labels
+            // Labels with rich data
             const priceStr = params.price ? `$${params.price.toFixed(6)}` : '';
-            const details = `${priceStr} ${params.velocity_factor ? '⚡' + params.velocity_factor.toFixed(1) : ''}`;
+            const volStr = params.volume > 1000 ? `Vol: $${(params.volume / 1000).toFixed(1)}k` : '';
+            const whaleEmoji = params.is_whale ? ' 🐋' : '';
+            const details = `${priceStr}${whaleEmoji} ${volStr}`;
             const labelEl = createLabel(id, label, details);
             mesh.userData.labelEl = labelEl;
 
@@ -234,21 +273,96 @@
             return mesh;
         }
 
+        // Create a moon (pool) that orbits a parent token
+        function createMoon(id, label, params) {
+            const parentMint = params.parent_mint;
+            const parentNode = nodes.get(parentMint);
+
+            // If parent doesn't exist yet, queue for later or skip
+            if (!parentNode) {
+                console.log(`Moon ${label} waiting for parent ${parentMint}`);
+                return null;
+            }
+
+            // Create small sphere for moon
+            const geometry = new THREE.SphereGeometry(params.radius || 0.5, 12, 12);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(params.hex_color || '#888888'),
+                emissive: new THREE.Color(params.hex_color || '#444444'),
+                emissiveIntensity: params.emissive_intensity || 1.0,
+                roughness: params.roughness || 0.6,
+                metalness: 0.5
+            });
+
+            const moon = new THREE.Mesh(geometry, material);
+
+            // Initial position relative to parent
+            const orbitRadius = params.orbit_radius || 5;
+            const angle = Math.random() * Math.PI * 2;
+            moon.position.set(
+                orbitRadius * Math.cos(angle),
+                (Math.random() - 0.5) * 2,  // Slight vertical offset
+                orbitRadius * Math.sin(angle)
+            );
+
+            // Store orbital data
+            moon.userData = {
+                id,
+                label,
+                type: 'MOON',
+                nodeType: 'MOON',
+                params,
+                parentMint,
+                orbitAngle: angle,
+                orbitRadius,
+                orbitSpeed: params.orbit_speed || 0.02,
+                orbitTilt: (Math.random() - 0.5) * 0.5  // Random tilt
+            };
+
+            // Small label for pool
+            const dexLabel = params.dex || 'POOL';
+            const liqStr = params.liquidity ? `$${(params.liquidity / 1000).toFixed(0)}k` : '';
+            const labelEl = createLabel(id, `${dexLabel}`, liqStr);
+            moon.userData.labelEl = labelEl;
+
+            // Add moon to parent's group or scene
+            parentNode.add(moon);  // Make moon child of parent
+            nodes.set(id, moon);
+
+            return moon;
+        }
+
         function triggerArchetypeUpdate(data) {
-            createNode(data.id, data.label, data.archetype, data.params);
+            if (data.archetype === 'MOON' || data.node_type === 'MOON') {
+                createMoon(data.id, data.label, data.params);
+            } else {
+                createNode(data.id, data.label, data.archetype, data.params, data.node_type || 'TOKEN');
+            }
         }
 
         function updateScene() {
             nodes.forEach(node => {
-                // Move
-                if (node.userData.velocity) {
+                // MOON orbital animation
+                if (node.userData.nodeType === 'MOON') {
+                    node.userData.orbitAngle += node.userData.orbitSpeed;
+                    const r = node.userData.orbitRadius;
+                    const tilt = node.userData.orbitTilt || 0;
+                    node.position.set(
+                        r * Math.cos(node.userData.orbitAngle),
+                        r * Math.sin(node.userData.orbitAngle) * tilt,
+                        r * Math.sin(node.userData.orbitAngle)
+                    );
+                    node.rotation.y += 0.03;  // Self rotation
+                }
+                // Regular node movement
+                else if (node.userData.velocity) {
                     node.position.add(node.userData.velocity);
                     node.rotation.x += 0.01;
                     node.rotation.y += 0.02;
 
                     // Bounds check
                     if (node.position.length() > GALAXY_RADIUS * 1.2) {
-                        node.position.setLength(GALAXY_RADIUS * 0.1); // Teleport to center
+                        node.position.setLength(GALAXY_RADIUS * 0.1);
                     }
                 }
 
@@ -258,16 +372,20 @@
                 }
             });
 
-            // Cleanup
+            // Cleanup old nodes (keep moons longer)
             if (nodes.size > 800) {
-                const keys = nodes.keys();
-                const toRemove = keys.next().value;
-                const node = nodes.get(toRemove);
-                scene.remove(node);
-                if (node.userData.trail) node.userData.trail.dispose();
-                node.geometry.dispose();
-                node.material.dispose();
-                nodes.delete(toRemove);
+                let removed = false;
+                nodes.forEach((node, key) => {
+                    if (!removed && node.userData.nodeType === 'EVENT') {
+                        scene.remove(node);
+                        if (node.userData.trail) node.userData.trail.dispose();
+                        if (node.userData.labelEl) node.userData.labelEl.remove();
+                        node.geometry.dispose();
+                        node.material.dispose();
+                        nodes.delete(key);
+                        removed = true;
+                    }
+                });
             }
         }
 
