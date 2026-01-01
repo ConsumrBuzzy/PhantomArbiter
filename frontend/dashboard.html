@@ -169,8 +169,8 @@
 
             // --- CONFIGURATION ---
             // V3: Decoupled API - Frontend assumes it's served from the same host as the API (or via proxy)
-            // If served via file://, defaults to localhost:8000.
-            const API_HOST = window.location.hostname === "" ? "localhost:8000" : window.location.host;
+            // If served via file://, defaults to localhost:8001.
+            const API_HOST = window.location.hostname === "" ? "localhost:8001" : window.location.host;
             const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
             const HTTP_PROTOCOL = window.location.protocol === "https:" ? "https:" : "http:";
 
@@ -684,7 +684,7 @@
                                 existing.material.emissive.setHex(color);
                                 existing.material.emissiveIntensity = 10.0;
                                 setTimeout(() => { existing.material.emissiveIntensity = 0.5; existing.material.emissive.setHex(0x000000); }, 1000);
-                                logEvent(`👃 Whiff: ${data.whiff_type} on ${data.mint.slice(0,6)}`);
+                                logEvent(`👃 Whiff: ${data.whiff_type} on ${data.mint.slice(0, 6)}`);
                             }
                         } else if (data.type === 'snapshot') {
                             logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
