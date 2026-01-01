@@ -128,9 +128,11 @@ class WebSocketListener:
             wss_log("⚠️ No WSS endpoints available via ProviderPool!")
             return
 
-        wss_log(
-            f"Starting Race with {len(endpoints)} nodes: {[e.split('//')[1].split('/')[0] for e in endpoints]}"
-        )
+        try:
+            domains = [e.split('//')[1].split('/')[0] if '//' in e else e for e in endpoints]
+            wss_log(f"Starting Race with {len(endpoints)} nodes: {domains}")
+        except Exception:
+             wss_log(f"Starting Race with {len(endpoints)} nodes (names hidden due to formatting)")
 
         # Subscribe to key DEX interactions
         # We subscribe to logs for Raydium V4, CLMM, and Orca
