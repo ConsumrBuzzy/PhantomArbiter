@@ -33,20 +33,28 @@ class VisualTransformer:
         mint = data.get("mint") or data.get("token")
         if not mint:
             return None
-            
-        label = data.get("symbol") or data.get("label")
         
-        # Resolve missing label via Registry
-        if not label or label == "???":
-            try:
-                from src.shared.infrastructure.token_registry import TokenRegistry
-                registry = TokenRegistry()
-                if registry._initialized:
-                     resolved = registry.get_symbol(mint)
-                     if resolved:
-                         label = resolved
-            except Exception:
-                 pass
+        # For events, symbol is the event type (e.g., "⚡ RAYDIUM"), label is the value
+        is_event = data.get("is_event") or mint.startswith("SWAP_") or mint.startswith("FLASH_")
+        
+        if is_event:
+            label = data.get("symbol") or "⚡ SWAP"
+            event_label = data.get("label") or ""  # e.g., "$1.5k"
+        else:
+            label = data.get("symbol") or data.get("label")
+            event_label = ""
+            
+            # Resolve missing label via Registry for actual tokens
+            if not label or label == "???":
+                try:
+                    from src.shared.infrastructure.token_registry import TokenRegistry
+                    registry = TokenRegistry()
+                    if registry._initialized:
+                         resolved = registry.get_symbol(mint)
+                         if resolved:
+                             label = resolved
+                except Exception:
+                     pass
         
         if not label:
             label = f"{mint[:4]}..{mint[-4:]}"
