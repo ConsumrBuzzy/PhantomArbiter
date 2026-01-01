@@ -438,6 +438,11 @@ pub mod tx_parser;
 pub mod pda;
 
 // ------------------------------------------------------------------------
+// SECTION 19: WHIFF BUFFER (BURST COLLAPSE)
+// ------------------------------------------------------------------------
+pub mod whiff_buffer;
+
+// ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
@@ -503,6 +508,9 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
 
     // Phase 18: PDA Derivation Cache
     pda::register_pda_classes(m)?;
+
+    // Phase 11: WhiffBuffer (Burst Collapse)
+    whiff_buffer::register_whiff_buffer_classes(m)?;
 
     Ok(())
 }
