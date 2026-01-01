@@ -262,7 +262,7 @@
             return hash;
         }
 
-        function createNode(id, label, archetype, params, nodeType = 'TOKEN') {
+        function createNode(id, label, archetype, params, nodeType = 'TOKEN', eventLabel = '') {
             const existing = nodes.get(id);
             if (existing) {
                 // Update existing node (price change, etc)
@@ -337,11 +337,18 @@
                 mesh.userData.trail = new TrailRenderer(scene, params.hex_color, 20);
             }
 
-            // Labels with rich data
-            const priceStr = params.price ? `$${params.price.toFixed(6)}` : '';
-            const volStr = params.volume > 1000 ? `Vol: $${(params.volume / 1000).toFixed(1)}k` : '';
-            const whaleEmoji = params.is_whale ? ' 🐋' : '';
-            const details = `${priceStr}${whaleEmoji} ${volStr}`;
+            // Labels: Different for events vs tokens
+            let details;
+            if (nodeType === 'EVENT' && eventLabel) {
+                // Show event label prominently (e.g., "$1.5k")
+                details = eventLabel;
+            } else {
+                // Token details
+                const priceStr = params.price ? `$${params.price.toFixed(6)}` : '';
+                const volStr = params.volume > 1000 ? `Vol: $${(params.volume / 1000).toFixed(1)}k` : '';
+                const whaleEmoji = params.is_whale ? ' 🐋' : '';
+                details = `${priceStr}${whaleEmoji} ${volStr}`;
+            }
             const labelEl = createLabel(id, label, details);
             mesh.userData.labelEl = labelEl;
 
