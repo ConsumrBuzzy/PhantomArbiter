@@ -135,7 +135,9 @@ class UnifiedDirector:
             # DataBroker.run() is blocking, so we offload to thread
             await asyncio.to_thread(self.broker.run)
         except Exception as e:
+            import traceback
             Logger.error(f"[Brain] DataBroker Crashed: {e}")
+            traceback.print_exc()
 
     async def _run_scalper_loop(self):
         """Scalper loop wrapper."""
