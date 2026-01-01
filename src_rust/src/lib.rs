@@ -428,6 +428,11 @@ pub mod graph;
 pub mod multiverse;
 
 // ------------------------------------------------------------------------
+// SECTION 17: TX PARSER (HELIUS ENHANCED) - V42
+// ------------------------------------------------------------------------
+pub mod tx_parser;
+
+// ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
@@ -482,6 +487,9 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
 
     // V140: Multi-Hop Atomic Execution
     router::register_router_classes(m)?;
+    
+    // V42: Helius Tx Parser
+    tx_parser::register_tx_parser_classes(m)?;
 
     Ok(())
 }
