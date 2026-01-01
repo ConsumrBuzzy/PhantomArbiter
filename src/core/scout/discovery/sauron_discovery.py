@@ -250,7 +250,7 @@ class SauronDiscovery:
 
                     # V77.0: Queue for delayed metadata resolution
                     try:
-                        from src.scraper.discovery.metadata_resolver import (
+                        from src.core.scout.discovery.metadata_resolver import (
                             get_metadata_resolver,
                         )
 

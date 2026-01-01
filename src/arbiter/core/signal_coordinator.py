@@ -42,7 +42,7 @@ class SignalCoordinator:
         self.on_flash_warm = on_flash_warm  # Callback(symbol)
 
         # V100: Predictor Layer
-        from src.scraper.agents.scout_agent import ScoutAgent
+        from src.core.scout.agents.scout_agent import ScoutAgent
 
         self.scout = ScoutAgent()
 

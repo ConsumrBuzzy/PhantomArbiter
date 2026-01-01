@@ -1,16 +1,16 @@
 import asyncio
 import time
 from typing import Dict, Optional, List
-from src.scraper.agents.base_agent import BaseAgent, AgentSignal
+from src.core.scout.agents.base_agent import BaseAgent, AgentSignal
 from src.shared.infrastructure.rpc_balancer import get_rpc_balancer
 from src.shared.system.logging import Logger
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 import os
 import json
 from config.settings import Settings
-from src.scraper.agents.probe_analytic import ProbeAnalytic
+from src.core.scout.agents.probe_analytic import ProbeAnalytic
 from src.shared.execution.raydium_standard_bridge import RaydiumStandardBridge
-from src.scraper.discovery.pump_fun_monitor import PumpFunMonitor
+from src.core.scout.discovery.pump_fun_monitor import PumpFunMonitor
 from src.core.price_cache import SharedPriceCache
 
 

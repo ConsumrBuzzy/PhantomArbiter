@@ -129,11 +129,27 @@ class DataBroker:
 
         def _handle_wss_update(event):
             """Relay WSS event to Graph Engine."""
-            pool = event.get("pool")
+            # Support both Dict (legacy/test) and PriceEvent (prod)
+            if hasattr(event, "pool"):
+                pool = event.pool
+                price = event.price
+                dex = event.dex
+                slot = event.slot
+                latency_ms = getattr(event, "latency_ms", 0.0)
+            else:
+                pool = event.get("pool")
+                price = event.get("price")
+                dex = event.get("dex")
+                slot = event.get("slot", 0)
+                latency_ms = event.get("latency_ms", 0.0)
+
             if not pool:
                 return
 
             # Latency Tracking (Start)
+            if latency_ms > 0:
+                self.latency_monitor.record_wss_latency(latency_ms)
+                
             trace_id = f"wss_{pool}_{time.time()}"
             self.latency_monitor.mark_start(trace_id)
 
@@ -147,9 +163,9 @@ class DataBroker:
                 
                 update = {
                     "pool_address": pool,
-                    "price": event.get("price"),
-                    "dex": event.get("dex"),
-                    "slot": event.get("slot", 0),
+                    "price": price,
+                    "dex": dex,
+                    "slot": slot,
                     "base_mint": base_mint,
                     "quote_mint": quote_mint,
                     "liquidity_usd": 0,
@@ -158,14 +174,10 @@ class DataBroker:
                 
             # Latency Tracking (End)
             duration = self.latency_monitor.mark_end(trace_id)
-            # Optional: Log if slow (>2ms)
-            # if duration > 2.0:
-            #     Logger.warning(f"Slow WSS Update: {duration:.2f}ms for {pool}")
 
             # V2.0: Delta-Trigger Logic (Prevent over-scanning)
             # Only trigger Arbiter cycle if price change is significant (> 0.1%)
-            # Always update graph, but conditionally emit signal
-            current_price = event.get("price", 0.0)
+            current_price = price
             if current_price <= 0:
                 return
 
@@ -578,7 +590,7 @@ class DataBroker:
         self.dashboard.start()
 
         # V77.0: Start Metadata Background Resolver
-        from src.scraper.discovery.metadata_resolver import get_metadata_resolver
+        from src.core.scout.discovery.metadata_resolver import get_metadata_resolver
 
         self.metadata_resolver = get_metadata_resolver()
         self.metadata_resolver.start()

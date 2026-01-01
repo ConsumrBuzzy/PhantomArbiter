@@ -13,6 +13,8 @@ import os
 import time
 import threading
 from dotenv import load_dotenv
+from typing import Optional, Dict
+
 
 import phantom_core
 from src.core.provider_pool import ProviderPool
@@ -126,6 +128,21 @@ class WebSocketListener:
             pass
         self.stats["connection_status"] = "stopped"
 
+from dataclasses import dataclass
+
+@dataclass(slots=True)
+class PriceEvent:
+    pool: str
+    price: float
+    dex: str
+    timestamp: float
+    signature: str
+    slot: int
+    latency_ms: float = 0.0
+
+class WebSocketListener:
+    # ... (existing init) ...
+
     def _poll_loop(self):
         """
         High-frequency polling of the crossbeam channel.
@@ -134,76 +151,69 @@ class WebSocketListener:
         batch_size = 50
 
         while self.running:
-            # Poll parsed events from Rust
-            # poll_events returns list of WssEvent objects
             events = self.aggregator.poll_events(batch_size)
 
             if not events:
-                # Slight sleep to yield GIL if queue empty
                 time.sleep(0.001)
                 continue
+            
+            # V19.3: Conflation (Micro-Batching)
+            # Deduplicate multiple updates for the same pool in this batch
+            latest_updates: Dict[str, PriceEvent] = {}
 
             for event in events:
-                self._process_event(event)
+                self.stats["messages_received"] += 1
+                self.stats["latency_stats"][event.provider] = event.latency_ms
 
-    def _process_event(self, event):
-        """
-        Process a normalized WssEvent from Rust.
-
-        Args:
-            event: phantom_core.WssEvent
-                .provider: str
-                .slot: int
-                .signature: str
-                .logs: list[str]
-        """
-        self.stats["messages_received"] += 1
-        self.stats["latency_stats"][event.provider] = event.latency_ms
-
-        # Logs are already parsed list of strings
-        logs = event.logs
-
-        try:
-            # V7.0.1: Use Rust Parser for Price Extraction
-            # parse_universal_log returns a SwapEvent or None
-            # SwapEvent struct: { pool_id, amount_in, amount_out, price, dex_type }
-            swap_event = parse_universal_log(logs)
+                parsed = self._parse_raw_event(event)
+                if parsed:
+                    latest_updates[parsed.pool] = parsed
             
+            # Dispatch unique updates
+            for event in latest_updates.values():
+                self._dispatch_event(event)
+
+    def _parse_raw_event(self, event) -> Optional[PriceEvent]:
+        """Parse raw Rust WssEvent into PriceEvent."""
+        logs = event.logs
+        try:
+            swap_event = parse_universal_log(logs)
             if swap_event:
-                self.stats["swaps_detected"] += 1
-                self.stats["prices_updated"] += 1
-                
-                # Emit to listener
-                if self.on_price_update:
-                    # Provide standard format: (pool, price, timestamp, dex)
-                    # We might need to resolve pool->tokens lookup here or downstream.
-                    # For now, pass raw pool_id.
-                    self.on_price_update({
-                        "pool": swap_event.pool_id,
-                        "price": swap_event.price,
-                        "timestamp": time.time(),
-                        "dex": swap_event.dex_type,
-                        "signature": event.signature,
-                        "slot": event.slot
-                    })
-                    
-                # Update internal stats
-                if "RAYDIUM" in swap_event.dex_type:
-                    self.stats["raydium_swaps"] += 1
-                elif "ORCA" in swap_event.dex_type:
-                    self.stats["orca_swaps"] += 1
+                return PriceEvent(
+                    pool=swap_event.pool_id,
+                    price=swap_event.price,
+                    dex=swap_event.dex_type,
+                    timestamp=time.time(),
+                    signature=event.signature,
+                    slot=event.slot,
+                    latency_ms=getattr(event, 'latency_ms', 0.0)
+                )
+        except Exception:
+            pass
+        return None
 
-                # Legacy Scraper Hook (Optional, for analytics)
-                try:
-                    from src.scraper.discovery.scrape_intelligence import get_scrape_intelligence
-                    get_scrape_intelligence().add_signature(event.signature, dex=swap_event.dex_type)
-                except:
-                    pass
+    def _dispatch_event(self, event: PriceEvent):
+        """Emit parsed event to listener."""
+        self.stats["swaps_detected"] += 1
+        self.stats["prices_updated"] += 1
+        
+        if self.on_price_update:
+            self.on_price_update(event)
+            
+        # Update internal stats
+        if "RAYDIUM" in event.dex:
+            self.stats["raydium_swaps"] += 1
+        elif "ORCA" in event.dex:
+            self.stats["orca_swaps"] += 1
 
-        except Exception as e:
-            if WSS_DEBUG and self.stats["swaps_detected"] < 5:
-                # Log first few errors only to avoid spam
-                wss_log(f"Parse error: {e}")
+        # Legacy Scraper Hook (Optional, for analytics)
+        try:
+            from src.core.scout.discovery.scrape_intelligence import get_scrape_intelligence
+            get_scrape_intelligence().add_signature(event.signature, dex=event.dex)
+        except:
+             pass
+
+
 
         # V22: Trigger State Pulse for known mints (simulated for now if not parsed)
         # This ensures the Flux Gauge moves even without full parsing

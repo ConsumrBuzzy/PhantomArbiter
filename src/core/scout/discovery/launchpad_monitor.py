@@ -371,7 +371,7 @@ class LaunchpadMonitor:
             mint = f"UNKNOWN_{signature[:16]}"
 
         # V54.0: Register Token
-        from src.scraper.discovery.token_registry import get_token_registry
+        from src.core.scout.discovery.token_registry import get_token_registry
 
         registry = get_token_registry()
         registry.register_token(mint, name, symbol, uri, platform.value)

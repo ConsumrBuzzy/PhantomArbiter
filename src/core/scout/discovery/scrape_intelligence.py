@@ -250,7 +250,7 @@ class ScrapeIntelligence:
 
         # Queue for MetadataResolver with HIGH PRIORITY (whale vouch)
         try:
-            from src.scraper.discovery.metadata_resolver import get_metadata_resolver
+            from src.core.scout.discovery.metadata_resolver import get_metadata_resolver
 
             resolver = get_metadata_resolver()
             if intel.token_out:

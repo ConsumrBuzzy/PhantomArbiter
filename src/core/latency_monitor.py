@@ -22,11 +22,11 @@ class LatencyMonitor:
 
     def __init__(self, window_size: int = 100):
         self.window_size = window_size
-        self.ingress_deltas = deque(maxlen=window_size)
-        self.process_times = deque(maxlen=window_size)
-        
-        # Temp store for in-flight events
-        self._pending: Dict[str, float] = {}
+        self.wss_latencies = deque(maxlen=window_size)
+    
+    def record_wss_latency(self, latency_ms: float):
+        """Record explicit network latency from WSS."""
+        self.wss_latencies.append(latency_ms)
 
     def record_ingress(self, event_ts_ms: int):
         """
@@ -59,6 +59,7 @@ class LatencyMonitor:
         return {
             "ingress_avg_ms": safe_mean(self.ingress_deltas),
             "ingress_max_ms": safe_max(self.ingress_deltas),
+            "wss_avg_ms": safe_mean(self.wss_latencies),
             "process_avg_ms": safe_mean(self.process_times),
             "process_max_ms": safe_max(self.process_times),
             "samples": len(self.ingress_deltas)

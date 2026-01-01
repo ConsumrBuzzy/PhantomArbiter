@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from src.shared.system.logging import Logger
-from src.scraper.discovery.launchpad_monitor import (
+from src.core.scout.discovery.launchpad_monitor import (
     get_launchpad_monitor,
     MigrationEvent,
     LaunchPlatform,

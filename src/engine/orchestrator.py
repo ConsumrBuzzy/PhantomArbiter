@@ -153,12 +153,12 @@ class MarketOrchestrator:
         asyncio.create_task(self.pump_monitor.start_monitoring(interval=0.2)) 
         
         # V33: Ignite Scraper (Purple Layer - Discovery)
-        from src.scraper.scout.scraper import TokenScraper
+        from src.core.scout.scraper import TokenScraper
         self.scraper = TokenScraper()
         asyncio.create_task(self.scraper.start_scanning(interval=30.0))
         
         # V33: Ignite Launchpad Monitor (Magenta Layer - Multi-Platform)
-        from src.scraper.discovery.launchpad_monitor import get_launchpad_monitor
+        from src.core.scout.discovery.launchpad_monitor import get_launchpad_monitor
         self.launchpad = get_launchpad_monitor()
         asyncio.create_task(self.launchpad.start())
         

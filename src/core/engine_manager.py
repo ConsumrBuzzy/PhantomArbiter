@@ -67,10 +67,10 @@ class EngineManager:
     def _init_auxiliary_agents(self):
         """Initialize Scout, Whale, Sauron, Sniper agents."""
         try:
-            from src.scraper.agents.scout_agent import ScoutAgent
-            from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
-            from src.scraper.discovery.sauron_discovery import SauronDiscovery
-            from src.scraper.agents.sniper_agent import SniperAgent
+            from src.core.scout.agents.scout_agent import ScoutAgent
+            from src.core.scout.agents.whale_watcher_agent import WhaleWatcherAgent
+            from src.core.scout.discovery.sauron_discovery import SauronDiscovery
+            from src.core.scout.agents.sniper_agent import SniperAgent
 
             self.scout_agent = ScoutAgent()
             self.whale_watcher = WhaleWatcherAgent()

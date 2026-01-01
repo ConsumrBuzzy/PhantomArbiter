@@ -333,7 +333,7 @@ class DashboardService:
 
         # V85.1: Get intelligence stats
         try:
-            from src.scraper.discovery.scrape_intelligence import (
+            from src.core.scout.discovery.scrape_intelligence import (
                 get_scrape_intelligence,
             )
 

@@ -212,7 +212,7 @@ class WebSocketListener:
 
             # V84.0: Queue signature for Solscan scraping
             try:
-                from src.scraper.discovery.scrape_intelligence import (
+                from src.core.scout.discovery.scrape_intelligence import (
                     get_scrape_intelligence,
                 )
 

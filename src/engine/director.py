@@ -100,7 +100,7 @@ class Director:
 
         if not self.lite_mode and not hop_mode:
             # Whale Watcher (V23, V67.0: Whale-Pulse with metadata registry)
-            from src.scraper.agents.whale_watcher_agent import WhaleWatcherAgent
+            from src.core.scout.agents.whale_watcher_agent import WhaleWatcherAgent
 
             self.agents["whale"] = WhaleWatcherAgent(
                 metadata_registry=self.token_registry
@@ -108,7 +108,7 @@ class Director:
 
             # 4. SLOW TIER AGENTS
             # Scout
-            from src.scraper.agents.scout_agent import ScoutAgent
+            from src.core.scout.agents.scout_agent import ScoutAgent
 
             self.agents["scout"] = ScoutAgent()
 

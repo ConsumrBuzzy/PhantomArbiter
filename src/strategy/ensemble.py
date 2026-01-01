@@ -3,7 +3,7 @@ from src.strategy.keltner_logic import KeltnerLogic
 from src.strategy.vwap_logic import VwapLogic
 from src.strategy.base_strategy import BaseStrategy
 from src.shared.system.logging import Logger
-from src.scraper.agents.base_agent import AgentSignal
+from src.core.scout.agents.base_agent import AgentSignal
 from typing import List
 
 

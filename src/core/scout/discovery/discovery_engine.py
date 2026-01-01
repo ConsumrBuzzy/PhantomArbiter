@@ -26,7 +26,7 @@ WATCHLIST_FILE = os.path.join(
     os.path.dirname(__file__), "../../data/smart_money_watchlist.json"
 )
 
-from src.scraper.agents.base_agent import BaseAgent, AgentSignal
+from src.core.scout.agents.base_agent import BaseAgent, AgentSignal
 
 
 class DiscoveryEngine(BaseAgent):

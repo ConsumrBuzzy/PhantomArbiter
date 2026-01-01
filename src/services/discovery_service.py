@@ -7,12 +7,12 @@ from src.utils.boot_utils import BootTimer
 from src.shared.system.comms_daemon import send_telegram
 
 # Imports for loop
-from src.scraper.discovery.launchpad_monitor import (
+from src.core.scout.discovery.launchpad_monitor import (
     get_launchpad_monitor,
     LaunchEvent,
     MigrationEvent,
 )
-from src.scraper.discovery.migration_sniffer import (
+from src.core.scout.discovery.migration_sniffer import (
     get_migration_sniffer,
     MigrationOpportunity,
     SnipeConfidence,
@@ -199,7 +199,7 @@ async def discovery_monitor_loop():
                 # V54.0: Try to get symbol from registry if missing in opp
                 symbol = opp.symbol
                 if not symbol:
-                    from src.scraper.discovery.token_registry import get_token_registry
+                    from src.core.scout.discovery.token_registry import get_token_registry
 
                     reg = get_token_registry()
                     token = reg.get_token(opp.mint)
