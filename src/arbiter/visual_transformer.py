@@ -226,6 +226,7 @@ class VisualTransformer:
             "type": "ARCHETYPE_UPDATE",
             "id": mint,
             "label": label,
+            "event_label": event_label,  # For events like "$1.5k" 
             "archetype": archetype,
             "node_type": node_type,
             "params": params
