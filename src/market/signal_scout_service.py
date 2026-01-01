@@ -88,8 +88,18 @@ class SignalScoutService:
         "MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA": "MARGINFI",
     }
     
+    # Whale inflow tracking programs (CCTP/Wormhole)
+    WHALE_PROGRAMS = {
+        "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd": "CCTP",      # Circle Cross-Chain Transfer Protocol
+        "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth": "WORMHOLE",   # Wormhole Token Bridge
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": "SPL_TOKEN", # SPL Token (for mint events)
+    }
+    
     # Known MEV/Arb bot wallets (sample - extend with actual data)
     KNOWN_FAST_BOTS: Set[str] = set()
+    
+    # Known whale wallets (large volume traders)
+    KNOWN_WHALE_WALLETS: Set[str] = set()
     
     def __init__(self):
         # Whiff storage
@@ -303,6 +313,71 @@ class SignalScoutService:
         except Exception as e:
             Logger.debug(f"Fee spike detection failed: {e}")
             return None
+    
+    def detect_whale_inflow(self, log_data: dict) -> Optional[Whiff]:
+        """
+        Detect whale inflow from CCTP/Wormhole mint events.
+        
+        The Play: If a whale mints 5M USDC via CCTP, they're about to
+        deploy capital. This is BULLISH liquidity inflow.
+        """
+        program_id = log_data.get("program_id")
+        if program_id not in self.WHALE_PROGRAMS:
+            return None
+        
+        source = self.WHALE_PROGRAMS[program_id]
+        logs = log_data.get("logs", [])
+        signer = log_data.get("signer", "")
+        
+        # Check for mint-related logs
+        is_mint = any("mintTo" in log or "Mint" in log for log in logs)
+        if not is_mint:
+            return None
+        
+        # Check if signer is a known whale
+        is_known_whale = signer in self.KNOWN_WHALE_WALLETS
+        
+        # Parse amount if possible (placeholder - needs actual parsing)
+        amount_usd = self._parse_whale_amount(logs)
+        if amount_usd < 100000:  # Only care about $100k+ inflows
+            return None
+        
+        # Create whale intent whiff
+        whiff = Whiff(
+            type=WhiffType.WHALE_INTENT,
+            mint="USDC" if "USDC" in str(logs) else "UNKNOWN",
+            source=f"WHALE_{source}",
+            confidence=0.80 if is_known_whale else 0.60,
+            direction="BULLISH",  # Inflow = bullish
+            magnitude=min(1.0, amount_usd / 10_000_000),  # Scale to $10M
+            data={
+                "source": source,
+                "signer": signer,
+                "amount_usd": amount_usd,
+                "is_known_whale": is_known_whale,
+            },
+            ttl_seconds=120.0,  # Whale capital deployment takes time
+        )
+        
+        self._emit_whiff(whiff)
+        Logger.info(f"🐋 WHALE INFLOW: ${amount_usd:,.0f} via {source}")
+        return whiff
+    
+    def _parse_whale_amount(self, logs: List[str]) -> float:
+        """Parse USD amount from mint logs (placeholder)."""
+        # TODO: Implement actual parsing based on log format
+        # For now, return 0 (no detection)
+        for log in logs:
+            # Look for amount patterns in logs
+            if "amount" in log.lower():
+                # Placeholder - would need to parse actual value
+                pass
+        return 0.0
+    
+    def register_whale_wallet(self, wallet: str) -> None:
+        """Register a known whale wallet for tracking."""
+        self.KNOWN_WHALE_WALLETS.add(wallet)
+        Logger.info(f"🐋 Registered whale wallet: {wallet[:8]}...")
     
     # =========================================================================
     # WHIFF RETRIEVAL

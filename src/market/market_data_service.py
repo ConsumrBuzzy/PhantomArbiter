@@ -171,35 +171,139 @@ class MarketDataService:
         return 0.5
     
     # =========================================================================
-    # PRESSURE METRICS (Integration with SignalScoutService)
+    # PRESSURE METRICS (Asymmetric Intelligence Formula)
     # =========================================================================
+    # P = (W₁ · OFI) + (W₂ · ΔPriorityFee) + (W₃ · FailRate)
+    # =========================================================================
+    
+    # Pressure weights (tunable)
+    W_OFI = 0.4           # Order Flow Imbalance weight
+    W_PRIORITY_FEE = 0.3  # Priority fee delta weight
+    W_FAIL_RATE = 0.3     # Transaction fail rate weight
+    
+    # State for pressure calculation
+    _priority_fee_history: list = []
+    _fail_counts: Dict[str, int] = {}
+    _success_counts: Dict[str, int] = {}
+    
+    def calculate_pressure(self, mint: str) -> float:
+        """
+        Calculate market pressure using asymmetric intelligence formula.
+        
+        P = (W₁ · OFI) + (W₂ · ΔPriorityFee) + (W₃ · FailRate)
+        
+        Returns:
+            Pressure value from -1.0 (bearish) to 1.0 (bullish)
+        """
+        # Component 1: Order Flow Imbalance
+        ofi = self.get_ofi(mint)
+        
+        # Component 2: Priority Fee Delta (network congestion)
+        fee_delta = self._get_priority_fee_delta()
+        
+        # Component 3: Fail Rate (slippage wars)
+        fail_rate = self._get_fail_rate(mint)
+        
+        # Apply weights
+        pressure = (
+            self.W_OFI * ofi +
+            self.W_PRIORITY_FEE * fee_delta +
+            self.W_FAIL_RATE * fail_rate
+        )
+        
+        return max(-1.0, min(1.0, pressure))
+    
+    def _get_priority_fee_delta(self) -> float:
+        """
+        Calculate priority fee velocity (rate of change).
+        
+        Rising fees = positive pressure (activity incoming)
+        Falling fees = negative pressure (cooling off)
+        """
+        if len(self._priority_fee_history) < 2:
+            return 0.0
+        
+        recent = self._priority_fee_history[-1]
+        older = self._priority_fee_history[-2]
+        
+        if older <= 0:
+            return 0.0
+        
+        delta = (recent - older) / older
+        return max(-1.0, min(1.0, delta))
+    
+    def _get_fail_rate(self, mint: str) -> float:
+        """
+        Calculate transaction fail rate for a mint.
+        
+        High fail rate = volatility/slippage wars = bullish pressure
+        (price is moving fast, causing failures)
+        """
+        fails = self._fail_counts.get(mint, 0)
+        successes = self._success_counts.get(mint, 1)
+        
+        total = fails + successes
+        if total < 5:
+            return 0.0  # Not enough data
+        
+        rate = fails / total
+        return min(1.0, rate * 2)  # Scale up: 50% fail rate = 1.0
+    
+    def record_tx_result(self, mint: str, success: bool) -> None:
+        """Record transaction result for fail rate calculation."""
+        if success:
+            self._success_counts[mint] = self._success_counts.get(mint, 0) + 1
+        else:
+            self._fail_counts[mint] = self._fail_counts.get(mint, 0) + 1
+    
+    def update_priority_fee(self, fee: float) -> None:
+        """Update priority fee history."""
+        self._priority_fee_history.append(fee)
+        if len(self._priority_fee_history) > 20:
+            self._priority_fee_history.pop(0)
     
     def get_pressure(self, mint: str) -> dict:
         """
-        Get directional pressure from asymmetric intelligence.
-        
-        Integrates with SignalScoutService for "whiff" based pressure.
+        Get directional pressure combining formula and whiff signals.
         
         Returns:
-            {"bullish": 0.0-1.0, "bearish": 0.0-1.0, "volatile": 0.0-1.0}
+            {"bullish": 0.0-1.0, "bearish": 0.0-1.0, "volatile": 0.0-1.0, "formula": float}
         """
         try:
             from src.market import get_signal_scout
             scout = get_signal_scout()
-            return scout.get_pressure(mint)
-        except Exception as e:
-            Logger.debug(f"Pressure fetch failed: {e}")
-            return {"bullish": 0.0, "bearish": 0.0, "volatile": 0.0}
+            whiff_pressure = scout.get_pressure(mint)
+        except Exception:
+            whiff_pressure = {"bullish": 0.0, "bearish": 0.0, "volatile": 0.0}
+        
+        # Add formula-based pressure
+        formula_p = self.calculate_pressure(mint)
+        whiff_pressure["formula"] = formula_p
+        
+        # Adjust whiff pressure based on formula direction
+        if formula_p > 0.2:
+            whiff_pressure["bullish"] = min(1.0, whiff_pressure["bullish"] + formula_p * 0.3)
+        elif formula_p < -0.2:
+            whiff_pressure["bearish"] = min(1.0, whiff_pressure["bearish"] + abs(formula_p) * 0.3)
+        
+        return whiff_pressure
     
     def get_market_heat(self, mint: str) -> float:
         """
-        Get aggregated "market heat" from whiff signals.
+        Get aggregated "market heat" combining formula and whiffs.
         
         Returns 0.0 (cold) to 1.0 (on fire).
         """
         try:
             from src.market import get_signal_scout
             scout = get_signal_scout()
-            return scout.get_market_heat(mint)
+            whiff_heat = scout.get_market_heat(mint)
         except Exception:
-            return 0.0
+            whiff_heat = 0.0
+        
+        # Add formula contribution
+        formula_abs = abs(self.calculate_pressure(mint))
+        
+        # Combine: high absolute pressure = hot market
+        return min(1.0, whiff_heat * 0.6 + formula_abs * 0.4)
+
