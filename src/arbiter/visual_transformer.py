@@ -31,7 +31,7 @@ class VisualTransformer:
         if not mint:
             return None
             
-        label = data.get("symbol")
+        label = data.get("symbol") or data.get("label")
         
         # Resolve missing label via Registry if (Singleton access if possible)
         # Note: Importing Singleton here to avoid circular imports? 
