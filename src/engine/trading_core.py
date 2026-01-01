@@ -407,10 +407,14 @@ class TradingCore:
             )  # In case symbol is used as mint
             if mint:
                 Logger.info(f"🔭 [Scalper] Feeding Scout signal: {token} ({mint[:8]})")
-                # Add to watchlist for next scan
+                # 1. Add to watchlist for next scan
                 if mint not in self.watchlist:
                     self.watchlist.append(mint)
-
+                
+                # 2. Inject into Decision Engine for immediate context
+                if hasattr(self.decision_engine, "inject_agent_signal"):
+                    self.decision_engine.inject_agent_signal(sig.data)
+        
         signal_bus.subscribe(SignalType.SCOUT, handle_scout_signal)
 
     def set_live_mode(self, live: bool):

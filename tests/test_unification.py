@@ -89,6 +89,32 @@ def test_data_broker_registry_logic():
                 assert call_arg["quote_mint"] == "QUOTE_MINT"
                 assert call_arg["price"] == 100.5
                 
+                # 5. Verify Delta-Trigger Logic
+                # Requires patching signal_bus inside DataBroker (imported module)
+                with patch("src.core.data_broker.signal_bus") as mock_signal_bus:
+                    
+                    # Case A: Small change (no trigger)
+                    # last price was 100.5 (set above)
+                    event_small = {"pool": "POOL_123", "price": 100.55, "dex": "RAYDIUM", "timestamp": 1234567900}
+                    # delta = (100.55 - 100.5) / 100.5 = 0.00049 (0.04% < 0.1%)
+                    callback(event_small)
+                    mock_signal_bus.emit.assert_not_called()
+                    
+                    # Case B: Significant change (trigger)
+                    # last price is now 100.55
+                    event_big = {"pool": "POOL_123", "price": 100.8, "dex": "RAYDIUM", "timestamp": 1234567910}
+                    # delta = (100.8 - 100.55) / 100.55 = 0.0024 (0.24% > 0.1%)
+                    callback(event_big)
+                    mock_signal_bus.emit.assert_called_once()
+                    
+                    # Verify signal content
+                    args, _ = mock_signal_bus.emit.call_args
+                    signal = args[0]
+                    assert signal.type.name == "MARKET_UPDATE"
+                    assert signal.data["type"] == "PRICE_JUMP"
+                    assert signal.data["pool"] == "POOL_123"
+                    assert signal.data["delta"] > 0.1
+
                 print("Test passed!")
 
 if __name__ == "__main__":

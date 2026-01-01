@@ -103,6 +103,17 @@ class ArbiterEngine:
 
         signal_bus.subscribe(SignalType.WHALE, handle_whale_signal)
 
+        # V19.2: Delta-Trigger Wiring (DataBroker -> Arbiter)
+        def handle_market_data(sig: Signal):
+            if sig.data.get("type") == "PRICE_JUMP":
+                # Significant price change detected by DataBroker
+                pool = sig.data.get("pool")
+                delta = sig.data.get("delta", 0.0)
+                # Logger.debug(f"⚡ [Arbiter] Waking up for Delta: {pool} ({delta:.2f}%)")
+                wake_event.set()
+
+        signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_data)
+
         try:
             while time.time() < end_time:
                 now = datetime.now().strftime("%H:%M:%S")

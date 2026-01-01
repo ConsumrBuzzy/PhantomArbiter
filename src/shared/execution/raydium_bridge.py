@@ -499,7 +499,7 @@ class RaydiumBridge:
         import phantom_core
         from solders.pubkey import Pubkey
         from solders.keypair import Keypair
-        from spl.token.instructions import get_associated_token_address
+        # from spl.token.instructions import get_associated_token_address (Replaced by PdaCache)
 
         try:
             # 0. Payer Setup
@@ -564,12 +564,19 @@ class RaydiumBridge:
                 output_vault = pool_info.token_vault_0
                 output_mint = pool_info.token_mint_0
 
-            # ATAs
-            input_mint_pk = Pubkey.from_string(input_mint)
-            output_mint_pk = Pubkey.from_string(output_mint)
+            # ATAs (Accelerated by Rust PdaCache)
+            # V2.0: Use PdaCache for high-speed ATA derivation (avoiding Python overhead)
+            # PdaCache returns String directly, ready for instruction builder
+            pda_cache = phantom_core.PdaCache()
+            
+            # Input ATA
+            input_ata = pda_cache.find_associated_token_address(str(payer_pk), input_mint)
+            
+            # Output ATA
+            output_ata = pda_cache.find_associated_token_address(str(payer_pk), output_mint)
+            
+            Logger.debug(f"[RAYDIUM] ⚡ Derived ATAs via Rust: In={input_ata[:8]}... Out={output_ata[:8]}...")
 
-            input_ata = get_associated_token_address(payer_pk, input_mint_pk)
-            output_ata = get_associated_token_address(payer_pk, output_mint_pk)
 
             # 4. Derive Tick Arrays (Rust)
             tick_arrays = phantom_core.derive_tick_arrays(

@@ -26,6 +26,7 @@ import queue
 from src.shared.notification.telegram_manager import TelegramManager
 from src.shared.state.app_state import state as app_state
 from src.data_storage.db_manager import db_manager  # V35.0
+from src.shared.system.signal_bus import signal_bus, Signal, SignalType  # V2.0: Signal Bus
 
 # V40.0: MarketAggregator for unified status
 
@@ -61,15 +62,21 @@ class DataBroker:
     - Wallet state caching for engines
     """
 
-    def __init__(self):
+    def __init__(self, enable_engines: bool = True):
+        self.is_running = False
+        self.enable_engines = enable_engines
         Logger.section("PHANTOM TRADER - DATA BROKER")
 
         # Register broker
         SharedPriceCache.set_broker_info(os.getpid())
         Logger.info(f"[BROKER] PID: {os.getpid()}")
+
+        # V1.2.1: Latency Monitor
+        self.latency_monitor = LatencyMonitor()
         
         # V19.1: Pool Registry for WSS Wiring
         self.known_pools = {}  # pool_addr -> (base, quote)
+        self.last_prices = {}  # pool_addr -> last_price (for Delta-Trigger)
 
         # Watchlist Monitor
         self.watchlist_file = os.path.abspath(
@@ -120,16 +127,18 @@ class DataBroker:
 
         def _handle_wss_update(event):
             """Relay WSS event to Graph Engine."""
-            if self.hop_engine:
-                pool = event.get("pool")
-                if not pool:
-                    return
+            pool = event.get("pool")
+            if not pool:
+                return
 
+            # Latency Tracking (Start)
+            trace_id = f"wss_{pool}_{time.time()}"
+            self.latency_monitor.mark_start(trace_id)
+
+            if self.hop_engine:
                 # V19.1: Resolve via Registry
                 tokens = self.known_pools.get(pool)
                 if not tokens:
-                    # Optional: Queue for metadata fetch?
-                    # For now, just skip until Universal Watcher picks it up.
                     return
 
                 base_mint, quote_mint = tokens
@@ -138,16 +147,43 @@ class DataBroker:
                     "pool_address": pool,
                     "price": event.get("price"),
                     "dex": event.get("dex"),
-                    "slot": 0,  # Rust parser doesn't pass slot yet via SwapEvent, defaults to 0
+                    "slot": 0,
                     "base_mint": base_mint,
                     "quote_mint": quote_mint,
-                    "liquidity_usd": 0, # WSS event doesn't carry liquidity
-                    "fee_bps": 25 # Default
+                    "liquidity_usd": 0,
+                    "fee_bps": 25
                 }
                 
-                # Check for "revert" logic or weird prices
-                if update["price"] > 0:
-                     self.hop_engine.update_pool(update)
+            # Latency Tracking (End)
+            duration = self.latency_monitor.mark_end(trace_id)
+            # Optional: Log if slow (>2ms)
+            # if duration > 2.0:
+            #     Logger.warning(f"Slow WSS Update: {duration:.2f}ms for {pool}")
+
+            # V2.0: Delta-Trigger Logic (Prevent over-scanning)
+            # Only trigger Arbiter cycle if price change is significant (> 0.1%)
+            # Always update graph, but conditionally emit signal
+            current_price = event.get("price", 0.0)
+            if current_price <= 0:
+                return
+
+            self.hop_engine.update_pool(update)
+            
+            last_price = self.last_prices.get(pool, 0.0)
+            if last_price > 0:
+                delta_pct = abs((current_price - last_price) / last_price) * 100
+                if delta_pct > 0.1:  # 10 bps threshold
+                    # Significant change - Trigger Arbiter
+                    # Significant change - Trigger Arbiter
+                     signal_bus.emit(
+                        Signal(
+                            type=SignalType.MARKET_UPDATE,
+                            source="DATA_BROKER",
+                            data={"type": "PRICE_JUMP", "pool": pool, "delta": delta_pct}
+                        )
+                    )
+            
+            self.last_prices[pool] = current_price
 
         # Create WSS listener with callback
         self.ws_listener = create_websocket_listener(
@@ -194,8 +230,15 @@ class DataBroker:
         self.worker_mgr = BackgroundWorkerManager(self)
 
         # V133: EngineManager (SRP Refactor)
-        self.engine_mgr = EngineManager()
-        self.engine_mgr.initialize_all()
+        self.engine_mgr = EngineManager() # Always instantiate manager
+        
+        # Initialize Sensors (Scout, Whale, etc.) - These feed the broker
+        self.engine_mgr.initialize_sensors()
+        self.engine_mgr._init_bitquery_adapter() # Init adapter too
+
+        # Initialize Execution (Merchant/Scalper) only if enabled
+        if self.enable_engines:
+            self.engine_mgr.initialize_execution()
 
         # Connect Bitquery callback if enabled
         if self.engine_mgr.bitquery_adapter:
@@ -218,27 +261,27 @@ class DataBroker:
     # ═══════════════════════════════════════════════════════════════════
     @property
     def merchant_engines(self):
-        return self.engine_mgr.merchant_engines
+        return self.engine_mgr.merchant_engines if self.engine_mgr else {}
 
     @property
     def scout_agent(self):
-        return self.engine_mgr.scout_agent
+        return self.engine_mgr.scout_agent if self.engine_mgr else None
 
     @property
     def whale_watcher(self):
-        return self.engine_mgr.whale_watcher
+        return self.engine_mgr.whale_watcher if self.engine_mgr else None
 
     @property
     def sauron(self):
-        return self.engine_mgr.sauron
+        return self.engine_mgr.sauron if self.engine_mgr else None
 
     @property
     def sniper(self):
-        return self.engine_mgr.sniper
+        return self.engine_mgr.sniper if self.engine_mgr else None
 
     @property
     def bitquery_adapter(self):
-        return self.engine_mgr.bitquery_adapter
+        return self.engine_mgr.bitquery_adapter if self.engine_mgr else None
 
     def stop(self):
         """V45.2: Graceful shutdown."""

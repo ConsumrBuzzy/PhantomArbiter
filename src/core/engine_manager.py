@@ -32,9 +32,17 @@ class EngineManager:
 
     def initialize_all(self):
         """Initialize all engines and agents."""
-        self._init_auxiliary_agents()
-        self._init_merchant_engines()
+        self.initialize_sensors()
+        self.initialize_execution()
         self._init_bitquery_adapter()
+
+    def initialize_sensors(self):
+        """Initialize Auxiliary Agents (Sensors)."""
+        self._init_auxiliary_agents()
+
+    def initialize_execution(self):
+        """Initialize Merchant Engines (Execution)."""
+        self._init_merchant_engines()
 
     def _init_merchant_engines(self):
         """V45.0: Initialize the Unified Merchant Engine (Ensemble Strategy)."""
