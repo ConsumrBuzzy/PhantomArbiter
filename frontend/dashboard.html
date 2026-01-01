@@ -175,9 +175,9 @@
 
                 } catch (e) {
                     console.error("Parse error", e);
-                    // Show what broke it (first 50 chars)
+                    // Show what broke it (first 50 chars) + Error Message
                     const snippet = typeof event.data === 'string' ? event.data.substring(0, 50) : String(event.data);
-                    logEvent(`❌ Parse Err: ${snippet}...`);
+                    logEvent(`❌ ${e.message} in: ${snippet}...`);
                 }
             };
 
