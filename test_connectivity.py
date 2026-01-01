@@ -3,15 +3,16 @@ import aiohttp
 import sys
 
 async def test_connectivity():
-    print("🧪 Testing PhantomArbiter Connectivity (127.0.0.1)...")
+    print("🧪 Testing PhantomArbiter Connectivity (127.0.0.1:8001)...")
     
+    # Updated to 8001
     timeout = aiohttp.ClientTimeout(total=5)
 
     # Test 1: HTTP API
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            print("   ⏳ Testing HTTP GET http://127.0.0.1:8000/api/v1/galaxy...")
-            async with session.get('http://127.0.0.1:8000/api/v1/galaxy') as resp:
+            print("   ⏳ Testing HTTP GET http://127.0.0.1:8001/api/v1/galaxy...")
+            async with session.get('http://127.0.0.1:8001/api/v1/galaxy') as resp:
                 print(f"      HTTP Status: {resp.status}")
                 if resp.status == 200:
                     data = await resp.json()
@@ -19,15 +20,15 @@ async def test_connectivity():
                 else:
                     print(f"      ❌ HTTP Failed: {await resp.text()}")
     except asyncio.TimeoutError:
-        print("      ❌ HTTP Request Timed Out (Server Accepted but didn't respond)")
+         print("      ❌ HTTP Request Timed Out")
     except Exception as e:
         print(f"      ❌ HTTP Connection Error: {e}")
 
     # Test 2: WebSocket
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            print("   ⏳ Testing WebSocket ws://127.0.0.1:8000/ws/v1/stream...")
-            async with session.ws_connect('ws://127.0.0.1:8000/ws/v1/stream') as ws:
+            print("   ⏳ Testing WebSocket ws://127.0.0.1:8001/ws/v1/stream...")
+            async with session.ws_connect('ws://127.0.0.1:8001/ws/v1/stream') as ws:
                 print("      ✅ WebSocket Connected!")
                 await ws.send_str("PING")
                 try:
@@ -38,7 +39,7 @@ async def test_connectivity():
                 
                 await ws.close()
     except asyncio.TimeoutError:
-        print("      ❌ WebSocket timed out")
+         print("      ❌ WebSocket Timed Out")
     except Exception as e:
         print(f"      ❌ WebSocket Connection Error: {e}")
 

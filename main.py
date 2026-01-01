@@ -754,8 +754,8 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     config = uvicorn.Config(
         fast_app, 
         host="0.0.0.0", 
-        port=8000, 
-        log_level="critical", 
+        port=8001, 
+        log_level="info", 
         loop="asyncio"
     )
     server = uvicorn.Server(config)
@@ -766,13 +766,13 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     # Wait a moment for it to bind
     await asyncio.sleep(1.0)
     
-    Logger.info("   🚀 Void API Online: http://localhost:8000/dashboard.html")
-    Logger.info("   🎙️  Signal Stream: ws://localhost:8000/ws/v1/stream")
+    Logger.info("   🚀 Void API Online: http://localhost:8001/dashboard.html")
+    Logger.info("   🎙️  Signal Stream: ws://localhost:8001/ws/v1/stream")
 
     # 4. Launch Frontend (Browser)
     if launch_hud:
         import webbrowser
-        webbrowser.open("http://localhost:8000/dashboard.html")
+        webbrowser.open("http://localhost:8001/dashboard.html")
     
     print("\n" + "="*40)
     print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
