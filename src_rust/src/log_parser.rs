@@ -80,3 +80,146 @@ pub fn parse_universal_log(log_str: String) -> PyResult<Option<SwapEvent>> {
 
     Ok(None)
 }
+
+// ============================================================================
+// WHIFF DETECTION (Asymmetric Intelligence)
+// ============================================================================
+// Detects "leading indicators" before price impact:
+// - Whale CCTP/Wormhole mints
+// - Lending protocol liquidations
+// - High-value transfers
+
+/// WhiffEvent types
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum WhiffType {
+    WhaleMint,      // Large CCTP/Wormhole mint
+    Liquidation,    // Lending protocol liquidation
+    LargeTransfer,  // Significant token movement
+    FailedSwap,     // Slippage failure detected
+}
+
+impl WhiffType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            WhiffType::WhaleMint => "WHALE_MINT",
+            WhiffType::Liquidation => "LIQUIDATION",
+            WhiffType::LargeTransfer => "LARGE_TRANSFER",
+            WhiffType::FailedSwap => "FAILED_SWAP",
+        }
+    }
+}
+
+/// Whiff event for asymmetric intelligence
+#[pyclass]
+#[derive(Clone)]
+pub struct WhiffEvent {
+    #[pyo3(get)]
+    pub whiff_type: String,
+    #[pyo3(get)]
+    pub mint: String,
+    #[pyo3(get)]
+    pub amount: u64,
+    #[pyo3(get)]
+    pub confidence: f32,
+    #[pyo3(get)]
+    pub direction: String,  // "BULLISH", "BEARISH", "VOLATILE"
+    #[pyo3(get)]
+    pub source: String,
+}
+
+// Known program IDs for whiff detection
+const CCTP_PROGRAM: &str = "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd";
+const WORMHOLE_PROGRAM: &str = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
+const SOLEND_PROGRAM: &str = "So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo";
+const KAMINO_PROGRAM: &str = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boQo7AQnufHj";
+const MARGINFI_PROGRAM: &str = "MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA";
+
+/// Parse logs for "whiff" signals (asymmetric intelligence)
+#[pyfunction]
+pub fn parse_whiff_log(log_str: String, program_id: String) -> PyResult<Option<WhiffEvent>> {
+    // 1. Whale CCTP/Wormhole Mint Detection
+    if program_id == CCTP_PROGRAM || program_id == WORMHOLE_PROGRAM {
+        if log_str.contains("MintTo") || log_str.contains("mintTo") || log_str.contains("Mint") {
+            // Extract amount if possible (placeholder logic)
+            let amount = extract_amount_from_log(&log_str).unwrap_or(0);
+            
+            // Only care about $100k+ inflows (assuming 6 decimals for USDC)
+            if amount >= 100_000_000_000 {  // 100k USDC in raw units
+                let source = if program_id == CCTP_PROGRAM { "CCTP" } else { "WORMHOLE" };
+                return Ok(Some(WhiffEvent {
+                    whiff_type: WhiffType::WhaleMint.as_str().to_string(),
+                    mint: "USDC".to_string(),  // Assume USDC for cross-chain
+                    amount,
+                    confidence: 0.80,
+                    direction: "BULLISH".to_string(),
+                    source: source.to_string(),
+                }));
+            }
+        }
+    }
+    
+    // 2. Lending Protocol Liquidation Detection
+    if program_id == SOLEND_PROGRAM || program_id == KAMINO_PROGRAM || program_id == MARGINFI_PROGRAM {
+        if log_str.to_lowercase().contains("liquidat") {
+            let source = match program_id.as_str() {
+                SOLEND_PROGRAM => "SOLEND",
+                KAMINO_PROGRAM => "KAMINO",
+                MARGINFI_PROGRAM => "MARGINFI",
+                _ => "LENDING",
+            };
+            
+            return Ok(Some(WhiffEvent {
+                whiff_type: WhiffType::Liquidation.as_str().to_string(),
+                mint: "UNKNOWN".to_string(),  // Would parse from logs
+                amount: 0,
+                confidence: 0.85,
+                direction: "BEARISH".to_string(),
+                source: source.to_string(),
+            }));
+        }
+    }
+    
+    // 3. Failed Swap Detection (slippage wars)
+    if log_str.contains("Program failed") || log_str.contains("Slippage") || log_str.contains("InsufficientFunds") {
+        return Ok(Some(WhiffEvent {
+            whiff_type: WhiffType::FailedSwap.as_str().to_string(),
+            mint: "UNKNOWN".to_string(),
+            amount: 0,
+            confidence: 0.70,
+            direction: "VOLATILE".to_string(),
+            source: "FAILED_TX".to_string(),
+        }));
+    }
+    
+    Ok(None)
+}
+
+/// Extract amount from log string (basic pattern matching)
+fn extract_amount_from_log(log_str: &str) -> Option<u64> {
+    // Look for patterns like "amount: 123456" or "amount=123456"
+    if let Some(pos) = log_str.find("amount") {
+        let after = &log_str[pos..];
+        // Find digits after ": " or "="
+        let start = after.find(|c: char| c.is_ascii_digit())?;
+        let digits: String = after[start..].chars().take_while(|c| c.is_ascii_digit()).collect();
+        return digits.parse().ok();
+    }
+    None
+}
+
+/// Batch parse multiple logs for whiffs (reduces FFI overhead)
+#[pyfunction]
+pub fn parse_whiff_logs_batch(
+    logs: Vec<String>,
+    program_id: String,
+) -> PyResult<Vec<WhiffEvent>> {
+    let mut results = Vec::new();
+    
+    for log in logs {
+        if let Ok(Some(whiff)) = parse_whiff_log(log, program_id.clone()) {
+            results.push(whiff);
+        }
+    }
+    
+    Ok(results)
+}

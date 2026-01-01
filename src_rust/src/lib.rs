@@ -452,6 +452,11 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;
+    
+    // Whiff Detection (Asymmetric Intelligence)
+    m.add_class::<log_parser::WhiffEvent>()?;
+    m.add_function(wrap_pyfunction!(log_parser::parse_whiff_log, m)?)?;
+    m.add_function(wrap_pyfunction!(log_parser::parse_whiff_logs_batch, m)?)?;
 
     // AMM Math (The Oracle)
     amm_math::register_amm_functions(m)?;
