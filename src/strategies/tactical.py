@@ -61,7 +61,7 @@ from src.engine.config_sync_service import ConfigSyncService
 from src.engine.position_sizer import PositionSizer
 
 
-class TradingCore:
+class TacticalStrategy:
     """
     P0 Orchestrator for the V10.2 SRP Architecture.
 
