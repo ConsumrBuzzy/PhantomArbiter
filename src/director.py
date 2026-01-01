@@ -160,56 +160,14 @@ class UnifiedDirector:
                 await asyncio.sleep(5) # Backoff
 
     async def _monitor_loop(self):
-        """Supervisor loop with Rich Live Display."""
-        from rich.live import Live
-        from rich.layout import Layout
-        from rich.panel import Panel
-        from rich.table import Table
-        from datetime import datetime
-
-        def make_layout():
-             layout = Layout(name="root")
-             layout.split(
-                 Layout(name="header", size=3),
-                 Layout(name="main"),
-                 Layout(name="footer", size=3)
-             )
-             layout["main"].split_row(
-                 Layout(name="left"),
-                 Layout(name="right"),
-             )
-             return layout
-
-        layout = make_layout()
-        Logger.info("[Brain] Supervisor Loop Active (Rich)")
+        """
+        Simple monitor loop that keeps the main thread alive.
+        No complex UI panels, just simple logging.
+        """
+        Logger.info("[DIRECTOR] 🟢 System Online - Monitoring Active")
         
-        with Live(layout, refresh_per_second=4, screen=False) as live:
+        try:
             while self.is_running:
-                # Update Layout
-                # Header
-                status_color = "green" if state.status == "OPERATIONAL" else "yellow"
-                layout["header"].update(Panel(f"[bold {status_color}]PHANTOM ARBITER // STATUS: {state.status}[/]", style=f"{status_color}"))
-                
-                # Left: Tasks
-                task_table = Table(show_header=True, header_style="bold magenta")
-                task_table.add_column("Task")
-                task_table.add_column("Status")
-                for name, task in self.tasks.items():
-                    status = "RUNNING" if not task.done() else "DONE" if not task.exception() else "FAILED"
-                    style = "green" if status == "RUNNING" else "red" if status == "FAILED" else "dim"
-                    task_table.add_row(name, f"[{style}]{status}[/]")
-                
-                layout["left"].update(Panel(task_table, title="System Processes"))
-                
-                # Right: Market Stats (Placeholder)
-                market_table = Table(show_header=False)
-                market_table.add_row("Mode", "LIVE" if self.live_mode else "PAPER")
-                market_table.add_row("Uptime", str(datetime.now()))
-                # Add Race Stats if available?
-                # For now just basics
-                
-                layout["right"].update(Panel(market_table, title="Market Telemetry"))
-                
                 # Footer: Logs
                 last_log = state.logs[-1] if state.logs else "Initializing..."
                 layout["footer"].update(Panel(f"[dim]{last_log}[/dim]", title="Last Log"))
