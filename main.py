@@ -729,17 +729,32 @@ async def cmd_clean(args: argparse.Namespace) -> None:
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Run the Headless Server with Web HUD."""
+    """Run "The Void" - Web Dashboard & Backend Orchestrator."""
     from src.engine.orchestrator import MarketOrchestrator
+    from src.interface.dashboard_server import DashboardServer
+    from src.interface.http_server_wrapper import HttpServerWrapper
     from config.settings import Settings
+    import threading
 
-    Settings.SILENT_MODE = False # Enable logs for headless mode
+    Settings.SILENT_MODE = False 
     
     # Check for HUD flag
     launch_hud = not getattr(args, "no_hud", False) 
 
+    # 0. Ignite "The Void" (Frontend & Bridge)
+    print("\n   🌌 IGNITING THE VOID...")
+    
+    # A. The Portal (HTTP Server)
+    portal = HttpServerWrapper(port=8000)
+    portal.start()
+    
+    # B. The Voice (WebSocket Server)
+    voice = DashboardServer(port=8765)
+    # Start Voice in the asyncio loop
+    voice_task = asyncio.create_task(voice.start())
+
     # 1. Initialize Orchestrator (Mission Control)
-    orchestrator = MarketOrchestrator(headless_frontend=not launch_hud)
+    orchestrator = MarketOrchestrator(headless_frontend=True) # Always headless, we use The Void now
     
     # 2. Run Hygiene
     orchestrator.run_hygiene_check()
@@ -747,12 +762,15 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     # 3. Ignite System (Background)
     bridge_task, engine_task = await orchestrator.ignite_system()
     
-    # 4. Launch Frontend (Process)
-    orchestrator.launch_frontend()
+    # 4. Launch Frontend (Browser)
+    if launch_hud:
+        import webbrowser
+        webbrowser.open("http://localhost:8000/dashboard.html")
     
     print("\n" + "="*40)
     print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
-    print(" 🔮 PRISM HUD: http://localhost:5173")
+    print(" 🌌 THE VOID:   http://localhost:8000/dashboard.html")
+    print(" 🎙️  VOICE:      ws://localhost:8765")
     print(" 📋 LOGS: Streaming below...")
     print("="*40 + "\n")
 
@@ -761,6 +779,7 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
         await orchestrator.keep_alive()
     finally:
         # 6. Cleanup
+        voice_task.cancel()
         bridge_task.cancel()
         engine_task.cancel()
         await orchestrator.shutdown()
