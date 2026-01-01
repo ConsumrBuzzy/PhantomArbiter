@@ -328,6 +328,25 @@
                         createTrailParticle(node.position, node.material.color);
                     }
                 }
+
+                // Prune dead nodes (Optimization)
+                // If it's a transient node (like a firework/swap) and invisible, kill it.
+                // Keep "GLOBE" or major nodes if needed, but for now prune all decayed.
+                // Re-instating persistence for specific archetypes if needed later.
+                if (node.material.emissiveIntensity < 0.05 && node.scale.x < 0.1) {
+                    scene.remove(node);
+                    if (node.userData.labelObj) {
+                        node.remove(node.userData.labelObj);
+                    }
+                    // Clean up memory
+                    if (node.geometry) node.geometry.dispose();
+                    if (node.material) {
+                        if (node.material.map) node.material.map.dispose();
+                        if (node.material.emissiveMap) node.material.emissiveMap.dispose();
+                        node.material.dispose();
+                    }
+                    nodes.delete(key);
+                }
             });
 
             // Update effects (Shockwaves, Trails)

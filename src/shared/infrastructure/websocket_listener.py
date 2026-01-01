@@ -241,6 +241,32 @@ class WebSocketListener:
                         app_state.update_stat(
                             "wss_latency_ms", 10
                         )  # Mock metric for now, or measure time
+                        
+                        # V34.5: Emit Signal for Dashboard ("The Void")
+                        # Using signature as 'mint' to create firework effect or a constant for pulsing.
+                        # Since we don't know the token mint here (zero-copy), we use a placeholder or derived ID.
+                        # 'event' object might not have mint.
+                        
+                        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+                        
+                        # Use a persistent ID for "Flash Feed" to avoid chaos, or random for swarm.
+                        # Let's use 'FLASHER_<random>' for fireworks? No, user wants *Tokens*.
+                        # But we don't have token. So we use "UNKNOWN_SWAP" but with unique ID to trigger "createNode".
+                        # To prevent infinite memory, we rely on the Pruning Logic added to dashboard.html.
+                        
+                        signal_bus.emit(Signal(
+                            type=SignalType.MARKET_UPDATE,
+                            source="WSS_Listener",  # Maps to PULSAR (Green)
+                            data={
+                                "mint": f"FLASH_{signature[-8:]}", # Unique-ish ID
+                                "label": f"⚡ {event.amount_in:.2f}",
+                                "token": "SOL", # Fallback
+                                "volume_24h": event.amount_in, # Drive velocity?
+                                "liquidity": 1000, 
+                                "price": 0,
+                                "timestamp": time.time()
+                            }
+                        ))
 
             except ImportError:
                 pass
