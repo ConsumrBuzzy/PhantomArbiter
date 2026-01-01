@@ -26,6 +26,7 @@ futures = "0.3"
 
 # Phase 19: Tick Array Manager
 bs58 = "0.5"
+hex = "0.4"
 
 # Phase 17.5: Rust WSS Aggregator
 tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
