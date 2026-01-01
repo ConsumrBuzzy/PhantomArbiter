@@ -183,7 +183,8 @@ class WebSocketListener:
                         "price": swap_event.price,
                         "timestamp": time.time(),
                         "dex": swap_event.dex_type,
-                        "signature": event.signature
+                        "signature": event.signature,
+                        "slot": event.slot
                     })
                     
                 # Update internal stats

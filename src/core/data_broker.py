@@ -77,6 +77,8 @@ class DataBroker:
         # V19.1: Pool Registry for WSS Wiring
         self.known_pools = {}  # pool_addr -> (base, quote)
         self.last_prices = {}  # pool_addr -> last_price (for Delta-Trigger)
+        self.max_seen_slot = 0 # Track latest slot for pruning
+
 
         # Watchlist Monitor
         self.watchlist_file = os.path.abspath(
@@ -147,7 +149,7 @@ class DataBroker:
                     "pool_address": pool,
                     "price": event.get("price"),
                     "dex": event.get("dex"),
-                    "slot": 0,
+                    "slot": event.get("slot", 0),
                     "base_mint": base_mint,
                     "quote_mint": quote_mint,
                     "liquidity_usd": 0,
@@ -168,6 +170,17 @@ class DataBroker:
                 return
 
             self.hop_engine.update_pool(update)
+            
+            # Pruning Logic (Memory Management)
+            slot = update["slot"]
+            if slot > self.max_seen_slot:
+                self.max_seen_slot = slot
+            
+            self.wss_updates += 1
+            if self.wss_updates % 1000 == 0 and self.max_seen_slot > 0:
+                # Keep edges valid within last 300 slots (~2 mins)
+                self.hop_engine.prune_stale(self.max_seen_slot, max_age_slots=300)
+
             
             last_price = self.last_prices.get(pool, 0.0)
             if last_price > 0:

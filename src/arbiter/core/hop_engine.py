@@ -15,6 +15,7 @@ Key Features:
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
 from config.settings import Settings
@@ -128,6 +129,10 @@ class HopGraphEngine:
             f"[HopEngine] Initialized "
             f"(max_hops={self.max_hops}, min_profit={self.min_profit_pct}%, min_liq=${self.min_liquidity_usd})"
         )
+        
+        # Thread Safety
+        self._lock = threading.RLock()
+
 
     def update_pool(self, pool_data: Dict[str, Any]) -> None:
         """
@@ -166,7 +171,8 @@ class HopGraphEngine:
                 dex=pool_data.get("dex", "UNKNOWN"),
             )
 
-            self.graph.update_edge(edge)
+            with self._lock:
+                self.graph.update_edge(edge)
 
         except Exception as e:
             Logger.debug(f"[HopEngine] Update error: {e}")
@@ -205,7 +211,8 @@ class HopGraphEngine:
 
         try:
             # Call Rust cycle finder
-            cycles: List[HopCycle] = self.finder.find_cycles(self.graph, start)
+            with self._lock:
+                cycles: List[HopCycle] = self.finder.find_cycles(self.graph, start)
 
             # Convert to Python dataclass
             opportunities = [
@@ -249,7 +256,9 @@ class HopGraphEngine:
             Updated HopOpportunity if still profitable, None otherwise
         """
         try:
-            validated = self.finder.validate_path(self.graph, opp.path)
+            with self._lock:
+                validated = self.finder.validate_path(self.graph, opp.path)
+            
             if validated is None:
                 return None
 
@@ -264,26 +273,27 @@ class HopGraphEngine:
         except Exception:
             return None
 
-    def prune_stale(self, max_age_slots: int = None) -> int:
+    def prune_stale(self, current_slot: int, max_age_slots: int = None) -> int:
         """
         Remove stale edges from the graph.
 
         Args:
+            current_slot: The current Solana slot (from WSS)
             max_age_slots: Maximum edge age in slots. Defaults to Settings.HOP_STALE_SLOT_THRESHOLD
 
         Returns:
             Number of edges pruned
         """
-        threshold = max_age_slots or getattr(Settings, "HOP_STALE_SLOT_THRESHOLD", 150)
+        age = max_age_slots or getattr(Settings, "HOP_STALE_SLOT_THRESHOLD", 150)
+        min_slot = current_slot - age
 
-        # Calculate minimum valid slot (current - threshold)
-        # We'd need current slot here, but for now just use the threshold directly
-        # In practice, the caller should provide the current slot
-        pruned = self.graph.prune_stale(threshold)
+        with self._lock:
+            pruned = self.graph.prune_stale(min_slot)
+        
         self.stats.stale_edges_pruned += pruned
 
         if pruned > 0:
-            Logger.debug(f"[HopEngine] Pruned {pruned} stale edges")
+            Logger.debug(f"[HopEngine] Pruned {pruned} stale edges (Threshold: {min_slot})")
 
         return pruned
 

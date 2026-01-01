@@ -94,6 +94,16 @@ class RaydiumBridge:
         # V93: Daemon Process management
         self._daemon = None
 
+        # V19.2: Rust PDA Cache (Hardware Acceleration)
+        self.pda_cache = None
+        try:
+             import phantom_core
+             self.pda_cache = phantom_core.PdaCache()
+             Logger.info("⚡ [RaydiumBridge] PdaCache initialized (Rust)")
+        except ImportError:
+             Logger.warning("⚠️ [RaydiumBridge] phantom_core not found - PdaCache disabled")
+
+
     def _load_private_key(self):
         """Load private key from environment."""
         from dotenv import load_dotenv
@@ -565,9 +575,14 @@ class RaydiumBridge:
                 output_mint = pool_info.token_mint_0
 
             # ATAs (Accelerated by Rust PdaCache)
-            # V2.0: Use PdaCache for high-speed ATA derivation (avoiding Python overhead)
-            # PdaCache returns String directly, ready for instruction builder
-            pda_cache = phantom_core.PdaCache()
+            # V2.0: Use persistent PdaCache
+            if not self.pda_cache:
+                # Fallback if init failed (should verify import here again or error out)
+                import phantom_core
+                self.pda_cache = phantom_core.PdaCache()
+
+            pda_cache = self.pda_cache
+
             
             # Input ATA
             input_ata = pda_cache.find_associated_token_address(str(payer_pk), input_mint)
@@ -669,6 +684,21 @@ class RaydiumBridge:
         except Exception as e:
             Logger.debug(f"[RAYDIUM-RUST] Critical error: {e}")
             return RaydiumSwapResult(False, None, input_mint, "", amount, 0, str(e))
+
+    def warm_cache(self, owner_pk: str, mints: list):
+        """Pre-calculate ATAs for common tokens to reduce first-trade latency."""
+        if not self.pda_cache:
+            return
+            
+        count = 0
+        for mint in mints:
+            try:
+                self.pda_cache.find_associated_token_address(str(owner_pk), mint)
+                count += 1
+            except Exception:
+                pass
+        
+        Logger.info(f"⚡ [RaydiumBridge] Warmed PdaCache with {count} ATAs")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
