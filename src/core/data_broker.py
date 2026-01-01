@@ -682,6 +682,13 @@ class DataBroker:
                                 )
 
                             SharedPriceCache.write_market_data_batch(cache_batch)
+                            
+                            # V19.1: Populate Pool Registry for WSS Wiring
+                            for mint, mkt_data in rich_data.items():
+                                # DexScreener data usually has pair_address.
+                                # Check if mkt_data has pair_address, base_mint, quote_mint
+                                if hasattr(mkt_data, "pair_address") and hasattr(mkt_data, "base_mint") and hasattr(mkt_data, "quote_mint"):
+                                     self.known_pools[mkt_data.pair_address] = (mkt_data.base_mint, mkt_data.quote_mint)
                             # Logger.info(f"[WATCHER] Cached rich data for {len(cache_batch)} tokens")
                     except Exception as e:
                         Logger.debug(f"[WATCHER] Rich data fetch failed: {e}")
