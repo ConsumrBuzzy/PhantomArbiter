@@ -433,6 +433,11 @@ pub mod multiverse;
 pub mod tx_parser;
 
 // ------------------------------------------------------------------------
+// SECTION 18: RUST ACCELERATION (THE FORGE)
+// ------------------------------------------------------------------------
+pub mod pda;
+
+// ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
@@ -490,6 +495,9 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     
     // V42: Helius Tx Parser
     tx_parser::register_tx_parser_classes(m)?;
+
+    // Phase 18: PDA Derivation Cache
+    pda::register_pda_classes(m)?;
 
     Ok(())
 }
