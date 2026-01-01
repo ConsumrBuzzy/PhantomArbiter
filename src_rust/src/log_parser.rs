@@ -94,7 +94,6 @@ pub fn parse_universal_log(log_str: String) -> PyResult<Option<SwapEvent>> {
 pub enum WhiffType {
     WhaleMint,      // Large CCTP/Wormhole mint
     Liquidation,    // Lending protocol liquidation
-    LargeTransfer,  // Significant token movement
     FailedSwap,     // Slippage failure detected
 }
 
@@ -103,7 +102,6 @@ impl WhiffType {
         match self {
             WhiffType::WhaleMint => "WHALE_MINT",
             WhiffType::Liquidation => "LIQUIDATION",
-            WhiffType::LargeTransfer => "LARGE_TRANSFER",
             WhiffType::FailedSwap => "FAILED_SWAP",
         }
     }
