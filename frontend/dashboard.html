@@ -162,7 +162,13 @@
                     break;
                 case 'COMET':
                     geometry = new THREE.ConeGeometry(params.radius, params.radius * 4, 8);
-                    material = new THREE.MeshBasicMaterial({ color: color });
+                    material = new THREE.MeshStandardMaterial({ // Upgrade to Standard for texture
+                        color: color,
+                        emissive: color,
+                        emissiveIntensity: 2.0,
+                        roughness: 0.4,
+                        metalness: 0.1
+                    });
                     break;
                 case 'NOVA':
                     // Teal CLMM orb - octahedron with glow
@@ -176,41 +182,88 @@
                     });
                     break;
                 case 'GLOBE':
-                    // Visible fallback - teal sphere
-                    geometry = new THREE.SphereGeometry(params.radius, 16, 16);
-                    material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        emissive: color,
-                        emissiveIntensity: 0.8
-                    });
-                    break;
                 case 'PULSAR':
                 default:
-                    geometry = new THREE.SphereGeometry(params.radius, 16, 16);
+                    geometry = new THREE.SphereGeometry(params.radius, 32, 32); // Higher res for Orbs
                     material = new THREE.MeshStandardMaterial({
                         color: color,
                         emissive: color,
-                        emissiveIntensity: 0.5
+                        emissiveIntensity: params.emissive_intensity || 0.5,
+                        roughness: 0.4,
+                        metalness: 0.2
                     });
             }
 
-            const mesh = new THREE.Mesh(geometry, material);
+            // Orb Texture Loader (Apply to any archetype)
+            const mint = id;
+            if (mint && mint.length > 30) {
+                const loader = new THREE.TextureLoader();
+                // Use a cross-origin friendly proxy or direct if CORS allows
+                // fotofin usually allows CORS
+                const url = `https://img.fotofin.com/${mint}`;
+
+                loader.load(url, (texture) => {
+                    material.map = texture;
+                    // For Orbs, we want the logo to glow
+                    material.emissiveMap = texture;
+
+                    // Adjust base color to be white so texture colors show true
+                    material.color.setHex(0xffffff);
+                    material.emissive.setHex(0xffffff);
+                    // material.emissiveIntensity = 1.0; 
+
+                    material.needsUpdate = true;
+                }, undefined, (err) => {
+                    // console.warn("Texture load failed", err);
+                });
+            }
+
+            const sphere = new THREE.Mesh(geometry, material);
 
             // Random Position in Galaxy (Cylinder/Disc distribution)
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * GALAXY_RADIUS * 0.8;
             const y = (Math.random() - 0.5) * 50; // Flattened disc
 
-            mesh.position.set(
+            sphere.position.set(
                 Math.cos(angle) * radius,
                 y,
                 Math.sin(angle) * radius
             );
 
-            mesh.userData = { id, label, archetype, originalParams: { ...params } };
-            scene.add(mesh);
-            nodes.set(id, mesh);
-            return mesh;
+            sphere.userData = { id, label, archetype, originalParams: { ...params } };
+
+            // Label
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'label';
+            labelDiv.textContent = label;
+            const labelObj = new THREE.CSS2DObject(labelDiv);
+            labelObj.position.set(0, params.radius + 0.5, 0);
+            sphere.add(labelObj);
+
+            scene.add(sphere);
+            nodes.set(id, sphere);
+
+            // Initial Animation
+            if (archetype === 'SUPERNOVA') {
+                sphere.scale.set(0.1, 0.1, 0.1);
+                new TWEEN.Tween(sphere.scale)
+                    .to({ x: 5, y: 5, z: 5 }, 1000)
+                    .easing(TWEEN.Easing.Elastic.Out)
+                    .start();
+                createShockwave(sphere.position, params.hex_color);
+            } else if (archetype === 'PULSAR') {
+                createShockwave(sphere.position, params.hex_color, 0.5);
+            } else if (archetype === 'COMET') {
+                const speed = params.velocity_factor || 0.5;
+                sphere.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * speed,
+                    (Math.random() - 0.5) * speed,
+                    (Math.random() - 0.5) * speed
+                );
+            }
+
+            return sphere;
         }
 
         function triggerArchetypeUpdate(data) {
