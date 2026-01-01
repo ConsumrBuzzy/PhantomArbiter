@@ -176,3 +176,88 @@ class TokenDiscoveryService:
     def is_known(self, mint: str) -> bool:
         """Check if token is known."""
         return self.registry.is_known(mint)
+    
+    # =========================================================================
+    # SAURON DISCOVERY (The All-Seeing Eye)
+    # =========================================================================
+    
+    _sauron = None
+    
+    @property
+    def sauron(self):
+        """Lazy load Sauron Discovery."""
+        if self._sauron is None:
+            try:
+                from src.core.scout.discovery.sauron_discovery import SauronDiscovery
+                self._sauron = SauronDiscovery()
+            except Exception as e:
+                Logger.error(f"Sauron import failed: {e}")
+        return self._sauron
+    
+    def start_discovery(self) -> None:
+        """
+        Start the Sauron all-seeing eye.
+        
+        Monitors multiple launchpads for new token launches:
+        - Pump.fun bonding curves
+        - Raydium pool creation
+        - Orca Whirlpool creation
+        - Meteora DLMM creation
+        """
+        if self.sauron:
+            self.sauron.set_sniper_callback(self._on_new_pool_detected)
+            self.sauron.start()
+            Logger.info("👁️ Sauron Discovery started (multi-launchpad monitoring)")
+    
+    def stop_discovery(self) -> None:
+        """Stop Sauron discovery."""
+        if self.sauron:
+            self.sauron.stop()
+    
+    def check_graduated(self, mint: str) -> dict:
+        """
+        Check if a token has "graduated" to Jupiter.
+        
+        A token is graduated if Jupiter can route it (has DEX liquidity).
+        Used in the Trigger → Fetch → Score discovery flow.
+        
+        Returns:
+            {"graduated": bool, "price": float, "route_count": int}
+        """
+        if self.sauron:
+            return self.sauron.check_jupiter_graduated(mint)
+        return {"graduated": False, "price": 0.0, "route_count": 0}
+    
+    def _on_new_pool_detected(self, pool_data: dict) -> None:
+        """
+        Handle new pool detection from Sauron.
+        
+        Hydrates TokenRegistry and notifies subscribers.
+        """
+        mint = pool_data.get("mint")
+        symbol = pool_data.get("symbol", mint[:8] if mint else "UNKNOWN")
+        source = pool_data.get("source", "UNKNOWN")
+        
+        if not mint:
+            return
+        
+        # Hydrate registry
+        self.register_token(mint, symbol)
+        
+        # Emit to SignalBus
+        signal_bus.publish(SignalType.NEW_TOKEN, {
+            "mint": mint,
+            "symbol": symbol,
+            "source": source,
+            "timestamp": time.time(),
+        })
+        
+        # Notify direct callbacks
+        for callback in self._discovery_callbacks:
+            try:
+                callback(mint)
+            except Exception as e:
+                Logger.error(f"Discovery callback failed: {e}")
+        
+        Logger.info(f"👁️ NEW: {symbol} ({source}) - {mint[:12]}...")
+
