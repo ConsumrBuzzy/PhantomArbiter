@@ -108,17 +108,37 @@ class OrcaAdapter:
                     
                     if state:
                         timestamp = asyncio.get_event_loop().time()
+                        base_token = name.split("-")[0]  # "SOL" from "SOL-USDC-..."
+                        
+                        # Emit token update (NOVA)
                         signal_bus.emit(Signal(
                             type=SignalType.MARKET_UPDATE,
                             source="ORCA",
                             data={
-                                "symbol": name.split("-")[0], # "SOL" from "SOL-USDC-..."
+                                "symbol": base_token,
                                 "label": name,
-                                "token": state.token_mint_a, # Or B? usually we track base
+                                "token": state.token_mint_a,
                                 "mint": state.token_mint_a,
                                 "price": state.price,
-                                "timestamp": timestamp,
-                                "meta": {"liquidity": state.liquidity}
+                                "liquidity": state.liquidity,
+                                "timestamp": timestamp
+                            }
+                        ))
+                        
+                        # Emit pool as MOON (orbits parent token)
+                        signal_bus.emit(Signal(
+                            type=SignalType.MARKET_UPDATE,
+                            source="ORCA_POOL",
+                            data={
+                                "mint": address,  # Pool address as ID
+                                "symbol": name,   # Pool name
+                                "parent_mint": state.token_mint_a,  # Token it orbits
+                                "pool_address": address,
+                                "liquidity": state.liquidity,
+                                "volume_24h": 0,  # TODO: Fetch from API
+                                "price": state.price,
+                                "fee_tier": TICK_SPACINGS.get(state.tick_spacing, "?"),
+                                "timestamp": timestamp
                             }
                         ))
                     
