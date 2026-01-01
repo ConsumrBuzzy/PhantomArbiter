@@ -155,8 +155,9 @@ async def get_initial_galaxy():
         from src.shared.infrastructure.token_registry import TokenRegistry
         registry = TokenRegistry()
         if registry._initialized:
-            for mint, token_data in registry._tokens.items():
-                symbol = token_data.get("symbol", mint[:8])
+            # Combine static and dynamic registries
+            all_tokens = {**registry._static, **registry._dynamic}
+            for mint, symbol in all_tokens.items():
                 sig = Signal(
                     type=SignalType.MARKET_UPDATE,
                     source="PYTH",  # PLANET archetype
@@ -164,14 +165,15 @@ async def get_initial_galaxy():
                         "mint": mint,
                         "symbol": symbol,
                         "label": symbol,
-                        "price": token_data.get("price", 0),
-                        "liquidity": token_data.get("liquidity", 1000),
-                        "volume_24h": token_data.get("volume", 0)
+                        "price": 0,  # Price will update via signals
+                        "liquidity": 1000,
+                        "volume_24h": 0
                     }
                 )
                 payload = VisualTransformer.transform(sig)
                 if payload:
                     objects.append(payload)
+            print(f"[API] Loaded {len(all_tokens)} tokens from Registry")
     except Exception as e:
         print(f"[API] TokenRegistry init warning: {e}")
             
