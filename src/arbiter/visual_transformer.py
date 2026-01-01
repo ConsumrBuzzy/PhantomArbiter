@@ -31,14 +31,51 @@ class VisualTransformer:
         if not mint:
             return None
             
-        label = data.get("symbol", "???")
+        label = data.get("symbol")
         
+        # Resolve missing label via Registry if (Singleton access if possible)
+        # Note: Importing Singleton here to avoid circular imports? 
+        # Better to pass it or use a global instance pattern.
+        # For now, let's try to infer or fallback gracefully.
+        if not label or label == "???":
+            from src.engine.machinery.token_registry import TokenRegistry
+            registry = TokenRegistry() # Singleton should hold state
+            if registry.is_initialized:
+                 token_data = registry.get_token(mint)
+                 if token_data:
+                     label = token_data.symbol
+        
+        if not label:
+            label = f"{mint[:4]}..{mint[-4:]}"
+
+        # --- Metadata Extraction (Universal) ---
+        try:
+            volume = float(data.get("volume_24h", 0))
+        except (ValueError, TypeError):
+            volume = 0.0
+        
+        try:
+            liquidity = float(data.get("liquidity", 1000))
+        except (ValueError, TypeError):
+            liquidity = 1000.0
+
+        price = data.get("price") or data.get("price_usd") or 0.0
+        change_24h = data.get("price_change_24h") or 0.0
+        
+        # Sanitization
+        import math
+        if math.isnan(volume) or math.isinf(volume): volume = 0.0
+        if math.isnan(liquidity) or math.isinf(liquidity): liquidity = 1000.0
+        try: price = float(price)
+        except: price = 0.0
+        try: change_24h = float(change_24h)
+        except: change_24h = 0.0
+
+        # Velocity Logic
+        velocity_factor = min(max(volume / (liquidity + 1) * 0.1, 0.1), 5.0)
+
         # 2. Archetype Mapping (Expanded V34)
-        # Pulsar (Green) - DEX Swaps, Real-time trades
-        # Planet (Cyan) - Oracle data, stable reference
-        # Supernova (Orange) - Graduations, major events
-        # Comet (Purple) - Discoveries, new tokens
-        # Nova (Teal) - CLMM/Orca activity
+        # ...
         
         archetype = "GLOBE"
         color = "#00ffaa"  # Visible teal fallback
@@ -46,7 +83,11 @@ class VisualTransformer:
             "radius": 1.0,
             "roughness": 0.5,
             "emissive_intensity": 2.0,  # Brighter default
-            "hex_color": "#00ffaa"
+            "hex_color": "#00ffaa",
+            "price": price,
+            "change_24h": change_24h,
+            "volume": volume,
+            "velocity_factor": velocity_factor
         }
         
         # DEX SWAPS (Green Pulsar)
@@ -86,46 +127,13 @@ class VisualTransformer:
         elif source in ("DISCOVERY", "SCRAPER", "SAURON_PUMPFUN", "SAURON_RAYDIUM"):
             archetype = "COMET"
             color = "#9945ff"
-            
-            # V2 Physics: Velocity based on volume/liquidity
-            try:
-                volume = float(data.get("volume_24h", 0))
-            except (ValueError, TypeError):
-                volume = 0.0
-            
-            try:
-                liquidity = float(data.get("liquidity", 1000))
-            except (ValueError, TypeError):
-                liquidity = 1000.0
-            
-            # Sanitization (Prevent NaN/Inf which breaks JSON)
-            import math
-            if math.isnan(volume) or math.isinf(volume): volume = 0.0
-            if math.isnan(liquidity) or math.isinf(liquidity): liquidity = 1000.0
-
-            # Normalized velocity factor (0.1 to 5.0)
-            velocity_factor = min(max(volume / (liquidity + 1) * 0.1, 0.1), 5.0)
-            
-            # Extract extended market data
-            price = data.get("price") or data.get("price_usd") or 0.0
-            change_24h = data.get("price_change_24h") or 0.0
-            
-            # Sanitize price/change
-            try: price = float(price)
-            except: price = 0.0
-            try: change_24h = float(change_24h)
-            except: change_24h = 0.0
-
             params.update({
                 "radius": 0.8,
                 "emissive_intensity": 4.0,
                 "hex_color": color,
-                "roughness": 0.3,
-                "velocity_factor": velocity_factor,
-                "price": price,
-                "change_24h": change_24h,
-                "volume": volume
+                "roughness": 0.3
             })
+            # Velocity/params already set in base params
 
         # GRADUATIONS / LAUNCHES (Orange Supernova)
         elif source in ("PUMP_GRAD", "LAUNCHPAD", "MIGRATION"):
