@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from src.shared.system.logging import Logger
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 from src.arbiter.visual_transformer import VisualTransformer
+from src.arbiter.coordinate_transformer import CoordinateTransformer
 from src.shared.state.app_state import state
 
 # --- Pydantic Models ---
@@ -20,6 +21,9 @@ class VisualParams(BaseModel):
     hex_color: str
     velocity_factor: Optional[float] = None
     metalness: Optional[float] = 0.2
+    x: Optional[float] = 0.0
+    y: Optional[float] = 0.0
+    z: Optional[float] = 0.0
 
 class VisualObject(BaseModel):
     type: str # "ARCHETYPE_UPDATE"
@@ -131,18 +135,39 @@ async def async_market_intel_handler(signal: Signal):
     }
     await manager.broadcast(intel_payload)
 
-# Phase 12: WHIFF_DETECTED -> Galaxy Map flash/alert
+# Phase 12: WHIFF_DETECTED -> Galaxy Map flash/alert + Pulse
 async def async_whiff_handler(signal: Signal):
-    """Broadcast whiff alerts to Galaxy Map."""
+    """
+    Broadcast whiff alerts to Galaxy Map.
+    Triggers expanding shockwaves for large transactions.
+    """
     data = signal.data
+    source = signal.source or "WHALE"
+    mint = data.get("mint", "")
+    
+    # Get spatial context
+    x, y, z = CoordinateTransformer.get_xyz(data)
+    
     whiff_payload = {
+        "type": "WHALE_PULSE",
+        "mint": mint,
+        "x": x,
+        "y": y,
+        "z": z,
+        "intensity": data.get("confidence", 0.5) * 10.0,
+        "color": "#ffd700" if source == "WHALE" else "#00ffff" # Gold for whale, cyan for others
+    }
+    await manager.broadcast(whiff_payload)
+    
+    # Also send basic alert
+    alert_payload = {
         "type": "WHIFF_ALERT",
         "whiff_type": data.get("type", "UNKNOWN"),
-        "mint": data.get("mint", ""),
+        "mint": mint,
         "direction": data.get("direction", "VOLATILE"),
         "confidence": data.get("confidence", 0.5),
     }
-    await manager.broadcast(whiff_payload)
+    await manager.broadcast(alert_payload)
 
 # Subscribe to relevant signals AFTER defining handlers
 signal_bus.subscribe(SignalType.MARKET_UPDATE, async_signal_handler)

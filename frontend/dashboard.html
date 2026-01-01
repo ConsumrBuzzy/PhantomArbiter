@@ -331,6 +331,43 @@
                 console.log(`🔗 Hop Connection: ${fromMint.slice(0, 6)} → ${toMint.slice(0, 6)} (${(profit * 100).toFixed(2)}%)`);
             }
 
+            function createWhalePulse(x, y, z, color = '#ffd700', intensity = 1.0) {
+                const geometry = new THREE.RingGeometry(1, 1.2, 32);
+                const material = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(color),
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending
+                });
+                const pulse = new THREE.Mesh(geometry, material);
+                pulse.position.set(x, y, z);
+                pulse.rotation.x = Math.random() * Math.PI;
+                pulse.rotation.y = Math.random() * Math.PI;
+                
+                scene.add(pulse);
+                
+                const startTime = performance.now();
+                const duration = 2000;
+                
+                function animatePulse(time) {
+                    const elapsed = time - startTime;
+                    const progress = elapsed / duration;
+                    
+                    if (progress < 1) {
+                        const scale = 1 + progress * 100 * intensity;
+                        pulse.scale.set(scale, scale, scale);
+                        pulse.material.opacity = 0.8 * (1 - progress);
+                        requestAnimationFrame(animatePulse);
+                    } else {
+                        scene.remove(pulse);
+                        geometry.dispose();
+                        material.dispose();
+                    }
+                }
+                requestAnimationFrame(animatePulse);
+            }
+
             function removeHopConnection(fromMint, toMint) {
                 const key = `${fromMint}:${toMint}`;
                 const conn = hopConnections.get(key);
@@ -392,28 +429,30 @@
 
                 const mesh = new THREE.Mesh(geometry, material);
 
-                // Position Logic: TOKEN = stable hash-based, EVENT = random
-                let r, theta, phi;
-                const distFactor = params.distance_factor || 0.5;
-
-                if (nodeType === 'TOKEN') {
-                    // Stable position based on mint hash
-                    const hash = hashCode(id);
-                    theta = (hash % 360) * Math.PI / 180;
-                    phi = Math.acos(((hash >> 8) % 200 - 100) / 100);
-                    r = GALAXY_RADIUS * distFactor * 0.8; // Closer = higher liquidity
+                if (params.x !== undefined && params.y !== undefined && params.z !== undefined) {
+                    mesh.position.set(params.x, params.y, params.z);
                 } else {
-                    // Random for events
-                    theta = Math.random() * Math.PI * 2;
-                    phi = Math.acos((Math.random() * 2) - 1);
-                    r = Math.pow(Math.random(), 0.3) * GALAXY_RADIUS * distFactor;
-                }
+                    // Fallback to stable random sphere if no coordinates provided
+                    let r, theta, phi;
+                    const distFactor = params.distance_factor || 0.5;
 
-                mesh.position.set(
-                    r * Math.sin(phi) * Math.cos(theta),
-                    r * Math.sin(phi) * Math.sin(theta),
-                    r * Math.cos(phi)
-                );
+                    if (nodeType === 'TOKEN') {
+                        const hash = hashCode(id);
+                        theta = (hash % 360) * Math.PI / 180;
+                        phi = Math.acos(((hash >> 8) % 200 - 100) / 100);
+                        r = GALAXY_RADIUS * distFactor * 0.8;
+                    } else {
+                        theta = Math.random() * Math.PI * 2;
+                        phi = Math.acos((Math.random() * 2) - 1);
+                        r = Math.pow(Math.random(), 0.3) * GALAXY_RADIUS * distFactor;
+                    }
+
+                    mesh.position.set(
+                        r * Math.sin(phi) * Math.cos(theta),
+                        r * Math.sin(phi) * Math.sin(theta),
+                        r * Math.cos(phi)
+                    );
+                }
 
                 // Velocity: TOKENs are mostly static, EVENTs move
                 const velMag = nodeType === 'EVENT' ? (params.velocity_factor || 0.5) * 0.5 : 0.02;
@@ -650,6 +689,8 @@
 
                         if (data.type === 'ARCHETYPE_UPDATE') {
                             triggerArchetypeUpdate(data);
+                        } else if (data.type === 'WHALE_PULSE') {
+                            createWhalePulse(data.x, data.y, data.z, data.color, data.intensity);
                         } else if (data.type === 'HOP_PATH') {
                             // Visualize arbitrage path as connected lines
                             const path = data.path || [];  # Array of mints

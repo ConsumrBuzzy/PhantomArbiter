@@ -11,6 +11,7 @@ V36 Enhancements:
 
 from typing import Dict, Any, Optional
 from src.shared.system.signal_bus import Signal, SignalType
+from src.arbiter.coordinate_transformer import CoordinateTransformer
 import math
 
 # Thresholds for whale detection
@@ -103,8 +104,14 @@ class VisualTransformer:
         is_whale = volume >= WHALE_THRESHOLD_USD or source == "WHALE"
         node_type = "EVENT" if is_event else "TOKEN"
         
+        # --- V140: Galactic XYZ Mapping ---
+        x, y, z = CoordinateTransformer.get_xyz(data)
+        
         # --- Base Params ---
         params = {
+            "x": x,
+            "y": y,
+            "z": z,
             "radius": base_radius,
             "roughness": 0.5,
             "emissive_intensity": 2.0,
