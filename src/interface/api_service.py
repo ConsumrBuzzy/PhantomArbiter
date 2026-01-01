@@ -158,6 +158,7 @@ async def get_initial_galaxy():
     """
     Returns the initial state of the galaxy (all known active tokens).
     """
+    Logger.info(f"   🛸 🔍 [API] Fetching Galaxy State...")
     # 1. Fetch from AppState/Inventory
     objects = []
     
@@ -244,6 +245,7 @@ async def get_initial_galaxy():
          if payload:
              objects.append(payload)
 
+    Logger.info(f"   🛸 ✅ [API] Returning Galaxy: {len(objects)} nodes")
     return objects
 
 @app.websocket("/ws/v1/stream")
