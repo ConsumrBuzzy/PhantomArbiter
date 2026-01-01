@@ -21,7 +21,7 @@ from src.shared.system.priority_queue import priority_queue
 from src.shared.system.logging import Logger
 
 if TYPE_CHECKING:
-    from src.strategy.watcher import Watcher
+    from src.strategies.logic.watcher import Watcher
     from src.shared.execution.paper_wallet import PaperWallet
     from src.shared.system.capital_manager import CapitalManager
     from src.shared.infrastructure.validator import TokenValidator
@@ -356,7 +356,7 @@ class TradeExecutor:
         try:
             import numpy as np
             import time
-            from src.strategy.signals import TechnicalAnalysis
+            from src.strategies.logic.signals import TechnicalAnalysis
 
             # 1. Base Metrics
             prices = (

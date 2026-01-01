@@ -8,9 +8,9 @@ Child classes implement only their unique signal generation logic.
 from abc import ABC, abstractmethod
 import time
 from config.settings import Settings
-from src.strategy.watcher import Watcher
-from src.strategy.risk import TrailingStopManager
-from src.strategy.metrics import Metrics
+from src.strategies.logic.watcher import Watcher
+from src.strategies.logic.risk import TrailingStopManager
+from src.strategies.logic.metrics import Metrics
 from src.shared.system.priority_queue import priority_queue
 
 

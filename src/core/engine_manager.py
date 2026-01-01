@@ -47,7 +47,7 @@ class EngineManager:
     def _init_merchant_engines(self):
         """V45.0: Initialize the Unified Merchant Engine (Ensemble Strategy)."""
         try:
-            from src.strategy.ensemble import MerchantEnsemble
+            from src.strategies.logic.ensemble import MerchantEnsemble
 
             # The Unified Merchant
             merchant = TacticalStrategy(

@@ -6,7 +6,7 @@ from src.shared.execution.wallet import WalletManager
 from src.shared.execution.swapper import JupiterSwapper
 from src.shared.system.priority_queue import priority_queue
 from src.tools.asset_manager import AssetManager
-from src.strategy.portfolio import PortfolioManager
+from src.strategies.logic.portfolio import PortfolioManager
 from src.shared.infrastructure.validator import TokenValidator
 from src.shared.system.logging import Logger
 from src.shared.system.signal_bus import signal_bus, SignalType, Signal

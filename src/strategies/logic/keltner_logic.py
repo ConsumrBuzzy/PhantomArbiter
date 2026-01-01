@@ -7,11 +7,11 @@ V70.5: Adaptive thresholds via ThresholdManager.
 
 from config.settings import Settings
 import time
-from src.strategy.base_strategy import BaseStrategy
-from src.strategy.watcher import Watcher
-from src.strategy.risk import PositionSizer
+from src.strategies.logic.base_strategy import BaseStrategy
+from src.strategies.logic.watcher import Watcher
+from src.strategies.logic.risk import PositionSizer
 from src.shared.system.logging import Logger
-from src.strategy.signals import TechnicalAnalysis as TA
+from src.strategies.logic.signals import TechnicalAnalysis as TA
 
 
 class KeltnerLogic(BaseStrategy):

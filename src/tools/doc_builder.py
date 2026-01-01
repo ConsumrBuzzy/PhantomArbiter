@@ -13,7 +13,7 @@ MODULES_TO_DOC = [
     "src.strategies.tactical",
     "src.strategies.components.decision_engine",
     "src.strategies.components.data_feed_manager",
-    "src.strategy.watcher",
+    "src.strategies.logic.watcher",
     "src.system.db_manager",
     "src.system.data_source_manager",
     "src.execution.position_manager",

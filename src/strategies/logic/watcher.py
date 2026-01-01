@@ -4,14 +4,14 @@ V10.2 SRP Watcher: State Container
 Lightweight container for asset state.
 Delegates logic to:
 - src.execution.position_manager (Persistence)
-- src.strategy.risk (TSL)
+- src.strategies.logic.risk (TSL)
 - src.system.status_formatter (Display)
 """
 
 from src.core.data import DataFeed
 from src.shared.execution.position_manager import PositionManager
 
-from src.strategy.signals import TechnicalAnalysis
+from src.strategies.logic.signals import TechnicalAnalysis
 
 
 class Watcher:

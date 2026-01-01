@@ -68,10 +68,10 @@ class ScalperConfig:
 
 def get_strategy_class(strategy: ScalperStrategy) -> Type:
     """Get the strategy class for the given strategy enum."""
-    from src.strategy.longtail_logic import LongtailLogic
-    from src.strategy.vwap_logic import VwapLogic
-    from src.strategy.keltner_logic import KeltnerLogic
-    from src.strategy.ensemble import MerchantEnsemble
+    from src.strategies.logic.longtail_logic import LongtailLogic
+    from src.strategies.logic.vwap_logic import VwapLogic
+    from src.strategies.logic.keltner_logic import KeltnerLogic
+    from src.strategies.logic.ensemble import MerchantEnsemble
 
     strategy_map = {
         ScalperStrategy.LONGTAIL: LongtailLogic,

@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.system.priority_queue import priority_queue
-from src.strategy.watcher import Watcher
+from src.strategies.logic.watcher import Watcher
 from src.core.shared_cache import SharedPriceCache
 
 

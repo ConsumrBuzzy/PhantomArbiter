@@ -9,7 +9,7 @@ Responsibility:
 """
 
 from src.core.data import batch_fetch_jupiter_prices
-from src.strategy.watcher import Watcher
+from src.strategies.logic.watcher import Watcher
 
 
 class DataFeedManager:
