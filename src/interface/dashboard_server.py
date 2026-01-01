@@ -31,8 +31,13 @@ class DashboardServer:
         Logger.info(f"   🎙️  Dashboard Voice active on ws://{self.host}:{self.port}")
 
         # 2. Start Server
-        async with websockets.serve(self._handler, self.host, self.port):
-            await asyncio.Future()  # Run forever
+        try:
+            async with websockets.serve(self._handler, self.host, self.port):
+                await asyncio.Future()  # Run forever
+        except asyncio.CancelledError:
+            Logger.info("   🎙️  Voice fading out...")
+        except Exception as e:
+            Logger.error(f"   ❌ Voice error: {e}")
 
     async def _handler(self, websocket):
         """Handle new client connections."""

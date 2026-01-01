@@ -229,8 +229,13 @@
                 node.scale.set(2, 2, 2);
                 createShockwave(node.position, params.hex_color, 0.5);
             } else if (data.archetype === 'COMET') {
-                // Comets drift faster
-                node.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+                // Comets drift based on liquidity velocity
+                const speed = params.velocity_factor || 0.5;
+                node.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * speed,
+                    (Math.random() - 0.5) * speed,
+                    (Math.random() - 0.5) * speed
+                );
             }
 
             logEvent(`🌌 [${data.archetype}] ${data.label || data.id}`);
@@ -260,23 +265,51 @@
                 if (node.scale.x > 1) {
                     node.scale.multiplyScalar(0.96);
                 }
+
                 // Comet drift
                 if (node.userData.archetype === 'COMET' && node.userData.velocity) {
                     node.position.add(node.userData.velocity);
+
+                    // Create Trail Particle
+                    if (Math.random() > 0.5) { // Throttle trail creation
+                        createTrailParticle(node.position, node.material.color);
+                    }
                 }
             });
 
-            // Update effects
+            // Update effects (Shockwaves, Trails)
             scene.children.forEach(child => {
                 if (child.userData && child.userData.type === 'effect') {
-                    child.scale.multiplyScalar(1.1);
+                    child.scale.multiplyScalar(1.05);
                     child.userData.life *= 0.95;
                     child.material.opacity = child.userData.life;
                     if (child.userData.life < 0.01) {
                         scene.remove(child);
                     }
                 }
+                // Trail Logic
+                else if (child.userData && child.userData.type === 'trail') {
+                    child.userData.life *= 0.90;
+                    child.scale.multiplyScalar(0.9);
+                    child.material.opacity = child.userData.life;
+                    if (child.userData.life < 0.05) {
+                        scene.remove(child);
+                    }
+                }
             });
+        }
+
+        function createTrailParticle(pos, color) {
+            const geom = new THREE.SphereGeometry(0.5, 4, 4);
+            const mat = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.8
+            });
+            const p = new THREE.Mesh(geom, mat);
+            p.position.copy(pos);
+            p.userData = { type: 'trail', life: 1.0 };
+            scene.add(p);
         }
 
         // --- WEBSOCKET CONNECTION ---

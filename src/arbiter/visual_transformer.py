@@ -82,6 +82,27 @@ class VisualTransformer:
                 "roughness": 0.8
             })
             
+        # DISCOVERIES (Purple Comet)
+        elif source in ("DISCOVERY", "SCRAPER", "SAURON_PUMPFUN", "SAURON_RAYDIUM"):
+            archetype = "COMET"
+            color = "#9945ff"
+            
+            # V2 Physics: Velocity based on volume/liquidity
+            # Default to 0.5 if no data
+            volume = float(data.get("volume_24h", 0))
+            liquidity = float(data.get("liquidity", 1000))
+            
+            # Normalized velocity factor (0.1 to 5.0)
+            velocity_factor = min(max(volume / (liquidity + 1) * 0.1, 0.1), 5.0)
+            
+            params.update({
+                "radius": 0.8,
+                "emissive_intensity": 4.0,
+                "hex_color": color,
+                "roughness": 0.3,
+                "velocity_factor": velocity_factor
+            })
+
         # GRADUATIONS / LAUNCHES (Orange Supernova)
         elif source in ("PUMP_GRAD", "LAUNCHPAD", "MIGRATION"):
             archetype = "SUPERNOVA"
@@ -90,19 +111,10 @@ class VisualTransformer:
                 "radius": 3.0,
                 "emissive_intensity": 8.0,
                 "hex_color": color,
-                "roughness": 0.0
+                "roughness": 0.0,
+                "velocity_factor": 0.0  # Stationary explosion
             })
-            
-        # DISCOVERIES (Purple Comet)
-        elif source in ("DISCOVERY", "SCRAPER", "SAURON_PUMPFUN", "SAURON_RAYDIUM"):
-            archetype = "COMET"
-            color = "#9945ff"
-            params.update({
-                "radius": 0.8,
-                "emissive_intensity": 4.0,
-                "hex_color": color,
-                "roughness": 0.3
-            })
+
 
         return {
             "type": "ARCHETYPE_UPDATE",
