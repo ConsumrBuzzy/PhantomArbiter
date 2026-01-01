@@ -249,6 +249,7 @@ async def get_initial_galaxy():
 @app.websocket("/ws/v1/stream")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    Logger.info(f"   🛸 🔌 [API] WebSocket Client Connected: {websocket.client.host}:{websocket.client.port}")
     try:
         while True:
             # Keep alive / receive control messages
