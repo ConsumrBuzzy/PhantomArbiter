@@ -72,6 +72,7 @@ __all__ = [
     "get_wallet_sync",
     "get_market_bridge",
     "get_signal_scout",
+    "get_signal_hub",
 ]
 
 
@@ -85,3 +86,9 @@ def get_signal_scout() -> "SignalScoutService":
     """Get the SignalScoutService singleton (Asymmetric Intel)."""
     from src.market.signal_scout_service import get_signal_scout as _get_scout
     return _get_scout()
+
+
+def get_signal_hub() -> "MarketSignalHub":
+    """Get the MarketSignalHub singleton (Signal Aggregator)."""
+    from src.market.signal_hub import get_signal_hub as _get_hub
+    return _get_hub()

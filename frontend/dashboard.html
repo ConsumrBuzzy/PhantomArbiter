@@ -652,12 +652,40 @@
                             triggerArchetypeUpdate(data);
                         } else if (data.type === 'HOP_PATH') {
                             // Visualize arbitrage path as connected lines
-                            const path = data.path || [];  // Array of mints
+                            const path = data.path || [];  # Array of mints
                             const profit = data.profit || 0.01;
                             for (let i = 0; i < path.length - 1; i++) {
                                 createHopConnection(path[i], path[i + 1], profit);
                             }
                             logEvent(`⚡ Hop Path: ${path.length} tokens @ ${(profit * 100).toFixed(2)}%`);
+                        } else if (data.type === 'MARKET_INTEL') {
+                            // Phase 12: Heat/Pressure Overlay
+                            const existing = nodes.get(data.mint);
+                            if (existing) {
+                                // Update color based on heat/regime
+                                if (data.heat > 0.8) {
+                                    existing.material.color.setHex(0xffaa00); // Orange heat
+                                    existing.material.emissive.setHex(0xff4400); // Red glow
+                                } else if (data.regime === "BULL") {
+                                    existing.material.color.setHex(0x00ff00);
+                                } else if (data.regime === "BEAR") {
+                                    existing.material.color.setHex(0xff0000);
+                                }
+                                // Flash on pressure update
+                                existing.material.emissiveIntensity = 2 + (data.heat * 3);
+                                setTimeout(() => { existing.material.emissiveIntensity = 0.5; }, 500);
+                            }
+                        } else if (data.type === 'WHIFF_ALERT') {
+                            // Phase 12: Whiff Detection
+                            const existing = nodes.get(data.mint);
+                            if (existing) {
+                                // Distinctive flash for whiffs
+                                const color = data.whiff_type === "WHALE_MINT" ? 0x00ffff : 0xff00ff;
+                                existing.material.emissive.setHex(color);
+                                existing.material.emissiveIntensity = 10.0;
+                                setTimeout(() => { existing.material.emissiveIntensity = 0.5; existing.material.emissive.setHex(0x000000); }, 1000);
+                                logEvent(`👃 Whiff: ${data.whiff_type} on ${data.mint.slice(0,6)}`);
+                            }
                         } else if (data.type === 'snapshot') {
                             logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
                             data.nodes.forEach(n => createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1, emissive_intensity: 1, roughness: 0.5 }));

@@ -19,6 +19,15 @@ class SignalType(Enum):
         "STRATEGY_TIP"  # V41.0: Cross-Strategy Hints (e.g. Scalper -> Arbiter)
     )
     NEW_TOKEN = "NEW_TOKEN"  # V140: Sauron Discovery -> Scout Metadata Scan
+    
+    # Phase 12: Market Layer Signals
+    WHIFF_DETECTED = "WHIFF_DETECTED"      # Asymmetric intel (Rust-accelerated)
+    PRESSURE_UPDATE = "PRESSURE_UPDATE"    # Market pressure change
+    MARKET_HEAT = "MARKET_HEAT"            # Heat spike detected
+    REGIME_CHANGE = "REGIME_CHANGE"        # Bull/Bear/Chop transition
+    MARKET_INTEL = "MARKET_INTEL"          # Unified market snapshot
+    LOG_UPDATE = "LOG_UPDATE"              # Raw log from WSS
+    TX_FAILED = "TX_FAILED"                # Transaction failure detected
 
 
 @dataclass

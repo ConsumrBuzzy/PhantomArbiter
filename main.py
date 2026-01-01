@@ -729,7 +729,7 @@ async def cmd_clean(args: argparse.Namespace) -> None:
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
     """Run "The Void" - Web Dashboard & Backend Orchestrator."""
-    from src.engine.orchestrator import MarketOrchestrator
+    from src.director import UnifiedDirector
     # from src.interface.dashboard_server import DashboardServer  # Replaced by FastAPI
     # from src.interface.http_server_wrapper import HttpServerWrapper # Replaced by Uvicorn
     from config.settings import Settings
@@ -743,7 +743,9 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     launch_hud = not getattr(args, "no_hud", False) 
 
     # 1. Initialize Orchestrator (Mission Control)
-    orchestrator = MarketOrchestrator(headless_frontend=True) # Always headless, we use The Void now
+    # Using UnifiedDirector instead of broken MarketOrchestrator
+    director = UnifiedDirector(live_mode=args.live)
+
 
     # V3 (Decoupled API): Ignite The Void via FastAPI/Uvicorn
     # We run Uvicorn in the existing loop to share memory (SignalBus)
@@ -787,13 +789,18 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     print("="*40 + "\n")
 
     # 4b. Ignite System Logic (Background)
+    # 4b. Ignite System Logic (Background)
     # We must start the actual trading engine/monitors!
-    await orchestrator.ignite_system() 
+    # UnifiedDirector uses start() which runs indefinitely, so we wrap it
+    # But wait! director.start() includes a _monitor_loop which blocks!
+    # So we should run director.start() directly here as the main blocker.
     
-    # 5. Keep Alive (Headless Server)
     try:
-        await orchestrator.keep_alive()
+        await director.start()
     finally:
+        # 6. Cleanup
+        # api_thread is daemon, will die with process.
+        await director.stop()
         # 6. Cleanup
         # api_thread is daemon, will die with process.
         # server.should_exit cannot be called easily here unless we keep ref, 

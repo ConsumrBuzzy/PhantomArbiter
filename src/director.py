@@ -160,19 +160,72 @@ class UnifiedDirector:
                 await asyncio.sleep(5) # Backoff
 
     async def _monitor_loop(self):
-        """Supervisor loop."""
-        Logger.info("[Brain] Supervisor Loop Active")
-        while self.is_running:
-            await asyncio.sleep(5)
-            # Check task health
-            for name, task in self.tasks.items():
-                if task.done():
-                    exc = task.exception()
-                    if exc:
-                        Logger.error(f"[Brain] Task '{name}' FAILED: {exc}")
-                        # Respawn logic could go here
-                    else:
-                        Logger.warning(f"[Brain] Task '{name}' finished unexpectedly")
+        """Supervisor loop with Rich Live Display."""
+        from rich.live import Live
+        from rich.layout import Layout
+        from rich.panel import Panel
+        from rich.table import Table
+        from datetime import datetime
+
+        def make_layout():
+             layout = Layout(name="root")
+             layout.split(
+                 Layout(name="header", size=3),
+                 Layout(name="main"),
+                 Layout(name="footer", size=3)
+             )
+             layout["main"].split_row(
+                 Layout(name="left"),
+                 Layout(name="right"),
+             )
+             return layout
+
+        layout = make_layout()
+        Logger.info("[Brain] Supervisor Loop Active (Rich)")
+        
+        with Live(layout, refresh_per_second=4, screen=False) as live:
+            while self.is_running:
+                # Update Layout
+                # Header
+                status_color = "green" if state.status == "OPERATIONAL" else "yellow"
+                layout["header"].update(Panel(f"[bold {status_color}]PHANTOM ARBITER // STATUS: {state.status}[/]", style=f"{status_color}"))
+                
+                # Left: Tasks
+                task_table = Table(show_header=True, header_style="bold magenta")
+                task_table.add_column("Task")
+                task_table.add_column("Status")
+                for name, task in self.tasks.items():
+                    status = "RUNNING" if not task.done() else "DONE" if not task.exception() else "FAILED"
+                    style = "green" if status == "RUNNING" else "red" if status == "FAILED" else "dim"
+                    task_table.add_row(name, f"[{style}]{status}[/]")
+                
+                layout["left"].update(Panel(task_table, title="System Processes"))
+                
+                # Right: Market Stats (Placeholder)
+                market_table = Table(show_header=False)
+                market_table.add_row("Mode", "LIVE" if self.live_mode else "PAPER")
+                market_table.add_row("Uptime", str(datetime.now()))
+                # Add Race Stats if available?
+                # For now just basics
+                
+                layout["right"].update(Panel(market_table, title="Market Telemetry"))
+                
+                # Footer: Logs
+                last_log = state.logs[-1] if state.logs else "Initializing..."
+                layout["footer"].update(Panel(f"[dim]{last_log}[/dim]", title="Last Log"))
+
+                await asyncio.sleep(0.5)
+                
+                # Check task health
+                for name, task in self.tasks.items():
+                    if task.done():
+                        exc = task.exception()
+                        if exc:
+                            Logger.error(f"[Brain] Task '{name}' FAILED: {exc}")
+                            # Respawn logic could go here
+                            self.is_running = False # Panic for now
+                        else:
+                             pass
 
     async def stop(self):
         """Shutdown."""
