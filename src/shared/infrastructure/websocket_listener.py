@@ -293,6 +293,40 @@ class WebSocketListener:
         from src.shared.system.signal_bus import signal_bus, Signal, SignalType
         
         try:
+            # V42: Rust Acceleration (Fast Path)
+            try:
+                import phantom_core
+                # If we have Helius API key, use Rust for fast extraction
+                helius_api_key = os.getenv("HELIUS_API_KEY", "")
+                if helius_api_key:
+                    url = f"https://api.helius.xyz/v0/transactions/?api-key={helius_api_key}"
+                    payload = {"transactions": [signature]}
+                    response = requests.post(url, json=payload, timeout=3)
+                    
+                    if response.status_code == 200:
+                        # Pass JSON string directly to Rust parser
+                        result = phantom_core.extract_swap_token(response.text)
+                        if result:
+                            # result is tuple (mint, symbol, amount_usd)
+                            token_mint, token_symbol, _ = result
+                            if token_mint:
+                                # If missing symbol, try registry
+                                if not token_symbol:
+                                    try:
+                                        from src.shared.infrastructure.token_registry import TokenRegistry
+                                        registry = TokenRegistry()
+                                        token_symbol = registry.get_symbol(token_mint)
+                                    except:
+                                        token_symbol = token_mint[:8]
+                                
+                                self._emit_swap_signal(signature, dex, token_mint, token_symbol, amount_usd, label_str)
+                                return
+            except ImportError:
+                pass  # Rust module not available
+            except Exception as e:
+                pass  # Rust parsing failed, fall back to Python logic
+
+            # Original Python Implementation (Slow Path)
             # Try Helius enhanced transaction API first
             helius_api_key = os.getenv("HELIUS_API_KEY", "")
             if not helius_api_key:
