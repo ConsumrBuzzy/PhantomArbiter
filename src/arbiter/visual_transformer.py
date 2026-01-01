@@ -41,11 +41,11 @@ class VisualTransformer:
             try:
                 from src.shared.infrastructure.token_registry import TokenRegistry
                 registry = TokenRegistry() # Singleton should hold state
-                if registry.is_initialized:
-                     token_data = registry.get_token(mint)
-                     if token_data:
-                         label = token_data.symbol
-            except ImportError:
+                if registry._initialized:
+                     resolved = registry.get_symbol(mint)
+                     if resolved:
+                         label = resolved
+            except Exception:
                  pass
         
         if not label:
