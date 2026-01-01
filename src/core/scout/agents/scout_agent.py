@@ -11,7 +11,7 @@ from config.settings import Settings
 from src.core.scout.agents.probe_analytic import ProbeAnalytic
 from src.shared.execution.raydium_standard_bridge import RaydiumStandardBridge
 from src.core.scout.discovery.pump_fun_monitor import PumpFunMonitor
-from src.core.price_cache import SharedPriceCache
+from src.core.shared_cache import SharedPriceCache
 
 
 class ScoutAgent(BaseAgent):
@@ -711,9 +711,9 @@ class ScoutAgent(BaseAgent):
                     Logger.info(f"❓ [SCOUT] Lifecycle: {mint[:8]} stage UNKNOWN")
 
         # 5. Populate initial price/liquidity if known from cache
-        from src.core.price_cache import price_cache
+        from src.core.shared_cache import SharedPriceCache
 
-        price = price_cache.get_price(mint)
+        price = SharedPriceCache.get_price_by_mint(mint)
         if price > 0:
             meta.price_usd = price
 

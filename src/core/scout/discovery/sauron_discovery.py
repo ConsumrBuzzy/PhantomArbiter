@@ -112,33 +112,38 @@ class SauronDiscovery:
             return {"graduated": False, "price": 0, "route_count": 0}
 
     async def start(self):
-        """Start the Omni-Monitor."""
-        if not self.api_key:
-            return
-
+        """Start as a Signal Consumer (V140 Unification)."""
         self.running = True
-        url = self.HELIUS_WS_URL.format(self.api_key)
+        
+        # Subscribe to signals from central WebSocketListener
+        signal_bus.subscribe(SignalType.MARKET_UPDATE, self._handle_market_signal)
+        
+        Logger.info("👁️ [SAURON] The Eye is monitoring signals... (Unified Mode)")
 
-        Logger.info("👁️ [SAURON] The Eye is opening... (Connecting to Helius)")
+    def _handle_market_signal(self, sig: Signal):
+        """Process incoming logs from SignalBus."""
+        if sig.data.get("type") == "RAW_LOG":
+            logs = sig.data.get("logs", [])
+            signature = sig.data.get("signature", "unknown")
+            self._process_logs_sync(logs, signature)
 
-        while self.running:
-            try:
-                async with websockets.connect(url) as ws:
-                    self.ws = ws
-                    Logger.success("✅ [SAURON] Connected to Solana Mainnet Stream")
-
-                    # Registered subscriptions
-                    await self._subscribe(ws)
-
-                    # Listen
-                    async for msg in ws:
-                        if not self.running:
-                            break
-                        await self._process_message(msg)
-
-            except Exception as e:
-                Logger.error(f"❌ [SAURON] Connection Lost: {e}")
-                await asyncio.sleep(self.reconnect_delay)
+    def _process_logs_sync(self, logs: list, signature: str):
+        """Synchronous version of log parsing."""
+        if not logs: return
+        log_str = " ".join(logs)
+        
+        event_type = None
+        source = "UNKNOWN"
+        for name, pid in self.PROGRAMS.items():
+            if pid in log_str:
+                pattern = self.EVENT_PATTERNS.get(name, "Initialize")
+                if pattern in log_str:
+                    source = name
+                    event_type = "LAUNCH" if name == "PUMPFUN" else "NEW_POOL"
+                    break
+        
+        if event_type:
+            self._handle_discovery(log_str, source, event_type, signature)
 
     async def _subscribe(self, ws):
         """Send logsSubscribe requests for all monitored programs."""
@@ -160,132 +165,74 @@ class SauronDiscovery:
             f"📡 [SAURON] Watching {len([p for p in self.PROGRAMS.values() if not p.startswith('...')])} launchpads..."
         )
 
-    async def _process_message(self, raw_msg: str):
-        """V69.0: Parse incoming logs using PROGRAMS dict."""
+    def _handle_discovery(self, log_str, source, event_type, signature):
+        """V69.0: Parse logs and trigger discovery events."""
         try:
-            data = json.loads(raw_msg)
-
-            # Skip subscription confirmations
-            if "result" in data and isinstance(data["result"], int):
+            # V67.8: Try to extract mint and resolve symbol
+            token_info = None
+            try:
+                import re
+                mint_match = re.search(r"([1-9A-HJ-NP-Za-km-z]{32,44})", log_str)
+                if mint_match:
+                    mint = mint_match.group(1)
+                    from src.infrastructure.token_scraper import get_token_scraper
+                    token_info = get_token_scraper().lookup(mint)
+                else:
+                    return # No mint, no discovery
+            except:
                 return
 
-            # Process Notifications
-            params = data.get("params", {})
-            result = params.get("result", {})
-            value = result.get("value", {})
-            logs = value.get("logs", [])
-            signature = value.get("signature", "unknown")
+            if (
+                token_info
+                and token_info.get("symbol")
+                and not token_info.get("symbol", "").startswith("UNK_")
+            ):
+                symbol = token_info.get("symbol", "???")
+                name = token_info.get("name", "")
+                liquidity = token_info.get("liquidity", 0)
 
-            if not logs:
-                return
+                if liquidity > 500:
+                    Logger.info(
+                        f"🚨 [SAURON] {event_type} on {source}! {symbol} ({name}) | Liq: ${liquidity:,.0f}"
+                    )
 
-            log_str = " ".join(logs)
+                if hasattr(self, "sniper_callback") and self.sniper_callback:
+                    self.sniper_callback(mint, source)
 
-            # V69.0: Check all monitored programs
-            event_type = None
-            source = "UNKNOWN"
+                signal_bus.emit(
+                    Signal(
+                        type=SignalType.NEW_TOKEN,
+                        source=f"SAURON_{source}",
+                        data={"mint": mint, "platform": source},
+                    )
+                )
+            else:
+                self.discovery_count += 1
+                if source not in self.unnamed_by_platform:
+                    self.unnamed_by_platform[source] = 0
+                self.unnamed_by_platform[source] += 1
 
-            for name, pid in self.PROGRAMS.items():
-                if pid.startswith("..."):
-                    continue
-                if pid in log_str:
-                    # Check for matching event pattern
-                    pattern = self.EVENT_PATTERNS.get(name, "Initialize")
-                    if pattern in log_str:
-                        source = name
-                        event_type = "LAUNCH" if name == "PUMPFUN" else "NEW_POOL"
-                        break
-
-            if event_type:
-                # V67.8: Try to extract mint and resolve symbol
-                token_info = None
+                # V77.0: Queue for delayed metadata resolution
                 try:
-                    # Parse mint from logs (common pattern: "Program log: Create ... <MINT>")
-                    # This is heuristic - exact parsing depends on program format
-                    import re
-
-                    mint_match = re.search(r"([1-9A-HJ-NP-Za-km-z]{32,44})", log_str)
-                    if mint_match:
-                        mint = mint_match.group(1)
-                        from src.infrastructure.token_scraper import get_token_scraper
-
-                        token_info = get_token_scraper().lookup(mint)
+                    from src.core.scout.discovery.metadata_resolver import (
+                        get_metadata_resolver,
+                    )
+                    get_metadata_resolver().queue_token(mint, source)
                 except:
                     pass
 
-                if (
-                    token_info
-                    and token_info.get("symbol")
-                    and not token_info.get("symbol", "").startswith("UNK_")
-                ):
-                    symbol = token_info.get("symbol", "???")
-                    name = token_info.get("name", "")
-                    liquidity = token_info.get("liquidity", 0)
+                if time.time() - self.last_lump_report > self.lump_report_interval:
+                    if self.unnamed_by_platform:
+                        lump_parts = [f"{plat}: {cnt}" for plat, cnt in self.unnamed_by_platform.items() if cnt > 0]
+                        if lump_parts:
+                            Logger.info(f"📊 [SAURON] Unnamed discoveries: {' | '.join(lump_parts)}")
+                        self.unnamed_by_platform = {}
+                    self.last_lump_report = time.time()
 
-                    # V70.0: Only log high-quality discoveries (with resolved name + some liquidity)
-                    if liquidity > 500:  # At least $500 liquidity
-                        Logger.info(
-                            f"🚨 [SAURON] {event_type} on {source}! {symbol} ({name}) | Liq: ${liquidity:,.0f}"
-                        )
-
-                    # V68.0: Notify Sniper Agent
-                    if hasattr(self, "sniper_callback") and self.sniper_callback:
-                        self.sniper_callback(mint, source)
-
-                    # V140: Emit to Global SignalBus for Scout Metadata Analytics
-                    signal_bus.emit(
-                        Signal(
-                            type=SignalType.NEW_TOKEN,
-                            source=f"SAURON_{source}",
-                            data={"mint": mint, "platform": source},
-                        )
-                    )
-                else:
-                    # V75.0: Count unnamed by platform for lumped reporting
-                    self.discovery_count += 1
-
-                    if source not in self.unnamed_by_platform:
-                        self.unnamed_by_platform[source] = 0
-                    self.unnamed_by_platform[source] += 1
-
-                    # V77.0: Queue for delayed metadata resolution
-                    try:
-                        from src.core.scout.discovery.metadata_resolver import (
-                            get_metadata_resolver,
-                        )
-
-                        resolver = get_metadata_resolver()
-                        resolver.queue_token(mint, source)
-                    except:
-                        pass  # Silent fail
-
-                    # V75.0: Log lumped summary periodically
-                    if time.time() - self.last_lump_report > self.lump_report_interval:
-                        if self.unnamed_by_platform:
-                            lump_parts = [
-                                f"{plat}: {cnt}"
-                                for plat, cnt in self.unnamed_by_platform.items()
-                                if cnt > 0
-                            ]
-                            if lump_parts:
-                                lump_msg = " | ".join(lump_parts)
-                                Logger.info(
-                                    f"📊 [SAURON] Unnamed discoveries: {lump_msg}"
-                                )
-                            # Reset counters
-                            self.unnamed_by_platform = {}
-                        self.last_lump_report = time.time()
-
-                    # Still notify sniper with raw mint (it will do its own checks)
-                    if (
-                        hasattr(self, "sniper_callback")
-                        and self.sniper_callback
-                        and mint_match
-                    ):
-                        self.sniper_callback(mint_match.group(1), source)
+                if hasattr(self, "sniper_callback") and self.sniper_callback:
+                    self.sniper_callback(mint, source)
 
         except Exception:
-            # Logger.debug(f"[SAURON] Parse Error: {e}")
             pass
 
     def stop(self):

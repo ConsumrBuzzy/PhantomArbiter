@@ -136,10 +136,13 @@ class WebSocketListener:
 
         # Subscribe to key DEX interactions
         # We subscribe to logs for Raydium V4, CLMM, and Orca
+        # Subscriptions: DEX + Launchpads (V140 Unification)
         program_ids = [
             RAYDIUM_AMM_PROGRAM,
             ORCA_WHIRLPOOLS_PROGRAM,
             RAYDIUM_CLMM_PROGRAM,
+            "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", # Pump.fun
+            "MoonCVVNZFSYkqNXP6bxHLPL6QQJiMagDL3qcqUQTrG", # Moonshot
         ]
 
         try:
@@ -196,6 +199,14 @@ class WebSocketListener:
                 parsed = self._parse_raw_event(event)
                 if parsed:
                     latest_updates[parsed.pool] = parsed
+                
+                # V140: Emit raw log for discovery agents (Sauron/Sniper)
+                from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+                signal_bus.emit(Signal(
+                    type=SignalType.MARKET_UPDATE, # Or NEW_LOG type
+                    source="WSS_AGGREGATOR",
+                    data={"type": "RAW_LOG", "logs": event.logs, "signature": event.signature}
+                ))
             
             # Dispatch unique updates
             for event in latest_updates.values():
