@@ -773,7 +773,12 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     print(" 📚 DOCS:       http://localhost:8000/docs")
     print(" 📋 LOGS: Streaming below...")
     print("="*40 + "\n")
+    print("="*40 + "\n")
 
+    # 4b. Ignite System Logic (Background)
+    # We must start the actual trading engine/monitors!
+    await orchestrator.ignite_system() 
+    
     # 5. Keep Alive (Headless Server)
     try:
         await orchestrator.keep_alive()
