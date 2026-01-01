@@ -240,8 +240,8 @@ class VisualTransformer:
         # Log whale/major events
         if is_whale or archetype in ("SUPERNOVA", "WHALE"):
             print(f"🔮 [VOID_TRANSFORM] {archetype} spawned for {label} (${volume:,.0f})")
-        else:
-            print(f"🔮 [VOID_TRANSFORM] {archetype} spawned for {label}")
+        # else:
+            # print(f"🔮 [VOID_TRANSFORM] {archetype} spawned for {label}")
 
         return {
             "type": "ARCHETYPE_UPDATE",

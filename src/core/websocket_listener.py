@@ -16,7 +16,12 @@ from dotenv import load_dotenv
 from typing import Optional, Dict
 from dataclasses import dataclass
 
-import phantom_core
+try:
+    import phantom_core
+except ImportError:
+    phantom_core = None
+    print("   ⚠️ [WSS] Rust accelerator 'phantom_core' not found. Running in degradation mode.")
+
 from src.core.provider_pool import ProviderPool
 
 env_path = os.path.join(os.path.dirname(__file__), "../../.env")
@@ -49,6 +54,27 @@ class PriceEvent:
     latency_ms: float = 0.0
 
 
+class MockWssAggregator:
+    """Fallback if Rust module is missing."""
+    def __init__(self, channel_size=5000):
+        self.running = False
+    
+    def add_endpoint(self, url: str, program_id: str):
+        pass
+        
+    def start(self):
+        self.running = True
+        
+    def is_running(self):
+        return self.running
+        
+    def consume(self):
+        return []
+
+    def stop(self):
+        self.running = False
+
+
 class WebSocketListener:
     """
     V7.0.0: High-Performance Rust Aggregator Bridge.
@@ -68,7 +94,10 @@ class WebSocketListener:
 
         # Phase 17.5: Rust Aggregator
         # Channel size 5000 to absorb burst pressure
-        self.aggregator = phantom_core.WssAggregator(channel_size=5000)
+        if phantom_core:
+            self.aggregator = phantom_core.WssAggregator(channel_size=5000)
+        else:
+            self.aggregator = MockWssAggregator(channel_size=5000)
 
         # Loop control
         self.running = False
