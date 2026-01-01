@@ -17,7 +17,6 @@ def build_rust():
     if not venv_dir.exists():
         print("[ERROR] .venv not found. Run 'python build_venv.py' first.")
         sys.exit(1)
-        sys.exit(1)
 
     # 2. Set environment variables to force Maturin to use this venv
     env = os.environ.copy()
@@ -44,9 +43,7 @@ def build_rust():
             maturin_executable = shutil.which("maturin")
 
         if not maturin_executable:
-            print(
-                "❌ 'maturin' executable not found. Ensure it is installed in the venv."
-            )
+            print("[ERROR] 'maturin' executable not found. Ensure it is installed in the venv.")
             sys.exit(1)
 
         command = [maturin_executable, "develop", "--release"]
@@ -54,10 +51,10 @@ def build_rust():
     try:
         print(f"Running: {' '.join(command)}")
         subprocess.run(command, check=True, env=env)
-        print("✅ Rust Extension Built Successfully!")
+        print("[OK] Rust Extension Built Successfully!")
 
         # V133: Verify import
-        print("🔍 Verifying Rust extension import...")
+        print("[CHECK] Verifying Rust extension import...")
         python_path = (
             venv_dir / "Scripts" / "python"
             if sys.platform == "win32"
@@ -74,13 +71,13 @@ def build_rust():
             text=True,
         )
         if verify.returncode != 0:
-            print(f"❌ Verification failed: {verify.stderr}")
+            print(f"[ERROR] Verification failed: {verify.stderr}")
             sys.exit(1)
         print(verify.stdout.strip())
-        print("✅ Rust Extension Installed & Verified!")
+        print("[OK] Rust Extension Installed & Verified!")
 
     except subprocess.CalledProcessError:
-        print("❌ Build Failed.")
+        print("[ERROR] Build Failed.")
         sys.exit(1)
 
 
