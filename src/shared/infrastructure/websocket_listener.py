@@ -194,13 +194,19 @@ class WebSocketListener:
 
             # Optional: Track which programs are active
             logs_str = " ".join(logs[:10])
-            dex = "OTHER"
+            dex = "SOLANA"  # Default to generic Solana swap
             if "ray_log" in logs_str or RAYDIUM_AMM_PROGRAM[:8] in logs_str:
                 self.stats["raydium_swaps"] = self.stats.get("raydium_swaps", 0) + 1
                 dex = "RAYDIUM"
             elif "Whirlpool" in logs_str or ORCA_WHIRLPOOLS_PROGRAM[:8] in logs_str:
                 self.stats["orca_swaps"] = self.stats.get("orca_swaps", 0) + 1
                 dex = "ORCA"
+            elif "LBUZKhRx" in logs_str or "Meteora" in logs_str:
+                self.stats["meteora_swaps"] = self.stats.get("meteora_swaps", 0) + 1
+                dex = "METEORA"
+            elif "JUP" in logs_str or "jupiter" in logs_str.lower():
+                self.stats["jupiter_swaps"] = self.stats.get("jupiter_swaps", 0) + 1
+                dex = "JUPITER"
             else:
                 self.stats["other_swaps"] = self.stats.get("other_swaps", 0) + 1
 
