@@ -123,10 +123,10 @@ class VisualTransformer:
         archetype = "GLOBE"
         color = "#00ffaa"
         
-        # WHALE ALERT (Red/Gold Supernova - Unique Signifier)
+        # WHALE ALERT (Gold/Cyan Torus - Unique Signifier)
         if is_whale:
             archetype = "WHALE"
-            color = "#ff4444" if volume >= 100000 else "#ffaa00"
+            color = "#ffd700" if volume >= 100000 else "#00ffcc"  # Gold for mega, cyan for large
             params.update({
                 "radius": min(base_radius * 2, 6.0),  # Extra large
                 "emissive_intensity": 10.0,
