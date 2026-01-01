@@ -779,9 +779,13 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
         await orchestrator.keep_alive()
     finally:
         # 6. Cleanup
-        voice_task.cancel()
-        bridge_task.cancel()
-        engine_task.cancel()
+        api_task.cancel()
+        try:
+           await api_task
+        except asyncio.CancelledError:
+           pass
+        server.should_exit = True # Signal Uvicorn to stop
+        # bridge_task and engine_task were removed in previous cleanup
         await orchestrator.shutdown()
 
 
