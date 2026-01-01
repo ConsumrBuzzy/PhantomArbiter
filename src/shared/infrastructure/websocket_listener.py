@@ -258,19 +258,24 @@ class WebSocketListener:
                         amount_usd = event.amount_in / 1_000_000
                         if amount_usd >= 1000:
                             label_str = f"${amount_usd/1000:.1f}k"
-                        else:
+                        elif amount_usd >= 1:
                             label_str = f"${amount_usd:.0f}"
+                        else:
+                            continue  # Skip dust transactions
                         
+                        # Emit as DEX activity event (not a token)
+                        # These will appear as transient PULSAR nodes
                         signal_bus.emit(Signal(
                             type=SignalType.MARKET_UPDATE,
-                            source="WSS_Listener",  # Maps to PULSAR (Green)
+                            source="DEX",  # Maps to PULSAR (Green) - transient events
                             data={
-                                "mint": f"FLASH_{signature[-8:]}", # Unique-ish ID
-                                "symbol": f"{dex} {label_str}",  # e.g. "RAYDIUM $1.5k"
-                                "token": "USDC",
+                                "mint": f"SWAP_{signature[-8:]}",  # Unique event ID
+                                "symbol": f"⚡ {dex}",  # e.g. "⚡ RAYDIUM"
+                                "label": label_str,  # "$1.5k"
                                 "volume_24h": amount_usd,
                                 "liquidity": 1000, 
                                 "price": amount_usd,
+                                "is_event": True,  # Mark as transient
                                 "timestamp": time.time()
                             }
                         ))
