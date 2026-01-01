@@ -44,8 +44,6 @@ from src.core.background_worker_manager import BackgroundWorkerManager
 # V133: EngineManager (SRP Refactor)
 from src.core.engine_manager import EngineManager
 from src.core.websocket_listener import create_websocket_listener
-# Ensure BrokerPriceCache is imported if used, likely from price_cache.py
-from src.core.price_cache import BrokerPriceCache
 
 
 class DataBroker:
