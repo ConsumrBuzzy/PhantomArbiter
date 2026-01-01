@@ -413,7 +413,7 @@
             if (data.archetype === 'MOON' || data.node_type === 'MOON') {
                 createMoon(data.id, data.label, data.params);
             } else {
-                createNode(data.id, data.label, data.archetype, data.params, data.node_type || 'TOKEN');
+                createNode(data.id, data.label, data.archetype, data.params, data.node_type || 'TOKEN', data.event_label);
             }
         }
 
