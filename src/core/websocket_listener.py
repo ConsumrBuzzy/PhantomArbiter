@@ -22,7 +22,7 @@ except ImportError:
     phantom_core = None
     print("   ⚠️ [WSS] Rust accelerator 'phantom_core' not found. Running in degradation mode.")
 
-from src.core.provider_pool import ProviderPool
+from src.core.provider_pool import get_provider_pool
 
 env_path = os.path.join(os.path.dirname(__file__), "../../.env")
 load_dotenv(env_path)
@@ -90,7 +90,7 @@ class WebSocketListener:
         self.symbol_to_mint = {v: k for k, v in watched_mints.items()}
 
         # Phase 17: Provider Pool
-        self.provider_pool = ProviderPool()
+        self.provider_pool = get_provider_pool()
 
         # Phase 17.5: Rust Aggregator
         # Channel size 5000 to absorb burst pressure

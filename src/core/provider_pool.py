@@ -218,6 +218,12 @@ PROVIDER_CONFIGS: dict[ProviderType, ProviderConfig] = {
         wss_template="wss://hermes.pyth.network/ws",
         env_key_prefix="PYTH_HERMES_URL",
     ),
+    ProviderType.PUBLIC: ProviderConfig(
+        provider=ProviderType.PUBLIC,
+        http_template="https://api.mainnet-beta.solana.com",
+        wss_template="wss://api.mainnet-beta.solana.com",
+        env_key_prefix="PUBLIC_RPC_URL",
+    ),
 }
 
 
