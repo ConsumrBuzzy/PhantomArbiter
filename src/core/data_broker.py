@@ -45,8 +45,8 @@ from src.core.background_worker_manager import BackgroundWorkerManager
 from src.core.engine_manager import EngineManager
 from src.core.websocket_listener import create_websocket_listener
 from src.core.shared_cache import SharedPriceCache
-from src.scraper.scout.manager import ScoutManager
-from src.scraper.scout.auditor import ActiveCoinAuditor
+from src.core.scout.manager import ScoutManager
+from src.core.scout.auditor import ActiveCoinAuditor
 
 
 class DataBroker:
