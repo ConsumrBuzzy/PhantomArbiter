@@ -24,6 +24,8 @@ class MarketData:
     txns_buys_24h: int  # Buy transactions in 24h
     txns_sells_24h: int  # Sell transactions in 24h
     pair_address: str  # DEX pool address
+    base_mint: str # Base token mint
+    quote_mint: str # Quote token mint
     pair_created_at: Optional[int]  # Pool creation timestamp (ms)
     fdv: float  # Fully diluted valuation
     market_cap: float  # Market cap (if available)
@@ -282,6 +284,8 @@ class DexScreenerProvider(PriceProvider):
                 txns_buys_24h=int(txns.get("buys", 0) or 0),
                 txns_sells_24h=int(txns.get("sells", 0) or 0),
                 pair_address=pair.get("pairAddress", ""),
+                base_mint=pair.get("baseToken", {}).get("address", ""),
+                quote_mint=pair.get("quoteToken", {}).get("address", ""),
                 pair_created_at=pair.get("pairCreatedAt"),
                 fdv=float(pair.get("fdv", 0) or 0),
                 market_cap=float(pair.get("marketCap", 0) or 0),
