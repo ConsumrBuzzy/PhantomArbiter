@@ -26,7 +26,11 @@ class HttpServerWrapper:
     def _run_server(self):
         """Internal server loop."""
         # Change directory to serve files correctly
-        os.chdir(os.path.abspath(os.path.join(os.getcwd(), ".")))
+        try:
+            os.chdir(os.path.abspath(self.directory))
+        except FileNotFoundError:
+            Logger.error(f"   ❌ Frontend directory '{self.directory}' not found!")
+            return
         
         # Custom handler to map / to dashboard.html if needed, or just serve dir
         Handler = http.server.SimpleHTTPRequestHandler
