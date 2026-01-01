@@ -406,7 +406,11 @@ class ProviderPool:
             for ep in remaining:
                 if len(result) >= max_count:
                     break
-                result.append(ep.wss_url)
+                if ep.wss_url:  # Filter empty strings
+                    result.append(ep.wss_url)
+            
+            # Final filter to ensure no empty strings crept in from pass 1
+            result = [url for url in result if url]
 
             return result
 
