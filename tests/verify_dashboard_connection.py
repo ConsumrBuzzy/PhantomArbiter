@@ -66,4 +66,4 @@ if __name__ == "__main__":
     # Manual run if executed directly
     loop = asyncio.new_event_loop()
     loop.run_until_complete(test_dashboard_connection())
-    print("✅ Verification Passed")
+    print("[OK] Verification Passed")
