@@ -119,6 +119,22 @@ class SignalScoutService:
         self._whiff_callbacks: List[Callable[[Whiff], None]] = []
         
         self._running = False
+        
+        # =====================================================================
+        # RUST ACCELERATION (Phase 11)
+        # =====================================================================
+        self._rust_buffer = None
+        self._rust_available = False
+        try:
+            from phantom_core import WhiffBuffer, parse_whiff_log
+            self._rust_buffer = WhiffBuffer(1000)  # 1000 event capacity
+            self._rust_parse_whiff = parse_whiff_log
+            self._rust_available = True
+            Logger.info("🦀 SignalScoutService: Rust acceleration ENABLED")
+        except ImportError:
+            Logger.warning("⚠️ SignalScoutService: Rust not available, using Python fallback")
+            self._rust_parse_whiff = None
+        
         Logger.info("🔍 SignalScoutService initialized (Asymmetric Intel)")
     
     # =========================================================================
@@ -434,6 +450,27 @@ class SignalScoutService:
         
         return pressure
     
+    def get_rust_pressure(self, mint: str) -> Dict[str, float]:
+        """
+        Get pressure from Rust buffer (faster, aggregated).
+        
+        Falls back to Python pressure if Rust not available.
+        """
+        if self._rust_available and self._rust_buffer:
+            bullish, bearish, volatile = self._rust_buffer.get_pressure(mint)
+            return {
+                "bullish": bullish,
+                "bearish": bearish,
+                "volatile": volatile,
+            }
+        return self.get_pressure(mint)
+    
+    def get_rust_heat(self, mint: str) -> float:
+        """Get market heat from Rust buffer."""
+        if self._rust_available and self._rust_buffer:
+            return self._rust_buffer.get_market_heat(mint)
+        return self.get_market_heat(mint)
+    
     # =========================================================================
     # CALLBACKS
     # =========================================================================
@@ -479,9 +516,41 @@ class SignalScoutService:
     # =========================================================================
     
     def _on_log_update(self, signal: Signal) -> None:
-        """Handle LOG_UPDATE from SignalBus."""
+        """
+        Handle LOG_UPDATE from SignalBus.
+        
+        Uses Rust acceleration when available for ~50x speedup.
+        """
         log_data = signal.data
+        program_id = log_data.get("program_id", "")
+        logs = log_data.get("logs", [])
+        
+        # Rust acceleration path
+        if self._rust_available and self._rust_parse_whiff:
+            timestamp_ms = int(time.time() * 1000)
+            for log_str in logs:
+                try:
+                    rust_whiff = self._rust_parse_whiff(log_str, program_id)
+                    if rust_whiff:
+                        # Convert Rust WhiffEvent to Python Whiff
+                        whiff = Whiff(
+                            type=WhiffType[rust_whiff.whiff_type.replace("WHALE_", "WHALE_INTENT").replace("FAILED_SWAP", "FAILED_CLUSTER")] if hasattr(WhiffType, rust_whiff.whiff_type) else WhiffType.FAILED_CLUSTER,
+                            mint=rust_whiff.mint,
+                            source=rust_whiff.source,
+                            confidence=rust_whiff.confidence,
+                            direction=rust_whiff.direction,
+                            magnitude=0.5,  # Default magnitude
+                        )
+                        self._emit_whiff(whiff)
+                        
+                        # Also feed to Rust buffer for pressure tracking
+                        self._rust_buffer.push(rust_whiff, timestamp_ms)
+                except Exception as e:
+                    Logger.debug(f"Rust whiff parse error: {e}")
+        
+        # Fallback: Python detection
         self.detect_liquidation(log_data)
+        self.detect_whale_inflow(log_data)
     
     def _on_tx_failed(self, signal: Signal) -> None:
         """Handle TX_FAILED from SignalBus."""
@@ -494,6 +563,12 @@ class SignalScoutService:
         """Background task to poll priority fees."""
         while self._running:
             await self.detect_priority_fee_spike()
+            
+            # Periodically prune Rust buffer
+            if self._rust_available and self._rust_buffer:
+                current_ms = int(time.time() * 1000)
+                self._rust_buffer.prune(60_000, current_ms)  # 60 sec max age
+            
             await asyncio.sleep(10.0)  # Every 10 seconds
     
     # =========================================================================
