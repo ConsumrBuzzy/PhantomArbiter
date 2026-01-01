@@ -88,10 +88,21 @@ class VisualTransformer:
             color = "#9945ff"
             
             # V2 Physics: Velocity based on volume/liquidity
-            # Default to 0.5 if no data
-            volume = float(data.get("volume_24h", 0))
-            liquidity = float(data.get("liquidity", 1000))
+            try:
+                volume = float(data.get("volume_24h", 0))
+            except (ValueError, TypeError):
+                volume = 0.0
             
+            try:
+                liquidity = float(data.get("liquidity", 1000))
+            except (ValueError, TypeError):
+                liquidity = 1000.0
+            
+            # Sanitization (Prevent NaN/Inf which breaks JSON)
+            import math
+            if math.isnan(volume) or math.isinf(volume): volume = 0.0
+            if math.isnan(liquidity) or math.isinf(liquidity): liquidity = 1000.0
+
             # Normalized velocity factor (0.1 to 5.0)
             velocity_factor = min(max(volume / (liquidity + 1) * 0.1, 0.1), 5.0)
             
