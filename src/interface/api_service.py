@@ -68,9 +68,18 @@ class ConnectionManager:
     async def broadcast(self, message: Dict):
         for connection in self.active_connections:
             try:
+                # Debug: Check for NaN
+                # import json
+                # try:
+                #    json.dumps(message, allow_nan=False)
+                # except ValueError:
+                #    Logger.error(f"❌ [API] JSON NaN detected in payload: {message}")
+                #    continue
+
                 await connection.send_json(message)
-            except Exception:
+            except Exception as e:
                 # Dead connection, ignore (will be removed on disconnect)
+                # Logger.warning(f"[API] Broadcast failed: {e}")
                 pass
 
 manager = ConnectionManager()
