@@ -1,0 +1,28 @@
+# Tactical Scalper Configuration
+tactical:
+  defaults:
+    budget: 100.0
+    max_position_size: 50.0  # Max USD per trade
+    max_concurrent_positions: 3
+    scan_interval: 2.0  # Seconds
+  
+  risk:
+    stop_loss_pct: 5.0
+    take_profit_pct: 10.0
+    
+  strategies:
+    - name: longtail
+      enabled: true
+      description: "MACD crossover trend following"
+    - name: vwap
+      enabled: false
+      description: "VWAP reversion"
+    - name: keltner
+      enabled: false
+      description: "Keltner channel breakouts"
+    - name: ensemble
+      enabled: false
+      description: "Combined logic"
+
+  # Legacy Watchlist (Deprecated - use Registry)
+  watchlist: []
