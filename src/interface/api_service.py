@@ -153,11 +153,24 @@ async def get_initial_galaxy():
     # V38: Add all tokens from TokenRegistry as planets
     try:
         from src.shared.infrastructure.token_registry import TokenRegistry
+        from src.core.shared_cache import SharedPriceCache
+        
         registry = TokenRegistry()
+        
+        # Get cached prices for all tokens
+        cached_prices = SharedPriceCache.get_all_prices(max_age=300)  # 5 min cache
+        
         if registry._initialized:
             # Combine static and dynamic registries
             all_tokens = {**registry._static, **registry._dynamic}
             for mint, symbol in all_tokens.items():
+                # Get price from cache (keyed by symbol)
+                price = 0
+                rsi = 50
+                if symbol in cached_prices:
+                    price = cached_prices[symbol].get("price", 0)
+                    rsi = cached_prices[symbol].get("rsi", 50)
+                
                 sig = Signal(
                     type=SignalType.MARKET_UPDATE,
                     source="PYTH",  # PLANET archetype
@@ -165,7 +178,8 @@ async def get_initial_galaxy():
                         "mint": mint,
                         "symbol": symbol,
                         "label": symbol,
-                        "price": 0,  # Price will update via signals
+                        "price": price,
+                        "rsi": rsi,
                         "liquidity": 1000,
                         "volume_24h": 0
                     }
@@ -173,7 +187,7 @@ async def get_initial_galaxy():
                 payload = VisualTransformer.transform(sig)
                 if payload:
                     objects.append(payload)
-            print(f"[API] Loaded {len(all_tokens)} tokens from Registry")
+            print(f"[API] Loaded {len(all_tokens)} tokens from Registry (with {len(cached_prices)} cached prices)")
     except Exception as e:
         print(f"[API] TokenRegistry init warning: {e}")
             

@@ -269,22 +269,12 @@ class WebSocketListener:
                         else:
                             continue  # Skip dust transactions
                         
-                        # Emit as DEX activity event (not a token)
-                        # These will appear as transient PULSAR nodes
-                        signal_bus.emit(Signal(
-                            type=SignalType.MARKET_UPDATE,
-                            source="DEX",  # Maps to PULSAR (Green) - transient events
-                            data={
-                                "mint": f"SWAP_{signature[-8:]}",  # Unique event ID
-                                "symbol": f"⚡ {dex}",  # e.g. "⚡ RAYDIUM"
-                                "label": label_str,  # "$1.5k"
-                                "volume_24h": amount_usd,
-                                "liquidity": 1000, 
-                                "price": amount_usd,
-                                "is_event": True,  # Mark as transient
-                                "timestamp": time.time()
-                            }
-                        ))
+                        # V41: Async token resolution - fetch actual token from transaction
+                        # Queue for background parsing
+                        asyncio.get_event_loop().call_soon_threadsafe(
+                            self._resolve_token_async,
+                            signature, dex, amount_usd, label_str
+                        )
 
             except ImportError:
                 pass
