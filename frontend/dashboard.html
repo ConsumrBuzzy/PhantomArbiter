@@ -343,11 +343,11 @@
                 // Show event label prominently (e.g., "$1.5k")
                 details = eventLabel;
             } else {
-                // Token details
+                // Token details with RSI
                 const priceStr = params.price ? `$${params.price.toFixed(6)}` : '';
-                const volStr = params.volume > 1000 ? `Vol: $${(params.volume / 1000).toFixed(1)}k` : '';
+                const rsiStr = params.rsi ? `RSI:${params.rsi.toFixed(0)}` : '';
                 const whaleEmoji = params.is_whale ? ' 🐋' : '';
-                details = `${priceStr}${whaleEmoji} ${volStr}`;
+                details = `${priceStr}${whaleEmoji} ${rsiStr}`;
             }
             const labelEl = createLabel(id, label, details);
             mesh.userData.labelEl = labelEl;
