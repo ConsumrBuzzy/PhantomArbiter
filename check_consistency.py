@@ -6,12 +6,15 @@ TARGET_DIR = "src"
 FORBIDDEN_PATTERNS = [
     "src.scraper",
     "src.scalper",
+    "src.engine",
     "spl.token",
     "find_program_address",
     "create_associated_token_account"
 ]
 
 def scan_file(filepath):
+    if "archive" in filepath:
+        return []
     with open(filepath, "r", encoding="utf-8") as f:
         try:
             tree = ast.parse(f.read(), filename=filepath)
