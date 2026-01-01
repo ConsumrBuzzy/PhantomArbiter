@@ -1,4 +1,4 @@
-from src.engine.decision_engine import DecisionEngine
+from src.strategies.components.decision_engine import DecisionEngine
 from src.strategy.keltner_logic import KeltnerLogic
 from src.strategy.vwap_logic import VwapLogic
 from src.strategy.base_strategy import BaseStrategy

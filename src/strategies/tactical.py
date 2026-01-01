@@ -13,8 +13,8 @@ from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 
 
 # V10.2 Delegates
-from src.engine.data_feed_manager import DataFeedManager
-from src.engine.decision_engine import DecisionEngine
+from src.strategies.components.data_feed_manager import DataFeedManager
+from src.strategies.components.decision_engine import DecisionEngine
 
 # V14.0: Remote Control
 import queue
@@ -24,10 +24,10 @@ from src.shared.execution.paper_wallet import PaperWallet
 from src.shared.system.capital_manager import get_capital_manager
 
 # V48.0: Extracted Trade Executor
-from src.engine.trade_executor import TradeExecutor
+from src.strategies.components.trade_executor import TradeExecutor
 
 # V48.0: Extracted Heartbeat Reporter
-from src.engine.heartbeat_reporter import HeartbeatReporter
+from src.strategies.components.heartbeat_reporter import HeartbeatReporter
 
 # V48.0: Pyth Network Low-Latency Oracle
 from src.core.prices.pyth_adapter import PythAdapter
@@ -41,24 +41,24 @@ from src.shared.infrastructure.jito_adapter import JitoAdapter
 from src.shared.notification.notifications import get_notifier
 
 # V133: WatcherManager (SRP Refactor)
-from src.engine.watcher_manager import WatcherManager
+from src.strategies.components.watcher_manager import WatcherManager
 
 # V133: SignalScanner (SRP Refactor)
-from src.engine.signal_scanner import SignalScanner
+from src.strategies.components.signal_scanner import SignalScanner
 
 # V67.0: Phase 5 - Institutional Realism
-from src.engine.shadow_manager import ShadowManager
-from src.engine.slippage_calibrator import SlippageCalibrator
-from src.engine.congestion_monitor import CongestionMonitor
+from src.strategies.components.shadow_manager import ShadowManager
+from src.strategies.components.slippage_calibrator import SlippageCalibrator
+from src.strategies.components.congestion_monitor import CongestionMonitor
 
 # V133: MaintenanceService (SRP Refactor)
-from src.engine.maintenance_service import MaintenanceService
+from src.strategies.components.maintenance_service import MaintenanceService
 
 # V133: ConfigSyncService (SRP Refactor)
-from src.engine.config_sync_service import ConfigSyncService
+from src.strategies.components.config_sync_service import ConfigSyncService
 
 # V133: PositionSizer (SRP Refactor)
-from src.engine.position_sizer import PositionSizer
+from src.strategies.components.position_sizer import PositionSizer
 
 
 class TacticalStrategy:

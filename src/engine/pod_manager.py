@@ -483,7 +483,7 @@ class CyclePod(BasePod):
     async def _update_jito_metrics(self) -> None:
         """Update Jito tip tracking from congestion monitor."""
         try:
-            from src.engine.congestion_monitor import get_congestion_monitor
+            from src.strategies.components.congestion_monitor import get_congestion_monitor
 
             monitor = get_congestion_monitor()
 

@@ -28,9 +28,9 @@ if TYPE_CHECKING:
     from src.core.prices.pyth_adapter import PythAdapter
     from src.shared.infrastructure.jito_adapter import JitoAdapter
     from src.shared.execution.execution_backend import ExecutionBackend
-    from src.engine.slippage_calibrator import SlippageCalibrator
-    from src.engine.congestion_monitor import CongestionMonitor
-    from src.engine.shadow_manager import ShadowManager
+    from src.strategies.components.slippage_calibrator import SlippageCalibrator
+    from src.strategies.components.congestion_monitor import CongestionMonitor
+    from src.strategies.components.shadow_manager import ShadowManager
 
 
 from src.shared.models.trade_result import TradeResult

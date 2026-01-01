@@ -17,7 +17,7 @@ Auto-Abort:
 from typing import Optional
 from src.shared.system.logging import Logger
 from src.shared.infrastructure.jito_adapter import JitoAdapter
-from src.engine.shadow_manager import ShadowManager
+from src.strategies.components.shadow_manager import ShadowManager
 
 # Constants
 LAMPORTS_PER_SOL = 1_000_000_000
