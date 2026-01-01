@@ -206,7 +206,12 @@ class ArbiterEngine:
                     ]
 
                 except Exception as e:
-                    Logger.error(f"Scan error: {e}")
+                    priority_queue.add(
+                        priority_queue.PRIORITY_CRITICAL,
+                        "LOG",
+                        {"level": "ERROR", "message": f"[ARBITER] Scan error: {e}"}
+                    )
+                    # Logger.error(f"Scan error: {e}")
                     opportunities, all_spreads = [], []
 
                 # 4. VERIFICATION
