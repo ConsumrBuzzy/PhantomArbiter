@@ -38,12 +38,15 @@ class VisualTransformer:
         # Better to pass it or use a global instance pattern.
         # For now, let's try to infer or fallback gracefully.
         if not label or label == "???":
-            from src.engine.machinery.token_registry import TokenRegistry
-            registry = TokenRegistry() # Singleton should hold state
-            if registry.is_initialized:
-                 token_data = registry.get_token(mint)
-                 if token_data:
-                     label = token_data.symbol
+            try:
+                from src.shared.infrastructure.token_registry import TokenRegistry
+                registry = TokenRegistry() # Singleton should hold state
+                if registry.is_initialized:
+                     token_data = registry.get_token(mint)
+                     if token_data:
+                         label = token_data.symbol
+            except ImportError:
+                 pass
         
         if not label:
             label = f"{mint[:4]}..{mint[-4:]}"
