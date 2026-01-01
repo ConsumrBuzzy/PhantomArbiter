@@ -71,6 +71,7 @@ __all__ = [
     "get_market_data",
     "get_wallet_sync",
     "get_market_bridge",
+    "get_signal_scout",
 ]
 
 
@@ -78,3 +79,9 @@ def get_market_bridge(use_new_services: bool = None) -> "MarketBridge":
     """Get the MarketBridge singleton (Strangler Fig)."""
     from src.market.bridge import get_market_bridge as _get_bridge
     return _get_bridge(use_new_services)
+
+
+def get_signal_scout() -> "SignalScoutService":
+    """Get the SignalScoutService singleton (Asymmetric Intel)."""
+    from src.market.signal_scout_service import get_signal_scout as _get_scout
+    return _get_scout()

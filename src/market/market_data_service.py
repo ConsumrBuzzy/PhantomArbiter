@@ -169,3 +169,37 @@ class MarketDataService:
         """Calculate market volatility index."""
         # TODO: implement volatility calculation
         return 0.5
+    
+    # =========================================================================
+    # PRESSURE METRICS (Integration with SignalScoutService)
+    # =========================================================================
+    
+    def get_pressure(self, mint: str) -> dict:
+        """
+        Get directional pressure from asymmetric intelligence.
+        
+        Integrates with SignalScoutService for "whiff" based pressure.
+        
+        Returns:
+            {"bullish": 0.0-1.0, "bearish": 0.0-1.0, "volatile": 0.0-1.0}
+        """
+        try:
+            from src.market import get_signal_scout
+            scout = get_signal_scout()
+            return scout.get_pressure(mint)
+        except Exception as e:
+            Logger.debug(f"Pressure fetch failed: {e}")
+            return {"bullish": 0.0, "bearish": 0.0, "volatile": 0.0}
+    
+    def get_market_heat(self, mint: str) -> float:
+        """
+        Get aggregated "market heat" from whiff signals.
+        
+        Returns 0.0 (cold) to 1.0 (on fire).
+        """
+        try:
+            from src.market import get_signal_scout
+            scout = get_signal_scout()
+            return scout.get_market_heat(mint)
+        except Exception:
+            return 0.0
