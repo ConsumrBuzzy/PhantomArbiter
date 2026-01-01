@@ -36,6 +36,12 @@ class DashboardServer:
                 await asyncio.Future()  # Run forever
         except asyncio.CancelledError:
             Logger.info("   🎙️  Voice fading out...")
+            # Explicitly close all clients to prevent 'transfer_data_task' error in legacy websockets
+            if self.clients:
+                await asyncio.gather(
+                    *[client.close() for client in self.clients],
+                    return_exceptions=True
+                )
         except Exception as e:
             Logger.error(f"   ❌ Voice error: {e}")
 
