@@ -140,7 +140,7 @@ async def get_initial_galaxy():
             type=SignalType.METADATA, 
             source="INVENTORY",
             data={
-                "mint": item.symbol, # inventory uses symbol as key usually
+                "mint": item.symbol,
                 "symbol": item.symbol,
                 "label": item.symbol,
                 "token": item.symbol 
@@ -149,15 +149,39 @@ async def get_initial_galaxy():
         payload = VisualTransformer.transform(sig)
         if payload:
             objects.append(payload)
+    
+    # V38: Add all tokens from TokenRegistry as planets
+    try:
+        from src.shared.infrastructure.token_registry import TokenRegistry
+        registry = TokenRegistry()
+        if registry._initialized:
+            for mint, token_data in registry._tokens.items():
+                symbol = token_data.get("symbol", mint[:8])
+                sig = Signal(
+                    type=SignalType.MARKET_UPDATE,
+                    source="PYTH",  # PLANET archetype
+                    data={
+                        "mint": mint,
+                        "symbol": symbol,
+                        "label": symbol,
+                        "price": token_data.get("price", 0),
+                        "liquidity": token_data.get("liquidity", 1000),
+                        "volume_24h": token_data.get("volume", 0)
+                    }
+                )
+                payload = VisualTransformer.transform(sig)
+                if payload:
+                    objects.append(payload)
+    except Exception as e:
+        print(f"[API] TokenRegistry init warning: {e}")
             
-    # We could also fetch from TokenRegistry if available
-    # For now, let's return what we have in state + maybe top cached pulses?
+    # Add market pulse data
     for symbol, pulse in state.market_pulse.items():
          sig = Signal(
             type=SignalType.MARKET_UPDATE,
             source="PULSE_INIT",
             data={
-                "mint": symbol, # fallback
+                "mint": symbol,
                 "symbol": symbol,
                 "token": symbol,
                 "price": pulse.get("price", 0)
