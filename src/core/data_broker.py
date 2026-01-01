@@ -44,6 +44,7 @@ from src.core.background_worker_manager import BackgroundWorkerManager
 # V133: EngineManager (SRP Refactor)
 from src.core.engine_manager import EngineManager
 from src.core.websocket_listener import create_websocket_listener
+from src.core.shared_cache import SharedPriceCache
 
 
 class DataBroker:
