@@ -70,4 +70,11 @@ __all__ = [
     "get_token_discovery", 
     "get_market_data",
     "get_wallet_sync",
+    "get_market_bridge",
 ]
+
+
+def get_market_bridge(use_new_services: bool = None) -> "MarketBridge":
+    """Get the MarketBridge singleton (Strangler Fig)."""
+    from src.market.bridge import get_market_bridge as _get_bridge
+    return _get_bridge(use_new_services)
