@@ -179,7 +179,7 @@ class DataBroker:
         self._init_market_aggregator()
 
         # V45.0: Unified Merchant Logic
-        self._init_merchant_engines()
+        # self._init_merchant_engines()
 
         # V133: SignalResolver (SRP Refactor)
         self.signal_resolver = SignalResolver()
