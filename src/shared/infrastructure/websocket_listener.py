@@ -284,6 +284,115 @@ class WebSocketListener:
         except:
             pass
 
+    def _resolve_token_async(self, signature: str, dex: str, amount_usd: float, label_str: str):
+        """
+        V41: Async token resolution using Helius enhanced transaction API.
+        Fetches transaction details and extracts the actual token mint.
+        """
+        import requests
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
+        try:
+            # Try Helius enhanced transaction API first
+            helius_api_key = os.getenv("HELIUS_API_KEY", "")
+            if not helius_api_key:
+                # Fallback: emit with DEX label only
+                self._emit_swap_signal(signature, dex, None, None, amount_usd, label_str)
+                return
+            
+            url = f"https://api.helius.xyz/v0/transactions/?api-key={helius_api_key}"
+            payload = {"transactions": [signature]}
+            
+            response = requests.post(url, json=payload, timeout=5)
+            
+            if response.status_code != 200:
+                self._emit_swap_signal(signature, dex, None, None, amount_usd, label_str)
+                return
+            
+            data = response.json()
+            if not data or len(data) == 0:
+                self._emit_swap_signal(signature, dex, None, None, amount_usd, label_str)
+                return
+            
+            tx = data[0]
+            
+            # Extract token from tokenTransfers (Helius enhanced format)
+            token_mint = None
+            token_symbol = None
+            
+            token_transfers = tx.get("tokenTransfers", [])
+            for transfer in token_transfers:
+                mint = transfer.get("mint", "")
+                # Skip USDC, we want the OTHER token in the swap
+                if mint and mint != USDC_MINT:
+                    token_mint = mint
+                    # Try to get symbol from Helius metadata
+                    token_symbol = transfer.get("tokenStandard", "")
+                    break
+            
+            # Fallback: check native transfers for SOL swaps
+            if not token_mint:
+                native_transfers = tx.get("nativeTransfers", [])
+                if native_transfers:
+                    token_mint = "So11111111111111111111111111111111111111112"
+                    token_symbol = "SOL"
+            
+            # Resolve symbol from registry if we have mint
+            if token_mint and not token_symbol:
+                try:
+                    from src.shared.infrastructure.token_registry import TokenRegistry
+                    registry = TokenRegistry()
+                    token_symbol = registry.get_symbol(token_mint)
+                except:
+                    token_symbol = token_mint[:8]
+            
+            self._emit_swap_signal(signature, dex, token_mint, token_symbol, amount_usd, label_str)
+            
+        except Exception as e:
+            # Fallback on any error
+            self._emit_swap_signal(signature, dex, None, None, amount_usd, label_str)
+    
+    def _emit_swap_signal(self, signature: str, dex: str, token_mint: str, token_symbol: str, amount_usd: float, label_str: str):
+        """Emit swap signal with resolved token info."""
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
+        # If we have a token, emit as MOON orbiting the token
+        if token_mint and token_symbol:
+            source = f"{dex}_POOL"
+            signal_bus.emit(Signal(
+                type=SignalType.MARKET_UPDATE,
+                source=source,  # Maps to MOON archetype
+                data={
+                    "mint": f"SWAP_{signature[-8:]}",
+                    "symbol": f"⚡ {dex}",
+                    "label": label_str,
+                    "parent_mint": token_mint,  # Links to parent token
+                    "parent_symbol": token_symbol,
+                    "pool_address": signature,
+                    "volume_24h": amount_usd,
+                    "liquidity": amount_usd,
+                    "price": amount_usd,
+                    "is_event": True,
+                    "timestamp": time.time()
+                }
+            ))
+        else:
+            # Fallback: emit as standalone DEX event
+            signal_bus.emit(Signal(
+                type=SignalType.MARKET_UPDATE,
+                source="DEX",
+                data={
+                    "mint": f"SWAP_{signature[-8:]}",
+                    "symbol": f"⚡ {dex}",
+                    "label": label_str,
+                    "volume_24h": amount_usd,
+                    "liquidity": 1000,
+                    "price": amount_usd,
+                    "is_event": True,
+                    "timestamp": time.time()
+                }
+            ))
+
     def _fetch_tx(self, signature: str):
         """
         V6.2.2: Maximized Polling Window.
