@@ -51,7 +51,8 @@
 | **Phase 7** | **PnL Audit & Risk Hardening** | ✅ Complete | `PHASE_7_AUDIT.md` |
 | **Phase 8-15** | **Narrow Path** (Multi-Hop Token Hopping) | ✅ Complete | [PHASE_NARROW_PATH.md](./PHASE_NARROW_PATH.md) |
 | **Phase 16** | **Scavenger Intelligence** (FailureTracker, BridgePod) | ✅ Complete | `PHASE_16_SCAVENGER.md` |
-| **Phase 17** | **🆕 Battle Test** (Ghost Execution, Soak Testing) | 🟡 Active | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **Phase 17** | **Battle Test** (Ghost Execution, Soak Testing) | 🟡 Active | [PHASE_17_BATTLE_TEST.md](./PHASE_17_BATTLE_TEST.md) |
+| **Phase 18** | **🆕 Rust Acceleration** (TA Engine, PDA Cache, Fees) | 📋 Plan | [PHASE_RUST_ACCELERATION.md](./PHASE_RUST_ACCELERATION.md) |
 | **Phase 20** | **Nomad Persistence** (Auto-Hydration) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
 | **Phase 21** | **Privacy Shield** (Ephemeral Wallets) | ✅ Complete | [PHASE_20_21_NOMAD_PRIVACY.md](./PHASE_20_21_NOMAD_PRIVACY.md) |
 | **Phase 22** | **Token Memory** (Metadata Persistence) | ✅ Complete | [PHASE_22_23_PERSISTENCE.md](./PHASE_22_23_PERSISTENCE.md) |
