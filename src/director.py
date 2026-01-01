@@ -168,22 +168,20 @@ class UnifiedDirector:
         
         try:
             while self.is_running:
-                # Footer: Logs
-                last_log = state.logs[-1] if state.logs else "Initializing..."
-                layout["footer"].update(Panel(f"[dim]{last_log}[/dim]", title="Last Log"))
-
-                await asyncio.sleep(0.5)
-                
-                # Check task health
+                # V89.5: Clean Keep-Alive (No TUI/Panels)
+                # Check task health occasionally
                 for name, task in self.tasks.items():
                     if task.done():
                         exc = task.exception()
                         if exc:
                             Logger.error(f"[Brain] Task '{name}' FAILED: {exc}")
-                            # Respawn logic could go here
-                            self.is_running = False # Panic for now
-                        else:
-                             pass
+                
+                await asyncio.sleep(1.0)
+                
+        except asyncio.CancelledError:
+            Logger.info("[DIRECTOR] Monitor loop cancelled")
+        except Exception as e:
+            Logger.error(f"[DIRECTOR] Monitor loop error: {e}")
 
     async def stop(self):
         """Shutdown."""
