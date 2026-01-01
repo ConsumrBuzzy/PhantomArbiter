@@ -749,14 +749,25 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     # We run Uvicorn in the existing loop to share memory (SignalBus)
     Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
     
-    # Configure Uvicorn
-    # Port 8000 covers both REST API and WebSocket stream
-    config = uvicorn.Config(app=fast_app, host="0.0.0.0", port=8000, log_level="warning")
-    server = uvicorn.Server(config)
+    import threading
 
-    # Launch Uvicorn in a background Task (it's awaitable)
-    # Note: server.serve() is a coroutine that runs the server loop
-    api_task = asyncio.create_task(server.serve())
+    # Configure Uvicorn (Threaded Mode)
+    # Port 8000 covers both REST API and WebSocket stream
+    def run_api():
+        try:
+             # uvicorn.run maps closely to uvicorn.Server(Config(...)).run() which blocks the thread
+             uvicorn.run(fast_app, host="0.0.0.0", port=8000, log_level="info")
+        except Exception as e:
+             Logger.error(f"❌ API Server Crash: {e}")
+
+    # Launch Uvicorn in a daemon thread so it dies when main process dies
+    api_thread = threading.Thread(target=run_api, daemon=True)
+    api_thread.start()
+    
+    # Wait a moment for it to bind
+    await asyncio.sleep(1.0)
+    
+    Logger.info("   🚀 Void API Online: http://localhost:8000/dashboard.html")
     
     Logger.info("   🚀 Void API Online: http://localhost:8000/dashboard.html")
     Logger.info("   🎙️  Signal Stream: ws://localhost:8000/ws/v1/stream")
@@ -784,13 +795,9 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
         await orchestrator.keep_alive()
     finally:
         # 6. Cleanup
-        api_task.cancel()
-        try:
-           await api_task
-        except asyncio.CancelledError:
-           pass
-        server.should_exit = True # Signal Uvicorn to stop
-        # bridge_task and engine_task were removed in previous cleanup
+        # api_thread is daemon, will die with process.
+        # server.should_exit cannot be called easily here unless we keep ref, 
+        # but daemon thread + orchestrator shutdown is sufficient.
         await orchestrator.shutdown()
 
 
