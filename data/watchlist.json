@@ -57,11 +57,13 @@
         },
         "JTO": {
             "mint": "jtojtomePA8beP8AuQc6ePF5pHpEhoI6J6x12M1DsDS",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
             "description": "Jito - Governance",
             "coingecko_id": "jito-governance-token",
-            "promoted_at": 1765986574.1708865
+            "promoted_at": 1765986574.1708865,
+            "demoted_at": 1767303023.0164106,
+            "demoted_reason": "Low Win Rate"
         },
         "PYTH": {
             "mint": "HZ1JovNiVvGrGNiiYv3XW5KKge5WBTGv2z91dKvYd71",
@@ -464,11 +466,13 @@
         },
         "DUPE": {
             "mint": "fRfKGCriduzDwSudCwpL7ySCEiboNuryhZDVJtr1a1C",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1766061237.6312575,
-            "promoted_at": 1766070895.7313588
+            "promoted_at": 1766070895.7313588,
+            "demoted_at": 1767303023.017458,
+            "demoted_reason": "Low Win Rate"
         },
         "PUMPCADE": {
             "mint": "Eg2ymQ2aQqjMcibnmTt8erC6Tvk9PVpJZCxvVPJz2agu",
@@ -537,9 +541,11 @@
         },
         "IO": {
             "mint": "BZLbGTNCSFfoth2GYDtwr7e4imWzpR5jqcUuGEwr646K",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
-            "description": "io.net - GPU compute, verified mint"
+            "description": "io.net - GPU compute, verified mint",
+            "demoted_at": 1767303023.0184577,
+            "demoted_reason": "Low Win Rate"
         },
         "GRASS": {
             "mint": "Grass7B4RdKfBCjTKgSqnXkqjwiGvQyFbuSCUJr3XXjs",
