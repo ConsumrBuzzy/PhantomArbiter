@@ -641,7 +641,12 @@ class TradeExecutor:
 
         # V49.0: Unified Backend Execution (Delegated)
         execution_result = self.execution_backend.execute_buy(
-            watcher=watcher, amount_usd=size_usd, reason=reason, price=price
+            token=watcher.symbol,
+            mint=watcher.mint,
+            size_usd=size_usd,
+            signal_price=price,
+            liquidity_usd=watcher.get_liquidity() if hasattr(watcher, "get_liquidity") else 0.0,
+            reason=reason,
         )
 
         # Unpack result
