@@ -97,9 +97,173 @@
         let eventCount = 0;
 
         // --- SCENE SETUP ---
-        // ... (Skipped existing scene setup, assuming it remains unchanged above this block)
+        const scene = new THREE.Scene();
+        // Fog for depth
+        scene.fog = new THREE.FogExp2(0x000000, 0.001);
 
-        // ... (Skipped createNode/updateScene Logic, assuming unchanged)
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        camera.position.set(0, 400, 800);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 2, 2000);
+        scene.add(pointLight);
+
+        // --- POST PROCESSING (BLOOM) ---
+        const renderScene = new RenderPass(scene, camera);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0;
+        bloomPass.strength = 1.2; // Neon glow
+        bloomPass.radius = 0.5;
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
+
+        // --- TRAIL RENDERER ---
+        class TrailRenderer {
+            constructor(scene, color, maxPoints = 30) {
+                this.scene = scene;
+                this.maxPoints = maxPoints;
+                this.points = [];
+                this.geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(maxPoints * 3);
+                this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+                this.material = new THREE.LineBasicMaterial({
+                    color: new THREE.Color(color),
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                this.line = new THREE.Line(this.geometry, this.material);
+                scene.add(this.line);
+            }
+
+            update(position) {
+                this.points.push(position.clone());
+                if (this.points.length > this.maxPoints) this.points.shift();
+
+                const positions = this.line.geometry.attributes.position.array;
+                for (let i = 0; i < this.points.length; i++) {
+                    positions[i * 3] = this.points[i].x;
+                    positions[i * 3 + 1] = this.points[i].y;
+                    positions[i * 3 + 2] = this.points[i].z;
+                }
+                this.line.geometry.attributes.position.needsUpdate = true;
+                this.line.geometry.setDrawRange(0, this.points.length);
+            }
+
+            dispose() {
+                this.scene.remove(this.line);
+                this.geometry.dispose();
+                this.material.dispose();
+            }
+        }
+
+        // --- NODE LOGIC ---
+        function createNode(id, label, archetype, params) {
+            if (nodes.has(id)) {
+                // Update logic could go here
+                return nodes.get(id);
+            }
+
+            // Geometry based on archetype
+            let geometry;
+            switch (archetype) {
+                case 'GLOBE': geometry = new THREE.SphereGeometry(params.radius || 2, 16, 16); break;
+                case 'PLANET': geometry = new THREE.SphereGeometry(params.radius || 3, 32, 32); break;
+                case 'SUPERNOVA': geometry = new THREE.IcosahedronGeometry(params.radius || 5, 1); break;
+                case 'PULSAR': geometry = new THREE.OctahedronGeometry(params.radius || 2, 0); break;
+                default: geometry = new THREE.TetrahedronGeometry(params.radius || 1, 0);
+            }
+
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(params.hex_color || '#ffffff'),
+                emissive: new THREE.Color(params.hex_color || '#000000'),
+                emissiveIntensity: params.emissive_intensity || 0.5,
+                roughness: params.roughness !== undefined ? params.roughness : 0.5,
+                metalness: params.metalness !== undefined ? params.metalness : 0.8,
+                wireframe: params.roughness < 0.2 // Wireframe for techy nodes
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+
+            // Random Position in Sphere
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            const r = Math.pow(Math.random(), 0.3) * GALAXY_RADIUS; // Cluster near center-ish
+
+            mesh.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+
+            // Velocity
+            const vel = new THREE.Vector3().randomDirection().multiplyScalar((params.velocity_factor || 0.1) * 0.5);
+            mesh.userData = { id, label, velocity: vel, type: archetype };
+
+            // Trails for moving objects
+            if (params.velocity_factor > 0.5) {
+                mesh.userData.trail = new TrailRenderer(scene, params.hex_color, 20);
+            }
+
+            scene.add(mesh);
+            nodes.set(id, mesh);
+            return mesh;
+        }
+
+        function triggerArchetypeUpdate(data) {
+            createNode(data.id, data.label, data.archetype, data.params);
+        }
+
+        function updateScene() {
+            nodes.forEach(node => {
+                // Move
+                if (node.userData.velocity) {
+                    node.position.add(node.userData.velocity);
+                    node.rotation.x += 0.01;
+                    node.rotation.y += 0.02;
+
+                    // Bounds check
+                    if (node.position.length() > GALAXY_RADIUS * 1.2) {
+                        node.position.setLength(GALAXY_RADIUS * 0.1); // Teleport to center
+                    }
+                }
+
+                // Update Trail
+                if (node.userData.trail) {
+                    node.userData.trail.update(node.position);
+                }
+            });
+
+            // Cleanup
+            if (nodes.size > 800) {
+                const keys = nodes.keys();
+                const toRemove = keys.next().value;
+                const node = nodes.get(toRemove);
+                scene.remove(node);
+                if (node.userData.trail) node.userData.trail.dispose();
+                node.geometry.dispose();
+                node.material.dispose();
+                nodes.delete(toRemove);
+            }
+        }
 
         // --- DATA SYNC ---
         // Fetch initial state from REST API
