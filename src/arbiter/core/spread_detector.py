@@ -159,7 +159,7 @@ class SpreadDetector:
 
         return self._sol_price_cache  # Return cached/default
 
-    def scan_pair(
+    async def scan_pair(
         self,
         base_mint: str,
         quote_mint: str,
@@ -168,6 +168,7 @@ class SpreadDetector:
     ) -> Optional[SpreadOpportunity]:
         """
         Scan all DEXs for spread opportunity on a single pair.
+        V131: Made async to properly await price feeds.
 
         Args:
             base_mint: Token to trade
@@ -189,7 +190,8 @@ class SpreadDetector:
 
         for name, feed in self.feeds.items():
             try:
-                spot = feed.get_spot_price(base_mint, quote_mint)
+                # V131: Await the async price fetch
+                spot = await feed.get_spot_price(base_mint, quote_mint)
                 if spot and spot.price > 0:
                     prices[name] = spot
             except Exception:
@@ -447,7 +449,7 @@ class SpreadDetector:
 
             opps_seq = []
             for pair_name, base_mint, quote_mint in pairs:
-                opp = self.scan_pair(
+                opp = await self.scan_pair(
                     base_mint, quote_mint, pair_name, trade_size=trade_size
                 )
                 if opp:
