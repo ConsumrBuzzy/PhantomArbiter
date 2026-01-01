@@ -4,16 +4,19 @@ import shutil
 import os
 from pathlib import Path
 
+# Ensure stdout uses UTF-8 on Windows
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 def build_rust():
     """Build the Rust extension using Maturin targeting the local .venv."""
-    print("🦀 Building Rust Extension (phantom_core)...")
+    print("[RUST] Building Rust Extension (phantom_core)...")
 
     # 1. Determine local venv path
     venv_dir = Path.cwd() / ".venv"
     if not venv_dir.exists():
-        print("❌ Error: .venv not found.")
-        print("Please run 'python build_venv.py' first.")
+        print("[ERROR] .venv not found. Run 'python build_venv.py' first.")
+        sys.exit(1)
         sys.exit(1)
 
     # 2. Set environment variables to force Maturin to use this venv
