@@ -45,6 +45,7 @@ class BackgroundWorkerManager:
         # 3. Agent Starts
         self._launch_thread("ScoutAgent", self._start_scout)
         self._launch_thread("WhaleWatcher", self._start_whales)
+        self._launch_thread("WhaleSensor", self._start_whale_sensor) # V140
         self._launch_thread("SauronDiscovery", self._start_sauron)
         self._launch_thread("SniperAgent", self._start_sniper)
 
@@ -101,6 +102,14 @@ class BackgroundWorkerManager:
             asyncio.run(self.broker.whale_watcher.start())
         except Exception as e:
             Logger.error(f"[WORKER_MGR] Whale Watcher failed: {e}")
+
+    def _start_whale_sensor(self):
+        """Whale Sensor (I/O)."""
+        try:
+            if hasattr(self.broker.engine_mgr, "whale_sensor"):
+                asyncio.run(self.broker.engine_mgr.whale_sensor.start())
+        except Exception as e:
+            Logger.error(f"[WORKER_MGR] Whale Sensor failed: {e}")
 
     def _start_sauron(self):
         """Sauron Discovery (Omni-Monitor)."""

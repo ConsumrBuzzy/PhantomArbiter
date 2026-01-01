@@ -57,7 +57,7 @@ class SharedPriceCache:
         return cls._lock
 
     @classmethod
-    def write_price(cls, symbol: str, price: float, source: str = "WSS"):
+    def write_price(cls, symbol: str, price: float, source: str = "WSS", mint: str = None):
         """
         Write a single price to cache with history (V7.1.1).
 
@@ -65,12 +65,19 @@ class SharedPriceCache:
             symbol: Token symbol (e.g., "JUP")
             price: Current price in USD
             source: Data source tag ("WSS", "BATCH", etc.)
+            mint: Token mint address (V140: Unification)
         """
         lock = cls._get_lock()
         try:
-            # V15.2: Timeout to prevent hanging
             with lock.acquire(timeout=0.2):
                 data = cls._read_raw()
+
+                # V140: Ensure index structures exist
+                if "prices" not in data: data["prices"] = {}
+                if "mints" not in data: data["mints"] = {} # mint -> symbol mapping
+
+                if mint:
+                    data["mints"][mint] = symbol
 
                 # Initialize symbol data if needed
                 if symbol not in data["prices"]:
@@ -79,6 +86,7 @@ class SharedPriceCache:
                         "source": "",
                         "timestamp": 0,
                         "history": [],
+                        "mint": mint
                     }
 
                 # Update current price
@@ -191,6 +199,13 @@ class SharedPriceCache:
 
         entry = data.get("prices", {}).get(symbol)
         if not entry:
+            # V140: Try mint lookup if symbol wasn't found
+            # (Allows transparent migration)
+            sym = data.get("mints", {}).get(symbol)
+            if sym:
+                entry = data.get("prices", {}).get(sym)
+
+        if not entry:
             return None, None
 
         age = time.time() - entry.get("timestamp", 0)
@@ -198,6 +213,12 @@ class SharedPriceCache:
             return None, None
 
         return entry.get("price"), entry.get("source")
+
+    @classmethod
+    def get_price_by_mint(cls, mint: str, max_age: float = 30.0) -> float:
+        """V140: Direct mint lookup for Unification."""
+        price, _ = cls.get_price(mint, max_age)
+        return price or 0.0
 
     @classmethod
     def get_all_prices(cls, max_age: float = 30.0) -> dict:

@@ -26,6 +26,7 @@ class EngineManager:
         self.merchant_engines: Dict[str, TacticalStrategy] = {}
         self.scout_agent = None
         self.whale_watcher = None
+        self.whale_sensor = None # V140
         self.sauron = None
         self.sniper = None
         self.bitquery_adapter = None
@@ -69,11 +70,13 @@ class EngineManager:
         try:
             from src.core.scout.agents.scout_agent import ScoutAgent
             from src.core.scout.agents.whale_watcher_agent import WhaleWatcherAgent
+            from src.core.sensors.whale_sensor import WhaleSensor # V140
             from src.core.scout.discovery.sauron_discovery import SauronDiscovery
             from src.core.scout.agents.sniper_agent import SniperAgent
 
             self.scout_agent = ScoutAgent()
             self.whale_watcher = WhaleWatcherAgent()
+            self.whale_sensor = WhaleSensor() # V140
             self.sauron = SauronDiscovery()
             self.sniper = SniperAgent()
 

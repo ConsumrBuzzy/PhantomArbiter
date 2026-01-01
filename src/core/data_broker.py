@@ -1273,7 +1273,7 @@ class BrokerPriceCache:
                 break
 
         if symbol:
-            SharedPriceCache.write_price(symbol, price, "WSS")
+            SharedPriceCache.write_price(symbol, price, "WSS", mint=mint)
             print(f"   [WSS] 📈 {symbol} = ${price:.6f}")
 
     def get_price(self, mint: str) -> float:

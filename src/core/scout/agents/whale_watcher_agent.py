@@ -19,27 +19,25 @@ class WhaleWatcherAgent(BaseAgent):
 
     def __init__(self, config: Dict = None, metadata_registry: Dict = None):
         super().__init__(name="WHALE_WATCH", config=config or {})
-        self.rpc = get_rpc_balancer()
+        # V140: Strict Broker Protocol - No RPC in Agent
+        # self.rpc = get_rpc_balancer() 
 
         # V67.0: Metadata Registry for Whale-Pulse Confidence Boost
         self.metadata_registry = metadata_registry or {}
 
         # Configuration
-        self.watchlist_file = os.path.join(
-            os.path.dirname(__file__), "../../data/smart_money_watchlist.json"
-        )
-        self.poll_interval = 15.0  # Seconds
-        self.last_signatures: Dict[str, str] = {}  # wallet -> last_seen_signature
-
+        self.poll_interval = 15.0  # Seconds (No longer used for polling)
+        
         Logger.info(
             f"[{self.name}] Agent Initialized (Registry: {len(self.metadata_registry)} tokens)"
         )
 
     async def start(self):
-        """Start background polling."""
+        """Start listening for activity signals."""
         self.running = True
-        asyncio.create_task(self._poll_whales_job())
-        Logger.info(f"[{self.name}] Background polling started")
+        # V140: Subscribe to Whale Sensor
+        signal_bus.subscribe(SignalType.WHALE_ACTIVITY, self._handle_whale_activity)
+        Logger.info(f"[{self.name}] Signal subscription active")
 
     def stop(self):
         self.running = False
@@ -48,84 +46,30 @@ class WhaleWatcherAgent(BaseAgent):
     def on_tick(self, market_data: Dict) -> Optional[AgentSignal]:
         """
         Passive agent - doesn't react to price ticks directly.
-        Reacts to on-chain events via polling.
+        Reacts to on-chain events via signals.
         """
-        if hasattr(self, "pending_signal") and self.pending_signal:
-            sig = self.pending_signal
-            self.pending_signal = None
-            return sig
         return None
 
     # ═══════════════════════════════════════════════════════════════════════
     # WHALE WATCHING LOGIC
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def _poll_whales_job(self):
-        """Poll Top 5 Alpha Wallets for new moves."""
-        while self.running:
-            try:
-                # 1. Reload Watchlist (Dynamic)
-                watchlist = self._load_watchlist()
-
-                # 2. Filter for "Top 5" (Best Win Rate)
-                # Sort by win_rate descending
-                candidates = sorted(
-                    watchlist.items(),
-                    key=lambda item: item[1].get("score", {}).get("win_rate", 0),
-                    reverse=True,
-                )[:5]
-
-                if not candidates:
-                    await asyncio.sleep(self.poll_interval)
-                    continue
-
-                # 3. Poll each
-                for wallet, data in candidates:
-                    await self._check_wallet_activity(wallet, data)
-                    await asyncio.sleep(1.0)  # Stagger requests
-
-                await asyncio.sleep(self.poll_interval)
-
-            except Exception as e:
-                Logger.error(f"[{self.name}] Polling Error: {e}")
-                await asyncio.sleep(5)
-
-    async def _check_wallet_activity(self, wallet: str, data: Dict):
-        """Check for new transactions."""
-        try:
-            # Get latest signature (Limit 1 is enough to check head)
-            resp, err = self.rpc.call("getSignaturesForAddress", [wallet, {"limit": 1}])
-            if err or not resp:
-                return
-
-            latest_sig = resp[0]["signature"]
-
-            # Init state
-            if wallet not in self.last_signatures:
-                self.last_signatures[wallet] = latest_sig
-                return
-
-            # If new signature found
-            if latest_sig != self.last_signatures[wallet]:
-                Logger.info(f"[{self.name}] 🐋 Activity detected on {wallet[:8]}!")
-                self.last_signatures[wallet] = latest_sig
-
-                # Analyze the TX (Did they BUY?)
-                # We need to fetch the TX details
-                await self._analyze_transaction(latest_sig, wallet)
-
-        except Exception:
-            pass
-
-    async def _analyze_transaction(self, signature: str, wallet: str):
-        """Analyze TX to see if it's a BUY."""
-        tx, err = self.rpc.call(
-            "getTransaction",
-            [signature, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
-        )
-        if err or not tx:
+    async def _handle_whale_activity(self, sig: Signal):
+        """V140: Handle movement signal from WhaleSensor."""
+        if not self.running:
             return
+            
+        wallet = sig.data.get("wallet")
+        tx_data = sig.data.get("tx_data")
+        
+        if not wallet or not tx_data:
+            return
+            
+        Logger.info(f"[{self.name}] 🐋 Analyzing activity for {wallet[:8]}...")
+        await self._analyze_transaction(tx_data, wallet)
 
+    async def _analyze_transaction(self, tx: dict, wallet: str):
+        """Analyze TX to see if it's a BUY."""
         try:
             # Simple Heuristic: Did SOL balance DECREASE? (Spent SOL)
             # And Token Balance INCREASE? (Received Token)
@@ -279,11 +223,3 @@ class WhaleWatcherAgent(BaseAgent):
             # Fallback for non-Rust metadata objects
             pass
 
-    def _load_watchlist(self) -> Dict:
-        if not os.path.exists(self.watchlist_file):
-            return {}
-        try:
-            with open(self.watchlist_file, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}

@@ -469,15 +469,14 @@ class DataFeed:
 
     def fetch_price(self):
         """Fetch price from cache first (WebSocket), fallback to HTTP."""
-        from src.core.price_cache import price_cache
-
         # V6.1.1: Cache Priority with configurable timeout
         cache_timeout = getattr(Settings, "CACHE_TIMEOUT_S", 15)
 
-        # 1. Try WebSocket cache first (sub-10ms)
-        cached_price = price_cache.get_price(self.mint, max_age_seconds=cache_timeout)
+        # 1. Try Shared Cache first (V140: Unification)
+        from src.core.shared_cache import SharedPriceCache
+        cached_price = SharedPriceCache.get_price_by_mint(self.mint, max_age=cache_timeout)
         if cached_price > 0:
-            self.update(cached_price, source="WSS")
+            self.update(cached_price, source="CACHED")
             return cached_price
 
         # 2. Fallback to HTTP (Jupiter/DexScreener)
