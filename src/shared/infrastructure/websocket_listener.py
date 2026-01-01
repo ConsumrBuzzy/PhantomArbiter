@@ -254,16 +254,23 @@ class WebSocketListener:
                         # But we don't have token. So we use "UNKNOWN_SWAP" but with unique ID to trigger "createNode".
                         # To prevent infinite memory, we rely on the Pruning Logic added to dashboard.html.
                         
+                        # Format amount as USD (USDC has 6 decimals)
+                        amount_usd = event.amount_in / 1_000_000
+                        if amount_usd >= 1000:
+                            label_str = f"${amount_usd/1000:.1f}k"
+                        else:
+                            label_str = f"${amount_usd:.0f}"
+                        
                         signal_bus.emit(Signal(
                             type=SignalType.MARKET_UPDATE,
                             source="WSS_Listener",  # Maps to PULSAR (Green)
                             data={
                                 "mint": f"FLASH_{signature[-8:]}", # Unique-ish ID
-                                "label": f"⚡ {event.amount_in:.2f}",
-                                "token": "SOL", # Fallback
-                                "volume_24h": event.amount_in, # Drive velocity?
+                                "symbol": f"{dex} {label_str}",  # e.g. "RAYDIUM $1.5k"
+                                "token": "USDC",
+                                "volume_24h": amount_usd,
                                 "liquidity": 1000, 
-                                "price": 0,
+                                "price": amount_usd,
                                 "timestamp": time.time()
                             }
                         ))
