@@ -254,64 +254,60 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Run the TUI Dashboard with the Director orchestrator."""
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich.console import Console
+    """Run "The Void" - Web Dashboard & Backend Orchestrator."""
+    from src.director import UnifiedDirector
+    from config.settings import Settings
+    from src.shared.system.logging import Logger
+    import uvicorn
+    from src.interface.api_service import app as fast_app
 
-    console = Console()
-    console.clear()
-    console.print("\n   [bold cyan]PHANTOM ARBITER[/bold cyan] [green]v4.2.0[/green]\n")
+    Settings.SILENT_MODE = False 
+    
+    # Check for HUD flag
+    launch_hud = not getattr(args, "no_hud", False) 
 
-    director = None
-    app = None
+    # 1. Initialize Orchestrator (Mission Control)
+    director = UnifiedDirector(live_mode=args.live)
 
-    # Visual Loading Sequence
-    with Progress(
-        SpinnerColumn(spinner_name="dots"),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        # Step 1: Kernel
-        task1 = progress.add_task("[cyan]Initializing Supervisor Kernel...", total=100)
-        from src.engine.director import Director
-        from config.settings import Settings
+    # V3 (Decoupled API): Ignite The Void via FastAPI/Uvicorn
+    Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
+    
+    config = uvicorn.Config(
+        fast_app, 
+        host="0.0.0.0", 
+        port=8001, 
+        log_level="info", 
+        loop="asyncio"
+    )
+    server = uvicorn.Server(config)
+    
+    # Launch Uvicorn as a background task
+    api_task = asyncio.create_task(server.serve())
+    
+    # Wait a moment for it to bind
+    await asyncio.sleep(1.0)
+    
+    Logger.info("   🚀 Void API Online: http://localhost:8001/dashboard.html")
+    Logger.info("   🎙️  Signal Stream: ws://localhost:8001/ws/v1/stream")
 
-        Settings.SILENT_MODE = True
+    # 4. Launch Frontend (Browser)
+    if launch_hud:
+        import webbrowser
+        webbrowser.open("http://localhost:8001/dashboard.html")
+    
+    print("\n" + "="*40)
+    print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
+    print(" 🌌 THE VOID:   http://localhost:8001/dashboard.html")
+    print(" 🎙️  API/WS:     http://localhost:8001")
+    print(" 📚 DOCS:       http://localhost:8001/docs")
+    print(" 📋 LOGS: Streaming below...")
+    print("="*40 + "\n")
 
-        # Simulate 'heavy' boot (or actually measure it)
-        # We split init to show progress
-        director = Director()
-        progress.update(task1, advance=50)
-        await asyncio.sleep(0.3)  # UX: Let user see the step
-        progress.update(task1, completed=100)
-
-        # Step 2: Dashboard
-        task2 = progress.add_task("[magenta]Loading Cockpit Interface...", total=100)
-        from src.dashboard.tui_app import PhantomDashboard
-
-        app = PhantomDashboard()
-        progress.update(task2, advance=60)
-        await asyncio.sleep(0.2)
-        progress.update(task2, completed=100)
-
-        # Step 3: Neural Net (Simulated connection for vibe)
-        task3 = progress.add_task("[green]Connecting to Neural Network...", total=100)
-        await asyncio.sleep(0.4)
-        progress.update(task3, completed=100)
-
-    console.print("   [bold green]✅ SYSTEM ONLINE[/bold green]\n")
-    await asyncio.sleep(0.5)
-
-    # 3. Start Engines in Background (V13.0)
-    engine_task = asyncio.create_task(director.start())
-
-    # 4. Launch UI (Instant)
     try:
-        await app.run_async()
+        await director.start()
     finally:
-        # 5. Cleanup
-        engine_task.cancel()
         await director.stop()
+        api_task.cancel()
 
 
 async def main() -> None:
@@ -727,77 +723,6 @@ async def cmd_clean(args: argparse.Namespace) -> None:
     print("🧹 Cleanup Complete.")
 
 
-async def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Run "The Void" - Web Dashboard & Backend Orchestrator."""
-    from src.director import UnifiedDirector
-    # from src.interface.dashboard_server import DashboardServer  # Replaced by FastAPI
-    # from src.interface.http_server_wrapper import HttpServerWrapper # Replaced by Uvicorn
-    from config.settings import Settings
-    from src.shared.system.logging import Logger
-    import uvicorn
-    from src.interface.api_service import app as fast_app
-
-    Settings.SILENT_MODE = False 
-    
-    # Check for HUD flag
-    launch_hud = not getattr(args, "no_hud", False) 
-
-    # 1. Initialize Orchestrator (Mission Control)
-    # Using UnifiedDirector instead of broken MarketOrchestrator
-    director = UnifiedDirector(live_mode=args.live)
-
-
-    # V3 (Decoupled API): Ignite The Void via FastAPI/Uvicorn
-    # We run Uvicorn as an ASYNC TASK on the SAME LOOP to allow SignalBus <-> Websocket communication
-    Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
-    
-    config = uvicorn.Config(
-        fast_app, 
-        host="0.0.0.0", 
-        port=8001, 
-        log_level="info", 
-        loop="asyncio"
-    )
-    server = uvicorn.Server(config)
-    
-    # Launch Uvicorn as a background task
-    api_task = asyncio.create_task(server.serve())
-    
-    # Wait a moment for it to bind
-    await asyncio.sleep(1.0)
-    
-    Logger.info("   🚀 Void API Online: http://localhost:8001/dashboard.html")
-    Logger.info("   🎙️  Signal Stream: ws://localhost:8001/ws/v1/stream")
-
-    # 4. Launch Frontend (Browser)
-    if launch_hud:
-        import webbrowser
-        webbrowser.open("http://localhost:8001/dashboard.html")
-    
-    print("\n" + "="*40)
-    print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
-    print(" 🌌 THE VOID:   http://localhost:8000/dashboard.html")
-    print(" 🎙️  API/WS:     http://localhost:8000")
-    print(" 📚 DOCS:       http://localhost:8000/docs")
-    print(" 📋 LOGS: Streaming below...")
-    print("="*40 + "\n")
-    print("="*40 + "\n")
-
-    # 4b. Ignite System Logic (Background)
-    # 4b. Ignite System Logic (Background)
-    # We must start the actual trading engine/monitors!
-    # UnifiedDirector uses start() which runs indefinitely, so we wrap it
-    # But wait! director.start() includes a _monitor_loop which blocks!
-    # So we should run director.start() directly here as the main blocker.
-    
-    try:
-        await director.start()
-    finally:
-        # 6. Cleanup
-        # api_thread is daemon, will die with process.
-        await director.stop()
-        # 6. Cleanup
-        # api_thread is daemon, will die with process.
         # server.should_exit cannot be called easily here unless we keep ref, 
         # but daemon thread + orchestrator shutdown is sufficient.
         await orchestrator.shutdown()
