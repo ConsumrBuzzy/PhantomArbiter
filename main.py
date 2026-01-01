@@ -724,44 +724,43 @@ async def cmd_clean(args: argparse.Namespace) -> None:
             print(f"❌ Failed to sell {symbol}")
 
         await asyncio.sleep(1.0)  # Rate limit protection
-
     print("🧹 Cleanup Complete.")
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
     """Run "The Void" - Web Dashboard & Backend Orchestrator."""
     from src.engine.orchestrator import MarketOrchestrator
-    from src.interface.dashboard_server import DashboardServer
-    from src.interface.http_server_wrapper import HttpServerWrapper
+    # from src.interface.dashboard_server import DashboardServer  # Replaced by FastAPI
+    # from src.interface.http_server_wrapper import HttpServerWrapper # Replaced by Uvicorn
     from config.settings import Settings
-    import threading
+    from src.shared.system.logging import Logger
+    import uvicorn
+    from src.interface.api_service import app as fast_app
 
     Settings.SILENT_MODE = False 
     
     # Check for HUD flag
     launch_hud = not getattr(args, "no_hud", False) 
 
-    # 0. Ignite "The Void" (Frontend & Bridge)
-    print("\n   🌌 IGNITING THE VOID...")
-    
-    # A. The Portal (HTTP Server)
-    portal = HttpServerWrapper(port=8000)
-    portal.start()
-    
-    # B. The Voice (WebSocket Server)
-    voice = DashboardServer(port=8765)
-    # Start Voice in the asyncio loop
-    voice_task = asyncio.create_task(voice.start())
-
     # 1. Initialize Orchestrator (Mission Control)
     orchestrator = MarketOrchestrator(headless_frontend=True) # Always headless, we use The Void now
-    
-    # 2. Run Hygiene
-    orchestrator.run_hygiene_check()
 
-    # 3. Ignite System (Background)
-    bridge_task, engine_task = await orchestrator.ignite_system()
+    # V3 (Decoupled API): Ignite The Void via FastAPI/Uvicorn
+    # We run Uvicorn in the existing loop to share memory (SignalBus)
+    Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
     
+    # Configure Uvicorn
+    # Port 8000 covers both REST API and WebSocket stream
+    config = uvicorn.Config(app=fast_app, host="0.0.0.0", port=8000, log_level="warning")
+    server = uvicorn.Server(config)
+
+    # Launch Uvicorn in a background Task (it's awaitable)
+    # Note: server.serve() is a coroutine that runs the server loop
+    api_task = asyncio.create_task(server.serve())
+    
+    Logger.info("   🚀 Void API Online: http://localhost:8000/dashboard.html")
+    Logger.info("   🎙️  Signal Stream: ws://localhost:8000/ws/v1/stream")
+
     # 4. Launch Frontend (Browser)
     if launch_hud:
         import webbrowser
@@ -770,7 +769,8 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     print("\n" + "="*40)
     print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
     print(" 🌌 THE VOID:   http://localhost:8000/dashboard.html")
-    print(" 🎙️  VOICE:      ws://localhost:8765")
+    print(" 🎙️  API/WS:     http://localhost:8000")
+    print(" 📚 DOCS:       http://localhost:8000/docs")
     print(" 📋 LOGS: Streaming below...")
     print("="*40 + "\n")
 
