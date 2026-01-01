@@ -304,7 +304,8 @@ class Director:
         asyncio.create_task(self.monitor_system(), name="Kernel_Monitor")
 
         # 6. Start Loop Lag Monitor
-        self.lag_monitor = LagMonitor()
+        # 6. Start Loop Lag Monitor
+        self.lag_monitor = self.LagMonitor()
         asyncio.create_task(self.lag_monitor.start(), name="Lag_Monitor")
 
         state.status = "OPERATIONAL"

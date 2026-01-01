@@ -138,7 +138,8 @@ class MarketOrchestrator:
 
         print("   🚀 Launching The Void (WebGL)...")
         # V33: Launch HTTP Server (The Void)
-        self.ignite_http_server()
+        # DISABLE FOR API DECOUPLING (Main.py runs Uvicorn now)
+        # self.ignite_http_server()
         
         # 2. Monitors (The Eyes)
         # V33: Ignite Pyth Polling for Full Spectrum
