@@ -236,7 +236,8 @@ class OrcaPoolFetcher:
         ]
 
         if not candidates:
-            Logger.warning(f"[ORCA] No pool found for {pair1}")
+            # Most memecoins use Raydium, not Orca CLMM - this is expected
+            Logger.debug(f"[ORCA] No Whirlpool for {pair1} (likely on Raydium)")
             return None
 
         # Sort by liquidity (highest first)
