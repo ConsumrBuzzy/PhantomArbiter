@@ -104,6 +104,26 @@ class Watcher:
             # V53.0: Track high water mark if in position
             if self.in_position and price > self.max_price_achieved:
                 self.max_price_achieved = price
+            
+            # V35: Emit signal for The Void dashboard
+            try:
+                from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+                signal_bus.emit(Signal(
+                    type=SignalType.MARKET_UPDATE,
+                    source="PYTH",  # Maps to PLANET (Cyan) - stable reference
+                    data={
+                        "mint": self.mint,
+                        "symbol": self.symbol,
+                        "price": price,
+                        "price_usd": price,
+                        "volume_24h": self.data_feed.volume_h1 or 0,
+                        "liquidity": self.data_feed.liquidity_usd or 1000,
+                        "in_position": self.in_position,
+                        "rsi": self.get_rsi() if hasattr(self, 'get_rsi') else 50
+                    }
+                ))
+            except Exception:
+                pass  # Don't crash price updates
 
     def get_price(self, force_refresh=False):
         """Retrieve last price (Passive)."""
