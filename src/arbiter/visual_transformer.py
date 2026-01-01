@@ -106,12 +106,25 @@ class VisualTransformer:
             # Normalized velocity factor (0.1 to 5.0)
             velocity_factor = min(max(volume / (liquidity + 1) * 0.1, 0.1), 5.0)
             
+            # Extract extended market data
+            price = data.get("price") or data.get("price_usd") or 0.0
+            change_24h = data.get("price_change_24h") or 0.0
+            
+            # Sanitize price/change
+            try: price = float(price)
+            except: price = 0.0
+            try: change_24h = float(change_24h)
+            except: change_24h = 0.0
+
             params.update({
                 "radius": 0.8,
                 "emissive_intensity": 4.0,
                 "hex_color": color,
                 "roughness": 0.3,
-                "velocity_factor": velocity_factor
+                "velocity_factor": velocity_factor,
+                "price": price,
+                "change_24h": change_24h,
+                "volume": volume
             })
 
         # GRADUATIONS / LAUNCHES (Orange Supernova)

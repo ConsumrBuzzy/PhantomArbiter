@@ -223,6 +223,12 @@
                 mesh.userData.trail = new TrailRenderer(scene, params.hex_color, 20);
             }
 
+            // Labels
+            const priceStr = params.price ? `$${params.price.toFixed(6)}` : '';
+            const details = `${priceStr} ${params.velocity_factor ? '⚡' + params.velocity_factor.toFixed(1) : ''}`;
+            const labelEl = createLabel(id, label, details);
+            mesh.userData.labelEl = labelEl;
+
             scene.add(mesh);
             nodes.set(id, mesh);
             return mesh;
@@ -360,11 +366,61 @@
 
         connect();
 
+        // --- LABEL SYSTEM ---
+        const labelContainer = document.createElement('div');
+        labelContainer.id = 'labels';
+        labelContainer.style.position = 'absolute';
+        labelContainer.style.top = '0';
+        labelContainer.style.left = '0';
+        labelContainer.style.width = '100%';
+        labelContainer.style.height = '100%';
+        labelContainer.style.pointerEvents = 'none';
+        document.body.appendChild(labelContainer);
+
+        function createLabel(id, text, details) {
+            const div = document.createElement('div');
+            div.id = `label-${id}`;
+            div.className = 'node-label';
+            div.style.position = 'absolute';
+            div.style.color = '#fff';
+            div.style.fontFamily = 'monospace';
+            div.style.fontSize = '12px';
+            div.style.textShadow = '0 0 2px #000';
+            div.style.opacity = '0.8';
+            div.innerHTML = `<strong>${text}</strong><br><span style="font-size:10px; color:#aaa">${details}</span>`;
+            labelContainer.appendChild(div);
+            return div;
+        }
+
+        function updateLabels() {
+            nodes.forEach((mesh, id) => {
+                if (!mesh.userData.labelEl) return;
+
+                // Project 3D position to 2D screen
+                const tempV = new THREE.Vector3();
+                mesh.updateWorldMatrix(true, false);
+                mesh.getWorldPosition(tempV);
+                tempV.project(camera);
+
+                const x = (tempV.x * .5 + .5) * window.innerWidth;
+                const y = (tempV.y * -.5 + .5) * window.innerHeight;
+
+                // Hide if behind camera or far away
+                if (tempV.z > 1) {
+                    mesh.userData.labelEl.style.display = 'none';
+                } else {
+                    mesh.userData.labelEl.style.display = 'block';
+                    mesh.userData.labelEl.style.transform = `translate(-50%, -100%) translate(${x}px, ${y - 10}px)`;
+                }
+            });
+        }
+
         // --- ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
 
             updateScene();
+            updateLabels(); // V4: Sync Text
             controls.update();
 
             // Render with Bloom
