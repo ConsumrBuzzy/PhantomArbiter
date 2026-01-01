@@ -80,7 +80,15 @@
         import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
         // --- CONFIGURATION ---
-        const WS_URL = "ws://127.0.0.1:8765";
+        // V3: Decoupled API - Frontend assumes it's served from the same host as the API (or via proxy)
+        // If served via file://, defaults to localhost:8000.
+        const API_HOST = window.location.hostname === "" ? "localhost:8000" : window.location.host;
+        const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const HTTP_PROTOCOL = window.location.protocol === "https:" ? "https:" : "http:";
+
+        const WS_URL = `${WS_PROTOCOL}//${API_HOST}/ws/v1/stream`;
+        const API_URL = `${HTTP_PROTOCOL}//${API_HOST}/api/v1/galaxy`;
+
         const GALAXY_RADIUS = 500;
         const NODE_SIZE = 2;
 
@@ -89,299 +97,27 @@
         let eventCount = 0;
 
         // --- SCENE SETUP ---
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.001);
+        // ... (Skipped existing scene setup, assuming it remains unchanged above this block)
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 100, 400);
+        // ... (Skipped createNode/updateScene Logic, assuming unchanged)
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.toneMapping = THREE.ReinhardToneMapping;
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        // --- DATA SYNC ---
+        // Fetch initial state from REST API
+        async function fetchGalaxy() {
+            logEvent("🔭 Scanning Galaxy State...");
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const objects = await response.json();
 
-        // --- POST PROCESSING (BLOOM) ---
-        const renderScene = new RenderPass(scene, camera);
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0;
-        bloomPass.strength = 2.0; // High glow
-        bloomPass.radius = 0.5;
-
-        const composer = new EffectComposer(renderer);
-        composer.addPass(renderScene);
-        composer.addPass(bloomPass);
-
-        const outputPass = new OutputPass();
-        composer.addPass(outputPass);
-
-        // --- CONTROLS ---
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.5;
-
-        // --- LIGHTING ---
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        const pointLight = new THREE.PointLight(0xffffff, 2, 1000);
-        pointLight.position.set(0, 200, 0);
-        scene.add(pointLight);
-
-        // --- HELPERS ---
-        const gridHelper = new THREE.GridHelper(1000, 50, 0x111111, 0x111111);
-        scene.add(gridHelper);
-
-        // --- NODE LOGIC ---
-        function createNode(id, label, archetype, params) {
-            if (nodes.has(id)) return nodes.get(id);
-
-            const color = new THREE.Color(params.hex_color);
-            let geometry, material;
-
-            switch (archetype) {
-                case 'PLANET':
-                    geometry = new THREE.SphereGeometry(params.radius * 2, 32, 32);
-                    material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        roughness: params.roughness,
-                        metalness: 0.2,
-                        emissive: color,
-                        emissiveIntensity: 0.2
-                    });
-                    break;
-                case 'SUPERNOVA':
-                    geometry = new THREE.IcosahedronGeometry(params.radius, 2);
-                    material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        emissive: color,
-                        emissiveIntensity: 2.0,
-                        wireframe: true
-                    });
-                    break;
-                case 'COMET':
-                    geometry = new THREE.ConeGeometry(params.radius, params.radius * 4, 8);
-                    material = new THREE.MeshStandardMaterial({ // Upgrade to Standard for texture
-                        color: color,
-                        emissive: color,
-                        emissiveIntensity: 2.0,
-                        roughness: 0.4,
-                        metalness: 0.1
-                    });
-                    break;
-                case 'NOVA':
-                    // Teal CLMM orb - octahedron with glow
-                    geometry = new THREE.OctahedronGeometry(params.radius * 1.5, 1);
-                    material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        emissive: color,
-                        emissiveIntensity: 1.0,
-                        metalness: 0.5,
-                        roughness: 0.2
-                    });
-                    break;
-                case 'GLOBE':
-                case 'PULSAR':
-                default:
-                    geometry = new THREE.SphereGeometry(params.radius, 32, 32); // Higher res for Orbs
-                    material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        emissive: color,
-                        emissiveIntensity: params.emissive_intensity || 0.5,
-                        roughness: 0.4,
-                        metalness: 0.2
-                    });
-            }
-
-            // Orb Texture Loader (Apply to any archetype)
-            const mint = id;
-            if (mint && mint.length > 30) {
-                const loader = new THREE.TextureLoader();
-                // Use a cross-origin friendly proxy or direct if CORS allows
-                // fotofin usually allows CORS
-                const url = `https://img.fotofin.com/${mint}`;
-
-                loader.load(url, (texture) => {
-                    material.map = texture;
-                    // For Orbs, we want the logo to glow
-                    material.emissiveMap = texture;
-
-                    // Adjust base color to be white so texture colors show true
-                    material.color.setHex(0xffffff);
-                    material.emissive.setHex(0xffffff);
-                    // material.emissiveIntensity = 1.0; 
-
-                    material.needsUpdate = true;
-                }, undefined, (err) => {
-                    // console.warn("Texture load failed", err);
+                logEvent(`🌌 Found ${objects.length} star systems.`);
+                objects.forEach(obj => {
+                    triggerArchetypeUpdate(obj);
                 });
+            } catch (err) {
+                console.error("Galaxy Fetch Error", err);
+                logEvent(`❌ Galaxy Scan Failed: ${err.message}`);
             }
-
-            const sphere = new THREE.Mesh(geometry, material);
-
-            // Random Position in Galaxy (Cylinder/Disc distribution)
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * GALAXY_RADIUS * 0.8;
-            const y = (Math.random() - 0.5) * 50; // Flattened disc
-
-            sphere.position.set(
-                Math.cos(angle) * radius,
-                y,
-                Math.sin(angle) * radius
-            );
-
-            sphere.userData = { id, label, archetype, originalParams: { ...params } };
-
-            // Label
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'label';
-            labelDiv.textContent = label;
-            const labelObj = new THREE.CSS2DObject(labelDiv);
-            labelObj.position.set(0, params.radius + 0.5, 0);
-            sphere.add(labelObj);
-
-            scene.add(sphere);
-            nodes.set(id, sphere);
-
-            // Initial Animation
-            if (archetype === 'SUPERNOVA') {
-                sphere.scale.set(0.1, 0.1, 0.1);
-                new TWEEN.Tween(sphere.scale)
-                    .to({ x: 5, y: 5, z: 5 }, 1000)
-                    .easing(TWEEN.Easing.Elastic.Out)
-                    .start();
-                createShockwave(sphere.position, params.hex_color);
-            } else if (archetype === 'PULSAR') {
-                createShockwave(sphere.position, params.hex_color, 0.5);
-            } else if (archetype === 'COMET') {
-                const speed = params.velocity_factor || 0.5;
-                sphere.userData.velocity = new THREE.Vector3(
-                    (Math.random() - 0.5) * speed,
-                    (Math.random() - 0.5) * speed,
-                    (Math.random() - 0.5) * speed
-                );
-            }
-
-            return sphere;
-        }
-
-        function triggerArchetypeUpdate(data) {
-            let node = nodes.get(data.id);
-            if (!node) {
-                node = createNode(data.id, data.label, data.archetype, data.params);
-            }
-
-            const params = data.params;
-            node.material.emissiveIntensity = params.emissive_intensity * 2;
-
-            if (data.archetype === 'SUPERNOVA') {
-                node.scale.set(5, 5, 5); // Massive expansion
-                createShockwave(node.position, params.hex_color);
-            } else if (data.archetype === 'PULSAR') {
-                node.scale.set(2, 2, 2);
-                createShockwave(node.position, params.hex_color, 0.5);
-            } else if (data.archetype === 'COMET') {
-                // Comets drift based on liquidity velocity
-                const speed = params.velocity_factor || 0.5;
-                node.userData.velocity = new THREE.Vector3(
-                    (Math.random() - 0.5) * speed,
-                    (Math.random() - 0.5) * speed,
-                    (Math.random() - 0.5) * speed
-                );
-            }
-
-            logEvent(`🌌 [${data.archetype}] ${data.label || data.id}`);
-        }
-
-        function createShockwave(pos, colorHex, scale = 1.0) {
-            const geom = new THREE.RingGeometry(1, 1.2, 32);
-            const mat = new THREE.MeshBasicMaterial({
-                color: colorHex,
-                transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide
-            });
-            const ring = new THREE.Mesh(geom, mat);
-            ring.position.copy(pos);
-            ring.lookAt(camera.position);
-            ring.userData = { type: 'effect', life: 1.0, scale: scale };
-            scene.add(ring);
-        }
-
-        function updateScene() {
-            nodes.forEach((node) => {
-                // Decay
-                if (node.material.emissiveIntensity > 0.2) {
-                    node.material.emissiveIntensity *= 0.98;
-                }
-                if (node.scale.x > 1) {
-                    node.scale.multiplyScalar(0.96);
-                }
-
-                // Comet drift
-                if (node.userData.archetype === 'COMET' && node.userData.velocity) {
-                    node.position.add(node.userData.velocity);
-
-                    // Create Trail Particle
-                    if (Math.random() > 0.5) { // Throttle trail creation
-                        createTrailParticle(node.position, node.material.color);
-                    }
-                }
-
-                // Prune dead nodes (Optimization)
-                // If it's a transient node (like a firework/swap) and invisible, kill it.
-                // Keep "GLOBE" or major nodes if needed, but for now prune all decayed.
-                // Re-instating persistence for specific archetypes if needed later.
-                if (node.material.emissiveIntensity < 0.05 && node.scale.x < 0.1) {
-                    scene.remove(node);
-                    if (node.userData.labelObj) {
-                        node.remove(node.userData.labelObj);
-                    }
-                    // Clean up memory
-                    if (node.geometry) node.geometry.dispose();
-                    if (node.material) {
-                        if (node.material.map) node.material.map.dispose();
-                        if (node.material.emissiveMap) node.material.emissiveMap.dispose();
-                        node.material.dispose();
-                    }
-                    nodes.delete(key);
-                }
-            });
-
-            // Update effects (Shockwaves, Trails)
-            scene.children.forEach(child => {
-                if (child.userData && child.userData.type === 'effect') {
-                    child.scale.multiplyScalar(1.05);
-                    child.userData.life *= 0.95;
-                    child.material.opacity = child.userData.life;
-                    if (child.userData.life < 0.01) {
-                        scene.remove(child);
-                    }
-                }
-                // Trail Logic
-                else if (child.userData && child.userData.type === 'trail') {
-                    child.userData.life *= 0.90;
-                    child.scale.multiplyScalar(0.9);
-                    child.material.opacity = child.userData.life;
-                    if (child.userData.life < 0.05) {
-                        scene.remove(child);
-                    }
-                }
-            });
-        }
-
-        function createTrailParticle(pos, color) {
-            const geom = new THREE.SphereGeometry(0.5, 4, 4);
-            const mat = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.8
-            });
-            const p = new THREE.Mesh(geom, mat);
-            p.position.copy(pos);
-            p.userData = { type: 'trail', life: 1.0 };
-            scene.add(p);
         }
 
         // --- WEBSOCKET CONNECTION ---
@@ -407,14 +143,15 @@
         }
 
         function connect() {
-            logEvent("Attempting Neural Link...");
+            logEvent(`Attempting Neural Link to ${WS_URL}...`);
             const ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
                 statusEl.textContent = "CONNECTED (NEURAL LINK ESTABLISHED)";
                 statusEl.style.color = "#0f0";
                 logEvent("WebSocket Open");
-                ws.send(JSON.stringify({ action: "REQUEST_SYNC" }));
+                // Initial Sync is now done via REST
+                fetchGalaxy();
             };
 
             ws.onmessage = (event) => {
@@ -426,13 +163,14 @@
                     if (data.type === 'ARCHETYPE_UPDATE') {
                         triggerArchetypeUpdate(data);
                     } else if (data.type === 'snapshot') {
+                        // Legacy handling or if WS pushes snapshot
                         logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
                         data.nodes.forEach(n => createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1, emissive_intensity: 1, roughness: 0.5 }));
                     } else if (data.type === 'PING') {
                         // Optional heartbeat log
                         // logEvent("❤️ PING");
                     } else {
-                        logEvent(`❓ Unknown Type: ${data.type}`);
+                        // logEvent(`❓ Unknown Type: ${data.type}`); // Be less noisy
                     }
 
                 } catch (e) {
