@@ -62,6 +62,9 @@ class DataBroker:
         # Register broker
         SharedPriceCache.set_broker_info(os.getpid())
         Logger.info(f"[BROKER] PID: {os.getpid()}")
+        
+        # V19.1: Pool Registry for WSS Wiring
+        self.known_pools = {}  # pool_addr -> (base, quote)
 
         # Watchlist Monitor
         self.watchlist_file = os.path.abspath(
@@ -113,22 +116,33 @@ class DataBroker:
         def _handle_wss_update(event):
             """Relay WSS event to Graph Engine."""
             if self.hop_engine:
-                # Event format: {pool, price, timestamp, dex}
-                # HopEngine expects: {pool_address, price, dex, ...}
+                pool = event.get("pool")
+                if not pool:
+                    return
+
+                # V19.1: Resolve via Registry
+                tokens = self.known_pools.get(pool)
+                if not tokens:
+                    # Optional: Queue for metadata fetch?
+                    # For now, just skip until Universal Watcher picks it up.
+                    return
+
+                base_mint, quote_mint = tokens
+                
                 update = {
-                    "pool_address": event.get("pool"),
+                    "pool_address": pool,
                     "price": event.get("price"),
                     "dex": event.get("dex"),
-                    "slot": 0, # We might need slot from Rust event
-                    "base_mint": "", # We need to resolve this!
-                    "quote_mint": ""
+                    "slot": 0,  # Rust parser doesn't pass slot yet via SwapEvent, defaults to 0
+                    "base_mint": base_mint,
+                    "quote_mint": quote_mint,
+                    "liquidity_usd": 0, # WSS event doesn't carry liquidity
+                    "fee_bps": 25 # Default
                 }
-                # ISSUE: We need Base/Quote mints to update Graph edge.
-                # Rust parse_universal_log might return them, but if not we must look up.
-                # For now, let's try pushing what we have, relying on Graph to lookup or error?
-                # Actually HopGraphEngine.update_pool REQUIRES base/quote.
-                # We need a Pool->Token map.
-                self.hop_engine.update_pool(update)
+                
+                # Check for "revert" logic or weird prices
+                if update["price"] > 0:
+                     self.hop_engine.update_pool(update)
 
         # Create WSS listener with callback
         self.ws_listener = create_websocket_listener(
