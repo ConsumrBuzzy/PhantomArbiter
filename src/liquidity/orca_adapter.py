@@ -23,6 +23,14 @@ from src.liquidity.types import (
     WHIRLPOOL_PROGRAM_ID,
 )
 
+# Phase 3: Fast-Lane Hardening
+try:
+    from phantom_core import PdaCache
+    RUST_AVAILABLE = True
+except ImportError:
+    PdaCache = None
+    RUST_AVAILABLE = False
+
 # Well-known token mints
 SOL_MINT = "So11111111111111111111111111111111111111112"
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -90,7 +98,13 @@ class OrcaAdapter:
         self._whirlpools_config = (
             "2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ"  # Mainnet config
         )
-        Logger.info("   🐋 [ORCA] Whirlpools Adapter Initialized (PDA Mode)")
+        
+        # Phase 3: Rust Acceleration
+        self.pda_cache = PdaCache() if RUST_AVAILABLE else None
+        if self.pda_cache:
+            Logger.info("   ⚡ [ORCA] Rust PdaCache: ENABLED (Zero-latency)")
+        else:
+            Logger.info("   🐋 [ORCA] Whirlpools Adapter Initialized (Python-PDA Mode)")
 
     async def start_polling(self, pools: Dict[str, str] = None, interval: float = 5.0):
         """Start background polling for Orca pool states."""
@@ -164,6 +178,12 @@ class OrcaAdapter:
         Note: Token mints must be sorted (token_a < token_b lexicographically)
         """
         try:
+            # ═══ Phase 3: Rust Acceleration ═══
+            if self.pda_cache:
+                return self.pda_cache.get_orca_whirlpool_address(
+                    self._whirlpools_config, token_a, token_b, tick_spacing
+                )
+
             from solders.pubkey import Pubkey
 
             # Sort token mints (Orca convention)
@@ -508,6 +528,21 @@ class OrcaAdapter:
             Tick Array PDA address (base58)
         """
         try:
+            # ═══ Phase 3: Rust Acceleration ═══
+            if self.pda_cache:
+                # Construct seeds for Rust: ["tick_array", whirlpool, start_tick_index]
+                # start_tick_index needs to be little-endian i32 bytes
+                import struct
+                tick_bytes = list(struct.pack("<i", start_tick_index))
+                
+                seeds = [
+                    list(b"tick_array"),
+                    list(bytes(Pubkey.from_string(pool_address))),
+                    tick_bytes
+                ]
+                # Rust find_address expects Vec<Vec<u8>>
+                return self.pda_cache.find_address(WHIRLPOOL_PROGRAM_ID, seeds)
+
             from solders.pubkey import Pubkey
 
             # Convert start_tick_index to i32 bytes (signed)
@@ -604,6 +639,14 @@ class OrcaAdapter:
             Position account PDA address
         """
         try:
+            # ═══ Phase 3: Rust Acceleration ═══
+            if self.pda_cache:
+                seeds = [
+                    list(b"position"),
+                    list(bytes(Pubkey.from_string(position_mint)))
+                ]
+                return self.pda_cache.find_address(WHIRLPOOL_PROGRAM_ID, seeds)
+
             from solders.pubkey import Pubkey
 
             seeds = [

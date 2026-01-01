@@ -29,16 +29,11 @@ class ArbiterEngine:
         self.wallet = wallet  # PaperWallet or WalletManager
         self.config = arbiter.config
 
-        # Internal Loop State
-        self._scan_counter = 0
-        self._last_vote_time = 0
-        self._last_discovery_time = time.time()
-        self._last_duration = 0
-        self._batch_size = 5
-        self._last_spreads = {}
-        self._trigger_wallets = {}
-        self._blacklist_cache = []
         self._blacklist_cache_ts = 0
+        
+        # Phase 3: Fast-Lane Integration
+        from src.arbiter.core.hop_engine import get_hop_engine
+        self.hop_engine = get_hop_engine()
 
     async def run(
         self,
@@ -105,12 +100,44 @@ class ArbiterEngine:
 
         # V19.2: Delta-Trigger Wiring (DataBroker -> Arbiter)
         def handle_market_data(sig: Signal):
+            # 1. Wake up for Price Jumps
             if sig.data.get("type") == "PRICE_JUMP":
-                # Significant price change detected by DataBroker
-                pool = sig.data.get("pool")
-                delta = sig.data.get("delta", 0.0)
-                # Logger.debug(f"⚡ [Arbiter] Waking up for Delta: {pool} ({delta:.2f}%)")
                 wake_event.set()
+                
+            # 2. Update HopGraphEngine for Multi-Hop
+            # Map standard market signal to HopEngine format
+            try:
+                data = sig.data
+                # We need source/target mints for the graph
+                # If sig comes from ORCA_POOL, it has pool_address and parent_mint
+                # If sig comes from RAW_LOG (Sauron), it has pool/base/quote
+                base = data.get("base_mint") or data.get("parent_mint")
+                quote = data.get("quote_mint") or "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" # Assume USDC if missing
+                pool = data.get("pool_address") or data.get("pool")
+                price = data.get("price")
+                
+                if base and pool and price:
+                    self.hop_engine.update_pool({
+                        "base_mint": base,
+                        "quote_mint": quote,
+                        "pool_address": pool,
+                        "price": price,
+                        "dex": sig.source,
+                        "liquidity_usd": data.get("liquidity", 0),
+                        "fee_bps": data.get("fee_bps", 30)
+                    })
+                    # Also update reverse edge for AMMs
+                    self.hop_engine.update_pool({
+                        "base_mint": quote,
+                        "quote_mint": base,
+                        "pool_address": pool,
+                        "price": 1.0 / price if price > 0 else 0,
+                        "dex": sig.source,
+                        "liquidity_usd": data.get("liquidity", 0),
+                        "fee_bps": data.get("fee_bps", 30)
+                    })
+            except Exception as e:
+                pass
 
         signal_bus.subscribe(SignalType.MARKET_UPDATE, handle_market_data)
 
@@ -150,6 +177,15 @@ class ArbiterEngine:
                         print(
                             f"   ⏱️ Scan: {self._last_duration:.0f}ms | Batch: {self._batch_size} pairs"
                         )
+
+                    # Phase 3: Multi-Hop Scan
+                    hop_opps = self.hop_engine.scan()
+                    if hop_opps:
+                        best_hop = hop_opps[0]
+                        if best_hop.profit_pct > self.config.min_spread:
+                            Logger.info(f"⚡ [Phase 3] Multi-Hop Opp: {best_hop}")
+                            # Execute via Rust Fast-Path
+                            await self.arbiter._executor.execute_hop_opportunity(best_hop)
 
                     # Update adaptive logic
                     if adaptive_mode and monitor:

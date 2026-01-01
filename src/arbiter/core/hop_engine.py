@@ -43,6 +43,7 @@ class HopOpportunity:
 
     path: List[str]  # Token mints in order [SOL, A, B, SOL]
     pools: List[str]  # Pool addresses to traverse
+    dexes: List[str]  # DEX identifiers for each leg
     profit_pct: float  # Theoretical profit percentage
     min_liquidity_usd: float  # Bottleneck liquidity
     hop_count: int  # Number of legs
@@ -219,6 +220,7 @@ class HopGraphEngine:
                 HopOpportunity(
                     path=c.path,
                     pools=c.pool_addresses,
+                    dexes=getattr(c, "dexes", ["UNKNOWN"] * len(c.pool_addresses)),
                     profit_pct=c.theoretical_profit_pct,
                     min_liquidity_usd=c.min_liquidity_usd,
                     hop_count=c.hop_count,
@@ -265,6 +267,7 @@ class HopGraphEngine:
             return HopOpportunity(
                 path=validated.path,
                 pools=validated.pool_addresses,
+                dexes=getattr(validated, "dexes", ["UNKNOWN"] * len(validated.pool_addresses)),
                 profit_pct=validated.theoretical_profit_pct,
                 min_liquidity_usd=validated.min_liquidity_usd,
                 hop_count=validated.hop_count,

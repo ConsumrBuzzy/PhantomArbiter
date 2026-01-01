@@ -99,6 +99,31 @@ class ArbitrageExecutor:
         self.mode = mode
         self.stuck_token_guard = stuck_token_guard
 
+        # Phase 3: Rust Acceleration
+        try:
+            from phantom_core import MultiHopBuilder, SwapLeg
+            import os
+            import base58
+            
+            self.rust_available = True
+            pk_b58 = None
+            if self.wallet and hasattr(self.wallet, "keypair"):
+                pk_bytes = bytes(self.wallet.keypair)
+                pk_b58 = base58.b58encode(pk_bytes).decode()
+            else:
+                pk_b58 = os.getenv("PHANTOM_PRIVATE_KEY") or os.getenv("SOLANA_PRIVATE_KEY")
+                
+            if pk_b58:
+                self.multi_hop_builder = MultiHopBuilder(pk_b58)
+                Logger.info("   ⚡ [EXEC] MultiHopBuilder: ENABLED (Zero-latency construction)")
+            else:
+                self.multi_hop_builder = None
+                Logger.warning("   ⚠️ [EXEC] MultiHopBuilder: DISABLED (No private key)")
+                
+        except ImportError:
+            self.rust_available = False
+            self.multi_hop_builder = None
+
         # Lazy-load dependencies
         self._smart_router = None
 
@@ -1341,6 +1366,64 @@ class ArbitrageExecutor:
         except Exception as e:
             Logger.error(f"[EXEC] Triangular error: {e}")
             return None
+
+    async def execute_hop_opportunity(self, opportunity: Any) -> ArbitrageExecution:
+        """
+        Execute a multi-hop opportunity using Rust MultiHopBuilder.
+        Zero-latency transaction assembly and submission.
+        """
+        from src.arbiter.core.hop_engine import HopOpportunity
+        if not isinstance(opportunity, HopOpportunity):
+             return self._error_result("Invalid multi-hop opportunity type", time.time())
+
+        if not self.rust_available or not self.multi_hop_builder:
+            return self._error_result("Rust MultiHopBuilder not available", time.time())
+
+        start_time = time.time()
+        
+        try:
+             from phantom_core import SwapLeg
+             
+             # 1. Build Instructions for each leg
+             legs = []
+             for i in range(len(opportunity.pools)):
+                 pool = opportunity.pools[i]
+                 dex = opportunity.dexes[i]
+                 input_mint = opportunity.path[i]
+                 output_mint = opportunity.path[i+1]
+                 
+                 # Placeholder for encoded instruction data
+                 # In a real scenario, we'd call the instruction_builder.rs functions here
+                 # mapping DEX names to the appropriate Rust builder call.
+                 ix_data = b"" # TODO: Call build_{dex}_swap_ix
+                 
+                 legs.append(SwapLeg(
+                     pool_address=pool,
+                     dex=dex,
+                     input_mint=input_mint,
+                     output_mint=output_mint,
+                     instruction_data=ix_data
+                 ))
+             
+             # 2. Re-calculate optimal tip
+             tip_lamports = 10000 # Default for Phase 3
+             
+             # 3. Submit directly via Rust
+             # signature = self.multi_hop_builder.build_and_submit(
+             #    legs, 
+             #    tip_lamports, 
+             #    "RECENT_BLOCKHASH", # Need to fetch blockhash
+             #    opportunity.profit_pct
+             # )
+             
+             # For Phase 3, we log the success of the wiring
+             Logger.info(f"⚡ [Phase 3] Multi-Hop Fast Path Wired for {opportunity}")
+             
+             return self._error_result("Multi-hop execution logic pending full DEX instruction mapping", start_time)
+
+        except Exception as e:
+            Logger.error(f"[EXEC] Multi-hop execution error: {e}")
+            return self._error_result(str(e), start_time)
 
     def _error_result(
         self, error_msg: str, start_time: float, legs: List[TradeResult] = None
