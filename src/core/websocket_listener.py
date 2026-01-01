@@ -14,7 +14,7 @@ import time
 import threading
 from dotenv import load_dotenv
 from typing import Optional, Dict
-
+from dataclasses import dataclass
 
 import phantom_core
 from src.core.provider_pool import ProviderPool
@@ -36,6 +36,17 @@ def wss_log(msg: str):
         # Use Logger instead of print for better consistent formatting if available,
         # or fallback to labeled print
         print(f"   [WSS-RUST] {msg}")
+
+
+@dataclass(slots=True)
+class PriceEvent:
+    pool: str
+    price: float
+    dex: str
+    timestamp: float
+    signature: str
+    slot: int
+    latency_ms: float = 0.0
 
 
 class WebSocketListener:
@@ -128,22 +139,8 @@ class WebSocketListener:
             pass
         self.stats["connection_status"] = "stopped"
 
-from dataclasses import dataclass
-
-@dataclass(slots=True)
-class PriceEvent:
-    pool: str
-    price: float
-    dex: str
-    timestamp: float
-    signature: str
-    slot: int
-    latency_ms: float = 0.0
-
-class WebSocketListener:
-    # ... (existing init) ...
-
     def _poll_loop(self):
+
         """
         High-frequency polling of the crossbeam channel.
         Since Rust handles network IO, this thread just dispatches events.

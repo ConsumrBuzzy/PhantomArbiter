@@ -101,14 +101,6 @@ async def async_signal_handler(signal: Signal):
     if payload:
         await manager.broadcast(payload)
 
-# Subscribe to relevant signals
-signal_bus.subscribe(SignalType.MARKET_UPDATE, async_signal_handler)
-signal_bus.subscribe(SignalType.NEW_TOKEN, async_signal_handler)
-
-# Phase 12: Market Layer Signals -> Galaxy Map
-signal_bus.subscribe(SignalType.MARKET_INTEL, async_market_intel_handler)
-signal_bus.subscribe(SignalType.WHIFF_DETECTED, async_whiff_handler)
-
 # Arbitrage opportunity -> Hop Path visualization
 async def async_arb_handler(signal: Signal):
     """Convert ARB_OPP signals to HOP_PATH visualization."""
@@ -124,8 +116,6 @@ async def async_arb_handler(signal: Signal):
             "source": signal.source
         }
         await manager.broadcast(hop_payload)
-
-signal_bus.subscribe(SignalType.ARB_OPP, async_arb_handler)
 
 # Phase 12: MARKET_INTEL -> Galaxy Map Heat/Pressure overlay
 async def async_market_intel_handler(signal: Signal):
@@ -153,6 +143,13 @@ async def async_whiff_handler(signal: Signal):
         "confidence": data.get("confidence", 0.5),
     }
     await manager.broadcast(whiff_payload)
+
+# Subscribe to relevant signals AFTER defining handlers
+signal_bus.subscribe(SignalType.MARKET_UPDATE, async_signal_handler)
+signal_bus.subscribe(SignalType.NEW_TOKEN, async_signal_handler)
+signal_bus.subscribe(SignalType.MARKET_INTEL, async_market_intel_handler)
+signal_bus.subscribe(SignalType.WHIFF_DETECTED, async_whiff_handler)
+signal_bus.subscribe(SignalType.ARB_OPP, async_arb_handler)
 
 # --- Endpoints ---
 
