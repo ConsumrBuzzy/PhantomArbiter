@@ -195,6 +195,19 @@ class Logger:
         except Exception:
             pass
 
+        # 3. Emit Signal for Real-time Streaming (Phase 5)
+        try:
+            from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+            signal_bus.emit(Signal(
+                type=SignalType.LOG_UPDATE,
+                source=source or "SYSTEM",
+                data={"level": level, "message": message}
+            ))
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
     # =========================================================================
     # PUBLIC API (Backward Compatible)
     # =========================================================================

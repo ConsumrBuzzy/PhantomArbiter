@@ -235,15 +235,15 @@ class ArbiterEngine:
                     self._last_spreads = current_spreads
 
                     # ═══ V12.5: Push to TUI AppState ═══
-                    # ═══ V12.5: Push to TUI AppState ═══
-                    from src.shared.state.app_state import ArbOpportunity
-
                     app_state.update_stat(
                         "cycles_per_sec",
                         1.0 / (self._last_duration / 1000.0)
                         if self._last_duration > 0
                         else 0,
                     )
+                    app_state.update_stat("scan_rate", 1000.0 / self._last_duration if self._last_duration > 0 else 0)
+                    app_state.update_stat("total_scanned", self._scan_counter)
+                    app_state.update_stat("batch_size", self._batch_size)
                     app_state.update_stat("pod_status", pod_system.get_status_string())
                     app_state.opportunities = [
                         ArbOpportunity(
@@ -257,6 +257,19 @@ class ArbiterEngine:
                             all_spreads, key=lambda x: x.spread_pct, reverse=True
                         )[:15]
                     ]
+
+                    # Emit System Stats Signal
+                    signal_bus.emit(Signal(
+                        type=SignalType.SYSTEM_STATS,
+                        source="ArbiterEngine",
+                        data={
+                            "scan_rate": app_state.stats["scan_rate"],
+                            "total_scanned": self._scan_counter,
+                            "batch_size": self._batch_size,
+                            "cycles_per_sec": app_state.stats["cycles_per_sec"],
+                            "pod_status": app_state.stats["pod_status"]
+                        }
+                    ))
 
                 except Exception as e:
                     priority_queue.add(
@@ -272,19 +285,9 @@ class ArbiterEngine:
                     opportunities, base_trade_size, last_trade_time, cooldown
                 )
 
-                # 5. DASHBOARD
-                # V2.0: Unified Interface
-                self.arbiter.reporter.print_dashboard(
-                    spreads=all_spreads,
-                    verified_opps=verified_opps,
-                    pod_names=active_pod_names,
-                    balance=self.arbiter.current_balance,
-                    gas=self.arbiter.gas_balance,
-                    daily_profit=self.arbiter.total_profit,
-                    total_trades=self.arbiter.total_trades,
-                    volume=0.0,  # Not tracked in V2.0 yet
-                    turnover=0.0,  # Not tracked in V2.0 yet
-                )
+                # 5. DASHBOARD (Decoupled in Phase 5)
+                # Console UI suppressed to reduce noise. 
+                # All metrics now streamed to the web interface.
 
                 # Update Pod Manager state for rotation
                 found_opp = len(opportunities) > 0

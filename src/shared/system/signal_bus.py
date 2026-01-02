@@ -28,6 +28,7 @@ class SignalType(Enum):
     MARKET_INTEL = "MARKET_INTEL"          # Unified market snapshot
     LOG_UPDATE = "LOG_UPDATE"              # Raw log from WSS
     TX_FAILED = "TX_FAILED"                # Transaction failure detected
+    SYSTEM_STATS = "SYSTEM_STATS"          # V140: Unified System Metrics
 
 
 @dataclass
