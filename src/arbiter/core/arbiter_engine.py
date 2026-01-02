@@ -271,6 +271,21 @@ class ArbiterEngine:
                         }
                     ))
 
+                    # Emit Scan Update (Top 10 spreads for UI table)
+                    signal_bus.emit(Signal(
+                        type=SignalType.SCAN_UPDATE,
+                        source="ArbiterEngine",
+                        data={
+                            "opportunities": [
+                                {
+                                    "token": o.pair,
+                                    "route": f"{o.buy_dex}->{o.sell_dex}",
+                                    "profit_pct": o.spread_pct
+                                } for o in sorted(all_spreads, key=lambda x: x.spread_pct, reverse=True)[:10]
+                            ]
+                        }
+                    ))
+
                 except Exception as e:
                     priority_queue.add(
                         priority_queue.PRIORITY_CRITICAL,

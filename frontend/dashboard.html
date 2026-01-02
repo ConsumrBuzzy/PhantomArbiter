@@ -25,27 +25,13 @@
             color: #0f0;
             pointer-events: none;
             z-index: 10;
+            width: 300px;
         }
 
         .hud-text {
             font-size: 14px;
             text-shadow: 0 0 5px #0f0;
-        }
-
-        #status {
-            font-weight: bold;
-        }
-
-        #feed-log {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #aaa;
-            max-height: 200px;
-            overflow: hidden;
-        }
-
-        .log-entry {
-            margin-bottom: 2px;
+            margin-bottom: 5px;
         }
 
         #legend {
@@ -95,8 +81,20 @@
             background: currentColor;
             box-shadow: 0 0 5px currentColor;
         }
+
+        /* Scrollbar styling for components */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 10, 0, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f0;
+        }
     </style>
-    <!-- Import Three.js from CDN -->
     <script type="importmap">
         {
             "imports": {
@@ -110,725 +108,127 @@
 <body>
     <div id="overlay">
         <div class="hud-text">PHANTOM ARBITER // THE VOID</div>
-        <div class="hud-text">STATUS: <span id="status">CONNECTING...</span></div>
-        <div class="hud-text">EVENTS: <span id="event-count">0</span></div>
-        <button id="test-btn"
-            style="border: 1px solid #0f0; background: #000; color: #0f0; cursor: pointer; margin-top: 5px;">SPAWN TEST
-            NODE</button>
-        <div id="feed-log"></div>
+        <div id="stats-panel"></div>
+        <div id="scan-table"></div>
+        <div id="log-stream"></div>
     </div>
 
-    <!-- STATIC LEGEND -->
     <div id="legend">
         <div class="legend-title">VISUAL KEY</div>
-
-        <!-- Objects -->
         <div class="legend-item">
-            <div class="dot" style="background:#0f0; color:#0f0;"></div>Token (Planet)
+            <div class="dot" style="background:#0f0;"></div>Token (Planet)
         </div>
         <div class="legend-item">
-            <div class="dot" style="background:#444; color:#444; border:1px solid #888;"></div>Pool (Moon)
+            <div class="dot" style="background:#444; border:1px solid #888;"></div>Pool (Moon)
         </div>
         <div class="legend-item">
-            <div class="dot" style="background:#ffd700; color:#ffd700;"></div>Whale Event
+            <div class="dot" style="background:#ffd700;"></div>Whale Event
         </div>
-
-        <!-- Hop Lines -->
         <div style="margin-top:10px; border-top:1px dashed #004400; padding-top:5px;"></div>
         <div class="legend-item">
-            <div class="line" style="background:#0f0; color:#0f0;"></div>Profitable Path (>2%)
+            <div class="line" style="background:#0f0;"></div>Profit >2%
         </div>
         <div class="legend-item">
-            <div class="line" style="background:#ffaa00; color:#ffaa00;"></div>Marginal Path (1-2%)
+            <div class="line" style="background:#ffaa00;"></div>Profit 1-2%
         </div>
+    </div>
 
-        <!-- RSI Colors -->
-        <div style="margin-top:10px; border-top:1px dashed #004400; padding-top:5px;"></div>
-        <div class="legend-item">
-            <div class="dot" style="background:#ff4444; color:#ff4444;"></div>Oversold (RSI < 30)</div>
-                <div class="legend-item">
-                    <div class="dot" style="background:#ffaa00; color:#ffaa00;"></div>Weak (30-50)
-                </div>
-                <div class="legend-item">
-                    <div class="dot" style="background:#00ffff; color:#00ffff;"></div>Neutral (50-70)
-                </div>
-                <div class="legend-item">
-                    <div class="dot" style="background:#00ff88; color:#00ff88;"></div>Overbought (RSI > 70)
-                </div>
-        </div>
+    <div id="canvas-container"></div>
 
-        <div id="canvas-container"></div>
+    <script type="module">
+        import { GalaxyScene } from './components/GalaxyScene.js';
+        import { StatsPanel } from './components/StatsPanel.js';
+        import { LogStream } from './components/LogStream.js';
+        import { ScanTable } from './components/ScanTable.js';
 
-        <script type="module">
-            import * as THREE from 'three';
-            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-            import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-            import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-            import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-            import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        // Initialize Components
+        const scene = new GalaxyScene('canvas-container');
+        const stats = new StatsPanel('stats-panel');
+        const logs = new LogStream('log-stream');
+        const scanTable = new ScanTable('scan-table');
 
-            // --- CONFIGURATION ---
-            // V3: Decoupled API - Frontend assumes it's served from the same host as the API (or via proxy)
-            // If served via file://, defaults to localhost:8001.
-            const API_HOST = window.location.hostname === "" ? "localhost:8001" : window.location.host;
-            const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
-            const HTTP_PROTOCOL = window.location.protocol === "https:" ? "https:" : "http:";
+        // WS Configuration
+        const API_HOST = window.location.hostname === "" ? "localhost:8001" : window.location.host;
+        const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const HTTP_PROTOCOL = window.location.protocol === "https:" ? "https:" : "http:";
+        const WS_URL = `${WS_PROTOCOL}//${API_HOST}/ws/v1/stream`;
+        const API_URL = `${HTTP_PROTOCOL}//${API_HOST}/api/v1/galaxy`;
 
-            const WS_URL = `${WS_PROTOCOL}//${API_HOST}/ws/v1/stream`;
-            const API_URL = `${HTTP_PROTOCOL}//${API_HOST}/api/v1/galaxy`;
-
-            const GALAXY_RADIUS = 500;
-            const NODE_SIZE = 2;
-
-            // --- STATE ---
-            const nodes = new Map(); // Mint -> Mesh
-            let eventCount = 0;
-
-            // --- SCENE SETUP ---
-            const scene = new THREE.Scene();
-            // Fog for depth
-            scene.fog = new THREE.FogExp2(0x000000, 0.001);
-
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-            camera.position.set(0, 400, 800);
-
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-            const controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = 0.5;
-
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040, 2);
-            scene.add(ambientLight);
-            const pointLight = new THREE.PointLight(0xffffff, 2, 2000);
-            scene.add(pointLight);
-
-            // --- POST PROCESSING (BLOOM) ---
-            const renderScene = new RenderPass(scene, camera);
-            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0;
-            bloomPass.strength = 1.2; // Neon glow
-            bloomPass.radius = 0.5;
-
-            const composer = new EffectComposer(renderer);
-            composer.addPass(renderScene);
-            composer.addPass(bloomPass);
-            const outputPass = new OutputPass();
-            composer.addPass(outputPass);
-
-            // --- TRAIL RENDERER ---
-            class TrailRenderer {
-                constructor(scene, color, maxPoints = 30) {
-                    this.scene = scene;
-                    this.maxPoints = maxPoints;
-                    this.points = [];
-                    this.geometry = new THREE.BufferGeometry();
-                    const positions = new Float32Array(maxPoints * 3);
-                    this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-                    this.material = new THREE.LineBasicMaterial({
-                        color: new THREE.Color(color),
-                        transparent: true,
-                        opacity: 0.6,
-                        blending: THREE.AdditiveBlending
-                    });
-                    this.line = new THREE.Line(this.geometry, this.material);
-                    scene.add(this.line);
-                }
-
-                update(position) {
-                    this.points.push(position.clone());
-                    if (this.points.length > this.maxPoints) this.points.shift();
-
-                    const positions = this.line.geometry.attributes.position.array;
-                    for (let i = 0; i < this.points.length; i++) {
-                        positions[i * 3] = this.points[i].x;
-                        positions[i * 3 + 1] = this.points[i].y;
-                        positions[i * 3 + 2] = this.points[i].z;
-                    }
-                    this.line.geometry.attributes.position.needsUpdate = true;
-                    this.line.geometry.setDrawRange(0, this.points.length);
-                }
-
-                dispose() {
-                    this.scene.remove(this.line);
-                    this.geometry.dispose();
-                    this.material.dispose();
-                }
+        // Load Initial State
+        async function fetchGalaxy() {
+            logs.add('INFO', '🔭 Scanning Galaxy State...');
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const objects = await response.json();
+                logs.add('INFO', `🌌 Found ${objects.length} star systems.`);
+                objects.forEach(obj => scene.updateArchetype(obj));
+            } catch (err) {
+                logs.add('ERROR', `❌ Galaxy Scan Failed: ${err.message}`);
             }
+        }
 
-            // --- HOP CONNECTION LINES ---
-            // Visualize arbitrage paths between tokens
-            const hopConnections = new Map();  // "from:to" -> Line3D
+        // Connect WebSocket
+        function connect() {
+            logs.add('INFO', `Attempting Link to ${WS_URL}...`);
+            const ws = new WebSocket(WS_URL);
 
-            class HopConnection {
-                constructor(scene, fromNode, toNode, color = '#00ff88', profit = 0) {
-                    this.scene = scene;
-                    this.fromNode = fromNode;
-                    this.toNode = toNode;
-                    this.profit = profit;
+            ws.onopen = () => {
+                logs.add('SUCCESS', "Neural Link Established");
+                fetchGalaxy();
+            };
 
-                    // Create curved line between nodes
-                    const start = fromNode.position;
-                    const end = toNode.position;
-                    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-                    mid.y += 5;  // Arc upward
-
-                    const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-                    const points = curve.getPoints(20);
-
-                    this.geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    this.material = new THREE.LineBasicMaterial({
-                        color: new THREE.Color(color),
-                        transparent: true,
-                        opacity: 0.5 + Math.min(profit * 10, 0.5),  // Brighter = more profit
-                        linewidth: 1
-                    });
-
-                    this.line = new THREE.Line(this.geometry, this.material);
-                    scene.add(this.line);
-                }
-
-                update() {
-                    // Recalculate positions if nodes moved
-                    const start = this.fromNode.position;
-                    const end = this.toNode.position;
-                    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-                    mid.y += 5;
-
-                    const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-                    const points = curve.getPoints(20);
-
-                    this.geometry.setFromPoints(points);
-                }
-
-                dispose() {
-                    this.scene.remove(this.line);
-                    this.geometry.dispose();
-                    this.material.dispose();
-                }
-            }
-
-            function createHopConnection(fromMint, toMint, profit = 0.01) {
-                const key = `${fromMint}:${toMint}`;
-                if (hopConnections.has(key)) return;
-
-                const fromNode = nodes.get(fromMint);
-                const toNode = nodes.get(toMint);
-
-                if (!fromNode || !toNode) return;
-
-                const color = profit > 0.02 ? '#00ff00' : profit > 0.01 ? '#ffff00' : '#ff8800';
-                const connection = new HopConnection(scene, fromNode, toNode, color, profit);
-                hopConnections.set(key, connection);
-
-                console.log(`🔗 Hop Connection: ${fromMint.slice(0, 6)} → ${toMint.slice(0, 6)} (${(profit * 100).toFixed(2)}%)`);
-            }
-
-            function createWhalePulse(x, y, z, color = '#ffd700', intensity = 1.0) {
-                const geometry = new THREE.RingGeometry(1, 1.2, 32);
-                const material = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(color),
-                    transparent: true,
-                    opacity: 0.8,
-                    side: THREE.DoubleSide,
-                    blending: THREE.AdditiveBlending
-                });
-                const pulse = new THREE.Mesh(geometry, material);
-                pulse.position.set(x, y, z);
-                pulse.rotation.x = Math.random() * Math.PI;
-                pulse.rotation.y = Math.random() * Math.PI;
-
-                scene.add(pulse);
-
-                const startTime = performance.now();
-                const duration = 2000;
-
-                function animatePulse(time) {
-                    const elapsed = time - startTime;
-                    const progress = elapsed / duration;
-
-                    if (progress < 1) {
-                        const scale = 1 + progress * 100 * intensity;
-                        pulse.scale.set(scale, scale, scale);
-                        pulse.material.opacity = 0.8 * (1 - progress);
-                        requestAnimationFrame(animatePulse);
-                    } else {
-                        scene.remove(pulse);
-                        geometry.dispose();
-                        material.dispose();
-                    }
-                }
-                requestAnimationFrame(animatePulse);
-            }
-
-            function removeHopConnection(fromMint, toMint) {
-                const key = `${fromMint}:${toMint}`;
-                const conn = hopConnections.get(key);
-                if (conn) {
-                    conn.dispose();
-                    hopConnections.delete(key);
-                }
-            }
-
-            // --- NODE LOGIC ---
-            function hashCode(str) {
-                let hash = 0;
-                for (let i = 0; i < str.length; i++) {
-                    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                    hash |= 0;
-                }
-                return hash;
-            }
-
-            function createNode(id, label, archetype, params, nodeType = 'TOKEN', eventLabel = '') {
-                const existing = nodes.get(id);
-                if (existing) {
-                    // Update existing node (price change, etc)
-                    if (params.price) {
-                        const details = `$${params.price.toFixed(6)} ${params.is_whale ? '🐋' : ''}`;
-                        if (existing.userData.labelEl) {
-                            existing.userData.labelEl.innerHTML = `<strong>${label}</strong><br><span style="font-size:10px; color:#aaa">${details}</span>`;
-                        }
-                    }
-                    // Flash effect for events
-                    if (nodeType === 'EVENT' && params.flash) {
-                        existing.material.emissiveIntensity = 10;
-                        setTimeout(() => { existing.material.emissiveIntensity = params.emissive_intensity || 2; }, 200);
-                    }
-                    return existing;
-                }
-
-                // Geometry based on archetype
-                let geometry;
-                switch (archetype) {
-                    case 'GLOBE': geometry = new THREE.SphereGeometry(params.radius || 2, 16, 16); break;
-                    case 'PLANET': geometry = new THREE.SphereGeometry(params.radius || 3, 32, 32); break;
-                    case 'SUPERNOVA': geometry = new THREE.IcosahedronGeometry(params.radius || 5, 1); break;
-                    case 'PULSAR': geometry = new THREE.OctahedronGeometry(params.radius || 2, 0); break;
-                    case 'NOVA': geometry = new THREE.DodecahedronGeometry(params.radius || 2, 0); break;
-                    case 'COMET': geometry = new THREE.ConeGeometry(params.radius || 1, params.radius * 2, 8); break;
-                    case 'WHALE': geometry = new THREE.TorusKnotGeometry(params.radius || 3, 0.5, 64, 8); break; // Unique whale shape
-                    default: geometry = new THREE.TetrahedronGeometry(params.radius || 1, 0);
-                }
-
-                const material = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(params.hex_color || '#ffffff'),
-                    emissive: new THREE.Color(params.hex_color || '#000000'),
-                    emissiveIntensity: params.emissive_intensity || 0.5,
-                    roughness: params.roughness !== undefined ? params.roughness : 0.5,
-                    metalness: params.metalness !== undefined ? params.metalness : 0.8,
-                    wireframe: params.roughness < 0.2
-                });
-
-                const mesh = new THREE.Mesh(geometry, material);
-
-                if (params.x !== undefined && params.y !== undefined && params.z !== undefined) {
-                    mesh.position.set(params.x, params.y, params.z);
-                } else {
-                    // Fallback to stable random sphere if no coordinates provided
-                    let r, theta, phi;
-                    const distFactor = params.distance_factor || 0.5;
-
-                    if (nodeType === 'TOKEN') {
-                        const hash = hashCode(id);
-                        theta = (hash % 360) * Math.PI / 180;
-                        phi = Math.acos(((hash >> 8) % 200 - 100) / 100);
-                        r = GALAXY_RADIUS * distFactor * 0.8;
-                    } else {
-                        theta = Math.random() * Math.PI * 2;
-                        phi = Math.acos((Math.random() * 2) - 1);
-                        r = Math.pow(Math.random(), 0.3) * GALAXY_RADIUS * distFactor;
-                    }
-
-                    mesh.position.set(
-                        r * Math.sin(phi) * Math.cos(theta),
-                        r * Math.sin(phi) * Math.sin(theta),
-                        r * Math.cos(phi)
-                    );
-                }
-
-                // Velocity: TOKENs are mostly static, EVENTs move
-                const velMag = nodeType === 'EVENT' ? (params.velocity_factor || 0.5) * 0.5 : 0.02;
-                const vel = new THREE.Vector3().randomDirection().multiplyScalar(velMag);
-                mesh.userData = { id, label, velocity: vel, type: archetype, nodeType, params };
-
-                // Trails for comets and fast movers
-                if (archetype === 'COMET' || params.velocity_factor > 1.0) {
-                    mesh.userData.trail = new TrailRenderer(scene, params.hex_color, 20);
-                }
-
-                // Labels: Different for events vs tokens
-                let details;
-                if (nodeType === 'EVENT' && eventLabel) {
-                    // Show event label prominently (e.g., "$1.5k")
-                    details = eventLabel;
-                } else {
-                    // Token details with RSI
-                    const priceStr = params.price ? `$${params.price.toFixed(6)}` : '';
-                    const rsiStr = params.rsi ? `RSI:${params.rsi.toFixed(0)}` : '';
-                    const whaleEmoji = params.is_whale ? ' 🐋' : '';
-                    details = `${priceStr}${whaleEmoji} ${rsiStr}`;
-                }
-                const labelEl = createLabel(id, label, details);
-                mesh.userData.labelEl = labelEl;
-
-                scene.add(mesh);
-                nodes.set(id, mesh);
-                return mesh;
-            }
-
-            // Create a moon (pool) that orbits a parent token
-            function createMoon(id, label, params) {
-                const parentMint = params.parent_mint;
-                const parentNode = nodes.get(parentMint);
-
-                // If parent doesn't exist yet, queue for later or skip
-                if (!parentNode) {
-                    console.log(`Moon ${label} waiting for parent ${parentMint}`);
-                    return null;
-                }
-
-                // Create small sphere for moon
-                const geometry = new THREE.SphereGeometry(params.radius || 0.5, 12, 12);
-                const material = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(params.hex_color || '#888888'),
-                    emissive: new THREE.Color(params.hex_color || '#444444'),
-                    emissiveIntensity: params.emissive_intensity || 1.0,
-                    roughness: params.roughness || 0.6,
-                    metalness: 0.5
-                });
-
-                const moon = new THREE.Mesh(geometry, material);
-
-                // Initial position relative to parent
-                const orbitRadius = params.orbit_radius || 5;
-                const angle = Math.random() * Math.PI * 2;
-                moon.position.set(
-                    orbitRadius * Math.cos(angle),
-                    (Math.random() - 0.5) * 2,  // Slight vertical offset
-                    orbitRadius * Math.sin(angle)
-                );
-
-                // Store orbital data
-                moon.userData = {
-                    id,
-                    label,
-                    type: 'MOON',
-                    nodeType: 'MOON',
-                    params,
-                    parentMint,
-                    orbitAngle: angle,
-                    orbitRadius,
-                    orbitSpeed: params.orbit_speed || 0.02,
-                    orbitTilt: (Math.random() - 0.5) * 0.5  // Random tilt
-                };
-
-                // Small label for pool
-                const dexLabel = params.dex || 'POOL';
-                const liqStr = params.liquidity ? `$${(params.liquidity / 1000).toFixed(0)}k` : '';
-                const labelEl = createLabel(id, `${dexLabel}`, liqStr);
-                moon.userData.labelEl = labelEl;
-
-                // Create orbital line connecting moon to parent center
-                const lineMaterial = new THREE.LineBasicMaterial({
-                    color: new THREE.Color(params.hex_color || '#444444'),
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(0, 0, 0),  // Parent center (local coords)
-                    moon.position.clone()
-                ]);
-                const orbitalLine = new THREE.Line(lineGeometry, lineMaterial);
-                orbitalLine.userData.isMoonLine = true;
-                moon.userData.orbitalLine = orbitalLine;
-                parentNode.add(orbitalLine);  // Add line to parent too
-
-                // Add moon to parent's group
-                parentNode.add(moon);  // Make moon child of parent
-                nodes.set(id, moon);
-
-                return moon;
-            }
-
-            function triggerArchetypeUpdate(data) {
-                if (data.archetype === 'MOON' || data.node_type === 'MOON') {
-                    createMoon(data.id, data.label, data.params);
-                } else {
-                    createNode(data.id, data.label, data.archetype, data.params, data.node_type || 'TOKEN', data.event_label);
-                }
-            }
-
-            function updateScene() {
-                nodes.forEach(node => {
-                    // MOON orbital animation
-                    if (node.userData.nodeType === 'MOON') {
-                        node.userData.orbitAngle += node.userData.orbitSpeed;
-                        const r = node.userData.orbitRadius;
-                        const tilt = node.userData.orbitTilt || 0;
-                        node.position.set(
-                            r * Math.cos(node.userData.orbitAngle),
-                            r * Math.sin(node.userData.orbitAngle) * tilt,
-                            r * Math.sin(node.userData.orbitAngle)
-                        );
-                        node.rotation.y += 0.03;  // Self rotation
-
-                        // Update orbital line endpoint
-                        if (node.userData.orbitalLine) {
-                            const lineGeo = node.userData.orbitalLine.geometry;
-                            const positions = lineGeo.attributes.position.array;
-                            positions[3] = node.position.x;
-                            positions[4] = node.position.y;
-                            positions[5] = node.position.z;
-                            lineGeo.attributes.position.needsUpdate = true;
-                        }
-                    }
-                    // Regular node movement
-                    else if (node.userData.velocity) {
-                        node.position.add(node.userData.velocity);
-                        node.rotation.x += 0.01;
-                        node.rotation.y += 0.02;
-
-                        // Bounds check
-                        if (node.position.length() > GALAXY_RADIUS * 1.2) {
-                            node.position.setLength(GALAXY_RADIUS * 0.1);
-                        }
-                    }
-
-                    // Update Trail
-                    if (node.userData.trail) {
-                        node.userData.trail.update(node.position);
-                    }
-                });
-
-                // Cleanup old nodes (keep moons longer)
-                if (nodes.size > 800) {
-                    let removed = false;
-                    nodes.forEach((node, key) => {
-                        if (!removed && node.userData.nodeType === 'EVENT') {
-                            scene.remove(node);
-                            if (node.userData.trail) node.userData.trail.dispose();
-                            if (node.userData.labelEl) node.userData.labelEl.remove();
-                            node.geometry.dispose();
-                            node.material.dispose();
-                            nodes.delete(key);
-                            removed = true;
-                        }
-                    });
-                }
-
-                // Update hop connection lines
-                hopConnections.forEach(conn => conn.update());
-            }
-
-            // --- DATA SYNC ---
-            // Fetch initial state from REST API
-            async function fetchGalaxy() {
-                logEvent("🔭 Scanning Galaxy State...");
+            ws.onmessage = (event) => {
                 try {
-                    const response = await fetch(API_URL);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const objects = await response.json();
+                    const data = JSON.parse(event.data);
 
-                    logEvent(`🌌 Found ${objects.length} star systems.`);
-                    objects.forEach(obj => {
-                        triggerArchetypeUpdate(obj);
-                    });
-                } catch (err) {
-                    console.error("Galaxy Fetch Error", err);
-                    logEvent(`❌ Galaxy Scan Failed: ${err.message}`);
-                }
-            }
-
-            // --- WEBSOCKET CONNECTION ---
-            const statusEl = document.getElementById('status');
-            const countEl = document.getElementById('event-count');
-            const logEl = document.getElementById('feed-log');
-
-            document.getElementById('test-btn').addEventListener('click', () => {
-                triggerArchetypeUpdate({
-                    id: "TEST_" + Math.random(),
-                    label: "TEST",
-                    archetype: "SUPERNOVA",
-                    params: { hex_color: "#ffaa00", radius: 2, emissive_intensity: 5 }
-                });
-            });
-
-            function logEvent(msg) {
-                const div = document.createElement('div');
-                div.className = 'log-entry';
-                div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-                logEl.prepend(div);
-                if (logEl.children.length > 20) logEl.removeChild(logEl.lastChild); // Increase log size
-            }
-
-            function connect() {
-                logEvent(`Attempting Neural Link to ${WS_URL}...`);
-                const ws = new WebSocket(WS_URL);
-
-                ws.onopen = () => {
-                    statusEl.textContent = "CONNECTED (NEURAL LINK ESTABLISHED)";
-                    statusEl.style.color = "#0f0";
-                    logEvent("WebSocket Open");
-                    // Initial Sync is now done via REST
-                    fetchGalaxy();
-                };
-
-                ws.onmessage = (event) => {
-                    eventCount++;
-                    countEl.textContent = eventCount;
-                    try {
-                        const data = JSON.parse(event.data);
-
-                        if (data.type === 'ARCHETYPE_UPDATE') {
-                            triggerArchetypeUpdate(data);
-                        } else if (data.type === 'WHALE_PULSE') {
-                            createWhalePulse(data.x, data.y, data.z, data.color, data.intensity);
-                        } else if (data.type === 'HOP_PATH') {
-                            // Visualize arbitrage path as connected lines
-                            const path = data.path || [];  // Array of mints
-                            const profit = data.profit || 0.01;
+                    switch (data.type) {
+                        case 'ARCHETYPE_UPDATE':
+                            scene.updateArchetype(data);
+                            break;
+                        case 'SYSTEM_STATS':
+                            stats.update(data.data);
+                            break;
+                        case 'LOG_ENTRY':
+                            logs.add(data.level, data.message, data.timestamp);
+                            break;
+                        case 'SCAN_UPDATE':
+                            scanTable.update(data.opportunities);
+                            break;
+                        case 'WHALE_PULSE':
+                            scene.createWhalePulse(data.x, data.y, data.z, data.color, data.intensity);
+                            break;
+                        case 'HOP_PATH':
+                            const path = data.path || [];
                             for (let i = 0; i < path.length - 1; i++) {
-                                createHopConnection(path[i], path[i + 1], profit);
+                                scene.createHopConnection(path[i], path[i + 1], data.profit);
                             }
-                            logEvent(`⚡ Hop Path: ${path.length} tokens @ ${(profit * 100).toFixed(2)}%`);
-                        } else if (data.type === 'MARKET_INTEL') {
-                            // Phase 12: Heat/Pressure Overlay
-                            const existing = nodes.get(data.mint);
-                            if (existing) {
-                                // Update color based on heat/regime
-                                if (data.heat > 0.8) {
-                                    existing.material.color.setHex(0xffaa00); // Orange heat
-                                    existing.material.emissive.setHex(0xff4400); // Red glow
-                                } else if (data.regime === "BULL") {
-                                    existing.material.color.setHex(0x00ff00);
-                                } else if (data.regime === "BEAR") {
-                                    existing.material.color.setHex(0xff0000);
-                                }
-                                // Flash on pressure update
-                                existing.material.emissiveIntensity = 2 + (data.heat * 3);
-                                setTimeout(() => { existing.material.emissiveIntensity = 0.5; }, 500);
+                            logs.add('SUCCESS', `⚡ Hop Path: ${path.length} tokens @ ${(data.profit * 100).toFixed(2)}%`);
+                            break;
+                        case 'PING':
+                            break;
+                        default:
+                            if (data.type === 'snapshot') {
+                                data.nodes.forEach(n => scene.createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1 }));
                             }
-                        } else if (data.type === 'WHIFF_ALERT') {
-                            // Phase 12: Whiff Detection
-                            const existing = nodes.get(data.mint);
-                            if (existing) {
-                                // Distinctive flash for whiffs
-                                const color = data.whiff_type === "WHALE_MINT" ? 0x00ffff : 0xff00ff;
-                                existing.material.emissive.setHex(color);
-                                existing.material.emissiveIntensity = 10.0;
-                                setTimeout(() => { existing.material.emissiveIntensity = 0.5; existing.material.emissive.setHex(0x000000); }, 1000);
-                                logEvent(`👃 Whiff: ${data.whiff_type} on ${data.mint.slice(0, 6)}`);
-                            }
-                        } else if (data.type === 'snapshot') {
-                            logEvent(`📸 Snapshot: ${data.nodes.length} nodes`);
-                            data.nodes.forEach(n => createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1, emissive_intensity: 1, roughness: 0.5 }));
-                        } else if (data.type === 'PING') {
-                            // Heartbeat
-                        } else {
-                            // Unknown type
-                        }
-
-                    } catch (e) {
-                        console.error("Parse error", e);
-                        const snippet = typeof event.data === 'string' ? event.data.substring(0, 50) : String(event.data);
-                        logEvent(`❌ ${e.message} in: ${snippet}...`);
                     }
-                };
+                } catch (e) {
+                    console.error("Parse error", e, event.data);
+                }
+            };
 
-                ws.onclose = () => {
-                    statusEl.textContent = "DISCONNECTED - RETRYING...";
-                    statusEl.style.color = "#f00";
-                    logEvent("WS Closed");
-                    setTimeout(connect, 3000);
-                };
+            ws.onclose = () => {
+                logs.add('WARNING', "Link Closed - Retrying...");
+                setTimeout(connect, 3000);
+            };
 
-                ws.onerror = (err) => {
-                    console.error("WS Error", err);
-                    logEvent("WS Error check console");
-                };
-            }
+            ws.onerror = (err) => {
+                logs.add('ERROR', "Link Error check console");
+            };
+        }
 
-            connect();
-
-            // --- LABEL SYSTEM ---
-            const labelContainer = document.createElement('div');
-            labelContainer.id = 'labels';
-            labelContainer.style.position = 'absolute';
-            labelContainer.style.top = '0';
-            labelContainer.style.left = '0';
-            labelContainer.style.width = '100%';
-            labelContainer.style.height = '100%';
-            labelContainer.style.pointerEvents = 'none';
-            document.body.appendChild(labelContainer);
-
-            function createLabel(id, text, details) {
-                const div = document.createElement('div');
-                div.id = `label-${id}`;
-                div.className = 'node-label';
-                div.style.position = 'absolute';
-                div.style.color = '#fff';
-                div.style.fontFamily = 'monospace';
-                div.style.fontSize = '12px';
-                div.style.textShadow = '0 0 2px #000';
-                div.style.opacity = '0.8';
-                div.innerHTML = `<strong>${text}</strong><br><span style="font-size:10px; color:#aaa">${details}</span>`;
-                labelContainer.appendChild(div);
-                return div;
-            }
-
-            function updateLabels() {
-                nodes.forEach((mesh, id) => {
-                    if (!mesh.userData.labelEl) return;
-
-                    // Project 3D position to 2D screen
-                    const tempV = new THREE.Vector3();
-                    mesh.updateWorldMatrix(true, false);
-                    mesh.getWorldPosition(tempV);
-                    tempV.project(camera);
-
-                    const x = (tempV.x * .5 + .5) * window.innerWidth;
-                    const y = (tempV.y * -.5 + .5) * window.innerHeight;
-
-                    // Hide if behind camera or far away
-                    if (tempV.z > 1) {
-                        mesh.userData.labelEl.style.display = 'none';
-                    } else {
-                        mesh.userData.labelEl.style.display = 'block';
-                        mesh.userData.labelEl.style.transform = `translate(-50%, -100%) translate(${x}px, ${y - 10}px)`;
-                    }
-                });
-            }
-
-            // --- ANIMATION LOOP ---
-            function animate() {
-                requestAnimationFrame(animate);
-
-                updateScene();
-                updateLabels(); // V4: Sync Text
-                controls.update();
-
-                // Render with Bloom
-                composer.render();
-            }
-
-            // Handle Resize
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                composer.setSize(window.innerWidth, window.innerHeight);
-            });
-
-            animate();
-        </script>
+        connect();
+    </script>
 </body>
 
 </html>

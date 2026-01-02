@@ -187,6 +187,14 @@ async def async_log_handler(signal: Signal):
         "timestamp": signal.timestamp
     })
 
+# Phase 5: SCAN_UPDATE -> Top Spreads Table
+async def async_scan_handler(signal: Signal):
+    """Broadcast top arbitrage spreads for the interactive table."""
+    await manager.broadcast({
+        "type": "SCAN_UPDATE",
+        "opportunities": signal.data.get("opportunities", [])
+    })
+
 # Subscribe to relevant signals AFTER defining handlers
 signal_bus.subscribe(SignalType.MARKET_UPDATE, async_signal_handler)
 signal_bus.subscribe(SignalType.NEW_TOKEN, async_signal_handler)
@@ -195,6 +203,7 @@ signal_bus.subscribe(SignalType.WHIFF_DETECTED, async_whiff_handler)
 signal_bus.subscribe(SignalType.ARB_OPP, async_arb_handler)
 signal_bus.subscribe(SignalType.SYSTEM_STATS, async_stats_handler)
 signal_bus.subscribe(SignalType.LOG_UPDATE, async_log_handler)
+signal_bus.subscribe(SignalType.SCAN_UPDATE, async_scan_handler)
 
 # --- Endpoints ---
 

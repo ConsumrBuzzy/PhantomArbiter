@@ -29,6 +29,7 @@ class SignalType(Enum):
     LOG_UPDATE = "LOG_UPDATE"              # Raw log from WSS
     TX_FAILED = "TX_FAILED"                # Transaction failure detected
     SYSTEM_STATS = "SYSTEM_STATS"          # V140: Unified System Metrics
+    SCAN_UPDATE = "SCAN_UPDATE"            # V140: Real-time top spreads for UI
 
 
 @dataclass
