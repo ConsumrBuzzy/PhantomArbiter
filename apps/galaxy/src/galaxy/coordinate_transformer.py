@@ -73,12 +73,14 @@ class CoordinateTransformer:
             Tuple of (x, y, z) coordinates
         """
         mint = data.get("mint") or data.get("token") or ""
+        symbol = data.get("symbol") or data.get("label") or ""
         
         # Extract metrics
         market_cap = cls._safe_float(data.get("market_cap") or data.get("fdv") or 0)
         liquidity = cls._safe_float(data.get("liquidity") or data.get("liquidity_usd") or 1000)
         volume = cls._safe_float(data.get("volume_24h") or data.get("volume") or 0)
-        dex = data.get("dex") or data.get("source") or "UNKNOWN"
+        tags = data.get("tags") or data.get("categories") or []
+        category = data.get("category")
         
         # Get RSI from indicators or data
         rsi = 50.0  # Neutral default
@@ -87,23 +89,21 @@ class CoordinateTransformer:
         elif "rsi" in data:
             rsi = cls._safe_float(data.get("rsi") or 50)
         
-        # --- RADIUS: Market cap / volume based distance ---
-        # Use market cap if available, else liquidity, else volume
-        cap_value = market_cap if market_cap > 0 else (liquidity if liquidity > 1000 else max(volume, 1000))
-        radius = cls._cap_to_radius(cap_value)
-        
-        # --- ANGLE: DEX sector ---
-        dex_sector = cls._parse_dex(dex)
-        angle = cls._get_sector_angle(dex_sector, mint)
+        # --- X,Z: Constellation Island Positioning ---
+        # Uses category to cluster tokens into distinct islands
+        from galaxy.constellation_manager import ConstellationManager
+        x, z = ConstellationManager.get_island_position(
+            mint=mint,
+            symbol=symbol,
+            category=category,
+            tags=tags if isinstance(tags, list) else [tags] if tags else None,
+            volume=volume,
+            liquidity=liquidity,
+        )
         
         # --- HEIGHT: RSI momentum ---
         # RSI 50 = neutral (Y=0), RSI 70 = overbought (Y=+max), RSI 30 = oversold (Y=-max)
-        height = cls._rsi_to_height(rsi)
-        
-        # Convert cylindrical (R, θ, Y) to Cartesian (X, Y, Z)
-        x = radius * math.cos(angle)
-        z = radius * math.sin(angle)
-        y = height
+        y = cls._rsi_to_height(rsi)
         
         return (
             round(x, 2),

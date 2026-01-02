@@ -90,6 +90,20 @@
             "trading_enabled": false,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1767391008.6081207
+        },
+        "KORI": {
+            "mint": "HtTYHz1Kf3rrQo6AqDLmss7gq5WrkWAaXn3tupUZbonk",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767391572.0776093
+        },
+        "NOBODY": {
+            "mint": "C29ebrgYjYoJPMGPnPSGY1q3mMGk4iDSqnQeQQA7moon",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767391572.0840454
         }
     }
 }
