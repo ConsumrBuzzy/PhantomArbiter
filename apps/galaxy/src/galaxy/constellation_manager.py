@@ -57,23 +57,26 @@ ISLAND_CENTROIDS: Dict[TokenCategory, IslandCentroid] = {
 }
 
 
-# Keyword mapping for category detection
+# Keyword mapping for category detection (substring matching)
 CATEGORY_KEYWORDS: Dict[TokenCategory, List[str]] = {
     TokenCategory.MEME: [
         "meme", "dog", "cat", "pepe", "wojak", "doge", "shib", "bonk", "wif", 
-        "popcat", "fart", "frog", "ape", "moon", "elon", "trump", "biden", "jelly"
+        "popcat", "fart", "frog", "ape", "moon", "elon", "trump", "biden", "jelly",
+        "nub", "mini", "capy", "neiro", "pengu", "griffain", "ploi", "dupe",
+        "uranus", "buzz", "freya", "kled", "grass", "io", "oil", "spsc",
     ],
     TokenCategory.AI: [
         "ai", "gpt", "agent", "virtual", "pippin", "sentient", "neural", "bot",
-        "intelligence", "machine", "llm", "openai"
+        "intelligence", "machine", "llm", "openai", "giga", "67_9avy",
     ],
     TokenCategory.DEFI: [
         "swap", "amm", "dex", "protocol", "yield", "stake", "lend", "borrow",
-        "jup", "jupiter", "ray", "raydium", "orca", "marinade", "drift"
+        "jup", "jupiter", "ray", "raydium", "orca", "marinade", "drift", "met",
+        "ondo", "zeus", "core",
     ],
     TokenCategory.INFRASTRUCTURE: [
         "sol", "pyth", "jto", "jito", "wormhole", "bridge", "oracle", "infra",
-        "render", "helium", "hnt", "mobile"
+        "render", "helium", "hnt", "mobile", "oi1",
     ],
     TokenCategory.GAMING: [
         "game", "nft", "play", "metaverse", "arcade", "star", "atlas", "genopets"
@@ -84,6 +87,60 @@ CATEGORY_KEYWORDS: Dict[TokenCategory, List[str]] = {
     TokenCategory.STABLECOIN: [
         "usd", "usdc", "usdt", "dai", "stable", "peg"
     ],
+}
+
+# Direct symbol → category mapping for known tokens
+SYMBOL_CATEGORY_MAP: Dict[str, TokenCategory] = {
+    # Memes
+    "WIF": TokenCategory.MEME,
+    "BONK": TokenCategory.MEME,
+    "POPCAT": TokenCategory.MEME,
+    "PENGU": TokenCategory.MEME,
+    "NEIRO": TokenCategory.MEME,
+    "CAPY": TokenCategory.MEME,
+    "TRUMP": TokenCategory.MEME,
+    "BUZZ": TokenCategory.MEME,
+    "FREYA": TokenCategory.MEME,
+    "GRASS": TokenCategory.MEME,
+    "NUB": TokenCategory.MEME,
+    "MINI": TokenCategory.MEME,
+    "URANUS": TokenCategory.MEME,
+    "GRIFFAIN": TokenCategory.MEME,
+    "PLOI": TokenCategory.MEME,
+    "DUPE": TokenCategory.MEME,
+    "SPSC": TokenCategory.MEME,
+    "OIL": TokenCategory.MEME,
+    "KLED": TokenCategory.MEME,
+    
+    # AI
+    "PIPPIN": TokenCategory.AI,
+    "VIRTUAL": TokenCategory.AI,
+    "GIGA": TokenCategory.AI,
+    "67_9AVY": TokenCategory.AI,
+    
+    # DeFi
+    "JUP": TokenCategory.DEFI,
+    "RAY": TokenCategory.DEFI,
+    "ORCA": TokenCategory.DEFI,
+    "MET": TokenCategory.DEFI,
+    "ONDO": TokenCategory.DEFI,
+    "ZEUS": TokenCategory.DEFI,
+    "CORE": TokenCategory.DEFI,
+    "DRIFT": TokenCategory.DEFI,
+    
+    # Infrastructure
+    "SOL": TokenCategory.INFRASTRUCTURE,
+    "PYTH": TokenCategory.INFRASTRUCTURE,
+    "JTO": TokenCategory.INFRASTRUCTURE,
+    "IO": TokenCategory.INFRASTRUCTURE,
+    "OI1": TokenCategory.INFRASTRUCTURE,
+    "MOBILE": TokenCategory.INFRASTRUCTURE,
+    "HNT": TokenCategory.INFRASTRUCTURE,
+    
+    # LST
+    "MSOL": TokenCategory.LST,
+    "BSOL": TokenCategory.LST,
+    "JITOSOL": TokenCategory.LST,
 }
 
 
@@ -140,14 +197,20 @@ class ConstellationManager:
         tags: Optional[List[str]],
     ) -> TokenCategory:
         """Detect token category from symbol and tags."""
-        # If explicit category provided
+        # 1. Check direct symbol mapping
+        if symbol:
+            symbol_upper = symbol.upper()
+            if symbol_upper in SYMBOL_CATEGORY_MAP:
+                return SYMBOL_CATEGORY_MAP[symbol_upper]
+
+        # 2. Check explicit category provided
         if category:
             try:
                 return TokenCategory(category.upper())
             except ValueError:
                 pass
         
-        # Check symbol and tags against keywords
+        # 3. Check symbol and tags against keywords
         search_text = symbol.lower()
         if tags:
             search_text += " " + " ".join(t.lower() for t in tags)
