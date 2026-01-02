@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package phantom.datafeed;
+
+// Market Data Service - Front of the line data ingestion
+service MarketDataService {
+  // Stream real-time price updates
+  rpc StreamPrices(SubscribeRequest) returns (stream PriceUpdate);
+  
+  // Get current market snapshot
+  rpc GetSnapshot(SnapshotRequest) returns (MarketSnapshot);
+  
+  // Subscribe to specific topics (whale, discovery, etc.)
+  rpc SubscribeTopic(TopicRequest) returns (stream MarketEvent);
+  
+  // Health check
+  rpc HealthCheck(Empty) returns (HealthResponse);
+}
+
+message Empty {}
+
+message SubscribeRequest {
+  repeated string symbols = 1;  // Empty means all
+  repeated string mints = 2;    // Filter by mint address
+  bool include_metadata = 3;    // Include volume/liquidity
+}
+
+message SnapshotRequest {
+  int32 max_age_seconds = 1;    // Max cache age to accept
+}
+
+message TopicRequest {
+  string topic = 1;  // WHALE, DISCOVERY, GRADUATION, ARBITRAGE
+}
+
+message PriceUpdate {
+  string symbol = 1;
+  string mint = 2;
+  double price = 3;
+  double volume_24h = 4;
+  double liquidity = 5;
+  double price_change_1h = 6;
+  double price_change_24h = 7;
+  int64 timestamp_ms = 8;
+  string source = 9;           // WSS, JUPITER, DEXSCREENER
+  int32 slot = 10;             // Solana slot number
+}
+
+message MarketSnapshot {
+  repeated PriceUpdate prices = 1;
+  int64 snapshot_time_ms = 2;
+  int32 source_count = 3;
+}
+
+message MarketEvent {
+  string event_type = 1;       // WHALE_ACTIVITY, NEW_TOKEN, GRADUATION
+  string mint = 2;
+  string symbol = 3;
+  double value = 4;            // Context-dependent (amount for whale, etc.)
+  string metadata_json = 5;    // Additional JSON payload
+  int64 timestamp_ms = 6;
+}
+
+message HealthResponse {
+  string status = 1;           // OK, DEGRADED, ERROR
+  int32 wss_connections = 2;
+  int32 symbols_tracked = 3;
+  double avg_latency_ms = 4;
+  int64 uptime_seconds = 5;
+}

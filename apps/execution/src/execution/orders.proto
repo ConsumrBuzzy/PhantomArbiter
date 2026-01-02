@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package phantom.execution;
+
+// Execution Service - Trade execution layer
+service ExecutionService {
+  // Submit a trade signal for execution
+  rpc SubmitSignal(TradeSignal) returns (SignalAck);
+  
+  // Get current positions
+  rpc GetPositions(PositionRequest) returns (PositionList);
+  
+  // Get portfolio PnL
+  rpc GetPnL(PnLRequest) returns (PnLResponse);
+  
+  // Stream execution confirmations
+  rpc StreamExecutions(Empty) returns (stream ExecutionResult);
+  
+  // Health check
+  rpc HealthCheck(Empty) returns (HealthResponse);
+}
+
+message Empty {}
+
+message TradeSignal {
+  string id = 1;               // Unique signal ID
+  string symbol = 2;
+  string mint = 3;
+  string action = 4;           // BUY, SELL, HOLD
+  double size_usd = 5;
+  string reason = 6;
+  double confidence = 7;       // 0.0 - 1.0
+  double target_price = 8;     // Optional target
+  double stop_loss = 9;        // Optional stop
+  int64 timestamp_ms = 10;
+  string source = 11;          // Strategy name
+}
+
+message SignalAck {
+  string signal_id = 1;
+  string status = 2;           // ACCEPTED, REJECTED, QUEUED
+  string message = 3;
+  int64 timestamp_ms = 4;
+}
+
+message PositionRequest {
+  bool include_closed = 1;     // Include closed positions
+  int32 max_age_hours = 2;     // Max age for closed positions
+}
+
+message Position {
+  string symbol = 1;
+  string mint = 2;
+  double balance = 3;
+  double avg_price = 4;
+  double current_price = 5;
+  double unrealized_pnl = 6;
+  double unrealized_pnl_pct = 7;
+  int64 entry_time_ms = 8;
+  string status = 9;           // OPEN, CLOSED, LIQUIDATED
+}
+
+message PositionList {
+  repeated Position positions = 1;
+  double total_value_usd = 2;
+  int32 open_count = 3;
+}
+
+message PnLRequest {
+  int32 period_hours = 1;      // Lookback period
+}
+
+message PnLResponse {
+  double realized_pnl = 1;
+  double unrealized_pnl = 2;
+  double total_pnl = 3;
+  int32 trades_count = 4;
+  double win_rate = 5;
+  double avg_trade_pnl = 6;
+}
+
+message ExecutionResult {
+  string signal_id = 1;
+  string status = 2;           // FILLED, PARTIAL, FAILED
+  double filled_amount = 3;
+  double filled_price = 4;
+  double slippage_pct = 5;
+  double fees_usd = 6;
+  string tx_signature = 7;     // Blockchain tx (if live)
+  string error = 8;            // Error message (if failed)
+  int64 timestamp_ms = 9;
+}
+
+message HealthResponse {
+  string status = 1;           // OK, DEGRADED, ERROR
+  string mode = 2;             // PAPER, LIVE
+  int32 open_positions = 3;
+  double cash_balance = 4;
+  int64 uptime_seconds = 5;
+}
