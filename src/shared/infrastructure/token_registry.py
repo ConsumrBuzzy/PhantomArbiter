@@ -15,6 +15,7 @@ from typing import Dict, Optional, Tuple, Any
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.state.app_state import TokenIdentity, TokenRisk, TokenMarket
+from src.shared.structure.taxonomy import taxonomy, TokenCategory  # V34: Taxonomy import
 
 try:
     import httpx
@@ -246,7 +247,18 @@ class TokenRegistry:
         fallback = mint[:6] if len(mint) > 6 else mint
         self._dynamic[mint] = fallback
         self._confidence[mint] = (CONFIDENCE_UNKNOWN, "fallback")
+        self._confidence[mint] = (CONFIDENCE_UNKNOWN, "fallback")
         return (fallback, CONFIDENCE_UNKNOWN, "fallback")
+
+    def get_category(self, mint: str) -> str:
+        """Get the category for a token (uses cached identity or taxonomy)."""
+        # Check cache first
+        if mint in self._identity_cache:
+            return self._identity_cache[mint].category
+        
+        # Determine symbol
+        symbol = self.get_symbol(mint)
+        return taxonomy.classify(symbol, mint).value
 
     def get_full_metadata(self, mint: str) -> Dict[str, Any]:
         """
@@ -286,6 +298,7 @@ class TokenRegistry:
                 symbol=symbol,
                 decimals=6,  # Default
                 name=symbol,
+                category=taxonomy.classify(symbol, mint).value,  # Auto-classify
             )
             self._identity_cache[mint] = identity
             # Save new identity to DB

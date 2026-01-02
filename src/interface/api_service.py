@@ -11,7 +11,9 @@ from src.shared.system.logging import Logger
 from src.shared.system.signal_bus import signal_bus, Signal, SignalType
 from src.arbiter.visual_transformer import VisualTransformer
 from src.arbiter.coordinate_transformer import CoordinateTransformer
+from src.arbiter.coordinate_transformer import CoordinateTransformer
 from src.shared.state.app_state import state
+from src.shared.infrastructure.token_registry import TokenRegistry  # V34: Core Taxonomy
 
 # --- Pydantic Models ---
 class VisualParams(BaseModel):
@@ -101,6 +103,18 @@ def signal_handler(signal: Signal):
         pass
 
 async def async_signal_handler(signal: Signal):
+    # V34: Inject Taxonomy Category
+    data = signal.data
+    mint = data.get("mint") or data.get("token")
+    if mint:
+        try:
+            # Quick lookup from singleton
+            category = TokenRegistry().get_category(mint)
+            if category:
+                data["category"] = category
+        except Exception:
+            pass
+
     payload = VisualTransformer.transform(signal)
     if payload:
         await manager.broadcast(payload)
@@ -283,7 +297,10 @@ async def get_initial_galaxy():
                             "price": price,
                             "rsi": rsi,
                             "liquidity": liquidity,
-                            "volume_24h": volume
+                            "rsi": rsi,
+                            "liquidity": liquidity,
+                            "volume_24h": volume,
+                            "category": registry.get_category(mint)  # V34: Inject Category
                         }
                     )
                     payload = VisualTransformer.transform(sig)

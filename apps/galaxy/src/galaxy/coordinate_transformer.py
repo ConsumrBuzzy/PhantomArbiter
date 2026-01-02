@@ -90,8 +90,9 @@ class CoordinateTransformer:
             rsi = cls._safe_float(data.get("rsi") or 50)
         
         # --- X,Z: Constellation Island Positioning ---
+        # --- X,Z: Constellation Island Positioning ---
         # Uses category to cluster tokens into distinct islands
-        from galaxy.constellation_manager import ConstellationManager
+        from src.shared.structure.constellation_manager import ConstellationManager
         x, z = ConstellationManager.get_island_position(
             mint=mint,
             symbol=symbol,

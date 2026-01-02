@@ -1,123 +1,139 @@
 """
-Coordinate Transformer V140
-===========================
-The Physics Engine for the Solana Galaxy.
-Maps high-dimensional signals to 3D celestial coordinates.
+Coordinate Transformer - Galactic XYZ Semantic Mapping.
+
+Maps market data to 3D spatial coordinates using Cylindrical Mapping:
+- Radius (R): Market cap / volume (blue chips at center)
+- Angle (θ): DEX sector (Raydium/Orca/Meteora districts)
+- Height (Y): RSI momentum (overbought up, oversold down)
+
+V141: Synced with Galaxy App Logic + Shared Constellation Manager
 """
+
+from __future__ import annotations
 
 import math
 import hashlib
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
+from enum import Enum
+
+
+class DexSector(str, Enum):
+    """DEX district sectors in the galaxy."""
+    RAYDIUM = "RAYDIUM"
+    ORCA = "ORCA"
+    METEORA = "METEORA"
+    JUPITER = "JUPITER"
+    PUMPFUN = "PUMPFUN"
+    UNKNOWN = "UNKNOWN"
+
+
+# DEX Sector angle ranges (in radians)
+DEX_SECTORS = {
+    DexSector.RAYDIUM: (0, 2 * math.pi / 3),              # 0° - 120°
+    DexSector.ORCA: (2 * math.pi / 3, 4 * math.pi / 3),   # 120° - 240°
+    DexSector.METEORA: (4 * math.pi / 3, 5 * math.pi / 3),# 240° - 300°
+    DexSector.JUPITER: (5 * math.pi / 3, 11 * math.pi / 6),# 300° - 330°
+    DexSector.PUMPFUN: (11 * math.pi / 6, 2 * math.pi),   # 330° - 360°
+}
+
 
 class CoordinateTransformer:
     """
-    Translates market signals into spatial positions.
+    Maps market data to 3D galactic coordinates using Cylindrical Semantic Mapping.
     """
     
-    # Constants for normalization
-    SOL_MINT = "So11111111111111111111111111111111111111112"
-    BASE_RADIUS = 200.0  # Max spread of planets
+    # Galaxy bounds
+    GALAXY_RADIUS = 100.0
+    CORE_RADIUS = 15.0   # Blue chips (high cap) near center
+    RIM_RADIUS = 90.0    # New tokens at the edge
+    MAX_HEIGHT = 40.0    # Max vertical displacement
+    
+    @classmethod
+    def get_xyz(
+        cls,
+        data: Dict[str, Any],
+        indicators: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[float, float, float]:
+        """
+        Convert market data to XYZ coordinates using semantic mapping.
+        """
+        mint = data.get("mint") or data.get("token") or ""
+        symbol = data.get("symbol") or data.get("label") or ""
+        
+        # Extract metrics
+        liquidity = cls._safe_float(data.get("liquidity") or data.get("liquidity_usd") or 1000)
+        volume = cls._safe_float(data.get("volume_24h") or data.get("volume") or 0)
+        tags = data.get("tags") or data.get("categories") or []
+        category = data.get("category")
+        
+        # Get RSI from indicators or data
+        rsi = 50.0  # Neutral default
+        if indicators:
+            rsi = cls._safe_float(indicators.get("rsi_14") or indicators.get("rsi") or 50)
+        elif "rsi" in data:
+            rsi = cls._safe_float(data.get("rsi") or 50)
+        
+        # --- X,Z: Constellation Island Positioning ---
+        # Uses category to cluster tokens into distinct islands
+        from src.shared.structure.constellation_manager import ConstellationManager
+        x, z = ConstellationManager.get_island_position(
+            mint=mint,
+            symbol=symbol,
+            category=category,
+            tags=tags if isinstance(tags, list) else [tags] if tags else None,
+            volume=volume,
+            liquidity=liquidity,
+        )
+        
+        # --- HEIGHT: RSI momentum ---
+        y = cls._rsi_to_height(rsi)
+        
+        return (
+            round(x, 2),
+            round(y, 2),
+            round(z, 2)
+        )
+    
+    @classmethod
+    def _rsi_to_height(cls, rsi: float) -> float:
+        """
+        Convert RSI to vertical position.
+        RSI 50 = 0, RSI 70+ = positive, RSI 30- = negative
+        """
+        # Clamp RSI to 0-100
+        rsi = max(0, min(100, rsi))
+        
+        # Center around 50
+        offset = rsi - 50
+        
+        # Scale: 20 RSI points = MAX_HEIGHT
+        height = (offset / 20) * cls.MAX_HEIGHT
+        
+        # Clamp to bounds
+        return max(-cls.MAX_HEIGHT, min(cls.MAX_HEIGHT, height))
+    
+    @classmethod
+    def _mint_to_angle(cls, mint: str, min_angle: float, max_angle: float) -> float:
+        """
+        Generate deterministic angle within range from mint address.
+        """
+        if not mint:
+            return min_angle
+        
+        hash_bytes = hashlib.md5(mint.encode()).digest()
+        hash_int = int.from_bytes(hash_bytes[:4], 'big')
+        
+        # Map to range
+        normalized = hash_int / (2**32)
+        return min_angle + normalized * (max_angle - min_angle)
     
     @staticmethod
-    def get_xyz(data: Dict[str, Any]) -> Tuple[float, float, float]:
-        """
-        Calculates X, Y, Z based on market context.
-        
-        Logic:
-        - R (Distance): Inversely proportional to Liquidity.
-        - Z (Altitude): Momentum (RSI) vs Inefficiency (Spread).
-        - Theta (Sector): Based on token identity/hash.
-        """
-        mint = data.get("mint") or data.get("token") or "UNKNOWN"
-        
-        # 1. The Core ($SOL) is always at (0,0,0)
-        if mint == CoordinateTransformer.SOL_MINT:
-            return 0.0, 0.0, 0.0
-        
-        # 2. Radial Distance (Gravity Well)
-        # Higher liquidity = closer to core
+    def _safe_float(value: Any) -> float:
+        """Safely convert to float with NaN/Inf handling."""
         try:
-            liquidity = float(data.get("liquidity", 1000.0))
+            f = float(value)
+            if math.isnan(f) or math.isinf(f):
+                return 0.0
+            return f
         except (ValueError, TypeError):
-            liquidity = 1000.0
-            
-        # Log scale gravity: R = 1 / log10(liq)
-        # Log scale gravity: R = 1 / log10(liq)
-        # We want to use the range [50, 900] for r
-        liq_log = math.log10(max(liquidity, 10))
-        # Map log scale 1 (10 USD) -> 10 (10B USD) to radius 900 -> 50
-        # Formula: r = 900 - (liq_log - 1) * (850 / 9)
-        r = 900.0 - (max(1.0, min(liq_log, 10.0)) - 1.0) * (850.0 / 9.0)
-        r = max(50.0, min(r, 950.0))
-        
-        # 3. Z-Axis (Verticality)
-        # Scalper (UP): High RSI = positive
-        # Arbiter (DOWN): High Spread = negative
-        z = 0.0
-        
-        # Scalper Signal (RSI)
-        rsi = data.get("rsi", 50.0) or 50.0
-        if rsi != 50.0:
-            z = (rsi - 50.0) * 2.0  # RSI 80 -> Z=60
-            
-        # Arbiter Signal (Spread)
-        spread = data.get("spread", 0.0) or 0.0
-        if spread > 0.005:  # 0.5% threshold
-            # Sub-surface pull: Higher spread = deeper
-            z = - (spread * 2000.0)  # 1% spread -> Z=-20
-            
-        # 4. Sector (Theta/Phi)
-        # Use mint hash to assign a stable sector
-        hash_val = int(hashlib.md5(mint.encode()).hexdigest(), 16)
-        theta = (hash_val % 360) * math.pi / 180.0
-        
-        # Map to Cartesian
-        x = r * math.cos(theta)
-        y = r * math.sin(theta)
-        
-        # V140: Spatial Jitter (Break perfect ring pattern)
-        # Predictable noise based on hash to avoid flickering
-        jitter_x = ((hash_val % 100) - 50) * 0.2
-        jitter_y = (((hash_val >> 4) % 100) - 50) * 0.2
-        jitter_z = (((hash_val >> 8) % 100) - 50) * 0.1
-        
-        x += jitter_x
-        y += jitter_y
-        z += jitter_z
-        
-        # V140: Final Validation (Avoid NaN in JSON)
-        def safe_val(v):
-            if math.isnan(v) or math.isinf(v): return 0.0
-            return float(v)
-            
-        return safe_val(x), safe_val(y), safe_val(z)
-
-    @staticmethod
-    def get_moon_offset(pool_data: Dict[str, Any]) -> Tuple[float, float, float]:
-        """
-        Calculates orbital offset for a moon (DEX pool).
-        Proportional to DEX lag or individual TVL.
-        """
-        # Individual pool TVL determines orbit radius
-        try:
-            liq = float(pool_data.get("liquidity", 1000.0))
-        except:
-            liq = 1000.0
-            
-        orbit_r = 10.0 + math.log10(max(liq, 10)) * 2.0
-        
-        # Orbit speed based on DEX (stable rotation)
-        dex = pool_data.get("dex", "UNKNOWN").upper()
-        speed_map = {"ORCA": 0.02, "RAYDIUM": 0.015, "METEORA": 0.01}
-        speed = speed_map.get(dex, 0.01)
-        
-        # Time-based position
-        t = time.time() * speed
-        
-        ox = orbit_r * math.cos(t)
-        oz = orbit_r * math.sin(t)
-        oy = (hash(dex) % 10 - 5) * 0.5  # Fixed vertical jitter per DEX
-        
-        return ox, oy, oz
-
-import time
+            return 0.0

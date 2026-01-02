@@ -62,6 +62,7 @@ class TokenIdentity:
     program_id: str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # SPL Token
     name: str = ""
     logo_uri: Any = None  # Optional[str]
+    category: str = "UNKNOWN"  # V34: Core Taxonomy Classification
 
 
 @dataclass
