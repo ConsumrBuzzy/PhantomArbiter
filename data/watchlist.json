@@ -480,11 +480,13 @@
         },
         "PUMPCADE": {
             "mint": "Eg2ymQ2aQqjMcibnmTt8erC6Tvk9PVpJZCxvVPJz2agu",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1766070941.4721029,
-            "promoted_at": 1766071165.426907
+            "promoted_at": 1766071165.426907,
+            "demoted_at": 1767394421.914322,
+            "demoted_reason": "Low Win Rate"
         },
         "nub": {
             "mint": "GtDZKAqvMZMnti46ZewMiXCa4oXF4bZxwQPoKzXPFxZn",

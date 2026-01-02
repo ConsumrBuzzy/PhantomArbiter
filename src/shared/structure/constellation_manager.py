@@ -136,3 +136,25 @@ class ConstellationManager:
             cat.value: (island.x, island.z)
             for cat, island in ISLAND_CENTROIDS.items()
         }
+
+    @classmethod
+    def get_sector_billboards(cls) -> List[Dict]:
+        """
+        V37: Get data for Sector Billboards (Visual Anchors).
+        Returns a list of dicts suitable for VisualObject transformation.
+        """
+        billboards = []
+        for sector, island in ISLAND_CENTROIDS.items():
+            if sector == TokenSector.UNKNOWN:
+                continue # No billboard for the unknown wastelands
+            
+            billboards.append({
+                "id": f"BILLBOARD_{sector.value}",
+                "label": sector.value,
+                "x": island.x,
+                "z": island.z,
+                "y": 150, # Float above the island
+                "hex_color": island.color,
+                "type": "BILLBOARD"
+            })
+        return billboards

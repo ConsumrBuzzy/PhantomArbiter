@@ -249,6 +249,47 @@ async def get_initial_galaxy():
     
     # V38: Add all tokens from TokenRegistry as planets
     try:
+        # V37: Inject Sector Billboards
+        from src.shared.structure.constellation_manager import ConstellationManager
+        billboards = ConstellationManager.get_sector_billboards()
+        for b in billboards:
+            # Create a mock metadata signal for the billboard
+            # We use a special source "BILLBOARD" to handle archetype
+            sig = Signal(
+                type=SignalType.METADATA,
+                source="BILLBOARD",
+                data={
+                    "mint": b["id"],
+                    "symbol": b["label"],
+                    "label": b["label"],
+                    "hex_color": b["hex_color"],
+                    "x": b["x"],
+                    "y": b["y"],
+                    "z": b["z"],
+                    "archetype": "BILLBOARD"
+                }
+            )
+            # We manually construct the VisualObject since VisualTransformer might not handle "BILLBOARD" archetype logic yet
+            # Actually, let's just make sure VisualTransformer passes parameters through.
+            # But wait, api_service uses VisualTransformer.transform. 
+            # We can just construct the dict directly to align with VisualObject model
+            
+            objects.append(VisualObject(
+                type="ARCHETYPE_UPDATE",
+                id=b["id"],
+                label=b["label"],
+                archetype="BILLBOARD",
+                params=VisualParams(
+                    radius=100.0, # Large hit area
+                    roughness=0.1,
+                    emissive_intensity=5.0,
+                    hex_color=b["hex_color"],
+                    x=b["x"],
+                    y=b["y"], # Floating high
+                    z=b["z"]
+                )
+            ))
+
         # Run blocking registry/cache operations in a thread preventing loop freeze
         def fetch_galaxy_nodes():
             from src.shared.infrastructure.token_registry import TokenRegistry

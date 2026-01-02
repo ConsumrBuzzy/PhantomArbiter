@@ -153,7 +153,12 @@ export class GalaxyScene {
 
             // Prioritize: Whales always visible further
             const isWhale = mesh.userData.params && mesh.userData.params.is_whale;
-            const visibleThreshold = isWhale ? 1800 : 800; // Whales visible from 2x distance
+            const isBillboard = mesh.userData.type === 'BILLBOARD';
+
+            let visibleThreshold = 800;
+            if (isWhale) visibleThreshold = 1800;
+            if (isBillboard) visibleThreshold = 5000; // Always visible
+
             const fullDetailThreshold = 400; // Only show full stats when close
 
             if (tempV.z > 1 || dist > visibleThreshold) {
@@ -208,6 +213,8 @@ export class GalaxyScene {
             case 'NOVA': geometry = new THREE.DodecahedronGeometry(params.radius || 2, 0); break;
             case 'COMET': geometry = new THREE.ConeGeometry(params.radius || 1, params.radius * 2, 8); break;
             case 'WHALE': geometry = new THREE.TorusKnotGeometry(params.radius || 3, 0.5, 64, 8); break;
+            // V37: Billboard (Invisible anchor)
+            case 'BILLBOARD': geometry = new THREE.BoxGeometry(1, 1, 1); break;
             default: geometry = new THREE.TetrahedronGeometry(params.radius || 1, 0);
         }
 
@@ -217,7 +224,8 @@ export class GalaxyScene {
             emissiveIntensity: params.emissive_intensity || 0.5,
             roughness: params.roughness !== undefined ? params.roughness : 0.5,
             metalness: params.metalness !== undefined ? params.metalness : 0.8,
-            wireframe: params.roughness < 0.2
+            wireframe: params.roughness < 0.2,
+            visible: archetype !== 'BILLBOARD' // Hide anchor mesh
         });
 
         const mesh = new THREE.Mesh(geometry, material);
@@ -231,14 +239,22 @@ export class GalaxyScene {
 
         const velMag = nodeType === 'EVENT' ? (params.velocity_factor || 0.5) * 0.5 : 0.02;
         const vel = new THREE.Vector3().randomDirection().multiplyScalar(velMag);
+        if (archetype === 'BILLBOARD') vel.set(0, 0, 0); // Anchors don't move
+
         mesh.userData = { id, label, velocity: vel, type: archetype, nodeType, params };
 
-        if (archetype === 'COMET' || params.velocity_factor > 1.0) {
+        if (archetype === 'COMET' || (params.velocity_factor > 1.0 && archetype !== 'BILLBOARD')) {
             mesh.userData.trail = new TrailRenderer(this.scene, params.hex_color, 20);
         }
 
         let details = nodeType === 'EVENT' ? eventLabel : `${params.price ? `$${params.price.toFixed(6)}` : ''} ${params.rsi ? `RSI:${params.rsi.toFixed(0)}` : ''}`;
         mesh.userData.labelEl = this.createLabel(id, label, details, params);
+
+        // V37: Apply billboard styling
+        if (archetype === 'BILLBOARD') {
+            mesh.userData.labelEl.classList.add('billboard');
+            mesh.userData.labelEl.style.color = params.hex_color; // Glow color
+        }
 
         this.scene.add(mesh);
         this.nodes.set(id, mesh);
