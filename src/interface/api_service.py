@@ -335,6 +335,29 @@ async def get_initial_galaxy():
     Logger.info(f"   🛸 ✅ [API] Returning Galaxy: {len(objects)} nodes")
     return objects
 
+
+class EventPayload(BaseModel):
+    type: str
+    source: str
+    data: Dict[str, Any]
+
+@app.post("/api/v1/events")
+async def receive_event(event: EventPayload):
+    """
+    HTTP Bridge: Allows external services (EventBridge) to push signals to Galaxy.
+    """
+    # 1. Reconstruct Signal
+    sig = Signal(
+        type=SignalType(event.type) if event.type in SignalType.__members__ else SignalType.MARKET_UPDATE,
+        source=event.source,
+        data=event.data
+    )
+    
+    # 2. Inject Category if needed (for external events)
+    await async_signal_handler(sig)
+    
+    return {"status": "ok", "broadcast": True}
+
 @app.websocket("/ws/v1/stream")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

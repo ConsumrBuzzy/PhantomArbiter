@@ -148,13 +148,28 @@ export class GalaxyScene {
 
             mesh.userData.labelEl.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
 
-            // Visibility logic
+            // V35: LOD (Level of Detail) to prevent clumping
             const dist = this.camera.position.distanceTo(mesh.getWorldPosition(new THREE.Vector3()));
-            if (tempV.z > 1 || dist > 1500) {
+
+            // Prioritize: Whales always visible further
+            const isWhale = mesh.userData.params && mesh.userData.params.is_whale;
+            const visibleThreshold = isWhale ? 1800 : 800; // Whales visible from 2x distance
+            const fullDetailThreshold = 400; // Only show full stats when close
+
+            if (tempV.z > 1 || dist > visibleThreshold) {
                 mesh.userData.labelEl.style.display = 'none';
             } else {
                 mesh.userData.labelEl.style.display = 'block';
-                mesh.userData.labelEl.style.opacity = Math.max(0, 1 - (dist / 1500));
+                // Fade out effect
+                const opacity = Math.max(0, 1 - (dist / visibleThreshold));
+                mesh.userData.labelEl.style.opacity = opacity;
+
+                // Compact Mode (CSS class toggle)
+                if (dist > fullDetailThreshold && !isWhale) {
+                    mesh.userData.labelEl.classList.add('compact');
+                } else {
+                    mesh.userData.labelEl.classList.remove('compact');
+                }
             }
         });
     }
