@@ -117,8 +117,12 @@ class VisualTransformer:
         is_whale = volume >= WHALE_THRESHOLD_USD or source == "WHALE"
         node_type = "EVENT" if is_event else "TOKEN"
         
-        # --- Spatial Coordinates ---
-        x, y, z = CoordinateTransformer.get_xyz(data)
+        # --- Spatial Coordinates (with RSI for height) ---
+        indicators = {"rsi_14": rsi, "rsi": rsi}
+        x, y, z = CoordinateTransformer.get_xyz(data, indicators=indicators)
+        
+        # --- RSI-Based Default Color ---
+        default_color = rsi_to_color(rsi)
         
         # --- Base Params ---
         params = VisualParams(
@@ -126,7 +130,7 @@ class VisualTransformer:
             radius=base_radius,
             roughness=0.5,
             emissive_intensity=2.0,
-            hex_color="#00ffaa",
+            hex_color=default_color,
             price=price,
             change_24h=change_24h,
             volume=volume,
