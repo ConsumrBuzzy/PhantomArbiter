@@ -65,7 +65,7 @@ class ArbiterEngine:
         current_interval = monitor.base_interval if adaptive_mode else scan_interval
 
         # Pre-Loop Visuals
-        print(f"   PHANTOM ENGINE - {mode_str} ACTIVE")
+        Logger.info(f"[ARBITER] PHANTOM ENGINE - {mode_str} ACTIVE")
 
         start_time = time.time()
         end_time = (
@@ -166,7 +166,7 @@ class ArbiterEngine:
                 while not self.arbiter.command_queue.empty():
                     cmd = self.arbiter.command_queue.get_nowait()
                     if cmd == "STOP_ENGINE":
-                        print(f"   [{now}] 🛑 REMOTE STOP RECEIVED")
+                        Logger.warning(f"[ARBITER] [{now}] 🛑 REMOTE STOP RECEIVED")
                         return
 
                 # 1. Maintenance & Housekeeping
@@ -191,9 +191,7 @@ class ArbiterEngine:
 
                     self._batch_size = len(all_spreads) if all_spreads else 0
                     if should_print:
-                        print(
-                            f"   ⏱️ Scan: {self._last_duration:.0f}ms | Batch: {self._batch_size} pairs"
-                        )
+                        Logger.debug(f"[ARBITER] ⏱️ Scan: {self._last_duration:.0f}ms | Batch: {self._batch_size} pairs")
 
                     # Phase 3: Multi-Hop Scan
                     hop_opps = self.hop_engine.scan()
@@ -375,7 +373,7 @@ class ArbiterEngine:
         if new_pairs:
             self.config.pairs.extend(new_pairs)
             await coordinator.register_new_pairs(new_pairs)
-            print(f"   [{now}] 🧠 Added {len(new_pairs)} hot tokens from Scraper")
+            Logger.info(f"[ARBITER] [{now}] 🧠 Added {len(new_pairs)} hot tokens from Scraper")
 
         # RPC Voting (V112)
         if time.time() - self._last_vote_time > 60:
@@ -383,7 +381,7 @@ class ArbiterEngine:
 
             vote_result = get_rpc_balancer().perform_provider_vote()
             if "WON BY" in vote_result:
-                print(f"   [{now}] 🗳️ RPC VOTE: {vote_result}")
+                Logger.info(f"[ARBITER] [{now}] 🗳️ RPC VOTE: {vote_result}")
             self._last_vote_time = time.time()
 
         # Discovery (4 hours)
@@ -407,9 +405,7 @@ class ArbiterEngine:
 
                     if new_discovered:
                         self.config.pairs.extend(new_discovered)
-                        print(
-                            f"   [{now}] 🔭 Discovery: +{len(new_discovered)} trending tokens"
-                        )
+                        Logger.info(f"[ARBITER] [{now}] 🔭 Discovery: +{len(new_discovered)} trending tokens")
 
                 self._last_discovery_time = time.time()
             except Exception as e:
@@ -539,9 +535,7 @@ class ArbiterEngine:
             best_fast = sorted(
                 fast_path_candidates, key=lambda x: x.net_profit_usd, reverse=True
             )[0]
-            print(
-                f"   [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}"
-            )
+            Logger.info(f"[ARBITER] [{now}] ⚡ FAST-PATH: {best_fast.pair} @ ${best_fast.net_profit_usd:+.3f}")
 
             # Apply Smart Sizing
             smart_size = self._calculate_trade_size(best_fast.pair)
@@ -572,7 +566,7 @@ class ArbiterEngine:
                 )
                 return True
             else:
-                print(f"   [{now}] ❌ FAST REVERTED: {result.get('error')}")
+                Logger.error(f"[ARBITER] [{now}] ❌ FAST REVERTED: {result.get('error')}")
                 return False
 
         # 2. NORMAL PATH (Verified)
@@ -611,6 +605,6 @@ class ArbiterEngine:
                 )
                 return True
             else:
-                print(f"   [{now}] ❌ TRADE FAILED: {result.get('error')}")
+                Logger.error(f"[ARBITER] [{now}] ❌ TRADE FAILED: {result.get('error')}")
 
         return False

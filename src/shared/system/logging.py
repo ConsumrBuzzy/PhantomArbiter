@@ -1,291 +1,168 @@
 """
-V51.0: Centralized Logger with Rich Console
-============================================
-Backward-compatible wrapper that routes to LogManager.
+V60.0: High-Fidelity Logger (Loguru + Rich)
+===========================================
+Advanced logging with beautiful terminal output and real-time SignalBus streaming.
 
-Usage (unchanged from before):
+Usage:
     from src.shared.system.logging import Logger
-
-    Logger.info("[BROKER] Message")
-    Logger.success("[ORCA] Position opened")
-    Logger.warning("Something concerning")
-    Logger.error("Something broke")
-    Logger.section("Starting Module")
+    Logger.info("[SYSTEM] Initializing")
 """
 
+import sys
 import os
-import logging
 from datetime import datetime
-from logging.handlers import RotatingFileHandler
+from loguru import logger
+from rich.logging import RichHandler
+from rich.console import Console
 
-# V9.7: Ensure logs directory exists - Fixed path to project root (4 levels up)
+# --- Setup Constants ---
 LOG_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs"
 )
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+os.makedirs(LOG_DIR, exist_ok=True)
 
-# V133: Per-run session log file (Session-Based Forensics)
-# Each run creates a unique log file for easier debugging
 _run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_file = os.path.join(LOG_DIR, f"phantom_{_run_id}.log")
 
-# Fallback file logger (uses per-run file instead of static phantom.log)
-handler = RotatingFileHandler(
-    log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-)
-formatter = logging.Formatter(
-    "%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-)
-handler.setFormatter(formatter)
-
-file_logger = logging.getLogger("PhantomTrader")
-file_logger.setLevel(logging.INFO)
-file_logger.addHandler(handler)
-
-
-# =============================================================================
-# SOURCE ICONS (for visual scanning)
-# =============================================================================
-
+# --- Source Icons ---
 SOURCE_ICONS = {
-    "SYSTEM": "🛸",
-    "BROKER": "📊",
-    "ORCA": "🐋",
-    "DISCOVERY": "🔍",
-    "TRADE": "💰",
-    "ML": "🧠",
-    "SCOUT": "🏹",
-    "PRIMARY": "Ⓜ️",
-    "SCALPER": "⚡",
-    "LANDLORD": "🏠",
-    "CAPITAL": "💵",
-    "WSS": "📡",
-    "DSM": "📈",
-    "REPORT": "📋",
-    "LIQUIDITY": "💧",
-    "COMMS": "📣",
+    "SYSTEM": "🛸", "BROKER": "📊", "ORCA": "🐋", "DISCOVERY": "🔍",
+    "TRADE": "💰", "ML": "🧠", "SCOUT": "🏹", "PRIMARY": "Ⓜ️",
+    "SCALPER": "⚡", "LANDLORD": "🏠", "CAPITAL": "💵", "WSS": "📡",
+    "DSM": "📈", "REPORT": "📋", "LIQUIDITY": "💧", "COMMS": "📣",
 }
 
+# --- SignalBus Sink ---
+def signal_bus_sink(message):
+    """Loguru sink that forwards logs to the SignalBus."""
+    try:
+        from src.shared.system.signal_bus import signal_bus, Signal, SignalType
+        
+        record = message.record
+        level = record["level"].name
+        text = record["message"]
+        
+        # Extract source if present: "[SOURCE] Message"
+        source = "SYSTEM"
+        if text.startswith("[") and "]" in text:
+            source = text[1:text.index("]")].upper()
+            text = text[text.index("]") + 1:].strip()
+            
+        signal_bus.emit(Signal(
+            type=SignalType.LOG_UPDATE,
+            source=source,
+            data={"level": level, "message": text}
+        ))
+        
+        # Also feed AppState for TUI legacy
+        from src.shared.state.app_state import state
+        if level in ["INFO", "WARNING", "ERROR", "SUCCESS", "CRITICAL"]:
+            state.log(f"[{source}] {text}")
+        if level in ["ERROR", "CRITICAL"]:
+            state.flash_error(f"[{source}] {text}")
+            
+    except Exception:
+        pass
 
-# =============================================================================
-# RICH CONSOLE (optional enhancement)
-# =============================================================================
-
-try:
-    from rich.console import Console
-    from rich.text import Text
-
-    HAS_RICH = True
-    _console = Console()
-except ImportError:
-    HAS_RICH = False
-    _console = None
-
-# Level colors for Rich
-LEVEL_STYLES = {
-    "INFO": "cyan",
-    "SUCCESS": "green bold",
-    "WARNING": "yellow",
-    "ERROR": "red bold",
-    "DEBUG": "dim",
-    "CRITICAL": "red bold reverse",
-    "SECTION": "magenta bold",
+# --- Initialize Loguru ---
+config = {
+    "handlers": [
+        # 1. Rich Console Sink (High-Fidelity)
+        {
+            "sink": RichHandler(
+                console=Console(width=120),
+                rich_tracebacks=True,
+                markup=True,
+                show_time=True,
+                show_level=True,
+                show_path=False
+            ),
+            "format": "{message}",
+            "level": "INFO",
+        },
+        # 2. File Sink (Rotation/Cleanup)
+        {
+            "sink": log_file,
+            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {message}",
+            "level": "INFO",
+            "rotation": "10 MB",
+            "retention": "3 days",
+            "compression": "zip",
+        },
+        # 3. Reactive SignalBus Sink
+        {
+            "sink": signal_bus_sink,
+            "level": "INFO",
+        }
+    ]
 }
 
-
-# =============================================================================
-# LOGGER CLASS
-# =============================================================================
-
+logger.configure(**config)
 
 class Logger:
-    """
-    V51.0: Centralized logger with Rich console output.
-
-    Features:
-    - Color-coded output with Rich (if available)
-    - Fallback to plain print if Rich not installed
-    - File logging with rotation
-    - Source-based icon prefixes
-    """
-
-    _silent_mode = False
+    """Backward-compatible wrapper for Loguru."""
+    
+    _silent = False
 
     @staticmethod
-    def _timestamp() -> str:
-        """High-precision timestamp (HH:MM:SS.ms)."""
-        now = datetime.now()
-        ms = str(now.microsecond)[:3]
-        return f"{now.strftime('%H:%M:%S')}.{ms:0<3}"
+    def _parse(message: str):
+        """Standardize level-based icons and formatting."""
+        if message.startswith("[") and "]" in message:
+            source = message[1:message.index("]")].upper()
+            icon = SOURCE_ICONS.get(source, "")
+            if icon:
+                return f"[dim]{icon}[/] {message}"
+        return message
 
     @staticmethod
-    def _parse_source(message: str) -> tuple:
-        """Extract [SOURCE] tag from message if present."""
-        if message.strip().startswith("[") and "]" in message:
-            try:
-                tag_end = message.index("]")
-                source = message[1:tag_end].upper()
-                clean_msg = message[tag_end + 1 :].strip()
-                if len(source) < 15:
-                    return source, clean_msg
-            except:
-                pass
-        return "SYSTEM", message
+    def info(message: str, icon: str = ""):
+        if Logger._silent: return
+        msg = f"{icon} {message}" if icon else Logger._parse(message)
+        logger.info(msg)
 
     @staticmethod
-    def _format_console(level: str, message: str, source: str) -> None:
-        """Output to console with optional Rich formatting."""
-        if Logger._silent_mode:
-            return
+    def success(message: str):
+        if Logger._silent: return
+        logger.success(f"✅ {Logger._parse(message)}")
 
-        from config.settings import Settings
+    @staticmethod
+    def warning(message: str):
+        if Logger._silent: return
+        logger.warning(Logger._parse(message))
 
-        if getattr(Settings, "SILENT_MODE", False):
-            return
+    @staticmethod
+    def error(message: str):
+        if Logger._silent: return
+        logger.error(Logger._parse(message))
 
-        ts = Logger._timestamp()
-        icon = SOURCE_ICONS.get(source.upper(), "")
-        msg_with_icon = f"{icon} {message}" if icon else message
+    @staticmethod
+    def critical(message: str):
+        if Logger._silent: return
+        logger.critical(f"🛑 {Logger._parse(message)}")
 
-        if HAS_RICH and _console:
-            style = LEVEL_STYLES.get(level, "white")
-            lvl_display = level[:8].ljust(8)
-            src_display = source[:10].ljust(10)
+    @staticmethod
+    def debug(message: str):
+        if Logger._silent: return
+        logger.debug(message)
 
-            line = Text()
-            line.append(f"{ts} ", style="dim")
-            line.append(f"| {lvl_display} ", style=style)
-            line.append(f"| {src_display} | ", style="dim")
-            line.append(msg_with_icon)
+    @staticmethod
+    def section(title: str):
+        if Logger._silent: return
+        print("\n")
+        logger.opt(raw=True).info(f"<magenta bold>=== {title} ===</magenta bold>\n")
 
-            _console.print(line)
+    @staticmethod
+    def set_silent(silent: bool):
+        Logger._silent = silent
+        if silent:
+            logger.remove()
         else:
-            # Plain fallback
-            print(f"{ts} | {level:8} | {source:10} | {msg_with_icon}")
+            logger.configure(**config)
 
-    def _log_to_file(level: str, message: str, source: str = "") -> None:
-        """Write to file logger and feed to AppState."""
-        full_msg = f"[{source}] {message}" if source else message
-
-        # 1. Write to standard logger
-        if level == "INFO":
-            file_logger.info(full_msg)
-        elif level == "WARNING":
-            file_logger.warning(full_msg)
-        elif level == "ERROR":
-            file_logger.error(full_msg)
-        elif level == "DEBUG":
-            file_logger.debug(full_msg)
-
-        # 2. Feed to AppState (Dashboard)
-        # Lazy import to avoid circular dependency
-        try:
-            from src.shared.state.app_state import state
-
-            # Only push important logs to UI
-            if level in ["INFO", "WARNING", "ERROR", "SUCCESS", "CRITICAL"]:
-                state.log(full_msg)
-
-            # Flash error support
-            if level in ["ERROR", "CRITICAL"]:
-                state.flash_error(full_msg)
-        except ImportError:
-            pass
-        except Exception:
-            pass
-
-        # 3. Emit Signal for Real-time Streaming (Phase 5)
-        try:
-            from src.shared.system.signal_bus import signal_bus, Signal, SignalType
-            signal_bus.emit(Signal(
-                type=SignalType.LOG_UPDATE,
-                source=source or "SYSTEM",
-                data={"level": level, "message": message}
-            ))
-        except ImportError:
-            pass
-        except Exception:
-            pass
-
-    # =========================================================================
-    # PUBLIC API (Backward Compatible)
-    # =========================================================================
-
-    @staticmethod
-    def info(message: str, icon: str = "") -> None:
-        source, msg = Logger._parse_source(message)
-        if icon:
-            msg = f"{icon} {msg}"
-        Logger._format_console("INFO", msg, source)
-        Logger._log_to_file("INFO", msg, source)
-
-    @staticmethod
-    def success(message: str) -> None:
-        source, msg = Logger._parse_source(message)
-        Logger._format_console("SUCCESS", msg, source)
-        Logger._log_to_file("INFO", f"✅ {msg}", source)
-
-    @staticmethod
-    def warning(message: str) -> None:
-        source, msg = Logger._parse_source(message)
-        Logger._format_console("WARNING", msg, source)
-        Logger._log_to_file("WARNING", msg, source)
-
-    @staticmethod
-    def error(message: str) -> None:
-        source, msg = Logger._parse_source(message)
-        Logger._format_console("ERROR", msg, source)
-        Logger._log_to_file("ERROR", msg, source)
-
-    @staticmethod
-    def debug(message: str) -> None:
-        source, msg = Logger._parse_source(message)
-        Logger._log_to_file("DEBUG", msg, source)
-
-    @staticmethod
-    def critical(message: str) -> None:
-        source, msg = Logger._parse_source(message)
-        Logger._format_console("CRITICAL", f"🛑 {msg}", source)
-        Logger._log_to_file("ERROR", f"🛑 {msg}", source)
-
-    @staticmethod
-    def section(title: str) -> None:
-        """Print a section header."""
-        if HAS_RICH and _console:
-            _console.print()
-            _console.rule(f"[bold magenta]{title}[/]", style="dim")
-        else:
-            print("\n" + "─" * 60)
-            ts = Logger._timestamp()
-            print(f"{ts} | SECTION  | SYSTEM     | 🛸 {title}")
-            print("─" * 60)
-
-        Logger._log_to_file("INFO", f"=== {title} ===", "SYSTEM")
-
-    @staticmethod
-    def set_silent(silent: bool) -> None:
-        """Enable/disable console output."""
-        Logger._silent_mode = silent
-
-
-# =============================================================================
-# TEST
-# =============================================================================
-
+# --- Test ---
 if __name__ == "__main__":
-    print(f"\n📋 Logger Test (Rich={HAS_RICH})")
-    print("=" * 50)
-
-    Logger.section("Testing All Log Levels")
-    Logger.info("[BROKER] This is an info message")
-    Logger.success("[ORCA] Position opened successfully")
-    Logger.warning("[DSM] Tier 1 failed, switching to Tier 2")
-    Logger.error("[ML] Model training failed")
-
-    Logger.section("Testing Source Parsing")
-    Logger.info("[DISCOVERY] New launch detected")
-    Logger.info("[SCALPER] Quick trade executed")
-    Logger.info("No source tag - defaults to SYSTEM")
-
-    print("\n✅ Logger test complete!")
+    Logger.section("LOGURU + RICH INTEGRATION")
+    Logger.info("[SYSTEM] Initializing Node...")
+    Logger.success("[TRADE] Arbitrage profitable!")
+    Logger.warning("[ORCA] Liquidity low on SOL/USDC")
+    Logger.error("[ML] Model failed to predict delta")
