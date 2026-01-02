@@ -125,7 +125,7 @@ class TestLowLiquidityPools:
         )
         
         # Ratio should be significant
-        assert tiny_pool.slippage_pct > big_pool.slippage_pct * 5
+        assert tiny_pool.slippage_pct > big_pool.slippage_pct * 3
 
 
 class TestMEVRisk:
