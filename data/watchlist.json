@@ -460,11 +460,13 @@
         },
         "FREYA": {
             "mint": "AzVCECC5zr21ikYQne4Xtoh3SVg848duPHUHb3M7bonk",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1766049305.134698,
-            "promoted_at": 1766054739.7543886
+            "promoted_at": 1766054739.7543886,
+            "demoted_at": 1767393685.9551182,
+            "demoted_reason": "Low Win Rate"
         },
         "DUPE": {
             "mint": "fRfKGCriduzDwSudCwpL7ySCEiboNuryhZDVJtr1a1C",
@@ -557,9 +559,11 @@
         },
         "PENGU": {
             "mint": "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
-            "description": "Pudgy Penguins - High volume Solana token"
+            "description": "Pudgy Penguins - High volume Solana token",
+            "demoted_at": 1767393685.956623,
+            "demoted_reason": "Low Win Rate"
         },
         "ZEUS": {
             "mint": "ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq",

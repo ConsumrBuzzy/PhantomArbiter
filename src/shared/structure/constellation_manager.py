@@ -28,22 +28,23 @@ class IslandCentroid:
 
 
 # Island positions on X,Z plane (arranged as archipelago)
+# V35: Expanded Scale (x4) to reduce label overlap
 ISLAND_CENTROIDS: Dict[TokenSector, IslandCentroid] = {
     # Center-ish region
-    TokenSector.DEFI: IslandCentroid(x=0, z=0, radius=20, color="#00ff88"),
-    TokenSector.INFRA: IslandCentroid(x=-30, z=-30, radius=20, color="#4169e1"),
+    TokenSector.DEFI: IslandCentroid(x=0, z=0, radius=80, color="#00ff88"),
+    TokenSector.INFRA: IslandCentroid(x=-120, z=-120, radius=80, color="#4169e1"),
     
     # Upper region (momentum plays)
-    TokenSector.MEME: IslandCentroid(x=50, z=30, radius=30, color="#ff6b35"),
-    TokenSector.AI: IslandCentroid(x=-50, z=40, radius=25, color="#9945ff"),
+    TokenSector.MEME: IslandCentroid(x=200, z=120, radius=120, color="#ff6b35"),
+    TokenSector.AI: IslandCentroid(x=-200, z=160, radius=100, color="#9945ff"),
     
     # Side regions
-    TokenSector.GAMING: IslandCentroid(x=60, z=-40, radius=20, color="#00ced1"),
-    TokenSector.RWA: IslandCentroid(x=-60, z=-50, radius=15, color="#ffd700"),
+    TokenSector.GAMING: IslandCentroid(x=240, z=-160, radius=80, color="#00ced1"),
+    TokenSector.RWA: IslandCentroid(x=-240, z=-200, radius=60, color="#ffd700"),
     
     # Outer rim
-    TokenSector.STABLE: IslandCentroid(x=-70, z=0, radius=10, color="#888888"),
-    TokenSector.UNKNOWN: IslandCentroid(x=40, z=-60, radius=30, color="#666666"),
+    TokenSector.STABLE: IslandCentroid(x=-280, z=0, radius=40, color="#888888"),
+    TokenSector.UNKNOWN: IslandCentroid(x=160, z=-240, radius=120, color="#666666"),
 }
 
 
