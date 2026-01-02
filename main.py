@@ -98,6 +98,11 @@ def create_parser() -> argparse.ArgumentParser:
         help="Disable smart pod rotation (fallback to sequential scanning)",
     )
     arbiter_parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="Skip connection validation on startup",
+    )
+    arbiter_parser.add_argument(
         "--no-unified",
         action="store_true",
         help="Disable unified execution engine (fallback to Jupiter/Standard RPC)",
@@ -802,6 +807,24 @@ async def main() -> None:
     if args.command is None:
         parser.print_help()
         return
+    
+    # V160: Preflight Connection Check
+    skip_preflight = getattr(args, 'skip_preflight', False)
+    if not skip_preflight and args.command in ("arbiter", "monitor", "dashboard", "pulse"):
+        try:
+            from src.shared.system.connection_validator import ConnectionValidator
+            print("\n🔌 Running preflight connection check...")
+            validator = ConnectionValidator(timeout=5.0)
+            report = await validator.validate_all()
+            report.print_report()
+            
+            summary = report.summary()
+            if summary["failed"] > 0:
+                print("⚠️  Some connections failed. Use --skip-preflight to ignore.\n")
+        except ImportError:
+            pass  # Validator not available
+        except Exception as e:
+            print(f"⚠️  Preflight check error: {e}\n")
 
     command_handlers = {
         "arbiter": cmd_arbiter,
