@@ -15,7 +15,7 @@ from typing import Dict, Optional, Tuple, Any
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.state.app_state import TokenIdentity, TokenRisk, TokenMarket
-from src.shared.structure.taxonomy import taxonomy, TokenCategory  # V34: Taxonomy import
+from src.shared.intelligence.taxonomy import taxonomy, TokenSector  # V34.5: Intelligence Layer
 
 try:
     import httpx
@@ -258,7 +258,7 @@ class TokenRegistry:
         
         # Determine symbol
         symbol = self.get_symbol(mint)
-        return taxonomy.classify(symbol, mint).value
+        return taxonomy.classify(symbol, mint).sector.value
 
     def get_full_metadata(self, mint: str) -> Dict[str, Any]:
         """
@@ -298,7 +298,7 @@ class TokenRegistry:
                 symbol=symbol,
                 decimals=6,  # Default
                 name=symbol,
-                category=taxonomy.classify(symbol, mint).value,  # Auto-classify
+                category=taxonomy.classify(symbol, mint).sector.value,  # Auto-classify
             )
             self._identity_cache[mint] = identity
             # Save new identity to DB

@@ -15,8 +15,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-# Import Enum from Taxonomy
-from src.shared.structure.taxonomy import TokenCategory, taxonomy
+# Import Enum from Intelligence Layer
+from src.shared.intelligence.taxonomy import TokenSector, taxonomy
 
 @dataclass
 class IslandCentroid:
@@ -28,23 +28,22 @@ class IslandCentroid:
 
 
 # Island positions on X,Z plane (arranged as archipelago)
-ISLAND_CENTROIDS: Dict[TokenCategory, IslandCentroid] = {
+ISLAND_CENTROIDS: Dict[TokenSector, IslandCentroid] = {
     # Center-ish region
-    TokenCategory.DEFI: IslandCentroid(x=0, z=0, radius=20, color="#00ff88"),
-    TokenCategory.INFRASTRUCTURE: IslandCentroid(x=-30, z=-30, radius=20, color="#4169e1"),
+    TokenSector.DEFI: IslandCentroid(x=0, z=0, radius=20, color="#00ff88"),
+    TokenSector.INFRA: IslandCentroid(x=-30, z=-30, radius=20, color="#4169e1"),
     
     # Upper region (momentum plays)
-    TokenCategory.MEME: IslandCentroid(x=50, z=30, radius=30, color="#ff6b35"),
-    TokenCategory.AI: IslandCentroid(x=-50, z=40, radius=25, color="#9945ff"),
+    TokenSector.MEME: IslandCentroid(x=50, z=30, radius=30, color="#ff6b35"),
+    TokenSector.AI: IslandCentroid(x=-50, z=40, radius=25, color="#9945ff"),
     
     # Side regions
-    TokenCategory.GAMING: IslandCentroid(x=60, z=-40, radius=20, color="#00ced1"),
-    TokenCategory.LST: IslandCentroid(x=-60, z=-50, radius=15, color="#ffd700"),
+    TokenSector.GAMING: IslandCentroid(x=60, z=-40, radius=20, color="#00ced1"),
+    TokenSector.RWA: IslandCentroid(x=-60, z=-50, radius=15, color="#ffd700"),
     
     # Outer rim
-    TokenCategory.NEW: IslandCentroid(x=0, z=70, radius=35, color="#ff00ff"),
-    TokenCategory.STABLECOIN: IslandCentroid(x=-70, z=0, radius=10, color="#888888"),
-    TokenCategory.UNKNOWN: IslandCentroid(x=40, z=-60, radius=30, color="#666666"),
+    TokenSector.STABLE: IslandCentroid(x=-70, z=0, radius=10, color="#888888"),
+    TokenSector.UNKNOWN: IslandCentroid(x=40, z=-60, radius=30, color="#666666"),
 }
 
 
@@ -69,15 +68,17 @@ class ConstellationManager:
         # Detect category using provided string OR TaxonomyService
         if category:
             try:
-                token_category = TokenCategory(category.upper())
+                # Direct string mapping to Sector
+                token_sector = TokenSector(category.upper())
             except ValueError:
-                token_category = TokenCategory.UNKNOWN
+                token_sector = TokenSector.UNKNOWN
         else:
             # Fallback to Taxonomy Service if no category provided
-            token_category = taxonomy.classify(symbol, mint, tags)
+            classification = taxonomy.classify(symbol, mint, tags)
+            token_sector = classification.sector
         
         # Get island centroid
-        island = ISLAND_CENTROIDS.get(token_category, ISLAND_CENTROIDS[TokenCategory.UNKNOWN])
+        island = ISLAND_CENTROIDS.get(token_sector, ISLAND_CENTROIDS[TokenSector.UNKNOWN])
         
         # Calculate position within island
         # Higher volume = closer to center
