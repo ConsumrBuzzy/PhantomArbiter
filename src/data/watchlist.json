@@ -55,6 +55,20 @@
             "trading_enabled": false,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1767313768.871834
+        },
+        "POPCAT": {
+            "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767314268.0104825
+        },
+        "CHILLHOUSE": {
+            "mint": "GkyPYa7NnCFbduLknCfBfP7p8564X1VZhwZYJ6CZpump",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767314268.0216978
         }
     }
 }

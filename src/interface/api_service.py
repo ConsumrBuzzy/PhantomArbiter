@@ -300,6 +300,9 @@ async def websocket_endpoint(websocket: WebSocket):
             # Optional: Client can send filter requests here
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+    except asyncio.CancelledError:
+        # Normal shutdown
+        manager.disconnect(websocket)
     except Exception as e:
         Logger.error(f"   ❌ [API] WebSocket Error: {e}")
         manager.disconnect(websocket)

@@ -32,6 +32,10 @@ class ArbiterEngine:
         self._blacklist_cache_ts = 0
         self._last_vote_time = 0  # V140: Maintenance tracker
         self._last_discovery_time = 0  # V140: Maintenance tracker
+        self._scan_counter = 0     # V140: Scan lifecycle tracker
+        self._last_duration = 0    # V140: Performance metric
+        self._batch_size = 0       # V140: Pair batch size
+        self._last_spreads = {}    # V140: ML decay tracking
         
         # Phase 3: Fast-Lane Integration
         from src.arbiter.core.hop_engine import get_hop_engine
@@ -45,6 +49,14 @@ class ArbiterEngine:
         landlord: Optional[Any] = None,
     ) -> None:
         """The main loop logic (Extracted from arbiter.py)."""
+        # V140: Robust Attribute Initialization (Defensive fallback for mystery AttributeErrors)
+        if not hasattr(self, "_scan_counter"): self._scan_counter = 0
+        if not hasattr(self, "_last_duration"): self._last_duration = 0
+        if not hasattr(self, "_batch_size"): self._batch_size = 0
+        if not hasattr(self, "_last_spreads"): self._last_spreads = {}
+        if not hasattr(self, "_last_vote_time"): self._last_vote_time = 0
+        if not hasattr(self, "_last_discovery_time"): self._last_discovery_time = 0
+
         mode_str = "🔴 LIVE" if self.config.live_mode else "📄 PAPER"
         adaptive_mode = scan_interval == 0
         monitor = AdaptiveScanner() if adaptive_mode else None
@@ -175,6 +187,7 @@ class ArbiterEngine:
                     )
                     self._last_duration = (time.time() - scan_start) * 1000
 
+                    self._batch_size = len(all_spreads) if all_spreads else 0
                     if should_print:
                         print(
                             f"   ⏱️ Scan: {self._last_duration:.0f}ms | Batch: {self._batch_size} pairs"
@@ -534,7 +547,7 @@ class ArbiterEngine:
 
                 print(
                     DashboardFormatter.format_trade_announcement(
-                        trade, self.tracker.current_balance
+                        trade, self.arbiter.current_balance
                     )
                 )
                 return True
@@ -573,7 +586,7 @@ class ArbiterEngine:
 
                 print(
                     DashboardFormatter.format_trade_announcement(
-                        trade, self.tracker.current_balance
+                        trade, self.arbiter.current_balance
                     )
                 )
                 return True

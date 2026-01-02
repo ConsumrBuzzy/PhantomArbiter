@@ -273,11 +273,13 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
     
     config = uvicorn.Config(
-        fast_app, 
-        host="0.0.0.0", 
-        port=8001, 
-        log_level="info", 
-        loop="asyncio"
+        "src.interface.api_service:app",
+        host="0.0.0.0",
+        port=8001,
+        log_level="info",
+        reload=False,
+        loop="asyncio",
+        setup_handlers=False  # V140: We handle signals ourselves via Director
     )
     server = uvicorn.Server(config)
     
@@ -308,6 +310,7 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     except KeyboardInterrupt:
         Logger.info("[API] Interrupt received, shutting down...")
     finally:
+        server.should_exit = True
         await director.stop()
         if not api_task.done():
             api_task.cancel()
@@ -762,3 +765,9 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n   Goodbye!")
+        import os
+        os._exit(0)
+    except Exception as e:
+        print(f"   Fatal Error: {e}")
+        import os
+        os._exit(1)
