@@ -344,16 +344,16 @@
                 pulse.position.set(x, y, z);
                 pulse.rotation.x = Math.random() * Math.PI;
                 pulse.rotation.y = Math.random() * Math.PI;
-                
+
                 scene.add(pulse);
-                
+
                 const startTime = performance.now();
                 const duration = 2000;
-                
+
                 function animatePulse(time) {
                     const elapsed = time - startTime;
                     const progress = elapsed / duration;
-                    
+
                     if (progress < 1) {
                         const scale = 1 + progress * 100 * intensity;
                         pulse.scale.set(scale, scale, scale);
@@ -693,7 +693,7 @@
                             createWhalePulse(data.x, data.y, data.z, data.color, data.intensity);
                         } else if (data.type === 'HOP_PATH') {
                             // Visualize arbitrage path as connected lines
-                            const path = data.path || [];  # Array of mints
+                            const path = data.path || [];  // Array of mints
                             const profit = data.profit || 0.01;
                             for (let i = 0; i < path.length - 1; i++) {
                                 createHopConnection(path[i], path[i + 1], profit);

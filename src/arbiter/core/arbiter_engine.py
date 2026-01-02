@@ -30,6 +30,8 @@ class ArbiterEngine:
         self.config = arbiter.config
 
         self._blacklist_cache_ts = 0
+        self._last_vote_time = 0  # V140: Maintenance tracker
+        self._last_discovery_time = 0  # V140: Maintenance tracker
         
         # Phase 3: Fast-Lane Integration
         from src.arbiter.core.hop_engine import get_hop_engine

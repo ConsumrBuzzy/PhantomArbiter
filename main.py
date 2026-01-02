@@ -722,9 +722,8 @@ async def cmd_clean(args: argparse.Namespace) -> None:
         await asyncio.sleep(1.0)  # Rate limit protection
     print("🧹 Cleanup Complete.")
 
-    # server.should_exit cannot be called easily here unless we keep ref, 
-    # but daemon thread + orchestrator shutdown is sufficient.
-    await orchestrator.shutdown()
+    # V140: cmd_clean uses standalone wallet/swapper, no orchestrator needed.
+    pass
 
 async def main() -> None:
     """Main entry point."""

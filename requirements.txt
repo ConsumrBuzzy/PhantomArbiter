@@ -45,3 +45,8 @@ solders>=0.21.0
 # V51.0 Console Beautification
 loguru>=0.7.0
 rich>=13.0.0
+
+# V140: Observability & Dashboard
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6

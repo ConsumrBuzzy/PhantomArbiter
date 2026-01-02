@@ -217,9 +217,6 @@ class UnifiedDirector:
         # Wait for cancellations
         await asyncio.gather(*self.tasks.values(), return_exceptions=True)
         Logger.info("✅ [Brain] Shutdown Complete")
-        
-        # Force exit for thread cleanup
-        sys.exit(0)
 
 
 if __name__ == "__main__":

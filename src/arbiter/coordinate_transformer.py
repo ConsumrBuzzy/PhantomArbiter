@@ -72,7 +72,12 @@ class CoordinateTransformer:
         x = r * math.cos(theta)
         y = r * math.sin(theta)
         
-        return x, y, z
+        # V140: Final Validation (Avoid NaN in JSON)
+        def safe_val(v):
+            if math.isnan(v) or math.isinf(v): return 0.0
+            return float(v)
+            
+        return safe_val(x), safe_val(y), safe_val(z)
 
     @staticmethod
     def get_moon_offset(pool_data: Dict[str, Any]) -> Tuple[float, float, float]:
