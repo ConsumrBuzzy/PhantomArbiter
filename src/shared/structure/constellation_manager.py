@@ -123,9 +123,9 @@ class ConstellationManager:
         return (hash_int / (2**32)) * 2 * math.pi
     
     @classmethod
-    def get_island_color(cls, category: TokenCategory) -> str:
+    def get_island_color(cls, category: TokenSector) -> str:
         """Get color for category island."""
-        island = ISLAND_CENTROIDS.get(category, ISLAND_CENTROIDS[TokenCategory.UNKNOWN])
+        island = ISLAND_CENTROIDS.get(category, ISLAND_CENTROIDS[TokenSector.UNKNOWN])
         return island.color
     
     @classmethod
