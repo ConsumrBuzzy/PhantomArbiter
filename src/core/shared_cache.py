@@ -532,6 +532,27 @@ class SharedPriceCache:
         return entry
 
     @classmethod
+    def get_all_market_data(cls, max_age: float = 3600.0) -> dict:
+        """
+        V140: Get all cached market data.
+        Returns: {symbol: data_dict}
+        """
+        lock = cls._get_lock()
+        try:
+            with lock.acquire(timeout=0.2):
+                data = cls._read_raw()
+        except:
+            return {}
+
+        result = {}
+        now = time.time()
+        for symbol, entry in data.get("market_data", {}).items():
+            age = now - entry.get("timestamp", 0)
+            if age <= max_age:
+                result[symbol] = entry
+        return result
+
+    @classmethod
     def get_dex_id(cls, symbol: str, max_age: float = 300.0) -> str:
         """
         V48.0: Get cached dex_id for a symbol (convenience method).

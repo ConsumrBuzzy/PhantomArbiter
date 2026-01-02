@@ -214,20 +214,36 @@ async def get_initial_galaxy():
             nodes = []
             registry = TokenRegistry()
             
-            # Get cached prices for all tokens
-            cached_prices = SharedPriceCache.get_all_prices(max_age=300)  # 5 min cache
+            # Get cached prices and market data
+            cached_prices = SharedPriceCache.get_all_prices(max_age=3600)  # 1 hour
+            cached_market = SharedPriceCache.get_all_market_data(max_age=3600)
             
             if registry._initialized:
-                # Combine static and dynamic registries
                 all_tokens = {**registry._static, **registry._dynamic}
                 for mint, symbol in all_tokens.items():
-                    # Get price from cache (keyed by symbol)
                     price = 0
                     rsi = 50
+                    liquidity = 1000.0
+                    volume = 0
+                    
                     if symbol in cached_prices:
                         price = cached_prices[symbol].get("price", 0)
-                        rsi = cached_prices[symbol].get("rsi", 50)
                     
+                    # V140: Rich market data (Liquidity/RSI)
+                    mkt = cached_market.get(mint) or cached_market.get(symbol)
+                    if mkt:
+                        liquidity = mkt.get("liquidity_usd", 1000.0)
+                        volume = mkt.get("volume_24h_usd", 0)
+                        # Estimate RSI from 1h change if needed, or use cached RSI if available
+                        rsi = mkt.get("rsi", 50)
+                    
+                    # Try getting RSI from history if missing
+                    if rsi == 50:
+                        hist = SharedPriceCache.get_price_history(symbol)
+                        if len(hist) > 14:
+                            # Simple RSI estimation logic could go here
+                            pass
+
                     sig = Signal(
                         type=SignalType.MARKET_UPDATE,
                         source="PYTH",  # PLANET archetype
@@ -237,8 +253,8 @@ async def get_initial_galaxy():
                             "label": symbol,
                             "price": price,
                             "rsi": rsi,
-                            "liquidity": 1000,
-                            "volume_24h": 0
+                            "liquidity": liquidity,
+                            "volume_24h": volume
                         }
                     )
                     payload = VisualTransformer.transform(sig)

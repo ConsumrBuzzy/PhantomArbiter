@@ -42,10 +42,13 @@ class CoordinateTransformer:
             liquidity = 1000.0
             
         # Log scale gravity: R = 1 / log10(liq)
-        # Maps ~100k liq to R=40, ~100M liq to R=10
+        # Log scale gravity: R = 1 / log10(liq)
+        # We want to use the range [50, 900] for r
         liq_log = math.log10(max(liquidity, 10))
-        r = CoordinateTransformer.BASE_RADIUS * (1.0 - (liq_log / 10.0))
-        r = max(10.0, min(r, CoordinateTransformer.BASE_RADIUS))
+        # Map log scale 1 (10 USD) -> 10 (10B USD) to radius 900 -> 50
+        # Formula: r = 900 - (liq_log - 1) * (850 / 9)
+        r = 900.0 - (max(1.0, min(liq_log, 10.0)) - 1.0) * (850.0 / 9.0)
+        r = max(50.0, min(r, 950.0))
         
         # 3. Z-Axis (Verticality)
         # Scalper (UP): High RSI = positive
@@ -71,6 +74,16 @@ class CoordinateTransformer:
         # Map to Cartesian
         x = r * math.cos(theta)
         y = r * math.sin(theta)
+        
+        # V140: Spatial Jitter (Break perfect ring pattern)
+        # Predictable noise based on hash to avoid flickering
+        jitter_x = ((hash_val % 100) - 50) * 0.2
+        jitter_y = (((hash_val >> 4) % 100) - 50) * 0.2
+        jitter_z = (((hash_val >> 8) % 100) - 50) * 0.1
+        
+        x += jitter_x
+        y += jitter_y
+        z += jitter_z
         
         # V140: Final Validation (Avoid NaN in JSON)
         def safe_val(v):
