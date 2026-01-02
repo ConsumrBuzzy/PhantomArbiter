@@ -225,9 +225,22 @@ class BitqueryAdapter:
                             break
                         await self._handle_message(message)
 
+            except websockets.exceptions.InvalidStatusCode as e:
+                if e.status_code == 401:
+                    Logger.warning("❌ [BITQUERY] Auth Failed (401). Retrying in 5 minutes...")
+                    await asyncio.sleep(300)  # Heavy backoff for auth failure
+                else:
+                    Logger.error(f"❌ [BITQUERY] Status Error ({e.status_code}): {e}")
+                    await asyncio.sleep(5)
             except Exception as e:
-                Logger.error(f"❌ [BITQUERY] Connection Error: {e}")
-                await asyncio.sleep(5)  # Reconnect delay
+                # Catch generic connection errors (including server rejected WebSocket connection which is often a Status Error)
+                err_str = str(e)
+                if "401" in err_str:
+                     Logger.warning("❌ [BITQUERY] Connection Rejected (401). Retrying in 5 minutes...")
+                     await asyncio.sleep(300)
+                else:
+                     Logger.error(f"❌ [BITQUERY] Connection Error: {e}")
+                     await asyncio.sleep(5)
 
     async def _handle_message(self, raw_msg):
         """Parse and dispatch message."""

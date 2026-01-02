@@ -99,7 +99,7 @@ class RaydiumBridge:
         try:
              import phantom_core
              self.pda_cache = phantom_core.PdaCache()
-             Logger.info("⚡ [RaydiumBridge] PdaCache initialized (Rust)")
+             Logger.debug("⚡ [RaydiumBridge] PdaCache initialized (Rust)")
         except ImportError:
              Logger.warning("⚠️ [RaydiumBridge] phantom_core not found - PdaCache disabled")
 
