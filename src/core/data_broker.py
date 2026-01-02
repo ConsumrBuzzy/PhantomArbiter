@@ -311,7 +311,7 @@ class DataBroker:
 
     def stop(self):
         """V45.2: Graceful shutdown."""
-        self.running = False
+        self.is_running = False
         Logger.info("[BROKER] Stop signal received.")
 
     def _init_market_aggregator(self):
@@ -608,9 +608,9 @@ class DataBroker:
 
     def run_loop(self):
         """The main loop for data collection and processing."""
-        self.running = True
+        self.is_running = True
         try:
-            while self.running:
+            while self.is_running:
                 # V18.0: Check if engines are halted (AppState Truth)
                 engines_halted = app_state.stats.get("engines_halted", False)
 

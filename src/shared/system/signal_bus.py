@@ -50,6 +50,7 @@ class SignalBus:
         }
         self._history: List[Signal] = []
         self._max_history = 100
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def subscribe(self, signal_type: SignalType, callback: Callable[[Signal], None]):
         """Register a callback for a specific signal type."""
@@ -62,9 +63,30 @@ class SignalBus:
         if len(self._history) > self._max_history:
             self._history.pop(0)
 
+        # Ensure we have a reference to the main event loop
+        if not self._loop:
+            try:
+                self._loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+
         for callback in self._subscribers.get(signal.type, []):
             if asyncio.iscoroutinefunction(callback):
-                asyncio.create_task(callback(signal))
+                if self._loop and self._loop.is_running():
+                    # Thread-safe scheduling
+                    self._loop.call_soon_threadsafe(
+                        lambda c=callback, s=signal: asyncio.create_task(c(s))
+                    )
+                else:
+                    # Fallback if loop not captured yet or not running
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            loop.call_soon_threadsafe(
+                                lambda c=callback, s=signal: asyncio.create_task(c(s))
+                            )
+                    except RuntimeError:
+                        pass # No loop available
             else:
                 callback(signal)
 

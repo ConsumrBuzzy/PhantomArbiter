@@ -305,9 +305,12 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
 
     try:
         await director.start()
+    except KeyboardInterrupt:
+        Logger.info("[API] Interrupt received, shutting down...")
     finally:
         await director.stop()
-        api_task.cancel()
+        if not api_task.done():
+            api_task.cancel()
 
 
 async def main() -> None:
