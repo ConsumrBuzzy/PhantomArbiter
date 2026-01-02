@@ -278,8 +278,7 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
         port=8001,
         log_level="info",
         reload=False,
-        loop="asyncio",
-        setup_handlers=False  # V140: We handle signals ourselves via Director
+        loop="asyncio"
     )
     server = uvicorn.Server(config)
     

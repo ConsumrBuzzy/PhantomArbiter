@@ -17,6 +17,8 @@ from src.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_s
 from src.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.shared.state.app_state import state as app_state
 from src.shared.system.signal_bus import signal_bus, SignalType, Signal
+from src.shared.system.priority_queue import priority_queue
+from src.arbiter.ui.dashboard_formatter import DashboardFormatter
 
 
 class ArbiterEngine:
