@@ -153,6 +153,13 @@
             "trading_enabled": false,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1767394254.153382
+        },
+        "MOBY": {
+            "mint": "Cy1GS2FqefgaMbi45UunrUzin1rfEmTUYnomddzBpump",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767394973.6713076
         }
     }
 }
