@@ -13,8 +13,8 @@
     pointer-events: none;
     min-width: 140px;
     max-width: 180px;
-    box-shadow: 
-        0 0 20px rgba(0, 243, 255, 0.2), 
+    box-shadow:
+        0 0 20px rgba(0, 243, 255, 0.2),
         inset 0 0 10px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
     transform-origin: center center;
@@ -171,4 +171,31 @@
 .stat-card.whale {
     border-color: #ffd700;
     box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+}
+
+/* V35: Compact Mode (LOD) */
+.stat-card.compact {
+    min-width: unset;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+    width: auto;
+}
+
+.stat-card.compact .card-body {
+    display: none;
+}
+
+.stat-card.compact .card-header {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.stat-card.compact .symbol {
+    font-size: 10px;
+}
+
+.stat-card.compact .whale-badge {
+    display: none;
 }
