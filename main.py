@@ -218,7 +218,10 @@ def create_parser() -> argparse.ArgumentParser:
         "--live", action="store_true", help="Enable LIVE trading in Dashboard"
     )
     dash_parser.add_argument(
-        "--no-hud", action="store_true", help="Disable auto-launch of Svelte HUD"
+        "--no-hud", action="store_true", help="Disable auto-launch of browser HUD"
+    )
+    dash_parser.add_argument(
+        "--no-galaxy", action="store_true", help="Skip Galaxy subprocess (run headless Core only)"
     )
 
     # ═══════════════════════════════════════════════════════════════
@@ -254,65 +257,126 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Run "The Void" - Web Dashboard & Backend Orchestrator."""
+    """
+    Run "The Void" - Web Dashboard & Backend Orchestrator.
+    
+    Phase 24: Galaxy runs as separate process, Core connects via EventBridge.
+    """
+    import subprocess
+    import sys
     from src.director import UnifiedDirector
     from config.settings import Settings
     from src.shared.system.logging import Logger
-    import uvicorn
-    from src.interface.api_service import app as fast_app
 
     Settings.SILENT_MODE = False 
     
-    # Check for HUD flag
-    launch_hud = not getattr(args, "no_hud", False) 
-
-    # 1. Initialize Orchestrator (Mission Control)
+    # Check flags
+    launch_hud = not getattr(args, "no_hud", False)
+    skip_galaxy = getattr(args, "no_galaxy", False)
+    
+    galaxy_process = None
+    galaxy_url = "http://localhost:8001"
+    
+    # 1. Launch Galaxy as subprocess (unless --no-galaxy)
+    if not skip_galaxy:
+        Logger.info("   🌌 Launching Galaxy Server (subprocess)...")
+        try:
+            # Galaxy runs from apps/galaxy directory
+            galaxy_dir = os.path.join(os.path.dirname(__file__), "apps", "galaxy")
+            
+            # Use uvicorn directly for Galaxy
+            galaxy_process = subprocess.Popen(
+                [
+                    sys.executable, "-m", "uvicorn",
+                    "galaxy.server:app",
+                    "--host", "0.0.0.0",
+                    "--port", "8001",
+                    "--log-level", "warning",
+                ],
+                cwd=os.path.join(galaxy_dir, "src"),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
+            )
+            
+            # Wait for Galaxy to start
+            await asyncio.sleep(2.0)
+            
+            if galaxy_process.poll() is not None:
+                # Galaxy failed to start
+                Logger.warning("   ⚠️ Galaxy failed to start, falling back to embedded API...")
+                galaxy_process = None
+            else:
+                Logger.info(f"   ✅ Galaxy Online: {galaxy_url}/dashboard.html")
+                
+        except Exception as e:
+            Logger.warning(f"   ⚠️ Galaxy launch failed: {e}")
+            galaxy_process = None
+    
+    # 2. Fallback: Run embedded API if Galaxy subprocess failed
+    api_task = None
+    server = None
+    if galaxy_process is None and not skip_galaxy:
+        Logger.info("   🌌 Starting embedded Galaxy API (fallback)...")
+        import uvicorn
+        from src.interface.api_service import app as fast_app
+        
+        config = uvicorn.Config(
+            "src.interface.api_service:app",
+            host="0.0.0.0",
+            port=8001,
+            log_level="info",
+            reload=False,
+            loop="asyncio"
+        )
+        server = uvicorn.Server(config)
+        api_task = asyncio.create_task(server.serve())
+        await asyncio.sleep(1.0)
+    
+    # 3. Set Galaxy URL for EventBridge
+    os.environ["GALAXY_URL"] = galaxy_url
+    
+    # 4. Initialize Director (will start EventBridge)
     director = UnifiedDirector(live_mode=args.live)
-
-    # V3 (Decoupled API): Ignite The Void via FastAPI/Uvicorn
-    Logger.info("   🌌 IGNITING THE VOID (API Mode)...")
     
-    config = uvicorn.Config(
-        "src.interface.api_service:app",
-        host="0.0.0.0",
-        port=8001,
-        log_level="info",
-        reload=False,
-        loop="asyncio"
-    )
-    server = uvicorn.Server(config)
-    
-    # Launch Uvicorn as a background task
-    api_task = asyncio.create_task(server.serve())
-    
-    # Wait a moment for it to bind
-    await asyncio.sleep(1.0)
-    
-    Logger.info("   🚀 Void API Online: http://localhost:8001/dashboard.html")
-    Logger.info("   🎙️  Signal Stream: ws://localhost:8001/ws/v1/stream")
-
-    # 4. Launch Frontend (Browser)
+    # 5. Launch Browser
     if launch_hud:
         import webbrowser
-        webbrowser.open("http://localhost:8001/dashboard.html")
+        webbrowser.open(f"{galaxy_url}/dashboard.html")
     
-    print("\n" + "="*40)
+    print("\n" + "="*50)
     print(" 🚀 PHANTOM ARBITER SYSTEM ONLINE")
-    print(" 🌌 THE VOID:   http://localhost:8001/dashboard.html")
-    print(" 🎙️  API/WS:     http://localhost:8001")
-    print(" 📚 DOCS:       http://localhost:8001/docs")
-    print(" 📋 LOGS: Streaming below...")
-    print("="*40 + "\n")
+    print(f" 🌌 GALAXY:     {galaxy_url}/dashboard.html")
+    print(f" 🎙️  WS STREAM:  ws://localhost:8001/ws/v1/stream")
+    print(" 📚 API DOCS:   http://localhost:8001/docs")
+    if galaxy_process:
+        print(" 📡 MODE:       Galaxy subprocess + EventBridge")
+    else:
+        print(" 📡 MODE:       Embedded API (legacy)")
+    print("="*50 + "\n")
 
     try:
         await director.start()
     except KeyboardInterrupt:
-        Logger.info("[API] Interrupt received, shutting down...")
+        Logger.info("[Dashboard] Interrupt received, shutting down...")
     finally:
-        server.should_exit = True
         await director.stop()
-        if not api_task.done():
+        
+        # Cleanup Galaxy subprocess
+        if galaxy_process:
+            Logger.info("[Dashboard] Stopping Galaxy subprocess...")
+            galaxy_process.terminate()
+            try:
+                galaxy_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                galaxy_process.kill()
+        
+        # Cleanup embedded API
+        if server:
+            server.should_exit = True
+        if api_task and not api_task.done():
             api_task.cancel()
+
 
 
 async def main() -> None:

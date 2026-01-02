@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>THE VOID | Phantom Arbiter</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #0f0;
+            pointer-events: none;
+            z-index: 10;
+            width: 300px;
+        }
+
+        .hud-text {
+            font-size: 14px;
+            text-shadow: 0 0 5px #0f0;
+            margin-bottom: 5px;
+        }
+
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(0, 20, 0, 0.7);
+            border: 1px solid #0f0;
+            padding: 15px;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            z-index: 100;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .legend-title {
+            font-weight: bold;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 5px currentColor;
+        }
+
+        .line {
+            width: 25px;
+            height: 2px;
+            margin-right: 10px;
+            background: currentColor;
+            box-shadow: 0 0 5px currentColor;
+        }
+
+        /* Scrollbar styling for components */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 10, 0, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f0;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div id="overlay">
+        <div class="hud-text">PHANTOM ARBITER // THE VOID</div>
+        <div id="stats-panel"></div>
+        <div id="scan-table"></div>
+        <div id="log-stream"></div>
+    </div>
+
+    <div id="legend">
+        <div class="legend-title">VISUAL KEY</div>
+        <div class="legend-item">
+            <div class="dot" style="background:#0f0;"></div>Token (Planet)
+        </div>
+        <div class="legend-item">
+            <div class="dot" style="background:#444; border:1px solid #888;"></div>Pool (Moon)
+        </div>
+        <div class="legend-item">
+            <div class="dot" style="background:#ffd700;"></div>Whale Event
+        </div>
+        <div style="margin-top:10px; border-top:1px dashed #004400; padding-top:5px;"></div>
+        <div class="legend-item">
+            <div class="line" style="background:#0f0;"></div>Profit >2%
+        </div>
+        <div class="legend-item">
+            <div class="line" style="background:#ffaa00;"></div>Profit 1-2%
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import { GalaxyScene } from './components/GalaxyScene.js';
+        import { StatsPanel } from './components/StatsPanel.js';
+        import { LogStream } from './components/LogStream.js';
+        import { ScanTable } from './components/ScanTable.js';
+
+        // Initialize Components
+        const scene = new GalaxyScene('canvas-container');
+        const stats = new StatsPanel('stats-panel');
+        const logs = new LogStream('log-stream');
+        const scanTable = new ScanTable('scan-table');
+
+        // WS Configuration
+        const API_HOST = window.location.hostname === "" ? "localhost:8001" : window.location.host;
+        const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const HTTP_PROTOCOL = window.location.protocol === "https:" ? "https:" : "http:";
+        const WS_URL = `${WS_PROTOCOL}//${API_HOST}/ws/v1/stream`;
+        const API_URL = `${HTTP_PROTOCOL}//${API_HOST}/api/v1/galaxy`;
+
+        // Load Initial State
+        async function fetchGalaxy() {
+            logs.add('INFO', '🔭 Scanning Galaxy State...');
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const objects = await response.json();
+                logs.add('INFO', `🌌 Found ${objects.length} star systems.`);
+                objects.forEach(obj => scene.updateArchetype(obj));
+            } catch (err) {
+                logs.add('ERROR', `❌ Galaxy Scan Failed: ${err.message}`);
+            }
+        }
+
+        // Connect WebSocket
+        function connect() {
+            logs.add('INFO', `Attempting Link to ${WS_URL}...`);
+            const ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                logs.add('SUCCESS', "Neural Link Established");
+                fetchGalaxy();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case 'ARCHETYPE_UPDATE':
+                            scene.updateArchetype(data);
+                            break;
+                        case 'SYSTEM_STATS':
+                            stats.update(data.data);
+                            break;
+                        case 'LOG_ENTRY':
+                            logs.add(data.level, data.message, data.timestamp);
+                            break;
+                        case 'SCAN_UPDATE':
+                            scanTable.update(data.opportunities);
+                            break;
+                        case 'WHALE_PULSE':
+                            scene.createWhalePulse(data.x, data.y, data.z, data.color, data.intensity);
+                            break;
+                        case 'HOP_PATH':
+                            const path = data.path || [];
+                            for (let i = 0; i < path.length - 1; i++) {
+                                scene.createHopConnection(path[i], path[i + 1], data.profit);
+                            }
+                            logs.add('SUCCESS', `⚡ Hop Path: ${path.length} tokens @ ${(data.profit * 100).toFixed(2)}%`);
+                            break;
+                        case 'PING':
+                            break;
+                        default:
+                            if (data.type === 'snapshot') {
+                                data.nodes.forEach(n => scene.createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1 }));
+                            }
+                    }
+                } catch (e) {
+                    console.error("Parse error", e, event.data);
+                }
+            };
+
+            ws.onclose = () => {
+                logs.add('WARNING', "Link Closed - Retrying...");
+                setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (err) => {
+                logs.add('ERROR', "Link Error check console");
+            };
+        }
+
+        connect();
+    </script>
+</body>
+
+</html>

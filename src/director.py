@@ -34,6 +34,15 @@ try:
 except ImportError:
     PdaCache = None
 
+# Galaxy Event Bridge
+try:
+    from src.shared.infrastructure.event_bridge import start_event_bridge, stop_event_bridge
+    GALAXY_BRIDGE_AVAILABLE = True
+except ImportError:
+    GALAXY_BRIDGE_AVAILABLE = False
+    start_event_bridge = None  # type: ignore
+    stop_event_bridge = None  # type: ignore
+
 
 class UnifiedDirector:
     """
@@ -85,6 +94,13 @@ class UnifiedDirector:
         if self.live_mode:
              # Configure scalper for live mode if needed (usually follows settings)
              pass
+        
+        # 5. Galaxy Event Bridge (Phase 24)
+        self.event_bridge = None
+        if GALAXY_BRIDGE_AVAILABLE:
+            Logger.info("[Brain] Galaxy EventBridge available (starts with ignition)")
+        else:
+            Logger.info("[Brain] Galaxy EventBridge not available (httpx missing?)")
 
     async def start(self):
         """Ignition Sequence."""
@@ -126,6 +142,12 @@ class UnifiedDirector:
         self.tasks['scalper'] = asyncio.create_task(
             self._run_scalper_loop(), name="Scalper"
         )
+        
+        # 3. Galaxy Event Bridge (non-blocking telemetry to Galaxy)
+        if GALAXY_BRIDGE_AVAILABLE:
+            galaxy_url = os.getenv("GALAXY_URL", "http://localhost:8001")
+            self.event_bridge = start_event_bridge(galaxy_url)
+            Logger.info(f"[Brain] EventBridge → {galaxy_url}")
         
         state.status = "OPERATIONAL"
         state.log("🧠 [Director] System Operational.")
@@ -207,6 +229,11 @@ class UnifiedDirector:
         
         # Stop Scalper (if needed)
         # self.scalper.stop() 
+        
+        # Stop EventBridge
+        if GALAXY_BRIDGE_AVAILABLE and self.event_bridge:
+            stop_event_bridge()
+            Logger.info("[Brain] EventBridge stopped")
 
         # Cancel asyncio tasks
         for name, task in self.tasks.items():
