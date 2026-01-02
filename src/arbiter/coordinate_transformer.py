@@ -43,10 +43,10 @@ class CoordinateTransformer:
     """
     
     # Galaxy bounds
-    GALAXY_RADIUS = 400.0 # Expanded V35
-    CORE_RADIUS = 15.0   # Blue chips (high cap) near center
-    RIM_RADIUS = 350.0   # New tokens at the edge
-    MAX_HEIGHT = 120.0   # Expanded Verticality V35
+    GALAXY_RADIUS = 1500.0 # Supermassive V36
+    CORE_RADIUS = 50.0   # Expanded Core
+    RIM_RADIUS = 1200.0   # New tokens at the edge
+    MAX_HEIGHT = 300.0   # Verticality V36
     
     @classmethod
     def get_xyz(
