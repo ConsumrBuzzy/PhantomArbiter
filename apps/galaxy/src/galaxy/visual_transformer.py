@@ -2,7 +2,7 @@
 Visual Transformer - Market Data to Visual Archetype Mapping.
 
 Converts raw event data into visual objects for Galaxy rendering.
-Fully decoupled from Core - works with EventPayload dicts.
+Uses RSI for color gradient and DEX for sector positioning.
 """
 
 from __future__ import annotations
@@ -16,17 +16,57 @@ from galaxy.models import (
     VisualParams,
     EventType,
 )
-from galaxy.coordinate_transformer import CoordinateTransformer
+from galaxy.coordinate_transformer import CoordinateTransformer, DexSector
 
 
 # Thresholds
 WHALE_THRESHOLD_USD = 50_000
 
 
+def rsi_to_color(rsi: float) -> str:
+    """
+    Convert RSI to color gradient.
+    
+    RSI 0-30: Red (oversold)
+    RSI 30-50: Orange→Yellow
+    RSI 50-70: Yellow→Green
+    RSI 70-100: Green (overbought)
+    """
+    rsi = max(0, min(100, rsi))
+    
+    if rsi < 30:
+        # Red
+        return "#ff4444"
+    elif rsi < 40:
+        # Red → Orange
+        t = (rsi - 30) / 10
+        r = 255
+        g = int(68 + t * 102)  # 68 → 170
+        return f"#{r:02x}{g:02x}44"
+    elif rsi < 50:
+        # Orange → Yellow
+        t = (rsi - 40) / 10
+        r = 255
+        g = int(170 + t * 85)  # 170 → 255
+        return f"#{r:02x}{g:02x}00"
+    elif rsi < 60:
+        # Yellow
+        return "#ffff00"
+    elif rsi < 70:
+        # Yellow → Light Green
+        t = (rsi - 60) / 10
+        r = int(255 - t * 127)  # 255 → 128
+        g = 255
+        return f"#{r:02x}{g:02x}00"
+    else:
+        # Green (bullish)
+        return "#00ff88"
+
+
 class VisualTransformer:
     """
     Alchemist that turns Data into Light.
-    Transforms raw events into visual archetypes.
+    Transforms raw events into visual archetypes with RSI-based coloring.
     """
     
     @classmethod
