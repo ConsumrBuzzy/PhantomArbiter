@@ -51,6 +51,13 @@ from src.core.latency_monitor import LatencyMonitor
 from src.core.scout.manager import ScoutManager
 from src.core.scout.auditor import ActiveCoinAuditor
 
+# V160: Bellows Storage Integration
+try:
+    from src.data_storage import bellows_hooks
+    BELLOWS_ENABLED = True
+except ImportError:
+    BELLOWS_ENABLED = False
+
 
 class DataBroker:
     """
@@ -210,6 +217,16 @@ class DataBroker:
                     )
             
             self.last_prices[pool] = current_price
+
+            # V160: Feed Bellows Storage (TrendEngine + WarmBuffer)
+            if BELLOWS_ENABLED and base_mint:
+                bellows_hooks.on_price_update(
+                    mint=base_mint,
+                    symbol=base_mint[:8],  # Short symbol
+                    price=current_price,
+                    volume=0.0,
+                    liquidity=update.get("liquidity_usd", 0),
+                )
 
         # Create WSS listener with callback
         self.ws_listener = create_websocket_listener(
