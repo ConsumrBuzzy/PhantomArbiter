@@ -308,8 +308,10 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
             await asyncio.sleep(2.0)
             
             if galaxy_process.poll() is not None:
-                # Galaxy failed to start
-                Logger.warning("   ⚠️ Galaxy failed to start, falling back to embedded API...")
+                # Galaxy failed to start - capture error
+                stderr_output = galaxy_process.stderr.read().decode("utf-8", errors="ignore")
+                Logger.warning(f"   ⚠️ Galaxy failed to start: {stderr_output[:200] if stderr_output else 'Unknown error'}")
+                Logger.info("   🌌 Falling back to embedded API...")
                 galaxy_process = None
             else:
                 Logger.info(f"   ✅ Galaxy Online: {galaxy_url}/dashboard.html")

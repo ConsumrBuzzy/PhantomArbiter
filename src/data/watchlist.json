@@ -76,6 +76,20 @@
             "trading_enabled": false,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1767315221.4367065
+        },
+        "AOL": {
+            "mint": "2oQNkePakuPbHzrVVkQ875WHeewLHCd2cAwfwiLQbonk",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767391008.6064873
+        },
+        "dreams": {
+            "mint": "GMzuntWYJLpNuCizrSR7ZXggiMdDzTNiEmSNHHunpump",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767391008.6081207
         }
     }
 }

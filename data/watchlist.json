@@ -181,11 +181,13 @@
         },
         "CAPY": {
             "mint": "7VENy6wCjBChAMGpjPQCPYJDeYJGFr5NZUxk7uQ7bonk",
-            "category": "ACTIVE",
+            "category": "WATCH",
             "trading_enabled": true,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1765771968.3344803,
-            "promoted_at": 1765907929.8366232
+            "promoted_at": 1765907929.8366232,
+            "demoted_at": 1767391010.263969,
+            "demoted_reason": "Low Win Rate"
         },
         "TRUMP": {
             "mint": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
