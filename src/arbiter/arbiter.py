@@ -289,14 +289,14 @@ class PhantomArbiter:
         """Lazy-load spread detector with DEX feeds."""
         if self._detector is None:
             from src.shared.feeds.jupiter_feed import JupiterFeed
-            from src.market.drivers import get_raydium_driver
+            from src.shared.feeds.raydium_feed import RaydiumFeed
             from src.shared.feeds.orca_feed import OrcaFeed
             from src.shared.feeds.meteora_feed import MeteoraFeed
 
             self._detector = SpreadDetector(
                 feeds=[
                     JupiterFeed(),
-                    get_raydium_driver(),
+                    RaydiumFeed(),
                     OrcaFeed(use_on_chain=False),
                     MeteoraFeed(),  # NEW: Meteora DLMM pools
                 ]
