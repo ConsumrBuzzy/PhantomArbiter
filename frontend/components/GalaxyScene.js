@@ -11,7 +11,7 @@ export class GalaxyScene {
         this.nodes = new Map();
         this.hopConnections = new Map();
         this.GALAXY_RADIUS = 500;
-        
+
         this.init();
         this.animate();
     }
@@ -147,7 +147,7 @@ export class GalaxyScene {
             const y = (tempV.y * -.5 + .5) * window.innerHeight;
 
             mesh.userData.labelEl.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
-            
+
             // Visibility logic
             const dist = this.camera.position.distanceTo(mesh.getWorldPosition(new THREE.Vector3()));
             if (tempV.z > 1 || dist > 1500) {
@@ -171,7 +171,7 @@ export class GalaxyScene {
     createNode(id, label, archetype, params, nodeType = 'TOKEN', eventLabel = '') {
         const existing = this.nodes.get(id);
         if (existing) {
-             if (params.price) {
+            if (params.price) {
                 const details = `$${params.price.toFixed(6)} ${params.is_whale ? '🐋' : ''}`;
                 if (existing.userData.labelEl) {
                     existing.userData.labelEl.innerHTML = `<strong>${label}</strong><br><span style="font-size:10px; color:#aaa">${details}</span>`;
@@ -210,8 +210,8 @@ export class GalaxyScene {
         if (params.x !== undefined && params.y !== undefined && params.z !== undefined) {
             mesh.position.set(params.x, params.y, params.z);
         } else {
-             // Fallback positioning... (simplified for brevity)
-             mesh.position.set((Math.random()-0.5)*500, (Math.random()-0.5)*500, (Math.random()-0.5)*500);
+            // Fallback positioning... (simplified for brevity)
+            mesh.position.set((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500);
         }
 
         const velMag = nodeType === 'EVENT' ? (params.velocity_factor || 0.5) * 0.5 : 0.02;
@@ -223,7 +223,7 @@ export class GalaxyScene {
         }
 
         let details = nodeType === 'EVENT' ? eventLabel : `${params.price ? `$${params.price.toFixed(6)}` : ''} ${params.rsi ? `RSI:${params.rsi.toFixed(0)}` : ''}`;
-        mesh.userData.labelEl = this.createLabel(id, label, details);
+        mesh.userData.labelEl = this.createLabel(id, label, details, params);
 
         this.scene.add(mesh);
         this.nodes.set(id, mesh);
@@ -257,26 +257,86 @@ export class GalaxyScene {
         const lineMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(params.hex_color || '#444444'), transparent: true, opacity: 0.3 });
         const lineGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), moon.position.clone()]);
         moon.userData.orbitalLine = new THREE.Line(lineGeometry, lineMaterial);
-        
+
         parentNode.add(moon.userData.orbitalLine);
         parentNode.add(moon);
         this.nodes.set(id, moon);
         return moon;
     }
 
-    createLabel(id, text, details) {
+    createLabel(id, text, details, params = {}) {
         const div = document.createElement('div');
         div.id = `label-${id}`;
-        div.className = 'node-label';
-        div.style.position = 'absolute';
-        div.style.color = '#fff';
-        div.style.fontFamily = 'monospace';
-        div.style.fontSize = '10px';
-        div.style.textShadow = '0 0 2px #000';
-        div.style.pointerEvents = 'none';
-        div.innerHTML = `<strong>${text}</strong><br><span style="color:#aaa">${details}</span>`;
+        div.className = 'stat-card';
+
+        // Extract data for display
+        const price = params.price ? `$${params.price < 0.01 ? params.price.toFixed(8) : params.price.toFixed(4)}` : '';
+        const rsi = params.rsi || 50;
+        const volume = params.volume ? this.formatVolume(params.volume) : '';
+        const change = params.change_24h || 0;
+        const changeClass = change >= 0 ? 'positive' : 'negative';
+        const changeStr = change ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
+        const isWhale = params.is_whale ? '🐋' : '';
+        const liquidity = params.liquidity ? `Liq: ${this.formatVolume(params.liquidity)}` : '';
+
+        // RSI color class
+        let rsiClass = 'neutral';
+        if (rsi < 30) rsiClass = 'oversold';
+        else if (rsi < 45) rsiClass = 'weak';
+        else if (rsi > 70) rsiClass = 'overbought';
+        else if (rsi > 55) rsiClass = 'strong';
+
+        div.innerHTML = `
+            <div class="card-header">
+                <span class="symbol">${text}</span>
+                <span class="whale-badge">${isWhale}</span>
+            </div>
+            <div class="card-body">
+                <div class="price-row">
+                    <span class="price">${price}</span>
+                    <span class="change ${changeClass}">${changeStr}</span>
+                </div>
+                <div class="rsi-container">
+                    <span class="rsi-label">RSI</span>
+                    <div class="rsi-bar-bg">
+                        <div class="rsi-bar ${rsiClass}" style="width: ${rsi}%"></div>
+                    </div>
+                    <span class="rsi-value">${rsi.toFixed(0)}</span>
+                </div>
+                <div class="stats-row">
+                    <span class="volume">Vol: ${volume}</span>
+                    <span class="liquidity">${liquidity}</span>
+                </div>
+            </div>
+        `;
+
+        // Apply styles inline (or rely on CSS file)
+        div.style.cssText = `
+            position: absolute;
+            background: rgba(0, 5, 15, 0.92);
+            border: 1px solid rgba(0, 243, 255, 0.6);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 11px;
+            pointer-events: none;
+            min-width: 140px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            transform-origin: center center;
+        `;
+
         this.labelContainer.appendChild(div);
         return div;
+    }
+
+    formatVolume(value) {
+        if (!value || value === 0) return '-';
+        if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)}B`;
+        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
+        return `$${value.toFixed(0)}`;
     }
 
     createWhalePulse(x, y, z, color = '#ffd700', intensity = 1.0) {

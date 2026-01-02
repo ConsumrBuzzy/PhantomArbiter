@@ -1,0 +1,174 @@
+/* Galaxy Stat Cards - Cyberpunk Theme */
+
+/* Stat Card Base */
+.stat-card {
+    position: absolute;
+    background: rgba(0, 5, 15, 0.92);
+    border: 1px solid rgba(0, 243, 255, 0.6);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #fff;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 11px;
+    pointer-events: none;
+    min-width: 140px;
+    max-width: 180px;
+    box-shadow: 
+        0 0 20px rgba(0, 243, 255, 0.2), 
+        inset 0 0 10px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    transform-origin: center center;
+    z-index: 100;
+}
+
+/* Card Header */
+.stat-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+    padding-bottom: 4px;
+}
+
+.stat-card .symbol {
+    font-weight: bold;
+    font-size: 13px;
+    color: #00f3ff;
+    text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+}
+
+.stat-card .whale-badge {
+    font-size: 14px;
+}
+
+/* Card Body */
+.stat-card .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Price Row */
+.stat-card .price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-card .price {
+    font-size: 12px;
+    color: #fff;
+    font-weight: 600;
+}
+
+.stat-card .change {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.stat-card .change.positive {
+    color: #00ff88;
+}
+
+.stat-card .change.negative {
+    color: #ff4444;
+}
+
+/* RSI Container */
+.stat-card .rsi-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-card .rsi-label {
+    font-size: 9px;
+    color: #888;
+    width: 22px;
+}
+
+.stat-card .rsi-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.stat-card .rsi-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.stat-card .rsi-bar.oversold {
+    background: linear-gradient(90deg, #ff4444, #ff6b6b);
+}
+
+.stat-card .rsi-bar.weak {
+    background: linear-gradient(90deg, #ff8800, #ffaa44);
+}
+
+.stat-card .rsi-bar.neutral {
+    background: linear-gradient(90deg, #ffff00, #ffff66);
+}
+
+.stat-card .rsi-bar.strong {
+    background: linear-gradient(90deg, #88ff00, #aaffaa);
+}
+
+.stat-card .rsi-bar.overbought {
+    background: linear-gradient(90deg, #00ff88, #00ffaa);
+}
+
+.stat-card .rsi-value {
+    font-size: 10px;
+    color: #aaa;
+    width: 22px;
+    text-align: right;
+}
+
+/* Stats Row */
+.stat-card .stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #888;
+}
+
+.stat-card .volume {
+    color: #aaa;
+}
+
+.stat-card .liquidity {
+    color: #888;
+}
+
+/* Hover Effect (for interactive cards) */
+.stat-card:hover {
+    border-color: rgba(0, 243, 255, 1);
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+}
+
+/* Distance-based opacity classes */
+.stat-card.far {
+    opacity: 0.3;
+    transform: scale(0.8);
+}
+
+.stat-card.medium {
+    opacity: 0.7;
+    transform: scale(0.9);
+}
+
+.stat-card.close {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Whale highlight */
+.stat-card.whale {
+    border-color: #ffd700;
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+}
