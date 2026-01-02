@@ -64,6 +64,17 @@ export class GalaxyScene {
         document.body.appendChild(this.labelContainer);
 
         window.addEventListener('resize', () => this.onWindowResize());
+
+        // V38: Fly Mode Inputs
+        this.keys = { w: false, a: false, s: false, d: false, q: false, e: false, Shift: false };
+        window.addEventListener('keydown', (e) => this.onKeyChange(e, true));
+        window.addEventListener('keyup', (e) => this.onKeyChange(e, false));
+    }
+
+    onKeyChange(event, isPressed) {
+        const key = event.key.toLowerCase();
+        if (this.keys.hasOwnProperty(key)) this.keys[key] = isPressed;
+        if (event.key === 'Shift') this.keys.Shift = isPressed;
     }
 
     onWindowResize() {
@@ -75,10 +86,42 @@ export class GalaxyScene {
 
     animate() {
         requestAnimationFrame(() => this.animate());
+
+        // V38: Fly Mode Update
+        this.updateCameraMovement();
+
         this.controls.update();
         this.updateScene();
         this.updateLabels();
         this.composer.render();
+    }
+
+    updateCameraMovement() {
+        const speed = this.keys.Shift ? 10.0 : 2.0; // Boost mode
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        forward.y = 0; // Lock movement to XZ plane
+        forward.normalize();
+
+        const right = new THREE.Vector3();
+        right.crossVectors(forward, this.camera.up).normalize();
+
+        const move = new THREE.Vector3();
+
+        if (this.keys.w) move.add(forward);
+        if (this.keys.s) move.sub(forward);
+        if (this.keys.d) move.add(right);
+        if (this.keys.a) move.sub(right);
+
+        // Vertical movement
+        if (this.keys.e) move.y += 1;
+        if (this.keys.q) move.y -= 1;
+
+        if (move.lengthSq() > 0) {
+            move.normalize().multiplyScalar(speed);
+            this.camera.position.add(move);
+            this.controls.target.add(move); // Pan the orbit target too
+        }
     }
 
     updateScene() {

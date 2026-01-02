@@ -23,6 +23,7 @@ class IslandCentroid:
     """Central position for a category island."""
     x: float
     z: float
+    y: float = 0.0         # 3D Elevation
     radius: float = 25.0  # Island spread radius
     color: str = "#ffffff"
 
@@ -54,74 +55,111 @@ class ConstellationManager:
     """
     
     @classmethod
-    def get_island_position(
+    def get_island_position_3d(
         cls,
         mint: str,
         symbol: str,
         category: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        volume: float = 0,
-        liquidity: float = 1000,
-    ) -> Tuple[float, float]:
+        volume: float = 0
+    ) -> Tuple[float, float, float]:
         """
-        Get X,Z position for a token based on its category island.
+        V38: Get X,Y,Z position for a token using Spherical Fibonacci Lattice.
+        Guarantees even distribution in 3D space, preventing clumping.
         """
-        # Detect category using provided string OR TaxonomyService
+        # 1. Determine Sector
         if category:
             try:
-                # Direct string mapping to Sector
                 token_sector = TokenSector(category.upper())
             except ValueError:
                 token_sector = TokenSector.UNKNOWN
         else:
-            # Fallback to Taxonomy Service if no category provided
             classification = taxonomy.classify(symbol, mint, tags)
             token_sector = classification.sector
         
-        # Get island centroid
+        # 2. Get island centroid
         island = ISLAND_CENTROIDS.get(token_sector, ISLAND_CENTROIDS[TokenSector.UNKNOWN])
         
-        # Calculate position within island
-        # Higher volume = closer to center
-        vol_factor = cls._volume_to_distance(volume, island.radius)
+        # 3. Calculate Deterministic 3D Position
+        # We use the mint hash to assign a "slot" on the sphere (0 to 1000)
+        # This simulates the perfect spacing of a Fibonacci lattice without needing to know total global count
+        MAX_SLOTS = 1000
+        slot_index = cls._mint_to_slot(mint, MAX_SLOTS)
         
-        # Use mint hash for consistent angle within island
-        angle = cls._mint_to_angle(mint)
+        # Volume affects radium placement layer? 
+        # Actually, for 3D clusters, let's keep them on the shell or fill the volume.
+        # Let's use concentric shells based on volume.
+        # High volume = Inner shell (Core). Low volume = Outer shell (Crust).
         
-        # Position within island radius
-        x = island.x + vol_factor * math.cos(angle)
-        z = island.z + vol_factor * math.sin(angle)
+        # Invert volume logic: High volume -> Small radius multiplier
+        # vol_factor 0.0 (high vol) to 1.0 (low vol)
+        vol_factor = cls._volume_to_distance(volume, 1.0) 
         
-        return (round(x, 2), round(z, 2))
-    
+        # Shell radius: Min 20% of island radius, Max 100%
+        # Core tokens (high vol) are deep inside (0.2), Shitcoins are on surface (1.0)
+        # Actually, let's flip it? Planets usually: High mass in center.
+        # Let's put Blue Chips in the center (protected), Degen stuff on the crust.
+        shell_radius = island.radius * (0.2 + (0.8 * vol_factor))
+        
+        # Fibonacci Sphere calculation
+        dx, dy, dz = cls._fibonacci_sphere(slot_index, MAX_SLOTS, shell_radius)
+        
+        # Apply Island Offset
+        return (
+            round(island.x + dx, 2),
+            round(island.y + dy + 150*0.0, 2), # Centered on island Y (0 usually)
+            round(island.z + dz, 2)
+        )
+
     @classmethod
-    def _volume_to_distance(cls, volume: float, island_radius: float) -> float:
-        """
-        Convert volume to distance from island center.
-        Higher volume = closer to center (more important).
-        """
-        if volume <= 0:
-            return island_radius  # Edge of island
-        
-        # Log scale
-        vol_log = math.log10(max(volume, 1))
-        
-        # vol_log 3 ($1k) = edge, vol_log 8 ($100M) = center
-        normalized = min(1, (vol_log - 3) / 5)
-        
-        # Invert: higher volume = smaller distance
-        return island_radius * (1 - normalized * 0.8)
-    
+    def get_island_position(cls, *args, **kwargs) -> Tuple[float, float]:
+        """Legacy 2D support wrapper."""
+        x, y, z = cls.get_island_position_3d(*args, **kwargs)
+        return (x, z)
+
+
     @staticmethod
-    def _mint_to_angle(mint: str) -> float:
-        """Generate deterministic angle from mint hash."""
-        if not mint:
-            return 0.0
+    def _fibonacci_sphere(i: int, n: int, radius: float) -> Tuple[float, float, float]:
+        """
+        Calculate point i on a Fibonacci sphere of n points.
+        Returns (x, y, z) centered at 0,0,0.
+        """
+        phi = math.acos(1 - 2 * (i + 0.5) / n)
+        theta = math.pi * (1 + 5**0.5) * i
         
+        x = radius * math.cos(theta) * math.sin(phi)
+        y = radius * math.cos(phi)
+        z = radius * math.sin(theta) * math.sin(phi)
+        
+        return x, y, z
+
+    @staticmethod
+    def _mint_to_slot(mint: str, max_slots: int) -> int:
+        """Deterministic slot assignment from mint hash."""
+        if not mint: return 0
         hash_bytes = hashlib.md5(mint.encode()).digest()
         hash_int = int.from_bytes(hash_bytes[:4], 'big')
+        return hash_int % max_slots
+    
+    @classmethod
+    def _volume_to_distance(cls, volume: float, max_val: float) -> float:
+        """
+        Convert volume to normalized factor (0.0 to 1.0).
+        High Volume ($100M) -> 0.0 (Center)
+        Low Volume ($1k)    -> 1.0 (Edge)
+        """
+        if volume <= 0: return max_val
         
-        return (hash_int / (2**32)) * 2 * math.pi
+        # Log scale: 3 ($1k) to 9 ($1B)
+        vol_log = math.log10(max(volume, 1))
+        
+        # Normalize between 3 and 9
+        # val 3 -> (3-3)/6 = 0
+        # val 9 -> (9-3)/6 = 1
+        normalized = max(0.0, min(1.0, (vol_log - 3) / 6.0))
+        
+        # Invert: We want High Vol = 0 (Internal), Low Vol = 1 (External)
+        return max_val * (1.0 - normalized)
     
     @classmethod
     def get_island_color(cls, category: TokenSector) -> str:

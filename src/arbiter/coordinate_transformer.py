@@ -73,25 +73,33 @@ class CoordinateTransformer:
         elif "rsi" in data:
             rsi = cls._safe_float(data.get("rsi") or 50)
         
-        # --- X,Z: Constellation Island Positioning ---
-        # Uses category to cluster tokens into distinct islands
+        # --- X,Y,Z: Constellation Island Positioning (Spherical) ---
+        # Uses category to cluster tokens into distinct 3D islands
         from src.shared.structure.constellation_manager import ConstellationManager
-        x, z = ConstellationManager.get_island_position(
+        
+        # V38: Call the 3D method
+        # This returns (x, y_base, z) where y_base is the position on the sphere
+        bx, by, bz = ConstellationManager.get_island_position_3d(
             mint=mint,
             symbol=symbol,
             category=category,
             tags=tags if isinstance(tags, list) else [tags] if tags else None,
-            volume=volume,
-            liquidity=liquidity,
+            volume=volume
         )
         
-        # --- HEIGHT: RSI momentum ---
-        y = cls._rsi_to_height(rsi)
+        # --- HEIGHT: Hybrid (Sphere + RSI) ---
+        # We take the base Y from the sphere (by) and add the RSI momentum (rsi_y)
+        rsi_y = cls._rsi_to_height(rsi)
+        
+        # Combine them (maybe clamp if needed, but space is large now)
+        # We weigh the sphere Base Y heavier to maintain the cluster shape
+        # But allow RSI to push tokens up/down relative to their sphere slot
+        total_y = by + (rsi_y * 0.5) 
         
         return (
-            round(x, 2),
-            round(y, 2),
-            round(z, 2)
+            round(bx, 2),
+            round(total_y, 2),
+            round(bz, 2)
         )
     
     @classmethod
