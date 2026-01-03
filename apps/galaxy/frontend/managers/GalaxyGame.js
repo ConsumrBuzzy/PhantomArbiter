@@ -82,8 +82,15 @@ export class GalaxyGame {
                 // this.stars.updatePrices(payload.updates);
                 break;
 
+            case 'TRADE_CONVOY':
+                // Batch of kinetic events
+                if (payload.events && Array.isArray(payload.events)) {
+                    payload.events.forEach(trade => this.fleet.spawnShip(trade));
+                }
+                break;
+
             case 'TRADE_EVENT':
-                // payload.data = { mint, is_buy, ... }
+                // Legacy single-event support
                 this.fleet.spawnShip(payload.data);
                 break;
 

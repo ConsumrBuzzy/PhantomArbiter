@@ -599,11 +599,11 @@ class DataBroker:
 
         while self.is_running:
             try:
-                # Returns list of (mint, price, slot)
+                # Returns list of (mint, price, slot, liquidity, trade_flow)
                 updates = self.flash_cache_reader.poll_updates()
                 if updates:
                     ts = int(time.time() * 1000)
-                    for (mint, price, slot) in updates:
+                    for (mint, price, slot, liquidity, trade_flow) in updates:
                         # Construct a lightweight object to match callback expectation
                         class FastPoint:
                             pass
@@ -612,6 +612,7 @@ class DataBroker:
                         p.price = price
                         p.slot = slot
                         p.timestamp_ms = ts
+                        # We could attach flow/liq here if needed
                         
                         callback(p)
                 else:

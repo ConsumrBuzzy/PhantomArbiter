@@ -192,11 +192,16 @@ class DataFeedServer:
             # FlashCache Push (Zero-Copy)
             if self.flash_cache:
                 try:
+                    # Basic direction inference (placeholder for real volume flow)
+                    # For now passing 0.0 or random small flow
+                    trade_flow = 0.0 
+                    
                     self.flash_cache.push_update(
                         point.mint,
                         point.price,
                         point.slot,
-                        point.liquidity
+                        point.liquidity,
+                        trade_flow
                     )
                 except Exception as e:
                     pass # Don't block main loop
@@ -240,11 +245,19 @@ class DataFeedServer:
                 # FlashCache Push (Zero-Copy)
                 if self.flash_cache:
                     try:
+                        # Infer direction/flow if possible
+                        # If data has 'side' or 'type', use it
+                        # This is just a placeholder to match signature
+                        trade_flow = 0.0
+                        if "volume" in data:
+                             trade_flow = float(data["volume"]) # Absolute volume
+                        
                         self.flash_cache.push_update(
                             point.mint,
                             point.price,
                             point.slot,
-                            point.liquidity
+                            point.liquidity,
+                            trade_flow
                         )
                     except Exception:
                         pass

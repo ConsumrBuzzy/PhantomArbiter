@@ -58,27 +58,50 @@ class CacheBridge:
             
             try:
                 # 1. Poll Updates (Sync call to Rust)
+                # Returns list of (mint, price, slot, liquidity, trade_flow)
                 updates = self.reader.poll_updates()
                 
                 # 2. Aggregating/Conflating
-                # If we have 100 updates, we batch them into one JSON frame
                 if updates:
                     frame_data = {}
-                    for mint, price, slot in updates:
+                    trade_convoy = []
+                    
+                    for mint, price, slot, liquidity, trade_flow in updates:
+                        # Price/State Update
                         frame_data[mint] = {
                             "p": price,
                             "s": slot
                         }
+                        
+                        # Trade Scouting (Kinetic Trigger)
+                        # If flow is significant (e.g. > 0.001 or whatever unit), treat as Kinetic Event
+                        if abs(trade_flow) > 0.0001:
+                            trade_convoy.append({
+                                "mint": mint,
+                                "p": price,
+                                "flow": trade_flow, #Signed: +Buy, -Sell
+                                "is_buy": trade_flow > 0,
+                                "size": abs(trade_flow)
+                            })
                     
-                    # 3. Broadcast Frame
-                    payload = {
-                        "type": "PRICE_FRAME",
-                        "t": int(start_time * 1000),
-                        "updates": frame_data
-                    }
+                    # 3. Broadcast Price Frame
+                    # We always send prices if they changed
+                    if frame_data:
+                        payload = {
+                            "type": "PRICE_FRAME",
+                            "t": int(start_time * 1000),
+                            "updates": frame_data
+                        }
+                        asyncio.create_task(connection_manager.broadcast(payload))
                     
-                    # Fire and forget broadcast
-                    asyncio.create_task(connection_manager.broadcast(payload))
+                    # 4. Broadcast Trade Convoy (if any ships need to launch)
+                    if trade_convoy:
+                         convoy_payload = {
+                             "type": "TRADE_CONVOY",
+                             "t": int(start_time * 1000),
+                             "events": trade_convoy
+                         }
+                         asyncio.create_task(connection_manager.broadcast(convoy_payload))
                     
             except Exception as e:
                 logger.error(f"⚠️ [Bridge] Loop Error: {e}")
