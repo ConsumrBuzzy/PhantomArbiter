@@ -50,6 +50,7 @@ from src.core.shared_cache import SharedPriceCache
 from src.core.latency_monitor import LatencyMonitor
 from src.core.scout.manager import ScoutManager
 from src.core.scout.auditor import ActiveCoinAuditor
+from src.core.data_feed_client import DataFeedClient # V55.0: Unified Data Feed
 
 # V160: Bellows Storage Integration
 try:
@@ -134,6 +135,10 @@ class DataBroker:
              self.hop_engine = get_hop_engine()
         except ImportError:
              pass
+
+        # V55.0: Initialize Unified DataFeed Client
+        self.data_feed = DataFeedClient(host="localhost", port=9000)
+        self.wss_updates = 0
 
         def _handle_wss_update(event):
             """Relay WSS event to Graph Engine."""
