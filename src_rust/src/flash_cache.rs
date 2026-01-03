@@ -95,34 +95,36 @@ impl FlashCacheWriter {
         if vec.len() == 32 {
             mint_bytes.copy_from_slice(&vec);
         } else {
-             // Invalid length, ignore or error? ignoring for speed in prod, but let's error for debug
-             // return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid mint length"));
              return Ok(());
         }
 
-        let header_slice = &mut self.mmap[0..size_of::<CacheHeader>()];
+        // Fix: Use split_at_mut to avoid double mutable borrow of mmap
+        let (header_slice, data_slice) = self.mmap.split_at_mut(HEADER_SIZE);
         let header: &mut CacheHeader = bytemuck::from_bytes_mut(header_slice);
         
         let cursor = header.cursor;
         
         let idx = (cursor as usize) % self.capacity;
-        let offset = HEADER_SIZE + (idx * size_of::<PriceUpdate>());
+        // Offset is now relative to the data_slice, not the start of mmap
+        let offset = idx * size_of::<PriceUpdate>();
         
         use std::time::{SystemTime, UNIX_EPOCH};
         let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
 
         let update = PriceUpdate {
+            mint: mint_bytes,
             price,
             slot,
             timestamp: ts,
-            liquidity,
             decimals: 9,
+            liquidity,
             _pad1: [0; 3],
-            mint: mint_bytes,
         };
 
-        let dest = &mut self.mmap[offset..offset + size_of::<PriceUpdate>()];
-        dest.copy_from_slice(bytemuck::bytes_of(&update));
+        if offset + size_of::<PriceUpdate>() <= data_slice.len() {
+             let dest = &mut data_slice[offset..offset + size_of::<PriceUpdate>()];
+             dest.copy_from_slice(bytemuck::bytes_of(&update));
+        }
 
         header.cursor = cursor + 1;
 
