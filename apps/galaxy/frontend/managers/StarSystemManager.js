@@ -121,13 +121,20 @@ export class StarSystemManager {
         lod.userData.labelEl = this.createLabelElement(
             id,
             label,
-            params.price ? `$${params.price.toFixed(6)}` : '$0.00',
+            this.formatPrice(params.price),
             params.rsi !== undefined ? params.rsi : 50
         );
 
         this.sceneManager.add(lod);
         this.nodes.set(id, lod);
         return lod;
+    }
+
+    formatPrice(price) {
+        if (!price || price === 0) return 'Val: -';
+        if (price < 0.000001) return `Val: $${price.toExponential(2)}`;
+        if (price < 0.01) return `Val: $${price.toFixed(6)}`;
+        return `Val: $${price.toFixed(2)}`;
     }
 
     createMoon(id, label, params) {
@@ -211,7 +218,7 @@ export class StarSystemManager {
         // Update Price
         if (update.p) {
             const priceEl = document.getElementById(`price-${id}`);
-            if (priceEl) priceEl.innerText = `$${update.p.toFixed(6)}`;
+            if (priceEl) priceEl.innerText = this.formatPrice(update.p);
         }
 
         // Update RSI (using fake RSI derived from price change for now if raw RSI not passed)

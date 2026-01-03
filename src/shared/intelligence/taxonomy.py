@@ -56,8 +56,9 @@ KEYWORD_MAPPINGS: List[Tuple[TokenSector, str, List[str]]] = [
     (TokenSector.MEME, "cult_meme", ["pepe", "wojak", "chad", "giga", "mog"]),
     (TokenSector.MEME, "politi_fi", ["trump", "biden", "tremp", "boden", "usa"]),
     
-    (TokenSector.AI, "ai_agent", ["ai", "gpt", "agent", "bot", "sentient", "virtual"]),
-    (TokenSector.AI, "compute", ["gpu", "render", "compute", "cloud", "depin"]),
+    (TokenSector.AI, "ai_agent", ["ai", "gpt", "agent", "bot", "sentient", "virtual", "machine learning", "artificial intelligence"]),
+    (TokenSector.AI, "compute", ["gpu", "render", "compute", "cloud", "depin", "big data"]),
+    (TokenSector.GAMING, "gamefi", ["gaming", "game", "metaverse", "play-to-earn", "p2e", "arcade"]),
     
     (TokenSector.DEFI, "dex", ["swap", "dex", "amm", "exchange", "jup", "ray"]),
     (TokenSector.DEFI, "yield", ["yield", "farm", "stake", "earn"]),

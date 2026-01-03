@@ -189,6 +189,37 @@ class TokenRegistry:
         if found > 0:
             Logger.info(f"📚 [REGISTRY] Jupiter list: found {found} tokens")
 
+    def _fetch_from_coingecko(self, mint: str) -> Optional[Dict[str, Any]]:
+        """
+        V89.14: Fetch token data (including categories) from CoinGecko.
+        Rate-limited to prevent 429s (Demo API: ~30 calls/min).
+        """
+        # Global throttle for CG (separate from DexScreener)
+        now = time.time()
+        if not hasattr(self, "_last_cg_lookup"):
+            self._last_cg_lookup = 0
+            
+        if now - self._last_cg_lookup < 2.0:  # 2s throttle ( conservative)
+            return None
+
+        self._last_cg_lookup = now
+
+        try:
+            url = f"https://api.coingecko.com/api/v3/coins/solana/contract/{mint}"
+            resp = requests.get(url, timeout=5)
+
+            if resp.status_code == 200:
+                data = resp.json()
+                Logger.debug(f"📚 [REGISTRY] CoinGecko Hit: {mint[:8]}...")
+                return data
+            elif resp.status_code == 429:
+                Logger.warning("📚 [REGISTRY] CoinGecko Rate Limit Hit")
+                
+        except Exception as e:
+            Logger.debug(f"📚 [REGISTRY] CoinGecko lookup failed for {mint[:8]}: {e}")
+
+        return None
+
     def get_symbol(self, mint: str) -> str:
         """
         Get symbol for a mint address (basic method - no confidence).
@@ -206,8 +237,9 @@ class TokenRegistry:
         2. Dynamic cache (previous lookups)
         3. Jupiter List - Verified
         4. DexScreener API - Medium confidence
-        5. Web Scraping (Solscan/Birdeye) - Low confidence
-        6. Fallback: truncated mint - No confidence
+        5. CoinGecko API - High confidence (Rich Data)
+        6. Web Scraping (Solscan/Birdeye) - Low confidence
+        7. Fallback: truncated mint - No confidence
 
         Returns:
             (symbol, confidence, source) tuple
@@ -229,7 +261,16 @@ class TokenRegistry:
             self._confidence[mint] = (CONFIDENCE_API, "dexscreener")
             return (symbol, CONFIDENCE_API, "dexscreener")
 
-        # 4. Try web scraping (if enabled)
+        # 4. Try CoinGecko (Rich Data)
+        cg_data = self._fetch_from_coingecko(mint)
+        if cg_data:
+            symbol = cg_data.get("symbol", "").upper()
+            if symbol:
+                self._dynamic[mint] = symbol
+                self._confidence[mint] = (CONFIDENCE_API, "coingecko")
+                return (symbol, CONFIDENCE_API, "coingecko")
+
+        # 5. Try web scraping (if enabled)
         if HAS_SCRAPING:
             symbol = self._scrape_solscan(mint)
             if symbol:
@@ -243,10 +284,9 @@ class TokenRegistry:
                 self._confidence[mint] = (CONFIDENCE_SCRAPED, "birdeye")
                 return (symbol, CONFIDENCE_SCRAPED, "birdeye")
 
-        # 5. Fallback: truncated mint
+        # 6. Fallback: truncated mint
         fallback = mint[:6] if len(mint) > 6 else mint
         self._dynamic[mint] = fallback
-        self._confidence[mint] = (CONFIDENCE_UNKNOWN, "fallback")
         self._confidence[mint] = (CONFIDENCE_UNKNOWN, "fallback")
         return (fallback, CONFIDENCE_UNKNOWN, "fallback")
 
@@ -258,7 +298,19 @@ class TokenRegistry:
         
         # Determine symbol
         symbol = self.get_symbol(mint)
-        return taxonomy.classify(symbol, mint).sector.value
+        
+        # Initial Classification
+        classification = taxonomy.classify(symbol, mint)
+        
+        # If classification is weak (UNKNOWN or FALLBACK), try CoinGecko enrichment
+        if classification.sector == TokenSector.UNKNOWN:
+             cg_data = self._fetch_from_coingecko(mint)
+             if cg_data:
+                 tags = cg_data.get("categories", [])
+                 # Re-classify with tags
+                 classification = taxonomy.classify(symbol, mint, tags)
+        
+        return classification.sector.value
 
     def get_full_metadata(self, mint: str) -> Dict[str, Any]:
         """
