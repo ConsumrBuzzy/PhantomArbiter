@@ -11,6 +11,11 @@ import os
 import time
 from concurrent import futures
 from typing import Iterator, Dict, Any, Optional, List
+import logging
+
+# Configure Logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+logger = logging.getLogger("DataFeedServer")
 
 try:
     import grpc
@@ -30,6 +35,8 @@ from datafeed.websocket_manager import (
     WssConfig,
     get_websocket_manager,
 )
+from apps.datafeed.src.scrapers.dexscreener import DexScreenerScraper
+from apps.datafeed.src.scrapers.birdeye import BirdeyeScraper
 
 
 # --- Configuration ---
@@ -136,6 +143,42 @@ class DataFeedServer:
         self.wss_manager = get_websocket_manager()
         self._server = None
         self._running = False
+        
+        # Initialize Scrapers
+        # TODO: Load mints dynamically from a config/shared file
+        self.monitored_mints = [
+            "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", # JUP
+            "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", # WIF
+            "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK
+            "HeLp6NuQkmYB4pYWo2zYs22mESHXPQHz5bB9d4qDpump", # HELIUS
+        ]
+        
+        self.scrapers = [
+            DexScreenerScraper(self.monitored_mints),
+            BirdeyeScraper(self.monitored_mints)
+        ]
+
+        # Register callbacks
+        for scraper in self.scrapers:
+            scraper.register_callback(self._on_scraper_update)
+
+    async def _on_scraper_update(self, data: Dict[str, Any]):
+        """Handle normalized data from scrapers."""
+        try:
+            point = PricePoint(
+                symbol=data.get("token")[:8], # temp symbol
+                mint=data["token"],
+                price=data["price"],
+                volume_24h=data.get("metadata", {}).get("volume_24h", 0),
+                liquidity=data.get("metadata", {}).get("liquidity", 0),
+                timestamp_ms=data["timestamp"],
+                source=PriceSource.HTTP,
+                slot=0
+            )
+            # Use fire-and-forget for async updates to avoid blocking scraper loop
+            asyncio.create_task(self.aggregator.update_price(point))
+        except Exception as e:
+            logger.error(f"Failed to process scraper update: {e}")
     
     def configure_wss_sources(self) -> None:
         """Configure WebSocket data sources."""
@@ -179,6 +222,11 @@ class DataFeedServer:
         
         self._running = True
         
+        # Start Scrapers
+        logger.info(f"Starting {len(self.scrapers)} Scrapers...")
+        for scraper in self.scrapers:
+            await scraper.start()
+
         # Configure and start WSS connections
         self.configure_wss_sources()
         await self.wss_manager.start()
@@ -191,12 +239,20 @@ class DataFeedServer:
         try:
             while self._running:
                 await asyncio.sleep(1)
-                # Periodic tasks
-                await self.aggregator.prune_stale()
         except asyncio.CancelledError:
-            pass
-    
-    async def stop(self) -> None:
+            await self.stop()
+
+    async def stop(self):
+        """Graceful shutdown."""
+        logger.info("Stopping DataFeed Service...")
+        self._running = False
+        
+        for scraper in self.scrapers:
+            await scraper.stop()
+            
+        await self.wss_manager.stop()
+        await self.aggregator.stop()
+
         """Stop the Data Feed server."""
         print("🛑 [DataFeed] Shutting down...")
         self._running = False
