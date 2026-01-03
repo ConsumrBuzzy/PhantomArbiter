@@ -125,7 +125,10 @@
 /* 3D Node Labels (Billboards) */
 .node-label {
     position: absolute;
-    pointer-events: none;
+    pointer-events: auto;
+    /* ENABLE CLICKS */
+    cursor: pointer;
+    /* SHOW HAND CURSOR */
     font-family: 'Rajdhani', 'Courier New', sans-serif;
     color: #e0f0ff;
     /* Holographic Gradient Background */
@@ -137,9 +140,19 @@
     border-radius: 2px 6px 2px 6px;
     /* Sci-fi Edges */
     backdrop-filter: blur(4px);
-    transition: opacity 0.2s, transform 0.1s;
+    transition: opacity 0.2s, transform 0.1s, scale 0.1s;
+    /* Add scale transition */
     min-width: 140px;
     box-shadow: 0 0 15px rgba(0, 255, 100, 0.15), inset 0 0 20px rgba(0, 50, 20, 0.3);
+}
+
+.node-label:hover {
+    transform: scale(1.05);
+    /* Slight pop on hover */
+    background: linear-gradient(135deg, rgba(0, 40, 20, 0.95), rgba(0, 80, 60, 0.8));
+    border-color: #00ffaa;
+    z-index: 50;
+    /* Bring to front on hover */
 }
 
 .label-header {
