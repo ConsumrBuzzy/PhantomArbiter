@@ -6,9 +6,11 @@ export class SettingsManager {
 
         // Defaults
         this.settings = {
+            maxEntities: 1000,
             fleetDensity: 10000,
             lodNear: 100,
             lodFar: 400,
+            refreshRate: 100,
             showLabels: true
         };
 
@@ -33,12 +35,18 @@ export class SettingsManager {
             z-index: 50;
         `;
 
-        this.panel.innerHTML = `<div class="panel-title">SYSTEM CONFIG</div>`;
+        this.panel.innerHTML = `<div class="panel-title">⚙️ PERFORMANCE CONTROLS</div>`;
+
+        // Max Entities Slider (Culls low-volume tokens for "Global Read")
+        this.addSlider('Max Entities', 50, 2000, this.settings.maxEntities, (val) => {
+            this.settings.maxEntities = val;
+            if (this.game.stars) this.game.stars.setMaxEntities(val);
+        });
 
         // Sliders
         this.addSlider('Fleet Density', 0, 10000, this.settings.fleetDensity, (val) => {
             this.settings.fleetDensity = val;
-            if (this.game.fleet) this.game.fleet.mesh.count = Math.min(this.game.fleet.ships.length, val);
+            if (this.game.fleet) this.game.fleet.setDensity(val);
         });
 
         this.addSlider('LOD Near', 50, 500, this.settings.lodNear, (val) => {
@@ -49,6 +57,13 @@ export class SettingsManager {
         this.addSlider('LOD Far', 200, 1000, this.settings.lodFar, (val) => {
             this.settings.lodFar = val;
             this.updateLOD();
+        });
+
+        // Refresh Rate Slider (Data Throttling)
+        this.addSlider('Refresh Rate (ms)', 50, 1000, this.settings.refreshRate, (val) => {
+            this.settings.refreshRate = val;
+            // Could notify backend via WS if supported, or throttle client-side
+            console.log(`⚙️ Refresh rate set to ${val}ms`);
         });
 
         // Toggle Button
