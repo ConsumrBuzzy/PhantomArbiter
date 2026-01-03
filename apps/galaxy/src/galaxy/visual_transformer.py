@@ -140,6 +140,7 @@ class VisualTransformer:
             velocity_factor=velocity_factor,
             distance_factor=distance_factor,
             is_whale=is_whale,
+            category=str(data.get("category", "UNKNOWN")),
         )
         
         # --- Archetype Selection ---

@@ -64,7 +64,10 @@ class VisualParams(BaseModel):
     pool_address: Optional[str] = None
     dex: Optional[str] = None
     orbit_speed: float = 0.02
-    orbit_radius: float = 5.0
+    moon_phase: float = 0.0
+    
+    # Semantic
+    category: str = "UNKNOWN"
 
 
 class VisualObject(BaseModel):
