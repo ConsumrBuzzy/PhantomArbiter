@@ -1,8 +1,9 @@
-
+```
 import { SceneManager } from './SceneManager.js';
 import { StarSystemManager } from './StarSystemManager.js';
 import { FleetManager } from './FleetManager.js';
 import { EffectManager } from './EffectManager.js';
+import { MiniMapManager } from './MiniMapManager.js';
 
 /**
  * GalaxyGame
@@ -21,6 +22,13 @@ export class GalaxyGame {
         this.effects = new EffectManager(this.scene);
         this.stars = new StarSystemManager(this.scene);
         this.fleet = new FleetManager(this.scene, this.stars);
+        this.minimap = new MiniMapManager(this.scene, 'minimap-container');
+        
+        // UI Refs
+        this.fpsEl = document.getElementById('fps-counter');
+        this.shipEl = document.getElementById('ship-counter');
+        this.frameCount = 0;
+        this.lastTime = performance.now();
 
         // 2. Start Loop
         this.clock = new THREE.Clock();
@@ -35,7 +43,7 @@ export class GalaxyGame {
         try {
             const response = await fetch(this.apiUrl);
             const objects = await response.json();
-            console.log(`🌌 [GalaxyGame] Loaded ${objects.length} systems.`);
+            console.log(`🌌[GalaxyGame] Loaded ${ objects.length } systems.`);
             this.stars.updatePlanets(objects);
         } catch (e) {
             console.error("Failed to fetch state:", e);
@@ -43,7 +51,7 @@ export class GalaxyGame {
     }
 
     connectWebSocket() {
-        console.log(`🔌 [GalaxyGame] Connecting to ${this.wsUrl}...`);
+        console.log(`🔌[GalaxyGame] Connecting to ${ this.wsUrl }...`);
         this.ws = new WebSocket(this.wsUrl);
 
         this.ws.onopen = () => console.log("🔗 [GalaxyGame] Connected.");
@@ -102,15 +110,28 @@ export class GalaxyGame {
 
     animate() {
         requestAnimationFrame(() => this.animate());
-
+        
         const delta = this.clock.getDelta();
-
+        
         // Update Logic
         this.effects.update(delta);
         this.stars.update(delta);
         this.fleet.update(delta);
-
-        // Render
+        this.minimap.update();
+        
+        // UI Updates (Intermittent)
+        this.frameCount++;
+        if (this.frameCount % 30 === 0) {
+            if(this.shipEl) this.shipEl.innerText = this.fleet.mesh.count;
+            // Simple FPS
+            const now = performance.now();
+            const fps = Math.round(1000 / (now - this.lastTime));
+            if(this.fpsEl) this.fpsEl.innerText = fps;
+            this.lastTime = now;
+        }
+        
+        // Render Main Scene
         this.scene.render();
     }
 }
+```

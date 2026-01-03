@@ -95,6 +95,7 @@
             background: #0f0;
         }
     </style>
+    <link rel="stylesheet" href="hud.css">
     <script type="importmap">
         {
             "imports": {
@@ -106,34 +107,50 @@
 </head>
 
 <body>
-    <div id="overlay">
-        <div class="hud-text">PHANTOM ARBITER // THE VOID</div>
-        <div id="stats-panel"></div>
-        <div id="scan-table"></div>
-        <div id="log-stream"></div>
-    </div>
-
-    <div id="legend">
-        <div class="legend-title">VISUAL KEY</div>
-        <div class="legend-item">
-            <div class="dot" style="background:#0f0;"></div>Token (Planet)
-        </div>
-        <div class="legend-item">
-            <div class="dot" style="background:#444; border:1px solid #888;"></div>Pool (Moon)
-        </div>
-        <div class="legend-item">
-            <div class="dot" style="background:#ffd700;"></div>Whale Event
-        </div>
-        <div style="margin-top:10px; border-top:1px dashed #004400; padding-top:5px;"></div>
-        <div class="legend-item">
-            <div class="line" style="background:#0f0;"></div>Profit >2%
-        </div>
-        <div class="legend-item">
-            <div class="line" style="background:#ffaa00;"></div>Profit 1-2%
-        </div>
-    </div>
-
+    <!-- 3D Canvas -->
     <div id="canvas-container"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud-layer">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div class="hud-text">PHANTOM ARBITER</div>
+            <div class="panel-title">// COMMAND DECK</div>
+
+            <div class="hud-panel">
+                <div class="panel-title">Active Targets</div>
+                <div id="target-list">
+                    <!-- Dynamic Rows -->
+                </div>
+            </div>
+
+            <div class="hud-panel">
+                <div class="panel-title">System Integrity</div>
+                <div class="progress-container">
+                    <div class="progress-fill" style="width: 100%;"></div>
+                </div>
+                <div style="font-size: 10px; margin-top: 5px;">FLASH_CACHE: ONLINE</div>
+            </div>
+
+            <!-- Legacy Logs Slot -->
+            <div id="log-stream" style="flex-grow: 1; overflow-y: auto;"></div>
+        </div>
+
+        <!-- MiniMap -->
+        <div id="minimap-container"></div>
+
+        <!-- Status Bar -->
+        <div id="status-bar">
+            <div class="status-item">FPS: <span id="fps-counter" class="status-value">60</span></div>
+            <div class="status-item">EVENTS: <span id="event-counter" class="status-value">0</span>/s</div>
+            <div class="status-item">SHIPS: <span id="ship-counter" class="status-value">0</span></div>
+            <div class="status-item" style="margin-left: auto;">NET: <span class="status-value">STABLE</span></div>
+        </div>
+    </div>
+
+    <!-- Legacy Overlay (Hidden or Repurposed) -->
+    <div id="overlay" style="display:none;"></div>
+    <div id="legend" style="display:none;"></div>
 
     <script type="module">
         import { GalaxyGame } from './managers/GalaxyGame.js';
@@ -156,11 +173,11 @@
         const logs = new LogStream('log-stream');
         const scanTable = new ScanTable('scan-table');
 
-        
+
         // Legacy Component Hooks (Temporary Bridge)
         // We can expose the game instance to these if needed or refactor them later
         window.galaxyGame = game;
-        
+
     </script>
     </script>
 </body>

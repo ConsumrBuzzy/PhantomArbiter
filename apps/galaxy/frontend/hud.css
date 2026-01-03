@@ -1,0 +1,121 @@
+/* HUD Layout */
+#hud-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Let clicks pass through to 3D canvas */
+    z-index: 20;
+    font-family: 'Courier New', monospace;
+    color: #0f0;
+}
+
+/* Sidebar */
+#sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 250px;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0, 20, 0, 0.9) 0%, rgba(0, 10, 0, 0) 100%);
+    pointer-events: auto;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.hud-panel {
+    border-left: 2px solid #0f0;
+    padding-left: 10px;
+    margin-bottom: 20px;
+}
+
+.panel-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 5px #0f0;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.token-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 5px 0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.token-row:hover {
+    background: rgba(0, 255, 0, 0.2);
+}
+
+/* Status Bar */
+#status-bar {
+    position: absolute;
+    bottom: 0;
+    left: 250px;
+    /* Offset for sidebar */
+    width: calc(100% - 250px);
+    height: 30px;
+    background: rgba(0, 20, 0, 0.8);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-top: 1px solid #0f0;
+    pointer-events: auto;
+}
+
+.status-item {
+    margin-right: 30px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.status-value {
+    color: #fff;
+    margin-left: 5px;
+}
+
+/* MiniMap */
+#minimap-container {
+    position: absolute;
+    bottom: 40px;
+    right: 20px;
+    width: 200px;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #0f0;
+    border-radius: 4px;
+    pointer-events: auto;
+    /* Catch clicks */
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.map-grid-line {
+    stroke: #004400;
+    stroke-width: 1;
+}
+
+/* Progress Bars */
+.progress-container {
+    width: 100%;
+    height: 4px;
+    background: #002200;
+    margin-top: 5px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #0f0;
+    width: 0%;
+    box-shadow: 0 0 5px #0f0;
+    transition: width 0.5s ease;
+}
