@@ -1,75 +1,12 @@
+```javascript
 
 import * as THREE from 'three';
 
 export class StarSystemManager {
-    constructor(sceneManager) {
+    constructor(sceneManager, uiManager) {
         this.sceneManager = sceneManager;
+        this.uiManager = uiManager;
         this.nodes = new Map(); // id -> Mesh
-
-        // Label Container (DOM Overlay)
-        this.labelContainer = document.createElement('div');
-        this.labelContainer.style.position = 'absolute';
-        this.labelContainer.style.top = '0';
-        this.labelContainer.style.left = '0';
-        this.labelContainer.style.width = '100%';
-        this.labelContainer.style.height = '100%';
-        this.labelContainer.style.pointerEvents = 'none';
-        document.body.appendChild(this.labelContainer);
-
-        this.createLabelElement = (id, text, details, rsi = 50) => {
-            const div = document.createElement('div');
-            div.id = `label-${id}`;
-            div.className = 'node-label';
-
-            // INTERACTION: Direct click on label
-            div.onclick = (e) => {
-                e.stopPropagation(); // Prevent passing to scene
-                console.log(`🏷️ Label Clicked: ${id}`);
-                this.selectNode(id);
-            };
-
-            // Premium Structure
-            const rsiColor = rsi > 70 ? '#f00' : (rsi < 30 ? '#0f0' : '#fff');
-            div.innerHTML = `
-                <div class="label-content">
-                    <div class="label-title">${text}</div>
-                    <div class="label-details">${details}</div>
-                    <div class="label-rsi" style="color: ${rsiColor}">RSI: ${rsi.toFixed(0)}</div>
-                </div>
-            `;
-            this.labelContainer.appendChild(div);
-            return div;
-        };
-
-        // Details Panel (DOM Overlay)
-        this.detailsPanel = document.createElement('div');
-        this.detailsPanel.className = 'details-panel';
-        this.detailsPanel.innerHTML = `
-            <div class="details-close" onclick="this.parentElement.style.display='none'">X</div>
-            <div class="details-header">
-                <div class="details-title" id="dp-title">TOKEN</div>
-                <div class="details-subtitle" id="dp-subtitle">SECTOR</div>
-            </div>
-            <div class="stat-grid">
-                <div class="stat-box">
-                    <div class="stat-label">Price</div>
-                    <div class="stat-value" id="dp-price">$-</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">24h Change</div>
-                    <div class="stat-value" id="dp-change" style="color: #0f0">+0.0%</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Market Cap</div>
-                    <div class="stat-value" id="dp-mcap">$-</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Volume</div>
-                    <div class="stat-value" id="dp-vol">$-</div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(this.detailsPanel);
     }
 
     update(delta) {
@@ -173,64 +110,68 @@ export class StarSystemManager {
         }
 
         lod.userData = { id, label, type: archetype, nodeType, params };
-        lod.userData.labelEl = this.createLabelElement(
-            id,
-            label,
-            this.formatPrice(params.price),
-            params.rsi !== undefined ? params.rsi : 50
-        );
+        
+        // DELEGATE UI: Create Label via UIManager
+        this.uiManager.createLabel(id, label, params, (selectedId) => {
+             this.selectNode(selectedId);
+        });
 
         this.sceneManager.add(lod);
         this.nodes.set(id, lod);
         return lod;
     }
 
-    formatPrice(price) {
-        // ROBUST MOCK fallback
-        // If price is missing or 0, generate a consistent fake price based on time/random
-        // This ensures the UI *always* has data to show
-        let val = price;
-        if (!val || val === 0) {
-            val = 0.001 + Math.random() * 0.01;
-        }
+    createMoon(id, label, params) {
+        const parentNode = this.nodes.get(params.parent_mint);
+        if (!parentNode) return null;
 
-        if (val < 0.000001) return `Val: $${val.toExponential(2)}`;
-        if (val < 0.01) return `Val: $${val.toFixed(6)}`;
-        return `Val: $${val.toFixed(2)}`;
+        const geometry = new THREE.SphereGeometry(params.radius || 0.5, 12, 12);
+        const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(params.hex_color || '#888888'),
+            emissive: new THREE.Color(params.hex_color || '#444444'),
+            emissiveIntensity: params.emissive_intensity || 1.0
+        });
+
+        const moon = new THREE.Mesh(geometry, material);
+        const orbitRadius = params.orbit_radius || 5;
+        const angle = Math.random() * Math.PI * 2;
+
+        moon.position.set(orbitRadius * Math.cos(angle), 0, orbitRadius * Math.sin(angle));
+
+        moon.userData = {
+            id, label, type: 'MOON', nodeType: 'MOON', params,
+            parentMint: params.parent_mint, orbitAngle: angle, orbitRadius,
+            orbitSpeed: params.orbit_speed || 0.02, orbitTilt: (Math.random() - 0.5) * 0.5
+        };
+
+        parentNode.add(moon);
+        this.nodes.set(id, moon);
+        return moon;
+    }
+
+    updateNodeData(id, update) {
+        const node = this.nodes.get(id);
+        if (!node) return;
+
+        // Update Physics/Visuals (if any)
+        
+        // DELEGATE UI: Update Label
+        this.uiManager.updateLabelData(id, { price: update.p, rsi: update.rsi });
     }
 
     selectNode(id) {
         const node = this.nodes.get(id);
         if (!node) return;
 
-        const p = node.userData.params;
+        // DELEGATE UI: Show Details
+        this.uiManager.showDetails(node.userData);
 
-        // Show Panel
-        this.detailsPanel.style.display = 'block';
-
-        // Populate Data
-        document.getElementById('dp-title').innerText = node.userData.label;
-        document.getElementById('dp-subtitle').innerText = p.category || 'UNKNOWN SECTOR';
-        document.getElementById('dp-price').innerText = this.formatPrice(p.price);
-
-        const change = p.change_24h || (Math.random() * 20 - 5);
-        const changeEl = document.getElementById('dp-change');
-        changeEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
-        changeEl.style.color = change >= 0 ? '#0f0' : '#f00';
-
-        // Mock/Real Large Numbers
-        const mcap = p.market_cap || (Math.random() * 10000000);
-        document.getElementById('dp-mcap').innerText = `$${(mcap / 1000000).toFixed(1)}M`;
-
-        const vol = p.volume || (Math.random() * 500000);
-        document.getElementById('dp-vol').innerText = `$${(vol / 1000).toFixed(1)}K`;
-
-        // Highlight Effect
-        // node.material.emissiveIntensity = 2.0; (Requires checking material type)
+        // Highlight Effect 
+        // node.children[0].material.emissiveIntensity = 2.0; 
     }
 
     deselectNode() {
-        this.detailsPanel.style.display = 'none';
+        this.uiManager.hideDetails();
     }
 
     getCategoryPosition(category) {
@@ -261,27 +202,21 @@ export class StarSystemManager {
     }
 
     updateLabel(mesh) {
-        if (!mesh.userData.labelEl) return;
-
+        // Project 3D position to 2D
         const camera = this.sceneManager.camera;
         const tempV = new THREE.Vector3();
 
         mesh.updateWorldMatrix(true, false);
         mesh.getWorldPosition(tempV);
+        
+        const dist = camera.position.distanceTo(tempV);
         tempV.project(camera);
 
         const x = (tempV.x * .5 + .5) * window.innerWidth;
         const y = (tempV.y * -.5 + .5) * window.innerHeight;
 
-        mesh.userData.labelEl.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
-
-        // Visibility logic
-        const dist = camera.position.distanceTo(mesh.getWorldPosition(new THREE.Vector3()));
-        if (tempV.z > 1 || dist > 1500) {
-            mesh.userData.labelEl.style.display = 'none';
-        } else {
-            mesh.userData.labelEl.style.display = 'block';
-            mesh.userData.labelEl.style.opacity = Math.max(0, 1 - (dist / 1500));
-        }
+        // DELEGATE UI: Update Position
+        this.uiManager.updateLabelPosition(mesh.userData.id, x, y, tempV.z, dist);
     }
 }
+```

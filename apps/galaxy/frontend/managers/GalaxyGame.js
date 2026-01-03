@@ -5,6 +5,7 @@ import { FleetManager } from './FleetManager.js';
 import { EffectManager } from './EffectManager.js';
 import { MiniMapManager } from './MiniMapManager.js';
 import { SettingsManager } from './SettingsManager.js';
+import { UIManager } from './UIManager.js';
 
 /**
  * GalaxyGame
@@ -19,9 +20,10 @@ export class GalaxyGame {
         console.log("🌌 [GalaxyGame] Initializing Engine...");
 
         // 1. Initialize Managers
+        this.ui = new UIManager(); // Init UI first
         this.scene = new SceneManager(containerId);
         this.effects = new EffectManager(this.scene);
-        this.stars = new StarSystemManager(this.scene);
+        this.stars = new StarSystemManager(this.scene, this.ui); // Pass UI
         this.fleet = new FleetManager(this.scene, this.stars);
         this.minimap = new MiniMapManager(this.scene, 'minimap-container');
         this.settings = new SettingsManager(this);
