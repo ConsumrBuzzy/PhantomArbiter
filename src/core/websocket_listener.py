@@ -54,6 +54,12 @@ class PriceEvent:
     latency_ms: float = 0.0
 
 
+@dataclass
+class MockStats:
+    messages_accepted: int = 0
+    messages_dropped: int = 0
+    active_connections: int = 0
+
 class MockWssAggregator:
     """Fallback if Rust module is missing."""
     def __init__(self, channel_size=5000):
@@ -62,7 +68,7 @@ class MockWssAggregator:
     def add_endpoint(self, url: str, program_id: str):
         pass
         
-    def start(self):
+    def start(self, endpoints=None, program_ids=None, commitment="processed"):
         self.running = True
         
     def is_running(self):
@@ -70,6 +76,12 @@ class MockWssAggregator:
         
     def consume(self):
         return []
+
+    def poll_events(self, batch_size=50):
+        return []
+
+    def get_stats(self):
+        return MockStats()
 
     def stop(self):
         self.running = False

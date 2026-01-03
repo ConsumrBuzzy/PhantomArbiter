@@ -319,7 +319,7 @@ class DataBroker:
             self.engine_mgr.initialize_execution()
 
         # Connect Bitquery callback if enabled
-        if self.engine_mgr.bitquery_adapter:
+        if self.engine_mgr and self.engine_mgr.bitquery_adapter:
             self.engine_mgr.bitquery_adapter.add_callback(self._handle_bitquery_update)
 
         # V11.5: Defer blocking calls to run() for instant launch
