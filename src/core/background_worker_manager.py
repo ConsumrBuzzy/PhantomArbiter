@@ -43,11 +43,18 @@ class BackgroundWorkerManager:
         self._launch_thread("Hunter", self._delayed_hunter_start)
 
         # 3. Agent Starts
-        self._launch_thread("ScoutAgent", self._start_scout)
-        self._launch_thread("WhaleWatcher", self._start_whales)
-        self._launch_thread("WhaleSensor", self._start_whale_sensor) # V140
-        self._launch_thread("SauronDiscovery", self._start_sauron)
-        self._launch_thread("SniperAgent", self._start_sniper)
+        if self.broker.scout_agent:
+            self._launch_thread("ScoutAgent", self._start_scout)
+        
+        if self.broker.whale_watcher:
+            self._launch_thread("WhaleWatcher", self._start_whales)
+            self._launch_thread("WhaleSensor", self._start_whale_sensor) # V140
+        
+        if self.broker.sauron:
+            self._launch_thread("SauronDiscovery", self._start_sauron)
+        
+        if self.broker.sniper:
+            self._launch_thread("SniperAgent", self._start_sniper)
 
         # 4. Optional Workers
         if self.broker.bitquery_adapter:
@@ -55,9 +62,10 @@ class BackgroundWorkerManager:
 
         # 5. Agent Wiring (V68.0+)
         # Wire Sauron -> Sniper callback
-        self.broker.sauron.set_sniper_callback(self.broker.sniper.on_new_pool)
-        # Wire Scout -> Sniper for Flash Audit
-        self.broker.sniper.scout_agent = self.broker.scout_agent
+        if self.broker.sauron and self.broker.sniper:
+            self.broker.sauron.set_sniper_callback(self.broker.sniper.on_new_pool)
+            # Wire Scout -> Sniper for Flash Audit
+            self.broker.sniper.scout_agent = self.broker.scout_agent
 
         Logger.success("[WORKER_MGR] All background tasks launched and wired")
 
