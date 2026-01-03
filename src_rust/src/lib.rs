@@ -443,6 +443,11 @@ pub mod pda;
 pub mod whiff_buffer;
 
 // ------------------------------------------------------------------------
+// SECTION 20: FLASH CACHE (SHARED MEMORY)
+// ------------------------------------------------------------------------
+pub mod flash_cache;
+
+// ------------------------------------------------------------------------
 // SECTION 15: MODULE REGISTRATION
 // ------------------------------------------------------------------------
 
@@ -451,6 +456,8 @@ pub mod whiff_buffer;
 fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Graph>()?;
     m.add_class::<log_parser::SwapEvent>()?;
+    m.add_class::<flash_cache::FlashCacheWriter>()?;
+    m.add_class::<flash_cache::FlashCacheReader>()?;
     m.add_function(wrap_pyfunction!(calculate_net_profit, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;

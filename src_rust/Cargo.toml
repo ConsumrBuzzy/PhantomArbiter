@@ -17,6 +17,7 @@ base64 = "0.21"
 borsh = "1.0"
 thiserror = "1.0"
 bytemuck = { version = "1.14", features = ["derive"] }
+memmap2 = "0.9" # V75.0: FlashCache (Shared Memory)
 rayon = "1.8"
 
 # The Blast: Async HTTP/2 for direct submission
