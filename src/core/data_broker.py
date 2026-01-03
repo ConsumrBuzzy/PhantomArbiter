@@ -81,7 +81,9 @@ class DataBroker:
     def __init__(self, enable_engines: bool = True):
         self.is_running = False
         self.enable_engines = enable_engines
-        Logger.section("PHANTOM TRADER - DATA BROKER")
+        Logger.info("="*40)
+        Logger.info("PHANTOM TRADER - DATA BROKER")
+        Logger.info("="*40)
 
         # Register broker
         SharedPriceCache.set_broker_info(os.getpid())

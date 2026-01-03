@@ -28,6 +28,11 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
+# Ensure apps/datafeed/src is in path for generated protobuf imports
+datafeed_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "apps", "datafeed", "src"))
+if datafeed_src not in sys.path:
+    sys.path.append(datafeed_src)
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser with subcommands."""

@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from apps.datafeed.src.datafeed import market_data_pb2 as apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2
+from datafeed import market_data_pb2 as datafeed_dot_market__data__pb2
 
 GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in apps/datafeed/src/datafeed/market_data_pb2_grpc.py depends on'
+        + ' but the generated code in datafeed/market_data_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -37,23 +37,23 @@ class MarketDataServiceStub(object):
         """
         self.StreamPrices = channel.unary_stream(
                 '/phantom.datafeed.MarketDataService/StreamPrices',
-                request_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.SubscribeRequest.SerializeToString,
-                response_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.PriceUpdate.FromString,
+                request_serializer=datafeed_dot_market__data__pb2.SubscribeRequest.SerializeToString,
+                response_deserializer=datafeed_dot_market__data__pb2.PriceUpdate.FromString,
                 _registered_method=True)
         self.GetSnapshot = channel.unary_unary(
                 '/phantom.datafeed.MarketDataService/GetSnapshot',
-                request_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.SnapshotRequest.SerializeToString,
-                response_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.MarketSnapshot.FromString,
+                request_serializer=datafeed_dot_market__data__pb2.SnapshotRequest.SerializeToString,
+                response_deserializer=datafeed_dot_market__data__pb2.MarketSnapshot.FromString,
                 _registered_method=True)
         self.SubscribeTopic = channel.unary_stream(
                 '/phantom.datafeed.MarketDataService/SubscribeTopic',
-                request_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.TopicRequest.SerializeToString,
-                response_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.MarketEvent.FromString,
+                request_serializer=datafeed_dot_market__data__pb2.TopicRequest.SerializeToString,
+                response_deserializer=datafeed_dot_market__data__pb2.MarketEvent.FromString,
                 _registered_method=True)
         self.HealthCheck = channel.unary_unary(
                 '/phantom.datafeed.MarketDataService/HealthCheck',
-                request_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.Empty.SerializeToString,
-                response_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.HealthResponse.FromString,
+                request_serializer=datafeed_dot_market__data__pb2.Empty.SerializeToString,
+                response_deserializer=datafeed_dot_market__data__pb2.HealthResponse.FromString,
                 _registered_method=True)
 
 
@@ -94,23 +94,23 @@ def add_MarketDataServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'StreamPrices': grpc.unary_stream_rpc_method_handler(
                     servicer.StreamPrices,
-                    request_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.SubscribeRequest.FromString,
-                    response_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.PriceUpdate.SerializeToString,
+                    request_deserializer=datafeed_dot_market__data__pb2.SubscribeRequest.FromString,
+                    response_serializer=datafeed_dot_market__data__pb2.PriceUpdate.SerializeToString,
             ),
             'GetSnapshot': grpc.unary_unary_rpc_method_handler(
                     servicer.GetSnapshot,
-                    request_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.SnapshotRequest.FromString,
-                    response_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.MarketSnapshot.SerializeToString,
+                    request_deserializer=datafeed_dot_market__data__pb2.SnapshotRequest.FromString,
+                    response_serializer=datafeed_dot_market__data__pb2.MarketSnapshot.SerializeToString,
             ),
             'SubscribeTopic': grpc.unary_stream_rpc_method_handler(
                     servicer.SubscribeTopic,
-                    request_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.TopicRequest.FromString,
-                    response_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.MarketEvent.SerializeToString,
+                    request_deserializer=datafeed_dot_market__data__pb2.TopicRequest.FromString,
+                    response_serializer=datafeed_dot_market__data__pb2.MarketEvent.SerializeToString,
             ),
             'HealthCheck': grpc.unary_unary_rpc_method_handler(
                     servicer.HealthCheck,
-                    request_deserializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.Empty.FromString,
-                    response_serializer=apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.HealthResponse.SerializeToString,
+                    request_deserializer=datafeed_dot_market__data__pb2.Empty.FromString,
+                    response_serializer=datafeed_dot_market__data__pb2.HealthResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -139,8 +139,8 @@ class MarketDataService(object):
             request,
             target,
             '/phantom.datafeed.MarketDataService/StreamPrices',
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.SubscribeRequest.SerializeToString,
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.PriceUpdate.FromString,
+            datafeed_dot_market__data__pb2.SubscribeRequest.SerializeToString,
+            datafeed_dot_market__data__pb2.PriceUpdate.FromString,
             options,
             channel_credentials,
             insecure,
@@ -166,8 +166,8 @@ class MarketDataService(object):
             request,
             target,
             '/phantom.datafeed.MarketDataService/GetSnapshot',
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.SnapshotRequest.SerializeToString,
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.MarketSnapshot.FromString,
+            datafeed_dot_market__data__pb2.SnapshotRequest.SerializeToString,
+            datafeed_dot_market__data__pb2.MarketSnapshot.FromString,
             options,
             channel_credentials,
             insecure,
@@ -193,8 +193,8 @@ class MarketDataService(object):
             request,
             target,
             '/phantom.datafeed.MarketDataService/SubscribeTopic',
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.TopicRequest.SerializeToString,
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.MarketEvent.FromString,
+            datafeed_dot_market__data__pb2.TopicRequest.SerializeToString,
+            datafeed_dot_market__data__pb2.MarketEvent.FromString,
             options,
             channel_credentials,
             insecure,
@@ -220,8 +220,8 @@ class MarketDataService(object):
             request,
             target,
             '/phantom.datafeed.MarketDataService/HealthCheck',
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.Empty.SerializeToString,
-            apps_dot_datafeed_dot_src_dot_datafeed_dot_market__data__pb2.HealthResponse.FromString,
+            datafeed_dot_market__data__pb2.Empty.SerializeToString,
+            datafeed_dot_market__data__pb2.HealthResponse.FromString,
             options,
             channel_credentials,
             insecure,

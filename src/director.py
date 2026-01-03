@@ -65,7 +65,9 @@ class UnifiedDirector:
         self.execution_enabled = execution_enabled
         self.tasks = {}
 
-        Logger.section("UNIFIED DIRECTOR INITIATING")
+        Logger.info("="*40)
+        Logger.info("UNIFIED DIRECTOR INITIATING")
+        Logger.info("="*40)
         
         # V140: Start System Queue
         priority_queue.start()
