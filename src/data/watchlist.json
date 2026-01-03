@@ -167,6 +167,13 @@
             "trading_enabled": false,
             "description": "Auto-Scouted from birdeye_trending",
             "added_at": 1767416068.4343958
+        },
+        "AVB": {
+            "mint": "6d5zHW5B8RkGKd51Lpb9RqFQSqDudr9GJgZ1SgQZpump",
+            "category": "SCOUT",
+            "trading_enabled": false,
+            "description": "Auto-Scouted from birdeye_trending",
+            "added_at": 1767416538.4276173
         }
     }
 }
