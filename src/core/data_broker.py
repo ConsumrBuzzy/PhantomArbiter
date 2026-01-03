@@ -720,17 +720,7 @@ class DataBroker:
         # V133: Background Workers Management (Delegated to BackgroundWorkerManager)
         self.worker_mgr.start_all()
 
-        # Start Hunter Thread (V9.0) - DELAYED START (V10.6)
-        # V88.0: Reduce delay from 45s to 5s
-        def delayed_hunter_start():
-            time.sleep(5)
-            print("   🏹 Hunter Daemon Starting...")
-
-        hunter_thread = threading.Thread(
-            target=delayed_hunter_start, daemon=True, name="Hunter"
-        )
-        hunter_thread.start()
-        print("   ⏳ Hunter Daemon Scheduled (T+5s)")
+        # Hunter thread is already managed by worker_mgr._delayed_hunter_start
 
         # V10.10: Immediate Wallet Scan to warm cache for Scalper
         print("   ⏳ Warming Wallet Cache...")
