@@ -11,6 +11,18 @@ export class MiniMapManager {
             return;
         }
 
+        // Grid Overlay
+        this.container.style.position = 'relative';
+        this.addQuadrantLabel('Q1: MEME', 'top: 5px; right: 5px;');
+        this.addQuadrantLabel('Q2: DEFI', 'top: 5px; left: 5px;');
+        this.addQuadrantLabel('Q3: UTIL', 'bottom: 5px; left: 5px;');
+        this.addQuadrantLabel('Q4: DEGEN', 'bottom: 5px; right: 5px;');
+
+        // Crosshair
+        const crosshair = document.createElement('div');
+        crosshair.style.cssText = `position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border: 1px solid #0f0; transform: translate(-50%, -50%); pointer-events: none; opacity: 0.5;`;
+        this.container.appendChild(crosshair);
+
         this.width = this.container.clientWidth;
         this.height = this.container.clientHeight;
 
@@ -87,6 +99,13 @@ export class MiniMapManager {
         controls.target.set(x, 0, z);
         this.sceneManager.camera.position.set(x, 400, z + 400); // Maintain offset
         controls.update();
+    }
+
+    addQuadrantLabel(text, style) {
+        const div = document.createElement('div');
+        div.innerText = text;
+        div.style.cssText = `position: absolute; color: rgba(0,255,0,0.5); font-size: 10px; pointer-events: none; ${style}`;
+        this.container.appendChild(div);
     }
 
     update() {

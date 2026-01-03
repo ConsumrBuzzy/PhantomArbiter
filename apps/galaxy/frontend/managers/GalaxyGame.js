@@ -4,6 +4,7 @@ import { StarSystemManager } from './StarSystemManager.js';
 import { FleetManager } from './FleetManager.js';
 import { EffectManager } from './EffectManager.js';
 import { MiniMapManager } from './MiniMapManager.js';
+import { SettingsManager } from './SettingsManager.js';
 
 /**
  * GalaxyGame
@@ -14,7 +15,7 @@ export class GalaxyGame {
     constructor(containerId, apiUrl, wsUrl) {
         this.apiUrl = apiUrl;
         this.wsUrl = wsUrl;
-
+        
         console.log("🌌 [GalaxyGame] Initializing Engine...");
 
         // 1. Initialize Managers
@@ -23,6 +24,7 @@ export class GalaxyGame {
         this.stars = new StarSystemManager(this.scene);
         this.fleet = new FleetManager(this.scene, this.stars);
         this.minimap = new MiniMapManager(this.scene, 'minimap-container');
+        this.settings = new SettingsManager(this);
         
         // UI Refs
         this.fpsEl = document.getElementById('fps-counter');

@@ -11,11 +11,16 @@ import os
 import time
 from concurrent import futures
 from typing import Iterator, Dict, Any, Optional, List
-import logging
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
-logger = logging.getLogger("DataFeedServer")
+# --- Logging Setup ---
+try:
+    from src.core.logger import setup_logging
+    logger = setup_logging("INFO")
+except ImportError:
+    # Fallback if src not in path
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("DataFeed")
 
 try:
     import grpc

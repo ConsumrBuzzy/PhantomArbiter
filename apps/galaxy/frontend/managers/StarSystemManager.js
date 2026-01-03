@@ -58,19 +58,23 @@ export class StarSystemManager {
             return existing;
         }
 
-        let geometry;
+        // --- LOD Container ---
+        const lod = new THREE.LOD();
+
+        // Level 0: High Fidelity (< 100 distance)
+        let geometryHigh;
         switch (archetype) {
-            case 'GLOBE': geometry = new THREE.SphereGeometry(params.radius || 2, 16, 16); break;
-            case 'PLANET': geometry = new THREE.SphereGeometry(params.radius || 3, 32, 32); break;
-            case 'SUPERNOVA': geometry = new THREE.IcosahedronGeometry(params.radius || 5, 1); break;
-            case 'PULSAR': geometry = new THREE.OctahedronGeometry(params.radius || 2, 0); break;
-            case 'NOVA': geometry = new THREE.DodecahedronGeometry(params.radius || 2, 0); break;
-            case 'COMET': geometry = new THREE.ConeGeometry(params.radius || 1, params.radius * 2, 8); break;
-            case 'WHALE': geometry = new THREE.TorusKnotGeometry(params.radius || 3, 0.5, 64, 8); break;
-            default: geometry = new THREE.TetrahedronGeometry(params.radius || 1, 0);
+            case 'GLOBE': geometryHigh = new THREE.SphereGeometry(params.radius || 2, 16, 16); break;
+            case 'PLANET': geometryHigh = new THREE.SphereGeometry(params.radius || 3, 32, 32); break;
+            case 'SUPERNOVA': geometryHigh = new THREE.IcosahedronGeometry(params.radius || 5, 1); break;
+            case 'PULSAR': geometryHigh = new THREE.OctahedronGeometry(params.radius || 2, 0); break;
+            case 'NOVA': geometryHigh = new THREE.DodecahedronGeometry(params.radius || 2, 0); break;
+            case 'COMET': geometryHigh = new THREE.ConeGeometry(params.radius || 1, params.radius * 2, 8); break;
+            case 'WHALE': geometryHigh = new THREE.TorusKnotGeometry(params.radius || 3, 0.5, 64, 8); break;
+            default: geometryHigh = new THREE.TetrahedronGeometry(params.radius || 1, 0);
         }
 
-        const material = new THREE.MeshStandardMaterial({
+        const materialHigh = new THREE.MeshStandardMaterial({
             color: new THREE.Color(params.hex_color || '#ffffff'),
             emissive: new THREE.Color(params.hex_color || '#000000'),
             emissiveIntensity: params.emissive_intensity || 0.5,
@@ -79,20 +83,41 @@ export class StarSystemManager {
             wireframe: params.roughness < 0.2
         });
 
-        const mesh = new THREE.Mesh(geometry, material);
+        const meshHigh = new THREE.Mesh(geometryHigh, materialHigh);
+        lod.addLevel(meshHigh, 0);
 
+        // Level 1: Low Poly (100 - 400 distance)
+        // Use simple shapes for all
+        const geometryLow = new THREE.IcosahedronGeometry(params.radius || 2, 0);
+        const materialLow = new THREE.MeshBasicMaterial({
+            color: params.hex_color || '#ffffff',
+            wireframe: true
+        });
+        const meshLow = new THREE.Mesh(geometryLow, materialLow);
+        lod.addLevel(meshLow, 100);
+
+        // Level 2: Point / Very Low ( > 400 distance)
+        // If too far, maybe just invisible or a tiny sprite. 
+        // For performance, we can just stop rendering or use a Point.
+        // Let's use a very low poly tetrahdron
+        const geometryFar = new THREE.TetrahedronGeometry((params.radius || 2) * 0.8, 0);
+        const materialFar = new THREE.MeshBasicMaterial({ color: params.hex_color, wireframe: false });
+        const meshFar = new THREE.Mesh(geometryFar, materialFar);
+        lod.addLevel(meshFar, 400);
+
+        // Positioning
         if (params.x !== undefined && params.y !== undefined && params.z !== undefined) {
-            mesh.position.set(params.x, params.y, params.z);
+            lod.position.set(params.x, params.y, params.z);
         } else {
-            mesh.position.set((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500);
+            lod.position.set((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500);
         }
 
-        mesh.userData = { id, label, type: archetype, nodeType, params };
-        mesh.userData.labelEl = this.createLabelElement(id, label, params.price ? `$${params.price.toFixed(6)}` : '');
+        lod.userData = { id, label, type: archetype, nodeType, params };
+        lod.userData.labelEl = this.createLabelElement(id, label, params.price ? `$${params.price.toFixed(6)}` : '');
 
-        this.sceneManager.add(mesh);
-        this.nodes.set(id, mesh);
-        return mesh;
+        this.sceneManager.add(lod);
+        this.nodes.set(id, lod);
+        return lod;
     }
 
     createMoon(id, label, params) {

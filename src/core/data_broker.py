@@ -15,7 +15,14 @@ import time
 import threading
 import signal
 
-from src.shared.system.logging import Logger
+# --- Logging Setup ---
+try:
+    from src.core.logger import setup_logging
+    # We use a global logger setup for the core
+    Logger = setup_logging("INFO") 
+except ImportError:
+    from src.shared.system.logging import Logger
+
 from src.shared.system.smart_router import SmartRouter
 from config.settings import Settings
 
@@ -294,10 +301,14 @@ class DataBroker:
         self.worker_mgr = BackgroundWorkerManager(self)
 
         # V133: EngineManager (SRP Refactor)
-        self.engine_mgr = EngineManager() # Always instantiate manager
-        
-        # Initialize Sensors (Scout, Whale, etc.) - These feed the broker
-        self.engine_mgr.initialize_sensors()
+        if self.enable_engines:
+            self.engine_mgr = EngineManager() # Always instantiate manager
+            # Initialize Sensors (Scout, Whale, etc.)
+            self.engine_mgr.initialize_sensors()
+            Logger.info("⚙️ Execution Engines: ENABLED")
+        else:
+            self.engine_mgr = None
+            Logger.warning("⛔ Execution Engines: DISCONNECTED (Data-Only Mode)")
         self.engine_mgr._init_bitquery_adapter() # Init adapter too
 
         # Initialize Execution (Merchant/Scalper) only if enabled

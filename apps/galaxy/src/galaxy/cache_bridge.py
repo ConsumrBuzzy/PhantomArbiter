@@ -6,9 +6,9 @@ import logging
 from typing import Dict, Any, List
 
 from galaxy.connection_manager import connection_manager
-
+from src.core.logger import setup_logging
 # Configure Logging
-logger = logging.getLogger("GalaxyCacheBridge")
+logger = setup_logging(level="INFO")
 
 class CacheBridge:
     """
