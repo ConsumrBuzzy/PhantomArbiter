@@ -855,7 +855,17 @@ class DataBroker:
                 # V10.13: Show Source (JUP vs DEX)
                 source_tag = "DEX" if self.dsm.use_fallback else "JUP"
 
-                msg = f"[BROKER] Batch #{self.batch_count} | Scout:✓{len(self.scout_agent.watchlist)} | Whale:LISTEN | Sniper:🎯{self.sniper.get_stats()['sniped_count']} | Px:{len(batch_prices)}"
+                msg = f"[BROKER] Batch #{self.batch_count} | Px:{len(batch_prices)}"
+                if self.scout_agent:
+                    msg += f" | Scout:✓{len(self.scout_agent.watchlist)}"
+                else:
+                    msg += " | Scout:OFF"
+
+                if self.sniper:
+                    msg += f" | Sniper:🎯{self.sniper.get_stats()['sniped_count']}"
+                else:
+                    msg += " | Sniper:OFF"
+                
                 Logger.info(msg)
 
                 # V45.1: Delegated Reporting (SRP Fix)
