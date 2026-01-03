@@ -23,6 +23,7 @@ from galaxy.models import EventPayload, VisualObject, EventType
 from galaxy.visual_transformer import VisualTransformer
 from galaxy.connection_manager import connection_manager
 from galaxy.state import galaxy_state
+from galaxy.cache_bridge import cache_bridge
 
 
 # --- Configuration ---
@@ -49,8 +50,16 @@ async def lifespan(app: FastAPI):
     """Application lifecycle manager."""
     print(f"🌌 [Galaxy] Server starting on http://{GALAXY_HOST}:{GALAXY_PORT}")
     print(f"🎙️  [Galaxy] WebSocket stream: ws://{GALAXY_HOST}:{GALAXY_PORT}/ws/v1/stream")
+    
+    # Start FlashCache Bridge
+    bridge_task = asyncio.create_task(cache_bridge.start())
+    
     yield
+    
+    # Shutdown
     print("🌌 [Galaxy] Server shutting down")
+    cache_bridge.stop()
+    await bridge_task
 
 
 # --- App Definition ---
