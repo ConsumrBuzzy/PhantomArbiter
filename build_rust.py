@@ -25,10 +25,15 @@ def build_rust():
     # Add venv/Scripts or venv/bin to PATH to ensure we find the right python
     if sys.platform == "win32":
         path_insertion = venv_dir / "Scripts"
+        python_executable = path_insertion / "python.exe"
     else:
         path_insertion = venv_dir / "bin"
+        python_executable = path_insertion / "python"
 
     env["PATH"] = str(path_insertion) + os.pathsep + env.get("PATH", "")
+    
+    # CRITICAL: Force PyO3 to use the venv python, avoiding global 3.14+ issues
+    env["PYO3_PYTHON"] = str(python_executable)
 
     # 3. Choose Command
     # If UV is available, 'uv run' is the most robust way to run commands in the venv context

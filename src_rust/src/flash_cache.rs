@@ -3,7 +3,7 @@ use memmap2::MmapMut;
 use bytemuck::{Pod, Zeroable};
 use std::fs::OpenOptions;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic;
 use std::mem::size_of;
 
 /// Memory Layout:
@@ -21,14 +21,15 @@ const MAGIC: u64 = 0xDEAD_BEEF;
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PriceUpdate {
-    // Fixed size struct for Zero-Copy
-    pub price: f64,
-    pub slot: u64,
-    pub timestamp: u64,
-    pub mint: [u8; 32], // Base58 decoded mint (32 bytes)
-    pub decimals: u8,
-    pub liquidity: f32,
-    pub _padding: [u8; 19], // Align to 64 bytes? 8+8+8+32+1+4 = 61. Pad to 64.
+    // 64-byte aligned struct for Zero-Copy
+    // 8 (price) + 8 (slot) + 8 (ts) + 4 (liq) + 1 (dec) + 3 (pad) + 32 (mint) = 64 bytes
+    pub price: f64,         // 0-7
+    pub slot: u64,          // 8-15
+    pub timestamp: u64,     // 16-23
+    pub liquidity: f32,     // 24-27
+    pub decimals: u8,       // 28
+    pub _pad1: [u8; 3],     // 29-31
+    pub mint: [u8; 32],     // 32-63
 }
 
 #[repr(C)]
@@ -51,7 +52,6 @@ impl FlashCacheWriter {
     fn new(path: String) -> PyResult<Self> {
         let path = Path::new(&path);
         
-        // Ensure file exists and is sized
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -65,7 +65,6 @@ impl FlashCacheWriter {
         let mut mmap = unsafe { MmapMut::map_mut(&file) }
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
 
-        // Initialize Header if needed
         let header_slice = &mut mmap[0..size_of::<CacheHeader>()];
         let header: &mut CacheHeader = bytemuck::from_bytes_mut(header_slice);
         
@@ -88,49 +87,44 @@ impl FlashCacheWriter {
         liquidity: f32
     ) -> PyResult<()> {
         let mut mint_bytes = [0u8; 32];
-        // Decode base58 or just copy bytes? Assuming input is valid base58 string.
-        // For speed, let's assume we might receive just the string bytes if < 32? 
-        // No, standard is decodable.
-        // Let's use bs58 decode validation.
         
-        match bs58::decode(mint_str).into(&mut mint_bytes) {
-            Ok(_) => {},
-            Err(_) => {
-                // If decode fails or string is weird, maybe it's not base58.
-                // Fallback: Just zero it or error? 
-                // For HFT, fail fast.
-                return Ok(()); 
-            }
-        };
+        // Fix for bs58 and error handling
+        let vec = bs58::decode(mint_str)
+            .into_vec()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+            
+        if vec.len() == 32 {
+            mint_bytes.copy_from_slice(&vec);
+        } else {
+             // Invalid length, ignore or error? ignoring for speed in prod, but let's error for debug
+             // return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid mint length"));
+             return Ok(());
+        }
 
-        // Get header
         let header_slice = &mut self.mmap[0..size_of::<CacheHeader>()];
         let header: &mut CacheHeader = bytemuck::from_bytes_mut(header_slice);
         
         let cursor = header.cursor;
         
-        // Write Data
         let idx = (cursor as usize) % self.capacity;
         let offset = HEADER_SIZE + (idx * size_of::<PriceUpdate>());
         
         use std::time::{SystemTime, UNIX_EPOCH};
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
 
         let update = PriceUpdate {
-            mint: mint_bytes,
             price,
             slot,
             timestamp: ts,
-            decimals: 9, // Default
             liquidity,
-            _padding: [0; 19],
+            decimals: 9,
+            _pad1: [0; 3],
+            mint: mint_bytes,
         };
 
         let dest = &mut self.mmap[offset..offset + size_of::<PriceUpdate>()];
         dest.copy_from_slice(bytemuck::bytes_of(&update));
 
-        // Advance cursor atomicaly-ish (Header is volatile RAM in practice)
-        // We rely on memory barriers implied by OS handling, simpler for now.
         header.cursor = cursor + 1;
 
         Ok(())
