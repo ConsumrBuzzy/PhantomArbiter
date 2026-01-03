@@ -16,6 +16,31 @@ export class StarSystemManager {
         this.labelContainer.style.pointerEvents = 'none';
         document.body.appendChild(this.labelContainer);
 
+        this.createLabelElement = (id, text, details, rsi = 50) => {
+            const div = document.createElement('div');
+            div.id = `label-${id}`;
+            div.className = 'node-label';
+
+            // INTERACTION: Direct click on label
+            div.onclick = (e) => {
+                e.stopPropagation(); // Prevent passing to scene
+                console.log(`🏷️ Label Clicked: ${id}`);
+                this.selectNode(id);
+            };
+
+            // Premium Structure
+            const rsiColor = rsi > 70 ? '#f00' : (rsi < 30 ? '#0f0' : '#fff');
+            div.innerHTML = `
+                <div class="label-content">
+                    <div class="label-title">${text}</div>
+                    <div class="label-details">${details}</div>
+                    <div class="label-rsi" style="color: ${rsiColor}">RSI: ${rsi.toFixed(0)}</div>
+                </div>
+            `;
+            this.labelContainer.appendChild(div);
+            return div;
+        };
+
         // Details Panel (DOM Overlay)
         this.detailsPanel = document.createElement('div');
         this.detailsPanel.className = 'details-panel';
