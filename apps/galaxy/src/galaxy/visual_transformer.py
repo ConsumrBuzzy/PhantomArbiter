@@ -137,12 +137,10 @@ class VisualTransformer:
             liquidity=liquidity,
             market_cap=market_cap,
             rsi=rsi,
-            velocity_factor=velocity_factor,
-            distance_factor=distance_factor,
             is_whale=is_whale,
             # V89.15: Pass Price & Category
             category=str(data.get("category", "UNKNOWN")),
-            price_usd=float(data.get("price_usd", 0.0)),
+            price=price,
         )
         
         # --- Archetype Selection ---

@@ -41,23 +41,48 @@ class CacheBridge:
         except Exception as e:
             logger.error(f"❌ [Bridge] Init Error: {e}")
 
+    def _connect_cache(self):
+        """Attempt to connect to FlashCache shared memory."""
+        try:
+            import phantom_core
+            # Assume data dir is relative to CWD (usually run from root)
+            cache_path = os.path.join(os.getcwd(), "data", "market_data.shm")
+            
+            if os.path.exists(cache_path):
+                self.reader = phantom_core.FlashCacheReader(cache_path)
+                logger.info(f"🚀 [Bridge] Connected to FlashCache at {cache_path}")
+            # Else silent fail until found
+                
+        except ImportError:
+            # logger.error("❌ [Bridge] phantom_core not found. Acceleration disabled.")
+            pass # Suppress spam
+        except Exception as e:
+            # logger.error(f"❌ [Bridge] Connect Error: {e}")
+            pass
+
     async def start(self):
         """Start the polling loop."""
-        if not self.reader:
-            return
-
         self._running = True
         logger.info(f"⚡ [Bridge] Starting Frame Loop ({self._fps} FPS)")
-        
-        # We run the polling in a separate thread-like behavior via asyncio.to_thread 
-        # or just cooperative multitasking since default Python loop is single threaded.
-        # But poll_updates is fast (memory read).
         
         self.trade_buffer = []
         self.last_flush = time.time()
         self.CONVOY_INTERVAL = 0.1 # 100ms Batching
         
         while self._running:
+            start_time = time.time()
+            
+            # Late Binding / Reconnection
+            if not self.reader:
+                try:
+                    self._connect_cache()
+                except Exception:
+                    # Throttle connection attempts
+                    await asyncio.sleep(1) 
+                    continue
+            
+            try:
+                # 1. Poll Updates (Sync call to Rust)
             start_time = time.time()
             
             try:
