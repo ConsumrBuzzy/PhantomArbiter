@@ -311,7 +311,8 @@ class DataBroker:
         else:
             self.engine_mgr = None
             Logger.warning("⛔ Execution Engines: DISCONNECTED (Data-Only Mode)")
-        self.engine_mgr._init_bitquery_adapter() # Init adapter too
+        if self.engine_mgr:
+            self.engine_mgr._init_bitquery_adapter() # Init adapter too
 
         # Initialize Execution (Merchant/Scalper) only if enabled
         if self.enable_engines:

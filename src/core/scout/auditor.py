@@ -40,6 +40,7 @@ class ActiveCoinAuditor:
         # Promotion thresholds
         self.promotion_min_win_rate = PROMOTION_MIN_WIN_RATE
         self.promotion_min_trades = PROMOTION_MIN_TRADES
+        self.use_llm = False # Initialize use_llm
 
     def should_run_audit(self) -> bool:
         """Check if enough time has passed since last audit."""
@@ -48,7 +49,10 @@ class ActiveCoinAuditor:
 
     def run_audit(self):
         """Run profitability audit on Active coins and check Scout promotions."""
-        Logger.section("📋 COIN AUDIT & PROMOTION")
+        if not self.use_llm:
+            Logger.warning("[Auditor] DeepSeek LLM disabled (no API key)")
+
+        Logger.info("📋 COIN AUDIT & PROMOTION")
         self.last_audit_time = time.time()
 
         # Load watchlist
