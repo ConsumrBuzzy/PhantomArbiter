@@ -136,16 +136,10 @@
     <div id="canvas-container"></div>
 
     <script type="module">
-        import { GalaxyScene } from './components/GalaxyScene.js';
+        import { GalaxyGame } from './managers/GalaxyGame.js';
         import { StatsPanel } from './components/StatsPanel.js';
         import { LogStream } from './components/LogStream.js';
         import { ScanTable } from './components/ScanTable.js';
-
-        // Initialize Components
-        const scene = new GalaxyScene('canvas-container');
-        const stats = new StatsPanel('stats-panel');
-        const logs = new LogStream('log-stream');
-        const scanTable = new ScanTable('scan-table');
 
         // WS Configuration
         const API_HOST = window.location.hostname === "" ? "localhost:8001" : window.location.host;
@@ -154,80 +148,20 @@
         const WS_URL = `${WS_PROTOCOL}//${API_HOST}/ws/v1/stream`;
         const API_URL = `${HTTP_PROTOCOL}//${API_HOST}/api/v1/galaxy`;
 
-        // Load Initial State
-        async function fetchGalaxy() {
-            logs.add('INFO', '🔭 Scanning Galaxy State...');
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const objects = await response.json();
-                logs.add('INFO', `🌌 Found ${objects.length} star systems.`);
-                objects.forEach(obj => scene.updateArchetype(obj));
-            } catch (err) {
-                logs.add('ERROR', `❌ Galaxy Scan Failed: ${err.message}`);
-            }
-        }
+        // Initialize Game Engine
+        const game = new GalaxyGame('canvas-container', API_URL, WS_URL);
 
-        // Connect WebSocket
-        function connect() {
-            logs.add('INFO', `Attempting Link to ${WS_URL}...`);
-            const ws = new WebSocket(WS_URL);
+        // UI Components (Legacy Overlay)
+        const stats = new StatsPanel('stats-panel');
+        const logs = new LogStream('log-stream');
+        const scanTable = new ScanTable('scan-table');
 
-            ws.onopen = () => {
-                logs.add('SUCCESS', "Neural Link Established");
-                fetchGalaxy();
-            };
-
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-
-                    switch (data.type) {
-                        case 'ARCHETYPE_UPDATE':
-                            scene.updateArchetype(data);
-                            break;
-                        case 'SYSTEM_STATS':
-                            stats.update(data.data);
-                            break;
-                        case 'LOG_ENTRY':
-                            logs.add(data.level, data.message, data.timestamp);
-                            break;
-                        case 'SCAN_UPDATE':
-                            scanTable.update(data.opportunities);
-                            break;
-                        case 'WHALE_PULSE':
-                            scene.createWhalePulse(data.x, data.y, data.z, data.color, data.intensity);
-                            break;
-                        case 'HOP_PATH':
-                            const path = data.path || [];
-                            for (let i = 0; i < path.length - 1; i++) {
-                                scene.createHopConnection(path[i], path[i + 1], data.profit);
-                            }
-                            logs.add('SUCCESS', `⚡ Hop Path: ${path.length} tokens @ ${(data.profit * 100).toFixed(2)}%`);
-                            break;
-                        case 'PING':
-                            break;
-                        default:
-                            if (data.type === 'snapshot') {
-                                data.nodes.forEach(n => scene.createNode(n.id, n.label, "PLANET", { hex_color: "#39ff14", radius: 1 }));
-                            }
-                    }
-                } catch (e) {
-                    console.error("Parse error", e, event.data);
-                }
-            };
-
-            ws.onclose = () => {
-                logs.add('WARNING', "Link Closed - Retrying...");
-                setTimeout(connect, 3000);
-            };
-
-            ws.onerror = (err) => {
-                logs.add('ERROR', "Link Error check console");
-            };
-        }
-
-        connect();
+        
+        // Legacy Component Hooks (Temporary Bridge)
+        // We can expose the game instance to these if needed or refactor them later
+        window.galaxyGame = game;
+        
+    </script>
     </script>
 </body>
 
