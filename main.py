@@ -271,7 +271,10 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     import sys
     from src.director import UnifiedDirector
     from config.settings import Settings
-    from src.shared.system.logging import Logger
+    from src.core.logger import setup_logging
+    
+    # Use Global Logger (Loguru/Rich)
+    Logger = setup_logging("INFO")
 
     Settings.SILENT_MODE = False 
     
@@ -344,7 +347,8 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
     os.environ["GALAXY_URL"] = galaxy_url
     
     # 4. Initialize Director (will start EventBridge)
-    director = UnifiedDirector(live_mode=args.live)
+    # V90: Explicitly disable execution for Dashboard (Command Deck Focus)
+    director = UnifiedDirector(live_mode=args.live, execution_enabled=False)
     
     # 5. Launch Browser
     if launch_hud:

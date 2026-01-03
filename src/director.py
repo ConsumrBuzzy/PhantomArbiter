@@ -20,7 +20,13 @@ from typing import Dict, Optional
 # Core Infrastructure
 from src.core.data_broker import DataBroker
 from src.shared.state.app_state import state
-from src.shared.system.logging import Logger
+# Use new global logger
+try:
+    from src.core.logger import setup_logging
+    Logger = setup_logging("INFO")
+except ImportError:
+    from src.shared.system.logging import Logger
+
 from src.shared.system.priority_queue import priority_queue # V140
 from config.settings import Settings
 
@@ -53,9 +59,10 @@ class UnifiedDirector:
     - TacticalStrategy (Mid Lane: Scalping)
     """
 
-    def __init__(self, live_mode: bool = False):
+    def __init__(self, live_mode: bool = False, execution_enabled: bool = False):
         self.is_running = False
         self.live_mode = live_mode
+        self.execution_enabled = execution_enabled
         self.tasks = {}
 
         Logger.section("UNIFIED DIRECTOR INITIATING")
@@ -128,20 +135,23 @@ class UnifiedDirector:
         await asyncio.sleep(2.0) 
 
         # B. Start Engines
-        # 1. Arbiter (Fast Lane)
-        # Arbiter.run() is an async loop
-        Logger.info("[Brain] Igniting Arbiter Engine...")
-        self.tasks['arbiter'] = asyncio.create_task(
-            self.arbiter.run(duration_minutes=60*24, scan_interval=2),
-            name="Arbiter"
-        )
-        
-        # 2. Scalper (Mid Lane)
-        # TacticalStrategy needs a loop wrapper
-        Logger.info("[Brain] Igniting Scalper Engine...")
-        self.tasks['scalper'] = asyncio.create_task(
-            self._run_scalper_loop(), name="Scalper"
-        )
+        if self.execution_enabled:
+            # 1. Arbiter (Fast Lane)
+            # Arbiter.run() is an async loop
+            Logger.info("[Brain] Igniting Arbiter Engine...")
+            self.tasks['arbiter'] = asyncio.create_task(
+                self.arbiter.run(duration_minutes=60*24, scan_interval=2),
+                name="Arbiter"
+            )
+            
+            # 2. Scalper (Mid Lane)
+            # TacticalStrategy needs a loop wrapper
+            Logger.info("[Brain] Igniting Scalper Engine...")
+            self.tasks['scalper'] = asyncio.create_task(
+                self._run_scalper_loop(), name="Scalper"
+            )
+        else:
+            Logger.warning("⛔ Execution Systems (Arbiter/Scalper): STANDBY MODE")
         
         # 3. Galaxy Event Bridge (non-blocking telemetry to Galaxy)
         if GALAXY_BRIDGE_AVAILABLE:
