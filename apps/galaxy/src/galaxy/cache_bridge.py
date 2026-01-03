@@ -53,6 +53,10 @@ class CacheBridge:
         # or just cooperative multitasking since default Python loop is single threaded.
         # But poll_updates is fast (memory read).
         
+        self.trade_buffer = []
+        self.last_flush = time.time()
+        self.CONVOY_INTERVAL = 0.1 # 100ms Batching
+        
         while self._running:
             start_time = time.time()
             
@@ -64,7 +68,6 @@ class CacheBridge:
                 # 2. Aggregating/Conflating
                 if updates:
                     frame_data = {}
-                    trade_convoy = []
                     
                     for mint, price, slot, liquidity, trade_flow in updates:
                         # Price/State Update
@@ -74,18 +77,17 @@ class CacheBridge:
                         }
                         
                         # Trade Scouting (Kinetic Trigger)
-                        # If flow is significant (e.g. > 0.001 or whatever unit), treat as Kinetic Event
                         if abs(trade_flow) > 0.0001:
-                            trade_convoy.append({
+                            self.trade_buffer.append({
                                 "mint": mint,
                                 "p": price,
                                 "flow": trade_flow, #Signed: +Buy, -Sell
                                 "is_buy": trade_flow > 0,
-                                "size": abs(trade_flow)
+                                "size": abs(trade_flow),
+                                "t": int(start_time * 1000)
                             })
                     
-                    # 3. Broadcast Price Frame
-                    # We always send prices if they changed
+                    # 3. Broadcast Price Frame (Immediate 30FPS)
                     if frame_data:
                         payload = {
                             "type": "PRICE_FRAME",
@@ -93,20 +95,25 @@ class CacheBridge:
                             "updates": frame_data
                         }
                         asyncio.create_task(connection_manager.broadcast(payload))
-                    
-                    # 4. Broadcast Trade Convoy (if any ships need to launch)
-                    if trade_convoy:
-                         convoy_payload = {
-                             "type": "TRADE_CONVOY",
-                             "t": int(start_time * 1000),
-                             "events": trade_convoy
-                         }
-                         asyncio.create_task(connection_manager.broadcast(convoy_payload))
+                
+                # 4. Flush Trade Convoy (100ms Interval)
+                if (start_time - self.last_flush) >= self.CONVOY_INTERVAL:
+                    if self.trade_buffer:
+                        convoy_payload = {
+                            "type": "TRADE_CONVOY",
+                            "t": int(start_time * 1000),
+                            "events": list(self.trade_buffer) # Copy
+                        }
+                        self.trade_buffer.clear()
+                        self.last_flush = start_time
+                        asyncio.create_task(connection_manager.broadcast(convoy_payload))
+                    else:
+                        self.last_flush = start_time # Reset even if empty to keep cadence
                     
             except Exception as e:
                 logger.error(f"⚠️ [Bridge] Loop Error: {e}")
             
-            # 4. Frame Pacing
+            # 5. Frame Pacing
             elapsed = time.time() - start_time
             sleep_time = max(0, self._interval - elapsed)
             if sleep_time > 0:

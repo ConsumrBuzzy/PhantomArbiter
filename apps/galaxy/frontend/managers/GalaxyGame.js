@@ -72,6 +72,7 @@ export class GalaxyGame {
     }
 
     routeEvent(payload) {
+        this.lastMsgTime = performance.now();
         switch (payload.type) {
             case 'STATE_SNAPSHOT':
             case 'BATCH_UPDATE':
@@ -123,11 +124,32 @@ export class GalaxyGame {
         this.frameCount++;
         if (this.frameCount % 30 === 0) {
             if(this.shipEl) this.shipEl.innerText = this.fleet.mesh.count;
+            
             // Simple FPS
             const now = performance.now();
             const fps = Math.round(1000 / (now - this.lastTime));
             if(this.fpsEl) this.fpsEl.innerText = fps;
             this.lastTime = now;
+            
+            // Network Health (Mock based on last message time)
+            // ideally we track this.lastMsgTime in onmessage
+            const timeSinceMsg = now - (this.lastMsgTime || now);
+            const netStatus = document.querySelector("#status-bar .status-value:last-child");
+            if(netStatus) {
+                if(timeSinceMsg < 500) {
+                     netStatus.innerText = "STABLE";
+                     netStatus.style.color = "#0f0";
+                     netStatus.style.textShadow = "0 0 5px #0f0";
+                } else if (timeSinceMsg < 2000) {
+                     netStatus.innerText = "LAGGING";
+                     netStatus.style.color = "#ffaa00";
+                     netStatus.style.textShadow = "0 0 5px #ffaa00";
+                } else {
+                     netStatus.innerText = "OFFLINE";
+                     netStatus.style.color = "#ff0000";
+                     netStatus.style.textShadow = "0 0 5px #ff0000";
+                }
+            }
         }
         
         // Render Main Scene
