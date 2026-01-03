@@ -144,6 +144,20 @@ class DataFeedServer:
         self._server = None
         self._running = False
         
+        # --- FlashCache (Rust Shared Memory) ---
+        try:
+            import phantom_core
+            cache_path = os.path.join(os.getcwd(), "data", "market_data.shm")
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            self.flash_cache = phantom_core.FlashCacheWriter(cache_path)
+            logger.info(f"🚀 FlashCacheWriter initialized at {cache_path}")
+        except ImportError:
+            logger.warning("⚠️ phantom_core not found. Running without FlashCache acceleration.")
+            self.flash_cache = None
+        except Exception as e:
+            logger.error(f"❌ Failed to init FlashCache: {e}")
+            self.flash_cache = None
+        
         # Initialize Scrapers
         # TODO: Load mints dynamically from a config/shared file
         self.monitored_mints = [
@@ -175,6 +189,18 @@ class DataFeedServer:
                 source=PriceSource.HTTP,
                 slot=0
             )
+            # FlashCache Push (Zero-Copy)
+            if self.flash_cache:
+                try:
+                    self.flash_cache.push_update(
+                        point.mint,
+                        point.price,
+                        point.slot,
+                        point.liquidity
+                    )
+                except Exception as e:
+                    pass # Don't block main loop
+
             # Use fire-and-forget for async updates to avoid blocking scraper loop
             asyncio.create_task(self.aggregator.update_price(point))
         except Exception as e:
@@ -211,6 +237,18 @@ class DataFeedServer:
                     source=PriceSource.WSS,
                     slot=int(data.get("slot", 0)),
                 )
+                # FlashCache Push (Zero-Copy)
+                if self.flash_cache:
+                    try:
+                        self.flash_cache.push_update(
+                            point.mint,
+                            point.price,
+                            point.slot,
+                            point.liquidity
+                        )
+                    except Exception:
+                        pass
+
                 # Fire and forget async update
                 asyncio.create_task(self.aggregator.update_price(point))
         except Exception:

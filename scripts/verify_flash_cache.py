@@ -24,7 +24,7 @@ def test_flash_cache():
         ("So11111111111111111111111111111111111111112", 150.0),
         ("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 1.0),
         ("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", 0.05),
-        ("JUPyiwrYJFskUPiHa7hkeR8VUtkOpj8oppfxy6Si2Ca", 1.25),
+        ("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", 1.25),
         ("mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", 180.0),
     ]
     

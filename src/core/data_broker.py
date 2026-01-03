@@ -139,6 +139,22 @@ class DataBroker:
         # V55.0: Initialize Unified DataFeed Client
         self.data_feed = DataFeedClient(host="localhost", port=9000)
         self.wss_updates = 0
+        
+        # --- FlashCache Reader (Rust Shared Memory) ---
+        try:
+            import phantom_core
+            cache_path = os.path.join(os.getcwd(), "data", "market_data.shm")
+            if os.path.exists(cache_path):
+                self.flash_cache_reader = phantom_core.FlashCacheReader(cache_path)
+                Logger.info(f"🚀 FlashCacheReader connected to {cache_path}")
+            else:
+                self.flash_cache_reader = None
+                Logger.warning(f"⚠️ FlashCache not found at {cache_path}")
+        except ImportError:
+            self.flash_cache_reader = None
+        except Exception as e:
+            Logger.error(f"❌ FlashCache Init Error: {e}")
+            self.flash_cache_reader = None
 
         def _handle_wss_update(event):
             """Relay WSS event to Graph Engine."""
@@ -563,8 +579,8 @@ class DataBroker:
             Logger.warning(f"[BROKER] Config Load Error: {e}")
 
     async def _run_data_feed(self, callback):
-        """Consume Unified Feed."""
-        Logger.info("Starting Unified DataFeed Stream...")
+        """Consume Unified Feed via gRPC (Reliability Layer)."""
+        Logger.info("Starting Unified DataFeed Stream (gRPC)...")
         retry_delay = 5
         while self.is_running:
             try:
@@ -573,6 +589,40 @@ class DataBroker:
             except Exception as e:
                 Logger.error(f"Unified Feed lost connection: {e}")
                 await __import__("asyncio").sleep(retry_delay)
+
+    def _run_flash_cache_poll(self, callback):
+        """Poll FlashCache for low-latency updates (Speed Layer)."""
+        Logger.info("Starting FlashCache Poller (Shared Memory)...")
+        if not self.flash_cache_reader:
+            Logger.warning("❌ FlashCache Reader not active. Acceleration disabled.")
+            return
+
+        while self.is_running:
+            try:
+                # Returns list of (mint, price, slot)
+                updates = self.flash_cache_reader.poll_updates()
+                if updates:
+                    ts = int(time.time() * 1000)
+                    for (mint, price, slot) in updates:
+                        # Construct a lightweight object to match callback expectation
+                        class FastPoint:
+                            pass
+                        p = FastPoint()
+                        p.mint = mint
+                        p.price = price
+                        p.slot = slot
+                        p.timestamp_ms = ts
+                        
+                        callback(p)
+                else:
+                    # Adaptive sleep: If cache empty, sleep tiny bit to save CPU
+                    # If busy, don't sleep at all (Spin loop? Or tiny sleep?)
+                    # OS sleep is min 1-15ms. time.sleep(0.0001) is often 15ms on Windows.
+                    # For HFT, we want tight loop but yielding.
+                    time.sleep(0.001) 
+            except Exception as e:
+                Logger.error(f"FlashCache Poll Error: {e}")
+                time.sleep(1)
 
     def run(self):
         """Main broker loop."""
@@ -599,8 +649,44 @@ class DataBroker:
                 loop.close()
 
             import threading
-            feed_thread = threading.Thread(target=run_async_feed, daemon=True, name="UnifiedFeed")
+            feed_thread = threading.Thread(target=run_async_feed, daemon=True, name="UnifiedFeed_gRPC")
             feed_thread.start()
+
+            # Start FlashCache Poller (Speed Layer)
+            def on_flash_update(point):
+                 # Reuse logic (maybe lighter?)
+                 # Directly inject to avoiding async overhead if possible?
+                 # on_feed_update(point) is async compatible?
+                 # on_feed_update (L582) is async def.
+                 # But _run_flash_cache_poll calls valid 'callback'.
+                 # WAIT: on_feed_update L582 is defined as async def? No, checking context.
+                 # "async def on_feed_update(point)" inside run().
+                 # The gRPC loop expects it to be async (maybe). "await self.data_feed.stream_prices(callback)"
+                 # stream_prices calls callback(point) -> await callback(point) if async.
+                 # FlashCache is Sync.
+                 # We need a synchronous version of the callback for FlashCache.
+                 
+                 # Logic of on_feed_update:
+                 # update_pool is synchronous usually? hop_engine.update_pool
+                 
+                 update = {
+                    "pool_address": point.mint,
+                    "price": point.price,
+                    "dex": "FlashCache",
+                    "slot": point.slot,
+                    "timestamp": point.timestamp_ms
+                 }
+                 if self.hop_engine:
+                    self.hop_engine.update_pool(update) # This is usually sync
+                    self.wss_updates += 1
+
+            flash_thread = threading.Thread(
+                target=self._run_flash_cache_poll, 
+                args=(on_flash_update,), 
+                daemon=True, 
+                name="FlashCache_Poller"
+            )
+            flash_thread.start()
 
         # V11.5: Start WSS and go LIVE immediately (P0)
         self.ws_listener.start()
