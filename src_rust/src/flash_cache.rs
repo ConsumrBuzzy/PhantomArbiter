@@ -3,7 +3,6 @@ use memmap2::MmapMut;
 use bytemuck::{Pod, Zeroable};
 use std::fs::OpenOptions;
 use std::path::Path;
-use std::sync::atomic;
 use std::mem::size_of;
 
 /// Memory Layout:
