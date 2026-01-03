@@ -1,6 +1,6 @@
 # Project Roadmap
 
-**Version**: 3.0 (Hybrid)
+**Version**: 3.1 (Audit Recovered)
 **Status**: Transitioning to Micro-Services
 
 ## 🏛️ Functional Pillars
@@ -12,6 +12,7 @@
     *   [ ] Repair `src/scraper` broken imports.
     *   [ ] Wire WSS Aggregator directly to `HopGraphEngine`.
     *   [ ] Decouple `DataBroker` from legacy blocking calls.
+    *   [ ] **Whale Pulse (Phase 5A)**: Implement smart money inflow detection (BridgePod).
 *   **P1: Bridges**
     *   [ ] Stress test `orca_daemon.js` (IPC latency < 5ms).
     *   [ ] Implement `MeteoraBridge` health checks.
@@ -27,7 +28,8 @@
     *   [ ] **Fee Engine**: Port congestion-aware fee estimation to Rust.
 *   **P2: Risk Intelligence**
     *   [ ] Implement `get_risk_metrics()` (Drawdown, Sharpe) in CapitalManager.
-    *   [ ] "Whale Pulse": Monitor smart money inflow (Phase 5A).
+    *   [ ] **Congestion Multiplier (Phase 5D)**: Integrate dynamic gas fees based on network load.
+    *   [ ] **Auto-Slippage (Phase 5C)**: Calibrate slippage tolerance using Drift Protocol historical data.
 
 ### 3. Execution (Transaction Layer)
 *Focus: transaction building, signing, and Jito/MEV bundles.*
