@@ -12,9 +12,20 @@ export class FleetManager {
         this.starSystem = starSystem;
 
         this.MAX_SHIPS = 10000;
+        this.densityLimit = 10000; // Performance slider control
         this.ships = []; // Active ship data { index, start, end, progress, speed }
 
         this.initMesh();
+    }
+
+    /**
+     * Sets the fleet density limit (percentage of events that spawn ships)
+     * @param {number} limit - Max number of visible ships (0-10000)
+     */
+    setDensity(limit) {
+        this.densityLimit = Math.max(0, Math.min(this.MAX_SHIPS, limit));
+        // Immediately cap current visible count
+        this.mesh.count = Math.min(this.ships.length, this.densityLimit);
     }
 
     initMesh() {
@@ -41,6 +52,7 @@ export class FleetManager {
     spawnShip(data) {
         // data: { mint, price, size, is_buy }
         if (this.ships.length >= this.MAX_SHIPS) return; // Cap limit
+        if (this.ships.length >= this.densityLimit) return; // Performance slider limit
 
         const planet = this.starSystem.nodes.get(data.mint);
         if (!planet) return;
