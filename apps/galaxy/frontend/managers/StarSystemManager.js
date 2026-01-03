@@ -54,7 +54,10 @@ export class StarSystemManager {
     createNode(id, label, archetype, params, nodeType = 'TOKEN') {
         const existing = this.nodes.get(id);
         if (existing) {
-            // Update logic...
+            // Update logic: Refresh Price/RSI if params changed
+            if (params.price || params.rsi) {
+                this.updateNodeData(id, { p: params.price, rsi: params.rsi });
+            }
             return existing;
         }
 
@@ -109,11 +112,18 @@ export class StarSystemManager {
         if (params.x !== undefined && params.y !== undefined && params.z !== undefined) {
             lod.position.set(params.x, params.y, params.z);
         } else {
-            lod.position.set((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500);
+            // Category-based Layout
+            const pos = this.getCategoryPosition(params.category || 'UNKNOWN');
+            lod.position.set(pos.x, pos.y, pos.z);
         }
 
         lod.userData = { id, label, type: archetype, nodeType, params };
-        lod.userData.labelEl = this.createLabelElement(id, label, params.price ? `$${params.price.toFixed(6)}` : '');
+        lod.userData.labelEl = this.createLabelElement(
+            id,
+            label,
+            params.price ? `$${params.price.toFixed(6)}` : '$0.00',
+            params.rsi !== undefined ? params.rsi : 50
+        );
 
         this.sceneManager.add(lod);
         this.nodes.set(id, lod);
@@ -148,19 +158,101 @@ export class StarSystemManager {
         return moon;
     }
 
-    createLabelElement(id, text, details) {
+    createLabelElement(id, text, details, rsi = 50) {
         const div = document.createElement('div');
         div.id = `label-${id}`;
         div.className = 'node-label';
-        div.style.position = 'absolute';
-        div.style.color = '#fff';
-        div.style.fontFamily = 'monospace';
-        div.style.fontSize = '10px';
-        div.style.textShadow = '0 0 2px #000';
-        div.style.pointerEvents = 'none';
-        div.innerHTML = `<strong>${text}</strong><br><span style="color:#aaa">${details}</span>`;
+
+        // Premium Structure
+        const header = document.createElement('div');
+        header.className = 'label-header';
+
+        const symbolEl = document.createElement('div');
+        symbolEl.className = 'token-symbol';
+        symbolEl.innerText = text;
+
+        const priceEl = document.createElement('div');
+        priceEl.id = `price-${id}`;
+        priceEl.className = 'token-price';
+        priceEl.innerText = details;
+
+        header.appendChild(symbolEl);
+        header.appendChild(priceEl);
+
+        const rsiContainer = document.createElement('div');
+        rsiContainer.className = 'rsi-container';
+
+        const rsiBar = document.createElement('div');
+        rsiBar.id = `rsi-bar-${id}`;
+        rsiBar.className = 'rsi-bar';
+        rsiBar.style.width = `${rsi}%`;
+        // Color code RSI
+        rsiBar.style.background = rsi > 70 ? '#ff0055' : (rsi < 30 ? '#00ff55' : '#00ccff');
+
+        const rsiVal = document.createElement('div');
+        rsiVal.id = `rsi-val-${id}`;
+        rsiVal.className = 'rsi-value';
+        rsiVal.innerText = `RSI: ${rsi.toFixed(1)}`;
+
+        rsiContainer.appendChild(rsiBar);
+
+        div.appendChild(header);
+        div.appendChild(rsiContainer);
+        div.appendChild(rsiVal);
+
         if (this.labelContainer) this.labelContainer.appendChild(div);
         return div;
+    }
+
+    updateNodeData(id, update) {
+        const node = this.nodes.get(id);
+        if (!node || !node.userData.labelEl) return;
+
+        // Update Price
+        if (update.p) {
+            const priceEl = document.getElementById(`price-${id}`);
+            if (priceEl) priceEl.innerText = `$${update.p.toFixed(6)}`;
+        }
+
+        // Update RSI (using fake RSI derived from price change for now if raw RSI not passed)
+        // Ideally payload has 'rsi'
+        let rsi = update.rsi || 50;
+
+        const rsiBar = document.getElementById(`rsi-bar-${id}`);
+        if (rsiBar) {
+            rsiBar.style.width = `${rsi}%`;
+            rsiBar.style.background = rsi > 70 ? '#ff0055' : (rsi < 30 ? '#00ff55' : '#00ccff');
+        }
+
+        const rsiVal = document.getElementById(`rsi-val-${id}`);
+        if (rsiVal) rsiVal.innerText = `RSI: ${rsi.toFixed(1)}`;
+    }
+
+    getCategoryPosition(category) {
+        // Spread logic: different quadrants for different sectors
+        // MEME, STABLE, GAMING, INFRA, DEFI
+        const spread = 400;
+        const variation = 150;
+
+        let cx = 0, cz = 0;
+
+        // Simple hashing for category string if unknown
+        switch (category?.toUpperCase()) {
+            case 'MEME': cx = spread; cz = -spread; break; // Q1
+            case 'GAMING': cx = -spread; cz = spread; break; // Q3
+            case 'INFRA': cx = -spread; cz = -spread; break; // Q2
+            case 'DEFI': cx = spread; cz = spread; break; // Q4
+            case 'STABLE': cx = 0; cz = 0; break; // Center
+            default: // Random periphery
+                cx = (Math.random() - 0.5) * spread * 3;
+                cz = (Math.random() - 0.5) * spread * 3;
+        }
+
+        return {
+            x: cx + (Math.random() - 0.5) * variation,
+            y: (Math.random() - 0.5) * 100, // Flatten verticality
+            z: cz + (Math.random() - 0.5) * variation
+        };
     }
 
     updateLabel(mesh) {
