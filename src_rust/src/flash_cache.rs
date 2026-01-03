@@ -26,8 +26,7 @@ pub struct PriceUpdate {
     pub slot: u64,          // 8-15
     pub timestamp: u64,     // 16-23
     pub liquidity: f32,     // 24-27
-    pub decimals: u8,       // 28
-    pub _pad1: [u8; 3],     // 29-31
+    pub trade_flow: f32,    // 28-31 (Signed Volume: +Buy, -Sell, 0=None)
     pub mint: [u8; 32],     // 32-63
 }
 
@@ -83,11 +82,11 @@ impl FlashCacheWriter {
         mint_str: String,
         price: f64,
         slot: u64,
-        liquidity: f32
+        liquidity: f32,
+        trade_flow: f32,
     ) -> PyResult<()> {
         let mut mint_bytes = [0u8; 32];
         
-        // Fix for bs58 and error handling
         let vec = bs58::decode(mint_str)
             .into_vec()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
@@ -116,9 +115,8 @@ impl FlashCacheWriter {
             price,
             slot,
             timestamp: ts,
-            decimals: 9,
             liquidity,
-            _pad1: [0; 3],
+            trade_flow,
         };
 
         if offset + size_of::<PriceUpdate>() <= data_slice.len() {
@@ -170,7 +168,8 @@ impl FlashCacheReader {
     }
 
     /// Read all new updates since last poll.
-    fn poll_updates(&mut self) -> PyResult<Vec<(String, f64, u64)>> {
+    /// Returns: List of (mint, price, slot, liquidity, trade_flow)
+    fn poll_updates(&mut self) -> PyResult<Vec<(String, f64, u64, f32, f32)>> {
         let header_slice = &self.mmap[0..size_of::<CacheHeader>()];
         let header: &CacheHeader = bytemuck::from_bytes(header_slice);
         
@@ -197,7 +196,8 @@ impl FlashCacheReader {
 
             // Decode mint
             let mint_str = bs58::encode(item.mint).into_string();
-            updates.push((mint_str, item.price, item.slot));
+            // Return 5-tuple: (mint, price, slot, liquidity, trade_flow)
+            updates.push((mint_str, item.price, item.slot, item.liquidity, item.trade_flow));
         }
 
         self.last_cursor = current_cursor;
