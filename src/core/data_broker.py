@@ -562,8 +562,46 @@ class DataBroker:
         except Exception as e:
             Logger.warning(f"[BROKER] Config Load Error: {e}")
 
+    async def _run_data_feed(self, callback):
+        """Consume Unified Feed."""
+        Logger.info("Starting Unified DataFeed Stream...")
+        retry_delay = 5
+        while self.is_running:
+            try:
+                await self.data_feed.connect()
+                await self.data_feed.stream_prices(callback)
+            except Exception as e:
+                Logger.error(f"Unified Feed lost connection: {e}")
+                await __import__("asyncio").sleep(retry_delay)
+
     def run(self):
         """Main broker loop."""
+        # V55.0: Start Unified Data Feed Stream (Threaded Async Loop)
+        if self.enable_engines:
+            import asyncio
+            async def on_feed_update(point):
+                """Callback for DataFeed updates."""
+                update = {
+                    "pool_address": point.mint,
+                    "price": point.price,
+                    "dex": "UnifiedFeed",
+                    "slot": point.slot,
+                    "timestamp": point.timestamp_ms
+                }
+                if self.hop_engine:
+                    self.hop_engine.update_pool(update)
+                    self.wss_updates += 1
+
+            def run_async_feed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self._run_data_feed(on_feed_update))
+                loop.close()
+
+            import threading
+            feed_thread = threading.Thread(target=run_async_feed, daemon=True, name="UnifiedFeed")
+            feed_thread.start()
+
         # V11.5: Start WSS and go LIVE immediately (P0)
         self.ws_listener.start()
 
