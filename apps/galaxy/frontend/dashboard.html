@@ -168,17 +168,17 @@
         // Initialize Game Engine
         const game = new GalaxyGame('canvas-container', API_URL, WS_URL);
 
-        // UI Components (Legacy Overlay)
+        // UI Components (wired to game)
         const stats = new StatsPanel('stats-panel');
         const logs = new LogStream('log-stream');
         const scanTable = new ScanTable('scan-table');
 
+        // Bridge: Expose components for data routing
+        game.uiComponents = { stats, logs, scanTable };
 
         // Legacy Component Hooks (Temporary Bridge)
-        // We can expose the game instance to these if needed or refactor them later
         window.galaxyGame = game;
 
-    </script>
     </script>
 </body>
 
