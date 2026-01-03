@@ -39,6 +39,42 @@ export class GalaxyGame {
         // 3. Connect Data
         this.fetchInitialState();
         this.connectWebSocket();
+
+        // 4. Interaction
+        this.setupInteraction();
+    }
+
+    setupInteraction() {
+        window.addEventListener('click', (event) => {
+            // Normalize coords
+            const rect = this.scene.renderer.domElement.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            this.scene.raycaster.setFromCamera(new THREE.Vector2(x, y), this.scene.camera);
+
+            // Raycast against all nodes in StarSystemManager
+            // We need to access the mesh objects directly
+            const intersects = this.scene.raycaster.intersectObjects(
+                Array.from(this.stars.nodes.values()),
+                true // recursive (for LODs)
+            );
+
+            if (intersects.length > 0) {
+                // Find the first object that has userData with an ID
+                let target = intersects[0].object;
+                while (target && !target.userData?.id && target.parent) {
+                    target = target.parent;
+                }
+
+                if (target && target.userData?.id) {
+                    console.log("🎯 Selected:", target.userData.id);
+                    this.stars.selectNode(target.userData.id);
+                }
+            } else {
+                this.stars.deselectNode();
+            }
+        });
     }
 
     async fetchInitialState() {

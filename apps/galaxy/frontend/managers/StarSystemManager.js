@@ -15,6 +15,36 @@ export class StarSystemManager {
         this.labelContainer.style.height = '100%';
         this.labelContainer.style.pointerEvents = 'none';
         document.body.appendChild(this.labelContainer);
+
+        // Details Panel (DOM Overlay)
+        this.detailsPanel = document.createElement('div');
+        this.detailsPanel.className = 'details-panel';
+        this.detailsPanel.innerHTML = `
+            <div class="details-close" onclick="this.parentElement.style.display='none'">X</div>
+            <div class="details-header">
+                <div class="details-title" id="dp-title">TOKEN</div>
+                <div class="details-subtitle" id="dp-subtitle">SECTOR</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-label">Price</div>
+                    <div class="stat-value" id="dp-price">$-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">24h Change</div>
+                    <div class="stat-value" id="dp-change" style="color: #0f0">+0.0%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Market Cap</div>
+                    <div class="stat-value" id="dp-mcap">$-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Volume</div>
+                    <div class="stat-value" id="dp-vol">$-</div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(this.detailsPanel);
     }
 
     update(delta) {
