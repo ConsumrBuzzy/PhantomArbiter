@@ -1,4 +1,5 @@
 import base64
+import httpx
 from solders.transaction import VersionedTransaction
 from solana.rpc.api import Client
 from solana.rpc.types import TxOpts
