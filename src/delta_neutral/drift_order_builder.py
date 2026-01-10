@@ -107,8 +107,10 @@ class DriftOrderParams:
         # This is a simplified version - production needs full borsh serialization
         data = bytearray()
         
-        # Order type discriminator (place_perp_order = 23)
-        data.append(23)
+        # Order type discriminator (place_perp_order)
+        # Anchor discriminator: sha256("global:place_perp_order")[:8]
+        # [69, 161, 93, 202, 120, 126, 76, 185]
+        data.extend([69, 161, 93, 202, 120, 126, 76, 185])
         
         # Market index (u16 little-endian)
         data.extend(self.market_index.to_bytes(2, 'little'))
