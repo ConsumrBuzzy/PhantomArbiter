@@ -514,6 +514,48 @@ body.os-mode .main-content {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MODE SELECTOR (Paper/Live Toggle)
+   ═══════════════════════════════════════════════════════════════ */
+
+.mode-selector {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mode-btn.active[data-mode="paper"] {
+    background: rgba(0, 170, 255, 0.2);
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+}
+
+.mode-btn.active[data-mode="live"] {
+    background: rgba(255, 100, 50, 0.2);
+    border-color: #ff6432;
+    color: #ff6432;
+}
+
+.mode-btn[data-mode="live"]:hover:not(.active) {
+    border-color: rgba(255, 100, 50, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SCANNER VIEW STYLES
    ═══════════════════════════════════════════════════════════════ */
 

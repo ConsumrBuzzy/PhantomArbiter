@@ -53,38 +53,50 @@ class EngineManager:
             except Exception:
                 pass
     
-    def _get_engine_command(self, name: str, config: Dict[str, Any]) -> list[str]:
+    def _get_engine_command(self, name: str, config: Dict[str, Any], mode: str = "paper") -> list[str]:
         """Build command line for engine subprocess."""
         python = sys.executable
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
+        # Mode flag (--paper or --live)
+        mode_flag = f"--{mode}"
+        
         if name == "arb":
             return [
                 python, "-m", "src.engines.arb.scanner",
+                mode_flag,
                 "--min-spread", str(config.get("min_spread", 0.5)),
                 "--interval", str(config.get("scan_interval", 2)),
             ]
         elif name == "funding":
             return [
                 python, "-m", "src.engines.funding.logic",
+                mode_flag,
                 "--leverage", str(config.get("leverage", 2.0)),
                 "--watchdog", str(config.get("watchdog_threshold", -0.0005)),
             ]
         elif name == "scalp":
             return [
                 python, "-m", "src.engines.scalp.logic",
+                mode_flag,
                 "--tp", str(config.get("take_profit_pct", 10.0)),
                 "--sl", str(config.get("stop_loss_pct", 5.0)),
             ]
         else:
             raise ValueError(f"Unknown engine: {name}")
     
-    async def start_engine(self, name: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def start_engine(self, name: str, config: Optional[Dict[str, Any]] = None, 
+                          mode: str = "paper") -> Dict[str, Any]:
         """
         Start an engine subprocess.
         
+        Args:
+            name: Engine name (arb, funding, scalp)
+            config: Optional config overrides
+            mode: Execution mode ('paper' or 'live')
+        
         Returns:
-            {"success": bool, "message": str, "pid": int | None}
+            {"success": bool, "message": str, "pid": int | None, "mode": str}
         """
         engine = await engine_registry.get_engine(name)
         if not engine:
@@ -93,17 +105,22 @@ class EngineManager:
         if engine.status == EngineStatus.RUNNING:
             return {"success": False, "message": f"Engine {name} already running", "pid": engine.pid}
         
+        # Validate mode
+        if mode not in ["paper", "live"]:
+            return {"success": False, "message": f"Invalid mode: {mode}", "pid": None}
+        
         # Merge config
         if config:
             await engine_registry.update_config(name, config)
             engine = await engine_registry.get_engine(name)
         
         try:
+            mode_display = "📄 PAPER" if mode == "paper" else "🔥 LIVE"
             await engine_registry.update_status(name, EngineStatus.STARTING)
-            self._emit_log(name, "INFO", f"Starting {engine.display_name}...")
+            self._emit_log(name, "INFO", f"Starting {engine.display_name} in {mode_display} mode...")
             
-            # Build command
-            cmd = self._get_engine_command(name, engine.config)
+            # Build command with mode
+            cmd = self._get_engine_command(name, engine.config, mode=mode)
             cwd = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             
             # Spawn subprocess
@@ -129,10 +146,10 @@ class EngineManager:
                 self._monitor_engine(name, process)
             )
             
-            self._emit_log(name, "SUCCESS", f"{engine.display_name} online (PID: {process.pid})")
-            Logger.info(f"[EngineManager] Started {name} (PID: {process.pid})")
+            self._emit_log(name, "SUCCESS", f"{engine.display_name} online (PID: {process.pid}) [{mode.upper()}]")
+            Logger.info(f"[EngineManager] Started {name} in {mode} mode (PID: {process.pid})")
             
-            return {"success": True, "message": f"Engine {name} started", "pid": process.pid}
+            return {"success": True, "message": f"Engine {name} started in {mode} mode", "pid": process.pid, "mode": mode}
             
         except Exception as e:
             await engine_registry.update_status(name, EngineStatus.ERROR, error_msg=str(e))

@@ -213,11 +213,55 @@ class PersistenceDB:
                 created_at REAL NOT NULL
             );
             
+            -- Paper Wallet: Virtual balance tracking
+            CREATE TABLE IF NOT EXISTS paper_wallet (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset TEXT NOT NULL UNIQUE,
+                balance REAL NOT NULL DEFAULT 0,
+                initial_balance REAL NOT NULL DEFAULT 0,
+                updated_at REAL NOT NULL
+            );
+            
+            -- Paper Trades: Simulated trade history
+            CREATE TABLE IF NOT EXISTS paper_trades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                engine TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                side TEXT NOT NULL,
+                size REAL NOT NULL,
+                entry_price REAL NOT NULL,
+                exit_price REAL,
+                fee REAL DEFAULT 0,
+                realized_pnl REAL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'open',
+                opened_at REAL NOT NULL,
+                closed_at REAL,
+                metadata TEXT DEFAULT '{}'
+            );
+            
+            -- Paper Positions: Virtual positions per engine
+            CREATE TABLE IF NOT EXISTS paper_positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                engine TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                side TEXT NOT NULL DEFAULT 'flat',
+                size REAL NOT NULL DEFAULT 0,
+                entry_price REAL NOT NULL DEFAULT 0,
+                current_price REAL DEFAULT 0,
+                unrealized_pnl REAL DEFAULT 0,
+                leverage REAL DEFAULT 1.0,
+                opened_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                UNIQUE(engine, symbol)
+            );
+            
             -- Indexes for common queries
             CREATE INDEX IF NOT EXISTS idx_positions_engine ON positions(engine);
             CREATE INDEX IF NOT EXISTS idx_trades_engine ON trades(engine);
             CREATE INDEX IF NOT EXISTS idx_trades_created ON trades(created_at);
             CREATE INDEX IF NOT EXISTS idx_signals_engine ON signals(engine);
+            CREATE INDEX IF NOT EXISTS idx_paper_trades_engine ON paper_trades(engine);
+            CREATE INDEX IF NOT EXISTS idx_paper_positions_engine ON paper_positions(engine);
         """)
         conn.commit()
     

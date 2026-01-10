@@ -28,6 +28,13 @@ class DashboardApp {
         // Engine state cache
         this.engineStates = {};
 
+        // Engine execution modes (paper/live per engine)
+        this.engineModes = {
+            arb: 'paper',
+            funding: 'paper',
+            scalp: 'paper'
+        };
+
         // Currently editing engine
         this.editingEngine = null;
 
@@ -58,6 +65,14 @@ class DashboardApp {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.openSettingsModal(btn.dataset.engine);
+            });
+        });
+
+        // Mode selector buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.setEngineMode(btn.closest('.mode-selector').dataset.engine, btn.dataset.mode);
             });
         });
 
@@ -340,14 +355,32 @@ class DashboardApp {
     toggleEngine(engineName) {
         const state = this.engineStates[engineName];
         const isRunning = state?.status === 'running' || state?.status === 'starting';
+        const mode = this.engineModes[engineName] || 'paper';
 
         if (isRunning) {
             this.sendCommand('STOP_ENGINE', { engine: engineName });
             this.addLog('SYSTEM', 'INFO', `Stopping ${engineName} engine...`);
         } else {
-            this.sendCommand('START_ENGINE', { engine: engineName });
-            this.addLog('SYSTEM', 'INFO', `Starting ${engineName} engine...`);
+            this.sendCommand('START_ENGINE', { engine: engineName, mode: mode });
+            this.addLog('SYSTEM', 'INFO', `Starting ${engineName} engine in ${mode.toUpperCase()} mode...`);
         }
+    }
+
+    /**
+     * Set engine execution mode (paper/live)
+     */
+    setEngineMode(engineName, mode) {
+        this.engineModes[engineName] = mode;
+
+        // Update UI buttons
+        const selector = document.querySelector(`.mode-selector[data-engine="${engineName}"]`);
+        if (selector) {
+            selector.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+        }
+
+        this.addLog('SYSTEM', 'INFO', `${engineName} mode set to ${mode.toUpperCase()}`);
     }
 
     /**
