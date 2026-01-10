@@ -142,7 +142,7 @@ class DriftOrderParams:
         data.append(0)
         
         # 10. immediate_or_cancel (bool -> u8)
-        data.append(1) # IOC for Market
+        data.append(0) # Standard PlacePerpOrder does not allow IOC=1 for Market orders
 
         # 11. max_ts (Option<i64>) -> None (0)
         data.append(0)
