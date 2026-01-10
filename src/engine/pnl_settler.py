@@ -73,6 +73,13 @@ class PnLSettler:
         )
         return pda
 
+    def derive_spot_market_vault(self, market_index: int) -> Pubkey:
+        pda, _ = Pubkey.find_program_address(
+            [b"spot_market_vault", market_index.to_bytes(2, 'little')],
+            DRIFT_PROGRAM_ID
+        )
+        return pda
+
     def derive_spot_market_account(self, market_index: int) -> Pubkey:
         pda, _ = Pubkey.find_program_address(
             [b"spot_market", market_index.to_bytes(2, 'little')],
@@ -121,12 +128,6 @@ class PnLSettler:
             AccountMeta(spot_market_pda, is_signer=False, is_writable=True),
             AccountMeta(perp_market_pda, is_signer=False, is_writable=True),
         ]
-        
-        # Debug print
-        print("\n--- Transaction Accounts ---")
-        for i, acc in enumerate(accounts):
-            print(f"{i}: {acc.pubkey} (W:{acc.is_writable}, S:{acc.is_signer})")
-        print("--------------------------\n")
         
         return Instruction(
             program_id=DRIFT_PROGRAM_ID,
