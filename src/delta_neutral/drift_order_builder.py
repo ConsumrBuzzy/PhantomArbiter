@@ -226,13 +226,9 @@ class DriftOrderBuilder:
         return stats_pda
     
     def _get_drift_state(self) -> Pubkey:
-        """Get the Drift state account (derived)."""
-        # Dynamic derivation to prevent hardcoding errors
-        state_pda, _ = Pubkey.find_program_address(
-            [b"drift_state"],
-            DRIFT_PROGRAM_ID,
-        )
-        return state_pda
+        """Get the Drift state account (constant)."""
+        # This is a known constant for Drift mainnet
+        return Pubkey.from_string("DfYCNezifxAEsQamrAH2R8CgqMKLb6VpfHEV6r9n4MCz")
     
     def _get_perp_market(self, market_index: int) -> Pubkey:
         """Get or derive perp market account."""
@@ -255,6 +251,26 @@ class DriftOrderBuilder:
     # ORDER BUILDERS
     # =========================================================================
     
+    def build_initialize_user_instruction(self) -> Instruction:
+        """Initialize User account (required before trading)."""
+        # Discriminator (initialize_user): [111, 17, 185, 250, 60, 122, 38, 254]
+        data = bytearray([111, 17, 185, 250, 60, 122, 38, 254])
+        # sub_account_id (u16=0)
+        data.extend((0).to_bytes(2, 'little'))
+        # name (32 bytes empty)
+        data.extend(bytes([0]*32))
+
+        accounts = [
+            AccountMeta(self.user_account, is_signer=False, is_writable=True),
+            AccountMeta(self.user_stats, is_signer=False, is_writable=True),
+            AccountMeta(self.state, is_signer=False, is_writable=False),
+            AccountMeta(self.wallet, is_signer=True, is_writable=True), # Authority
+            AccountMeta(self.wallet, is_signer=True, is_writable=True), # Payer
+            AccountMeta(Pubkey.from_string("SysvarRent111111111111111111111111111111111"), is_signer=False, is_writable=False),
+            AccountMeta(Pubkey.from_string("11111111111111111111111111111111"), is_signer=False, is_writable=False),
+        ]
+        return Instruction(DRIFT_PROGRAM_ID, bytes(data), accounts)
+
     def build_order_instruction(
         self,
         market: str,

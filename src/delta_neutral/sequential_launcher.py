@@ -125,6 +125,9 @@ class SequentialLauncher:
             # Assuming ADD_SPOT -> ADD_SHORT
             ixs = builder.build_short_order(market, signal.qty)
             
+            Logger.info("[SEQUENTIAL] Attaching atomic InitializeUser instruction...")
+            ixs.insert(0, builder.build_initialize_user_instruction())
+            
             sig = await self._compile_and_send(ixs, simulate)
             return sig is not None
             

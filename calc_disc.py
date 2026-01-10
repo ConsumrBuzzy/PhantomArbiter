@@ -9,6 +9,8 @@ print_disc("place_perp_order")
 print_disc("place_order")
 print_disc("place_orders")
 print_disc("place_perp_orders")
+print_disc("initialize_user")
+print_disc("initialize_user_stats")
 
 # Check State
 DRIFT_PID = Pubkey.from_string("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH")
