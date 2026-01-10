@@ -303,12 +303,27 @@ async def main():
 
     tasks = []
 
-    # 1. Dashboard Server (Background)
+    # 0. Static Web Server (Background)
+    if args.dashboard:
+        import http.server
+        import socketserver
+        import threading
+        
+        def run_http():
+            os.chdir("frontend")
+            handler = http.server.SimpleHTTPRequestHandler
+            with socketserver.TCPServer(("", 8000), handler) as httpd:
+                Logger.info("   [SYSTEM] Static Dashboard available at http://localhost:8000")
+                httpd.serve_forever()
+        
+        threading.Thread(target=run_http, daemon=True).start()
+
+    # 1. Dashboard Server (WebSocket Bridge)
     if args.dashboard:
         from src.interface.dashboard_server import DashboardServer
         dash = DashboardServer()
         tasks.append(asyncio.create_task(dash.start()))
-        Logger.info("   [SYSTEM] Web Dashboard Server task queued.")
+        Logger.info("   [SYSTEM] Web Dashboard WebSocket task queued.")
 
     # 2. Trading Engine
     tasks.append(asyncio.create_task(run_selected_engine(args)))

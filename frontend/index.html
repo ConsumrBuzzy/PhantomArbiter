@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHANTOM ARBITER | Command Center</title>
+    <link rel="stylesheet" href="styles/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="glass-panel">
+            <div class="logo">
+                <span style="color: var(--neon-green); font-weight: bold; font-size: 1.2rem;">🏛️ PHANTOM ARBITER</span>
+                <span style="margin-left: 10px; color: var(--text-dim); font-size: 0.8rem;">OS V20.0</span>
+            </div>
+            <div class="system-status">
+                <div class="status-item">
+                    <span class="status-label">ENGINE</span>
+                    <span class="status-value pulse" id="engine-mode">CONNECTING...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">LATENCY</span>
+                    <span class="status-value" id="stats-latency">0ms</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">HEARTBEAT</span>
+                    <span class="status-value" id="stats-heartbeat">1Hz</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">PNL</span>
+                    <span class="status-value" id="stats-pnl">$0.00</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="left-column">
+            <section class="glass-panel" id="inventory-panel">
+                <div class="panel-title">Inventory</div>
+                <table id="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>ASSET</th>
+                            <th>AMOUNT</th>
+                            <th>VALUE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="3" style="text-align: center; color: var(--text-dim);">Waiting for data...</td></tr>
+                    </tbody>
+                </table>
+            </section>
+            <section class="glass-panel" id="pnl-panel">
+                <div class="panel-title">PnL Analytics</div>
+                <div id="chart-pnl" style="height: 100%; width: 100%;">
+                    <!-- Chart will be injected here -->
+                    <div style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-dim);">
+                        Visualizing Market Coverage...
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="right-column">
+            <section class="glass-panel" id="intel-panel">
+                <div class="panel-title" id="intel-title">Intelligence</div>
+                <div id="intel-content" style="overflow-y: auto;">
+                    <table id="intel-table">
+                        <thead>
+                            <tr id="intel-header">
+                                <th>TOKEN</th>
+                                <th>ROUTE</th>
+                                <th>SPREAD</th>
+                                <th>EST PROFIT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" style="text-align: center; color: var(--text-dim);">Listening for signals...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="glass-panel" id="metrics-panel">
+                <div class="panel-title">System Metrics</div>
+                <div id="chart-metrics" style="height: 100%; width: 100%;">
+                     <!-- Metrics chart -->
+                </div>
+            </section>
+        </div>
+
+        <footer class="glass-panel">
+            <div class="panel-title">Terminal Logs</div>
+            <div class="log-container" id="log-stream">
+                <div class="log-entry INFO">System Initialized. Awaiting link...</div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Core Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
