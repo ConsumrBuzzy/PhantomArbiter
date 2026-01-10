@@ -22,20 +22,8 @@ def inspect_drift_idl():
         print("OrderParams not found in types")
         return
 
-    print("--- OrderParams Layout ---")
-    fields = order_params["type"]["fields"]
-    
-    struct_mapping = {
-        "u8": "B",
-        "u16": "<H",
-        "u32": "<I",
-        "u64": "<Q",
-        "i64": "<q",
-        "bool": "B",
-        "publicKey": "32s",
-        "i32": "<i",
-    }
-
+    print(f"{'#':<3} | {'Option':<8} | {'Field Name':<25} | {'Type':<20} | {'Struct'}")
+    print("-" * 75)
     for i, field in enumerate(fields):
         name = field["name"]
         f_type = field["type"]
@@ -55,8 +43,8 @@ def inspect_drift_idl():
             type_str = str(inner_type)
             fmt = struct_mapping.get(inner_type, "Unknown")
 
-        option_str = "[Option] " if is_option else ""
-        print(f"{i+1:2d}. {option_str}{name:25s} | Type: {type_str:20s} | Struct: {fmt}")
+        option_str = "Yes" if is_option else "No"
+        print(f"{i+1:3d} | {option_str:<8} | {name:<25} | {type_str:<20} | {fmt}")
 
     # Also check Enums
     print("\n--- Enum Indices ---")
@@ -67,6 +55,7 @@ def inspect_drift_idl():
             variants = type_def["type"]["variants"]
             for idx, variant in enumerate(variants):
                 print(f"  {idx}: {variant['name']}")
+
 
 if __name__ == "__main__":
     inspect_drift_idl()
