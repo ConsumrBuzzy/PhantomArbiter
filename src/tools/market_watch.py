@@ -14,6 +14,8 @@ Usage:
 """
 
 import asyncio
+import random
+import httpx
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -84,85 +86,84 @@ class MarketWatch:
         """Scan all markets for funding opportunities."""
         self.opportunities = []
         
-        # Initialize feeds
-        try:
-            from src.shared.feeds.drift_funding import DriftFundingFeed
-            self._drift_feed = DriftFundingFeed()
-        except Exception as e:
-            Logger.warning(f"[WATCH] Drift feed init failed: {e}")
-            self._drift_feed = None
+        # Try live Drift API first, fallback to mock
+        funding_data = await self._fetch_live_funding()
         
-        # Scan each market
-        for market in self.MARKETS:
-            opp = await self._scan_market(market)
-            if opp:
-                self.opportunities.append(opp)
+        if not funding_data:
+            # Use mock data if live fetch fails
+            Logger.info("[WATCH] Using mock funding data (Drift API unavailable)")
+            funding_data = self._get_mock_funding_data()
+        
+        # Build opportunities from funding data
+        for market, rate_info in funding_data.items():
+            if market not in self.MARKETS:
+                continue
+            
+            spot_price = await self._get_spot_price(market)
+            
+            opp = MarketOpportunity(
+                symbol=market,
+                spot_price=spot_price,
+                perp_price=spot_price * (1 + rate_info["rate_8h"] / 100),
+                funding_rate_1h=rate_info["rate_1h"],
+                funding_rate_8h=rate_info["rate_8h"],
+            )
+            self.opportunities.append(opp)
         
         # Sort by funding rate (highest first)
         self.opportunities.sort(key=lambda x: x.funding_rate_1h, reverse=True)
         
         return self.opportunities
     
-    async def _scan_market(self, symbol: str) -> Optional[MarketOpportunity]:
-        """Scan a single market."""
+    async def _fetch_live_funding(self) -> Optional[Dict]:
+        """Fetch live funding rates from Drift public API."""
         try:
-            # Get funding rate from Drift
-            funding_1h = 0.0
-            funding_8h = 0.0
             
-            if self._drift_feed:
-                try:
-                    rate_info = await self._drift_feed.get_funding_rate(symbol)
-                    if rate_info:
-                        # Handle different return formats
-                        if isinstance(rate_info, dict):
-                            funding_1h = rate_info.get("hourly_rate", 0) or 0
-                            funding_8h = rate_info.get("funding_rate", 0) or 0
-                        elif hasattr(rate_info, 'hourly_rate'):
-                            funding_1h = rate_info.hourly_rate or 0
-                            funding_8h = rate_info.funding_rate or 0
-                        else:
-                            funding_8h = float(rate_info) if rate_info else 0
-                            funding_1h = funding_8h / 8
-                except Exception as e:
-                    Logger.debug(f"[WATCH] Funding fetch failed for {symbol}: {e}")
-                    # Use mock data for demonstration
-                    funding_1h = self._get_mock_funding(symbol)
-                    funding_8h = funding_1h * 8
-            else:
-                # Mock data when no feed available
-                funding_1h = self._get_mock_funding(symbol)
-                funding_8h = funding_1h * 8
+            # Drift Stats API - public endpoint
+            url = "https://mainnet-beta.api.drift.trade/fundingRates"
             
-            # Get spot price (use default for now)
-            spot_price = await self._get_spot_price(symbol)
-            perp_price = spot_price * (1 + funding_8h)  # Approximate
-            
-            return MarketOpportunity(
-                symbol=symbol,
-                spot_price=spot_price,
-                perp_price=perp_price,
-                funding_rate_1h=funding_1h,
-                funding_rate_8h=funding_8h,
-            )
-            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Parse response into our format
+                    result = {}
+                    for item in data:
+                        market = item.get("marketSymbol", "")
+                        if not market:
+                            continue
+                        
+                        rate_8h = float(item.get("fundingRate", 0)) * 100  # Convert to %
+                        rate_1h = rate_8h / 8
+                        
+                        result[market] = {
+                            "rate_8h": rate_8h,
+                            "rate_1h": rate_1h,
+                        }
+                    
+                    if result:
+                        Logger.info(f"[WATCH] Fetched live funding for {len(result)} markets")
+                        return result
+                        
         except Exception as e:
-            Logger.debug(f"[WATCH] Market scan failed for {symbol}: {e}")
-            return None
+            Logger.debug(f"[WATCH] Live API fetch failed: {e}")
+        
+        return None
     
-    def _get_mock_funding(self, symbol: str) -> float:
-        """Get mock funding rate for demonstration."""
-        # Realistic mock rates based on typical market conditions
-        mock_rates = {
-            "SOL-PERP": 0.00012,    # 0.012% hourly
-            "BTC-PERP": 0.00008,    # 0.008% hourly
-            "ETH-PERP": 0.00010,    # 0.010% hourly
-            "JUP-PERP": 0.00025,    # 0.025% hourly (higher volatility)
-            "PYTH-PERP": 0.00018,   # 0.018% hourly
-            "BONK-PERP": 0.00035,   # 0.035% hourly (meme coin premium)
-            "WIF-PERP": 0.00040,    # 0.040% hourly (meme coin premium)
+    def _get_mock_funding_data(self) -> Dict:
+        """Get mock funding data with realistic rates."""
+        
+        return {
+            "SOL-PERP": {"rate_8h": 0.0095 + random.uniform(-0.003, 0.005), "rate_1h": 0.0012},
+            "BTC-PERP": {"rate_8h": 0.0078 + random.uniform(-0.002, 0.004), "rate_1h": 0.0010},
+            "ETH-PERP": {"rate_8h": 0.0065 + random.uniform(-0.002, 0.003), "rate_1h": 0.0008},
+            "JUP-PERP": {"rate_8h": 0.0180 + random.uniform(-0.005, 0.010), "rate_1h": 0.0023},
+            "PYTH-PERP": {"rate_8h": 0.0140 + random.uniform(-0.004, 0.008), "rate_1h": 0.0018},
+            "BONK-PERP": {"rate_8h": 0.0280 + random.uniform(-0.008, 0.015), "rate_1h": 0.0035},
+            "WIF-PERP": {"rate_8h": 0.0320 + random.uniform(-0.010, 0.020), "rate_1h": 0.0040},
         }
-        return mock_rates.get(symbol, 0.0001)
     
     async def _get_spot_price(self, symbol: str) -> float:
         """Get spot price for symbol."""
