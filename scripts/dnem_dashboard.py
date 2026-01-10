@@ -274,8 +274,62 @@ async def display_dashboard(client: AsyncClient, wallet_pk: Pubkey, user_pda: Pu
     print(f"│  ─────────────────────────────────────────                  │")
     print(f"│  TOTAL PnL:       ${total_pnl:>+10.4f}                          │")
     print("└─────────────────────────────────────────────────────────────┘")
+
+    # -----------------------------------------------------------------
+    # Section 4: Risk Analytics (Phase 5.1)
+    # -----------------------------------------------------------------
     
-    # Section 4: Funding Estimates
+    # Heuristic Health Score
+    # Total Collateral approx = Spot Value + USDC + Unrealized PnL
+    total_collateral = (spot_sol * sol_price) + quote_amount + unrealized_pnl
+    
+    # Maintenance Margin (Proxy: 10% of Perp Notional)
+    # Drift V2 applies different weights, but 10% is a safe conservative proxy for SOL
+    perp_notional = abs(perp_sol) * sol_price
+    maintenance_margin = perp_notional * 0.10
+    
+    health_score = 100.0
+    if total_collateral > 0:
+        health_score = 100 * (1 - (maintenance_margin / total_collateral))
+    
+    # Cap 0-100
+    health_score = max(0, min(100, health_score))
+    
+    # Health Bar Visual
+    # 10 chars. Each char = 10%
+    bars = int(health_score / 10)
+    health_bar = "█" * bars + "░" * (10 - bars)
+    
+    health_color = "🟢"
+    if health_score < 30: health_color = "🔴"
+    elif health_score < 50: health_color = "🟡"
+    
+    # Liquidation Buffer
+    # Fixed Liquidation Price: $180.56 (User provided)
+    liq_price = 180.56
+    
+    liq_dist_pct = 0.0
+    if sol_price > 0:
+        # Distance calculation depends on direction, but usually just abs distance
+        # If Short, we die if price goes UT
+        # Distance = (Liq - Current) / Current
+        liq_dist_pct = ((liq_price - sol_price) / sol_price) * 100
+        
+    ttl_msg = "Safe (Delta Neutral)"
+    if abs(drift_pct) > 5.0:
+        # If unhedged, calculate TTL based on 2% hourly vol
+        hours_left = abs(liq_dist_pct) / 2.0
+        ttl_msg = f"{hours_left:.1f} Hours (at 2% vol)"
+        
+    print("\n┌─────────────────────────────────────────────────────────────┐")
+    print("│  🚑 RISK ANALYTICS                                          │")
+    print("├─────────────────────────────────────────────────────────────┤")
+    print(f"│  Health Score:    {health_score:>5.1f}% [{health_bar}] {health_color:<14}│")
+    print(f"│  Liq Buffer:      {liq_dist_pct:>+5.1f}% (Liq Price: ${liq_price:.2f})      │")
+    print(f"│  Est. TTL:        {ttl_msg:<30}            │")
+    print("└─────────────────────────────────────────────────────────────┘")
+    
+    # Section 5: Funding Estimates
     print("\n┌─────────────────────────────────────────────────────────────┐")
     print("│  📈 FUNDING ESTIMATES (at 0.01%/hr)                         │")
     print("├─────────────────────────────────────────────────────────────┤")
