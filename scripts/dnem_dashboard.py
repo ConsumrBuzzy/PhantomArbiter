@@ -416,4 +416,7 @@ if __name__ == "__main__":
     log_flag = "--log" in sys.argv
     watch_flag = "--watch" in sys.argv
     
-    asyncio.run(run_dashboard(log_to_file=log_flag, watch_mode=watch_flag))
+    try:
+        asyncio.run(run_dashboard(log_to_file=log_flag, watch_mode=watch_flag))
+    except KeyboardInterrupt:
+        print("\n👋 Dashboard stopped gracefully.")
