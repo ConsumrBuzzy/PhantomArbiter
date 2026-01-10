@@ -166,7 +166,7 @@ class LeverageManager:
                 await client.confirm_transaction(resp.value, commitment=Confirmed)
                 
 if __name__ == "__main__":
-    from solders.types import TxOpts # Import here for execution
+    from solana.rpc.types import TxOpts # Import here for execution
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", type=float, default=2.0, help="Target Leverage Ratio (e.g. 2.0)")
