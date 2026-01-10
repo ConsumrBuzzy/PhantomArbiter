@@ -261,7 +261,7 @@ class MarketWatch:
         best = self.opportunities[0] if self.opportunities else None
         if best and best.is_profitable:
             print(f"\n🎯 BEST OPPORTUNITY: {best.symbol}")
-            print(f"   Funding Rate: {best.funding_rate_1h*100:.4f}%/hr ({best.annualized_yield:.1f}% APY)")
+            print(f"   Funding Rate: {best.funding_rate_1h:.4f}%/hr ({best.annualized_yield:.1f}% APY)")
             print(f"   $12 Position: ${best.daily_yield_usd:.4f}/day, ${best.hourly_yield_usd:.6f}/hr")
             
             # Compare to penny goal
