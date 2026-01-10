@@ -112,23 +112,52 @@ class DriftOrderParams:
         # [69, 161, 93, 202, 120, 126, 76, 185]
         data.extend([69, 161, 93, 202, 120, 126, 76, 185])
         
-        # Market index (u16 little-endian)
-        data.extend(self.market_index.to_bytes(2, 'little'))
+        # --- OrderParams Struct ---
+        # 1. order_type (Enum u8): Market=0
+        data.append(0)
         
-        # Direction (0 = long, 1 = short)
+        # 2. market_type (Enum u8): Perp=0
+        data.append(0)
+        
+        # 3. direction (Enum u8): Long=0, Short=1
         data.append(self.direction.value)
         
-        # Base asset amount (u64 little-endian)
+        # 4. user_order_id (u8)
+        data.append(0)
+        
+        # 5. base_asset_amount (u64 little-endian)
         data.extend(self.base_asset_amount.to_bytes(8, 'little'))
         
-        # Order type enum
-        data.append(self.order_type.value)
+        # 6. price (u64 little-endian)
+        # Assuming Market = 0
+        data.extend(self.price.to_bytes(8, 'little'))
+
+        # 7. market_index (u16 little-endian)
+        data.extend(self.market_index.to_bytes(2, 'little'))
         
-        # Price (i64 little-endian, 0 for market)
-        data.extend(self.price.to_bytes(8, 'little', signed=True))
-        
-        # Reduce only flag
+        # 8. reduce_only (bool -> u8)
         data.append(1 if self.reduce_only else 0)
+        
+        # 9. post_only (bool -> u8)
+        data.append(0)
+        
+        # 10. immediate_or_cancel (bool -> u8)
+        data.append(1) # IOC for Market
+
+        # 11. max_ts (Option<i64>) -> None (0)
+        data.append(0)
+        # 12. trigger_price (Option<u64>) -> None (0)
+        data.append(0)
+        # 13. trigger_condition (Enum u8) -> Above=0
+        data.append(0)
+        # 14. oracle_price_offset (Option<i32>) -> None (0)
+        data.append(0)
+        # 15. auction_duration (Option<u8>) -> None (0)
+        data.append(0)
+        # 16. auction_start_price (Option<i64>) -> None (0)
+        data.append(0)
+        # 17. auction_end_price (Option<i64>) -> None (0)
+        data.append(0)
         
         return bytes(data)
 
@@ -417,8 +446,6 @@ class DriftOrderBuilder:
             AccountMeta(self.state, is_signer=False, is_writable=False),
             # User account (write)
             AccountMeta(self.user_account, is_signer=False, is_writable=True),
-            # User Stats (write)
-            AccountMeta(self.user_stats, is_signer=False, is_writable=True),
             # Authority/Signer (signer + write)
             AccountMeta(self.wallet, is_signer=True, is_writable=True),
             # Perp market (write)

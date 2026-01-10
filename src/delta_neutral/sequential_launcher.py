@@ -125,8 +125,8 @@ class SequentialLauncher:
             # Assuming ADD_SPOT -> ADD_SHORT
             ixs = builder.build_short_order(market, signal.qty)
             
-            Logger.info("[SEQUENTIAL] Attaching atomic InitializeUser instruction...")
-            ixs.insert(0, builder.build_initialize_user_instruction())
+            Logger.info("[SEQUENTIAL] Attaching atomic InitializeUser instruction... SKIPPED (Account Exists)")
+            # ixs.insert(0, builder.build_initialize_user_instruction())
             
             sig = await self._compile_and_send(ixs, simulate)
             return sig is not None
@@ -182,13 +182,19 @@ class SequentialLauncher:
                 if simulate:
                     Logger.info("[SEQUENTIAL] Simulating transaction...")
                     # Sim config: sig_verify=True to be sure
+                     # Force encoding fix
                     resp = await client.simulate_transaction(tx)
                     
                     if resp.value.err:
                         Logger.error(f"[SIMULATION] Error: {resp.value.err}")
-                        if resp.value.logs:
-                            for log in resp.value.logs:
-                                Logger.error(f"  > {log}")
+                        # Dump to file for debugging
+                        with open("error.log", "w") as f:
+                             f.write(f"Error: {resp.value.err}\n")
+                             if resp.value.logs:
+                                 f.write("Logs:\n")
+                                 for log in resp.value.logs:
+                                     f.write(f"{log}\n")
+                                     Logger.error(f"  > {log}")
                         return None
                     else:
                         Logger.info(f"[SIMULATION] ✅ Success! Units: {resp.value.units_consumed}")

@@ -30,12 +30,11 @@ def setup_logging(level="INFO", log_file=None):
     # Remove default handler
     logger.remove()
 
-    # 1. rich console handler (Beautiful TUI)
+    # 1. Standard Console Handler (Safe for file redirection)
     logger.add(
-        RichHandler(rich_tracebacks=True, markup=True),
+        sys.stderr,
         level=level,
-        format="{message}", # RichHandler handles timestamp/level
-        colorize=True,
+        format="{time:YYYY-MM-DD at HH:mm:ss} | {level} | {message}",
     )
 
     # 2. File Handler (optional)
