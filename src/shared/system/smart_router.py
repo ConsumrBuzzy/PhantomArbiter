@@ -64,7 +64,7 @@ class SmartRouter:
             self._session.headers.update({"x-api-key": self.jupiter_api_key})
 
         Logger.info(
-            f"🌐 SmartRouter initialized with {len(self.endpoints)} RPC endpoints."
+            f"SmartRouter initialized with {len(self.endpoints)} RPC endpoints."
         )
         if self.jupiter_api_key:
             Logger.info("   🔑 Jupiter API Key loaded")
@@ -168,7 +168,7 @@ class SmartRouter:
             # V41.2: Auto-Fallback for Invalid Key (401)
             # If 401, we MUST switch to the public endpoint (api.jup.ag requires strict key)
             if resp.status_code == 401:
-                Logger.warning("⚠️ Jupiter 401 Unauthorized. Switching to Public API and retrying...")
+                Logger.warning("Jupiter 401 Unauthorized. Switching to Public API and retrying...")
                 
                 # 1. Clear Key
                 self.jupiter_api_key = ""
@@ -246,7 +246,7 @@ class SmartRouter:
 
             # V41.2: Auto-Fallback for Invalid Key (401)
             if resp.status_code == 401:
-                Logger.warning("⚠️ Jupiter Swap 401 Unauthorized. Switching to Public API and retrying...")
+                Logger.warning("Jupiter Swap 401 Unauthorized. Switching to Public API and retrying...")
                 
                 # 1. Clear Key
                 self.jupiter_api_key = ""

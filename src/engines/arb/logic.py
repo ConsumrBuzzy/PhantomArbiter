@@ -45,7 +45,7 @@ class ArbEngine:
             "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", # mSOL
         ]
         
-        Logger.info(f"🏗️ Arb Engine Initialized (Live={self.live_mode})")
+        Logger.info(f"Arb Engine Initialized (Live={self.live_mode})")
 
     async def tick(self):
         """Single execution step for 'Trip Hopper'."""
@@ -125,7 +125,7 @@ class ArbEngine:
 
     async def execute_cycle(self, opp: HopOpportunity):
         """Execute Atomic Arb Cycle."""
-        Logger.info(f"🚀 ATOMIC EXECUTION: {' -> '.join( opp.path )}")
+        Logger.info(f"EXECUTION: {' -> '.join( opp.path )}")
         
         try:
             # Atomic Bundling Simulation

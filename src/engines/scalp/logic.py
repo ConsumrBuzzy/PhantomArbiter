@@ -60,7 +60,7 @@ class ScalpEngine:
         self.tp_pct = 0.10         # +10% Take Profit
         self.sl_pct = 0.05         # -5% Stop Loss
         
-        Logger.info(f"🔫 Scalp Engine Initialized (Live={self.live_mode})")
+        Logger.info(f"Scalp Engine Initialized (Live={self.live_mode})")
 
     async def tick(self):
         """Single execution step for Scalp Engine."""
