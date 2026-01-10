@@ -440,7 +440,7 @@ class SyncExecution:
         
         bundle_id = await self.jito.submit_bundle(
             bundle_txs,
-            simulate=True,  # Always simulate first
+            simulate=False,  # Bypass simulation during high congestion
         )
         
         if bundle_id:

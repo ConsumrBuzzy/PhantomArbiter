@@ -93,11 +93,11 @@ class JitoAdapter:
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 429:
-                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url} - Waiting 2.0s...")
-                    await asyncio.sleep(2.0)  # 2s backoff for human-like behavior
-                    # User requested "Don't just rotate; wait and retry"
-                    # We typically rotate to spread load, but let's stick to rotation after wait.
-                    self._rotate_endpoint()
+                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url} - Waiting 5.0s (Single Region Strategy)...")
+                    await asyncio.sleep(5.0)  # 5s backoff to refill bucket
+                    
+                    # User Strategy: "Stop rotating. Stick to NY/Mainnet."
+                    # self._rotate_endpoint() # Disabled rotation
                     continue
                 else:
                     Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
