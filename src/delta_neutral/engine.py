@@ -274,7 +274,13 @@ class DeltaNeutralEngine:
         Logger.info("[DNEM] Opening delta-neutral position...")
         
         # Get current price
-        sol_price = self._get_price_cache().get_price("SOL")
+        sol_price_data = self._get_price_cache().get_price("SOL")
+        
+        # Handle tuple return (price, timestamp)
+        if isinstance(sol_price_data, tuple):
+            sol_price = float(sol_price_data[0]) if sol_price_data[0] else 150.0
+        else:
+            sol_price = float(sol_price_data) if sol_price_data else 150.0
         
         # Calculate position sizes
         spot_qty, perp_qty = calculate_position_size(
