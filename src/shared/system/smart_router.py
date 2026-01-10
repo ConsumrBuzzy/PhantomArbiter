@@ -268,3 +268,7 @@ class SmartRouter:
         except Exception as e:
             Logger.error(f"Jupiter Swap Failed: {e}")
             return None
+
+def get_smart_router() -> SmartRouter:
+    """Get the singleton SmartRouter instance."""
+    return SmartRouter()

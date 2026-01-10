@@ -280,14 +280,12 @@ if __name__ == "__main__":
     if args.engine == "arb":
         Logger.info("🏗️ Starting ARBITRAGE Engine...")
         try:
-            from src.engines.arb.scanner import SpreadDetector
-            from src.engines.arb.graph import HopGraphEngine, get_hop_engine
-            
-            # Verify imports work
-            detector = SpreadDetector()
-            graph = get_hop_engine()
-            Logger.info(f"✅ Arb Engine Loaded: Scanner={detector} Graph={graph}")
-            sys.exit(0) # Placeholder until full loop
+            from src.engines.arb.logic import ArbEngine
+            engine = ArbEngine(live_mode=args.live)
+            asyncio.run(engine.run_loop())
+        except KeyboardInterrupt:
+            Logger.section("👋 Arb Engine Shutdown.")
+            sys.exit(0)
         except Exception as e:
             Logger.critical(f"❌ Failed to load Arb Engine: {e}")
             sys.exit(1)
