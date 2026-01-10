@@ -67,7 +67,7 @@ class SmartRouter:
             f"SmartRouter initialized with {len(self.endpoints)} RPC endpoints."
         )
         if self.jupiter_api_key:
-            Logger.info("   🔑 Jupiter API Key loaded")
+            Logger.info("   Jupiter API Key loaded")
 
     def _load_config(self):
         """Load rpc_pool.json or return defaults."""

@@ -21,18 +21,18 @@ class DNEMDashboard:
             Layout(name="logs", size=8)
         )
         self.layout["main"].split_row(
-            Layout(name="left", ratio=1),
-            Layout(name="right", ratio=1.2) # Slightly wider for tactical data
+            Layout(name="left", ratio=10),
+            Layout(name="right", ratio=12) 
         )
         # Left side: Financials / Inventory
         self.layout["left"].split_column(
-            Layout(name="positions", ratio=1),
-            Layout(name="pnl", ratio=1)
+            Layout(name="positions", ratio=10),
+            Layout(name="pnl", ratio=10)
         )
         # Right side: Engine Intelligence (Dyanmic)
         self.layout["right"].split_column(
-            Layout(name="intel", ratio=1.2),
-            Layout(name="metrics", ratio=1)
+            Layout(name="intel", ratio=12),
+            Layout(name="metrics", ratio=10)
         )
 
     def update(self, data: dict):

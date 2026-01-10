@@ -71,7 +71,7 @@ config = {
         # 1. Rich Console Sink (High-Fidelity)
         {
             "sink": RichHandler(
-                console=Console(width=120, encoding="utf-8"),
+                console=Console(width=120),
                 rich_tracebacks=True,
                 markup=True,
                 show_time=True,

@@ -44,10 +44,10 @@ class JupiterSwapper:
                 self.jito_client = Client(jito_url)
                 self.jito_available = True
                 Logger.info(
-                    "🛡️ JITO Block Engine configured for front-running protection"
+                    "JITO Block Engine configured for front-running protection"
                 )
             except Exception as e:
-                Logger.warning(f"⚠️ JITO unavailable, using standard execution: {e}")
+                Logger.warning(f"JITO unavailable, using standard execution: {e}")
 
     def execute_swap(
         self,
