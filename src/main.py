@@ -109,14 +109,36 @@ class ArbiterEngine:
         Logger.success("✅ Re-Entry Sequence Complete.")
 
 
+    async def detect_initial_state(self):
+        """
+        Check if we have an open position to determine startup state.
+        """
+        Logger.info("🔎 Detecting Initial State...")
+        try:
+            # Reuse rebalancer to get position data
+            status = await self.rebalancer.check_and_rebalance(simulate=True)
+            perp_sol = status.get('perp_sol', 0.0)
+            
+            # If we have a significant short position, we are ACTIVE
+            if abs(perp_sol) > 0.01:
+                Logger.section(f"✅ EXISTING POSITION FOUND ({perp_sol} SOL). RESUMING ACTIVE MODE.")
+                self.state = STATE_ACTIVE
+            else:
+                Logger.section("💤 NO POSITION DETECTED. STARTING IN WAITLIST MODE.")
+                self.state = STATE_WAITLIST
+                
+        except Exception as e:
+            Logger.error(f"Failed to detect state: {e}. Defaulting to ACTIVE.")
+            self.state = STATE_ACTIVE
+
     async def run_loop(self):
         mode_str = "🛑 LIVE TRADING" if self.live_mode else "🔵 SIMULATION"
         Logger.section(f"🤖 ARBITER ENGINE ONLINE: {mode_str}")
         Logger.info(f"Target Leverage: {self.target_leverage}x")
         Logger.info(f"Logging to: {ENGINE_LOG_PATH}")
         
-        # Detect initial state?
-        # For now, just assume ACTIVE. Watchdog will correct us if funding is bad.
+        # Detect initial state
+        await self.detect_initial_state()
         
         while True:
             try:
