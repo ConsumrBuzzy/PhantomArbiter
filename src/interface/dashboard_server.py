@@ -100,17 +100,39 @@ class DashboardServer:
                     # Get engine statuses
                     engine_status = await engine_manager.get_status()
                     
+                    # Get wallet state (Paper vs Live)
+                    wallet_data = {}
+                    if self.global_mode == "PAPER":
+                        from src.shared.state.paper_wallet import get_paper_wallet
+                        pw = get_paper_wallet()
+                        
+                        # Get current SOL price from Context if available
+                        # For now, just using a simplistic fetch or last known
+                        # Ideally, context driver pushes price to a shared state
+                        sol_price = 150.0 # Fallback
+                        try:
+                            # Try to get live price from latest broadcast if possible, or just use 150
+                            pass 
+                        except:
+                            pass
+                            
+                        wallet_data = pw.get_balances(sol_price=sol_price)
+                        wallet_data['type'] = 'PAPER'
+                    else:
+                        # Live wallet stub
+                        wallet_data = {
+                            "equity": 0.0,
+                            "sol_balance": 0.0,
+                            "type": "LIVE ( disconnected )"
+                        }
+
                     stats_payload = {
                         "type": "SYSTEM_STATS",
                         "data": {
                             **(state.stats or {}),
                             "engines": engine_status,
                             "mode": self.global_mode,
-                            "wallet": {
-                                "equity": 5000.00,  # Mock initial equity
-                                "sol_balance": 15.42,
-                                "type": self.global_mode
-                            }
+                            "wallet": wallet_data
                         },
                         "timestamp": asyncio.get_event_loop().time()
                     }
