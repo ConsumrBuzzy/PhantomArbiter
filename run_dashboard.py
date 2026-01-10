@@ -43,12 +43,77 @@ async def main():
     frontend_thread = threading.Thread(target=run_http, daemon=True)
     frontend_thread.start()
     
-    # 2. WebSocket Dashboard Server
+    # 6. Local Dashboard Controller
+    # -----------------------------
+    # Intercepts START/STOP commands to control in-process engines
+    # instead of spawning new subprocesses (since we want to keep the callbacks).
+    
     from src.interface.dashboard_server import DashboardServer
-    dashboard = DashboardServer()
+    from src.interface.engine_registry import engine_registry, EngineStatus
+    
+    class LocalDashboardServer(DashboardServer):
+        def __init__(self, engines_map: dict):
+            super().__init__()
+            self.local_engines = engines_map
+            
+        async def _handle_command(self, websocket, data):
+            action = data.get("action", "").upper()
+            
+            if action == "START_ENGINE":
+                name = data.get("engine")
+                mode = data.get("mode", "paper").lower() # 'paper' or 'live'
+                
+                if name in self.local_engines:
+                    eng = self.local_engines[name]
+                    if not eng.running:
+                        # Set mode
+                        eng.live_mode = (mode == "live")
+                        await eng.start()
+                        
+                        # Update registry status manually since we aren't using EngineManager subproc
+                        await engine_registry.update_status(
+                            name, 
+                            EngineStatus.RUNNING, 
+                            pid=os.getpid()
+                        )
+                        Logger.info(f"🟢 [LOCAL] Started {name} engine ({mode})")
+                        
+                    await self._send_engine_response(websocket, "START", name, True, "Started locally")
+                    await self._broadcast_engine_status()
+                    return
+
+            elif action == "STOP_ENGINE":
+                name = data.get("engine")
+                if name in self.local_engines:
+                    eng = self.local_engines[name]
+                    if eng.running:
+                        await eng.stop()
+                        
+                        await engine_registry.update_status(
+                            name, 
+                            EngineStatus.STOPPED
+                        )
+                        Logger.info(f"🔴 [LOCAL] Stopped {name} engine")
+                        
+                    await self._send_engine_response(websocket, "STOP", name, True, "Stopped locally")
+                    await self._broadcast_engine_status()
+                    return
+
+            # Fallback to default handler
+            await super()._handle_command(websocket, data)
+
+        async def _send_engine_response(self, websocket, action, engine, success, msg):
+             await websocket.send(json.dumps({
+                "type": "ENGINE_RESPONSE",
+                "action": action,
+                "engine": engine,
+                "result": {"success": success, "message": msg}
+            }))
+
+    # Instantiate custom dashboard with empty map (populated later)
+    dashboard = LocalDashboardServer({})
     
     # 3. Price Feed - Streams live SOL price (Pyth WebSocket)
-    price_feed = SimplePriceFeed()
     
     async def on_price_update(price: PriceData):
         """Broadcast SOL price updates to all connected clients."""
@@ -130,6 +195,54 @@ async def main():
     lst_engine.set_callback(on_lst_update)
     await lst_engine.start()
     
+    # 7. Scalp Engine (Meme/Token Scalper) - Paper Mode
+    from src.engines.scalp.logic import ScalpEngine
+    scalp_engine = ScalpEngine(live_mode=False)
+    
+    async def on_scalp_update(data):
+        # data is {"type": "SIGNAL", "data": ...}
+        # We wrap it in SCALP_UPDATE for frontend routing
+        payload = {
+            "type": "SCALP_UPDATE",
+            "payload": data, # Nested
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        await dashboard.broadcast(json.dumps(payload))
+        
+    scalp_engine.set_callback(on_scalp_update)
+    await scalp_engine.start()
+
+    # 8. Arb Engine (Trip Hopper) - Paper Mode
+    from src.engines.arb.logic import ArbEngine
+    arb_engine = ArbEngine(live_mode=False)
+
+    async def on_arb_update(data):
+        payload = {
+            "type": "ARB_UPDATE",
+            "payload": data,
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        await dashboard.broadcast(json.dumps(payload))
+    
+    arb_engine.set_callback(on_arb_update)
+    await arb_engine.start()
+
+    # 9. Funding Engine (Delta Neutral) - Paper Mode
+    from src.engines.funding.logic import FundingEngine
+    funding_engine = FundingEngine(live_mode=False)
+
+    async def on_funding_update(data):
+        payload = {
+            "type": "FUNDING_UPDATE",
+            "payload": data,
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        # Funding engine sends status every minute
+        await dashboard.broadcast(json.dumps(payload))
+
+    funding_engine.set_callback(on_funding_update)
+    await funding_engine.start()
+    
     # Add to engine manager (mock registration for now, ideally EngineManager handles this)
     # Since EngineManager is a subprocess manager, and we are running LST in-process for this MVP:
     # We might need to manually inject status into the stats broadcast or register it properly.
@@ -155,6 +268,9 @@ async def main():
         watchlist_feed.stop()
         context_driver.stop()
         await lst_engine.stop()
+        await scalp_engine.stop()
+        await arb_engine.stop()
+        await funding_engine.stop()
 
 
 if __name__ == "__main__":

@@ -26,22 +26,26 @@ export class Inventory {
             return a[0].localeCompare(b[0]);
         });
 
-        sortedAssets.forEach(([asset, balance]) => {
-            if (balance <= 0.00001 && asset !== 'SOL' && asset !== 'USDC') return;
+        sortedAssets.forEach(([asset, data]) => {
+            // Support both simple number (legacy) and enriched object
+            const amount = (typeof data === 'object' && data !== null) ? data.amount : data;
+            const valueUsd = (typeof data === 'object' && data !== null) ? data.value_usd : 0;
+
+            if (amount <= 0.00001 && asset !== 'SOL' && asset !== 'USDC') return;
 
             const tr = document.createElement('tr');
 
-            // Basic value estimation
+            // Value Display
             let valDisplay = '--';
-            if (asset === 'USDC') {
-                valDisplay = `$${balance.toFixed(2)}`;
-            } else if (asset === 'SOL') {
-                valDisplay = `◎${balance.toFixed(2)}`;
+            if (valueUsd > 0) {
+                valDisplay = `$${valueUsd.toFixed(2)}`;
+            } else if (asset === 'USDC') {
+                valDisplay = `$${amount.toFixed(2)}`;
             }
 
             tr.innerHTML = `
                 <td><span class="token-icon ${asset.toLowerCase()}"></span> ${asset}</td>
-                <td class="mono">${balance.toFixed(4)}</td>
+                <td class="mono">${amount.toFixed(4)}</td>
                 <td class="mono">${valDisplay}</td>
             `;
             this.tableBody.appendChild(tr);

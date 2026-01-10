@@ -54,6 +54,12 @@ class TradingOS {
                 onSettings: (name, config) => this.modal.openSettings(name, config),
                 onModeChange: (name, mode) => this.terminal.addLog('SYSTEM', 'INFO',
                     `${name} mode set to ${mode.toUpperCase()}`)
+            }),
+            lst: new EngineCard('lst', {
+                onToggle: (name, status, mode) => this.toggleEngine(name, status, mode),
+                onSettings: (name, config) => this.modal.openSettings(name, config),
+                onModeChange: (name, mode) => this.terminal.addLog('SYSTEM', 'INFO',
+                    `${name} mode set to ${mode.toUpperCase()}`)
             })
         };
 
@@ -179,7 +185,13 @@ class TradingOS {
                 break;
 
             case 'LST_UPDATE':
-                if (this.marketComponents.lst) this.marketComponents.lst.update(data);
+                if (this.marketComponents.lst) this.marketComponents.lst.update(data.data);
+                break;
+
+            case 'SCALP_UPDATE':
+                if (this.marketComponents.scalp && data.payload?.type === 'SIGNAL') {
+                    this.marketComponents.scalp.update(data.payload.data);
+                }
                 break;
 
             default:

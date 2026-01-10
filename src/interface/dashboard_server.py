@@ -104,15 +104,56 @@ class DashboardServer:
                     wallet_data = {}
                     if self.global_mode == "PAPER":
                         from src.shared.state.paper_wallet import get_paper_wallet
-                        pw = get_paper_wallet()
-                        pw.reload() # Sync with DB updates from VirtualDriver
+                        from src.shared.feeds.jupiter_feed import JupiterFeed
                         
-                        # Get current SOL price from Feed
-                        sol_price = 150.0 # Fallback
-                        if self.price_feed and self.price_feed.last_price:
-                            sol_price = self.price_feed.last_price.price
+                        pw = get_paper_wallet()
+                        pw.reload()
+                        
+                        # Initialize feed on demand (singleton)
+                        if not hasattr(self, '_val_feed'):
+                            self._val_feed = JupiterFeed()
+
+                        # 1. Identify assets needing price
+                        assets = list(pw.balances.keys())
+                        
+                        # 2. Fetch prices (SOL + others)
+                        prices = await self._val_feed.get_multiple_prices(assets) # Assumes method supports symbols or we handle it
+                        # JupiterFeed.get_multiple_prices usually expects mints. 
+                        # PaperWallet keys are SYMBOLS (SOL, USDC, WIF).
+                        # We need a Symbol -> Mint map or use get_price_for_symbol.
+                        # For MVP optimization: Just use get_spot_price loop or enhanced feed.
+                        # Let's use loop for now, optimizing later.
+                        
+                        enriched_wallet = {}
+                        total_equity = 0.0
+                        
+                        for asset, balance in pw.balances.items():
+                            price = 0.0
+                            value = 0.0
                             
-                        wallet_data = pw.get_balances(sol_price=sol_price)
+                            if asset == "USDC":
+                                price = 1.0
+                                value = balance
+                            else:
+                                # Try to get price
+                                # If we have a map, great. If not, fetch.
+                                # Since this is 1Hz loop, fetching one-by-one is slow if many assets.
+                                # But for MVP with 5 assets, it's ok.
+                                quote = self._val_feed.get_spot_price(asset) 
+                                if quote:
+                                    price = quote.price
+                                    value = balance * price
+                            
+                            total_equity += value
+                            
+                            enriched_wallet[asset] = {
+                                "amount": balance,
+                                "value_usd": value,
+                                "price": price
+                            }
+                            
+                        wallet_data = enriched_wallet
+                        wallet_data['equity'] = total_equity
                         wallet_data['type'] = 'PAPER'
                     else:
                         # Live wallet stub

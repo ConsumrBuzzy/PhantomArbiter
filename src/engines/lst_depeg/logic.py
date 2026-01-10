@@ -13,79 +13,49 @@ from src.shared.drivers.virtual_driver import VirtualDriver, VirtualOrder
 logger = logging.getLogger("phantom.lst")
 
 from src.shared.feeds.jupiter_feed import JupiterFeed
+from src.engines.base_engine import BaseEngine
 
-class LSTEngine:
+class LSTEngine(BaseEngine):
     def __init__(self, mode: str = "paper"):
-        self.mode = mode
+        super().__init__("lst", live_mode=(mode == "live"))
         self.config = LSTConfig
-        self.running = False
-        self.driver = None
         self.jupiter = JupiterFeed()
         
-        if mode == "paper":
-            from src.shared.drivers.virtual_driver import VirtualDriver
-            self.driver = VirtualDriver("lst")
-            # For paper, we share the wallet state for inventory
-            from src.shared.state.paper_wallet import get_paper_wallet
-            # VirtualDriver writes to DB, PaperWallet reads from DB. 
-            # They are loosely coupled via DB.
+        # Paper Wallet specific logic (if needed beyond VirtualDriver)
+        if not self.live_mode:
+             pass 
             
         # Determine real driver for live mode later
-        if mode == "live":
-            # For now, just warn implies no implementation
+        if self.live_mode:
             logger.warning("[LST] Live mode not fully implemented, strictly monitoring.")
+
+    async def tick(self):
+        """Single execution step."""
+        # 1. Fetch Prices
+        prices = await self._fetch_lst_prices()
+        
+        # Update Driver Price Feed
+        if not self.live_mode and self.driver:
+            feed = {f"{t}/SOL": p for t, p in prices.items()}
+            self.driver.set_price_feed(feed)
+        
+        # 2. Analyze & Updates
+        update_data = {}
+        
+        for token, price in prices.items():
+            fair = self.config.fair_value.get(token, 0)
+            if fair == 0: continue
             
-        self._callback = None
-
-    def set_callback(self, callback):
-        self._callback = callback
-
-    async def start(self):
-        self.running = True
-        logger.info(f"[LST] Engine Started ({self.mode.upper()})")
-        asyncio.create_task(self._monitor_loop())
-
-    async def stop(self):
-        self.running = False
-        logger.info("[LST] Engine Stopped")
-
-    async def _monitor_loop(self):
-        """Main monitoring loop."""
-        while self.running:
-            try:
-                # 1. Fetch Prices
-                prices = await self._fetch_lst_prices()
-                
-                # Update Driver Price Feed
-                if self.mode == "paper" and self.driver:
-                    feed = {f"{t}/SOL": p for t, p in prices.items()}
-                    self.driver.set_price_feed(feed)
-                
-                # 2. Analyze & Updates
-                update_data = {}
-                
-                for token, price in prices.items():
-                    fair = self.config.fair_value.get(token, 0)
-                    if fair == 0: continue
-                    
-                    deviation = (price - fair) / fair
-                    update_data[token] = {"price": price, "fair": fair, "diff": deviation}
-                    
-                    if deviation <= self.config.depeg_threshold:
-                        logger.info(f"🚨 DE-PEG DETECTED: {token} @ {price:.4f} SOL ({deviation*100:.2f}%)")
-                        await self._execute_signal(token, price, deviation)
-                
-                # 3. Broadcast
-                if self._callback:
-                    await self._callback(update_data)
-                        
-            except Exception as e:
-                logger.error(f"[LST] Error: {e}")
-                
-            await asyncio.sleep(5.0)
-
-            "mSOL": 1.145     # Parity
-        }
+            deviation = (price - fair) / fair
+            update_data[token] = {"price": price, "fair": fair, "diff": deviation}
+            
+            if deviation <= self.config.depeg_threshold:
+                logger.info(f"🚨 DE-PEG DETECTED: {token} @ {price:.4f} SOL ({deviation*100:.2f}%)")
+                await self._execute_signal(token, price, deviation)
+        
+        # 3. Broadcast
+        if self._callback:
+             await self._callback(update_data)
 
     async def _fetch_lst_prices(self):
         """Fetch real LST/SOL prices from Jupiter."""

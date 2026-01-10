@@ -1,0 +1,156 @@
+"""
+Base Engine
+===========
+Abstract base class for all trading engines in the Phantom Arbiter OS.
+Standardizes interface for startup, shutdown, mode handling, and reporting.
+"""
+
+import asyncio
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, Any, Callable
+from src.shared.system.logging import Logger
+
+from src.shared.feeds.jupiter_feed import JupiterFeed
+
+class BaseEngine(ABC):
+    def __init__(self, name: str, live_mode: bool = False):
+        self.name = name
+        self.live_mode = live_mode
+        self.mode = "live" if live_mode else "paper"
+        self.running = False
+        self._callback: Optional[Callable] = None
+        self.driver = None
+        self.wallet = None
+        self.swapper = None
+        self.feed = JupiterFeed()
+        
+        # Initialize Drivers
+        if self.live_mode:
+            from src.drivers.wallet_manager import WalletManager
+            from src.drivers.jupiter_driver import JupiterSwapper
+            self.wallet = WalletManager()
+            self.swapper = JupiterSwapper(self.wallet)
+        else:
+            from src.shared.drivers.virtual_driver import VirtualDriver
+            self.driver = VirtualDriver(self.name)
+            
+        Logger.info(f"[{self.name.upper()}] Engine Initialized ({self.mode.upper()})")
+
+    # ... set_callback, start, stop ...
+
+    async def execute_swap(self, direction: str, amount_usd: float, token_mint: str, token_symbol: str) -> Dict[str, Any]:
+        """
+        Unified swap execution (Live or Paper).
+        Returns: {success: bool, price: float, amount: float, txid: str, error: str}
+        """
+        try:
+            if self.live_mode:
+                # LIVE EXECUTION
+                result = self.swapper.execute_swap(
+                    direction=direction.upper(),
+                    amount_usd=amount_usd,
+                    reason=f"{self.name} Signal",
+                    target_mint=token_mint
+                )
+                if result.get("success"):
+                     # Attempt to parse outAmount/price from result if possible
+                     # JupiterSwapper returns outAmount.
+                     # We might need to fetch decimals to convert atomic to float.
+                     # For now, pass basic info.
+                     return {
+                         "success": True,
+                         "txid": result.get("txid"),
+                         "price": 0.0, # Hard to know without fetching
+                         "amount": float(result.get("outAmount", 0)), # Atomic units?
+                         "error": None
+                     }
+                else:
+                    return {"success": False, "error": result.get("error")}
+                    
+            elif self.driver:
+                # PAPER EXECUTION
+                # 1. Get Price
+                # Use USDC as quote
+                quote = self.feed.get_spot_price(token_mint) # Defaults vs USDC
+                if not quote:
+                    return {"success": False, "error": f"No price for {token_mint}"}
+                
+                price = quote.price
+                if price <= 0: return {"success": False, "error": "Invalid price"}
+                
+                # 2. Calc Amount
+                amount_token = amount_usd / price
+                
+                # 3. Place Virtual Order
+                from src.shared.drivers.virtual_driver import VirtualOrder
+                order = VirtualOrder(
+                    symbol=f"{token_symbol}",
+                    side=direction.lower(),
+                    size=amount_token, # VirtualDriver expects Token Amount usually? Or check implementation.
+                    # In ScalpEngine I used size=amount_token.
+                    order_type="market"
+                )
+                
+                # Update driver feed for fill
+                self.driver.set_price_feed({f"{token_symbol}": price})
+                
+                filled = await self.driver.place_order(order)
+                
+                if filled.status == "filled":
+                    return {
+                        "success": True,
+                        "price": filled.filled_price,
+                        "amount": filled.filled_size,
+                        "txid": f"paper_{filled.id}",
+                        "error": None
+                    }
+                else:
+                    return {"success": False, "error": "Fill failed"}
+                    
+            return {"success": False, "error": "No driver available"}
+            
+        except Exception as e:
+            Logger.error(f"[{self.name}] Swap Error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def set_callback(self, callback: Callable[[Dict[str, Any]], Any]):
+        """Set the callback for broadcasting updates to the dashboard."""
+        self._callback = callback
+
+    async def start(self):
+        """Start the engine loop."""
+        if self.running:
+            return
+            
+        self.running = True
+        Logger.info(f"[{self.name.upper()}] Started")
+        asyncio.create_task(self._monitor_loop())
+
+    async def stop(self):
+        """Stop the engine loop."""
+        self.running = False
+        Logger.info(f"[{self.name.upper()}] Stopped")
+
+    async def _monitor_loop(self):
+        """Internal loop handling errors and intervals."""
+        while self.running:
+            try:
+                await self.tick()
+            except Exception as e:
+                Logger.error(f"[{self.name.upper()}] Error: {e}")
+            
+            await asyncio.sleep(self.get_interval())
+
+    @abstractmethod
+    async def tick(self):
+        """Single execution logic step. Must be implemented by subclass."""
+        pass
+
+    def get_interval(self) -> float:
+        """Tick interval in seconds. Can be overridden."""
+        return 5.0
+
+    async def broadcast(self, data: Dict[str, Any]):
+        """Helper to send data via callback."""
+        if self._callback:
+            await self._callback(data)

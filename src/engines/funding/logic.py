@@ -141,17 +141,34 @@ def save_last_rebalance_time():
 # =============================================================================
 
 
-class AutoRebalancer:
+from src.engines.base_engine import BaseEngine
+
+class FundingEngine(BaseEngine):
     """
-    Autonomous delta-drift correction engine.
+    Autonomous delta-drift correction engine (Funding Rate Farmer).
     
     Monitors the delta between spot SOL and perp short position.
     When drift exceeds tolerance, executes corrective trades.
     """
     
-    def __init__(self, config: Optional[RebalanceConfig] = None):
+    def __init__(self, live_mode: bool = False, config: Optional[RebalanceConfig] = None):
+        super().__init__("funding", live_mode)
         self.config = config or RebalanceConfig()
         self.last_rebalance = load_last_rebalance_time()
+        
+    async def tick(self):
+        """Single execution step."""
+        result = await self.check_and_rebalance(simulate=not self.live_mode)
+        
+        # Broadcast status via BaseEngine callback
+        if self._callback:
+             await self._callback({
+                 "type": "STATUS",
+                 "data": result
+             })
+             
+    def get_interval(self) -> float:
+        return float(self.config.loop_interval_seconds)
         
     async def check_and_rebalance(self, simulate: bool = True) -> dict:
         """
@@ -253,10 +270,34 @@ class AutoRebalancer:
             result["correction_size"] = correction_size
             
             # Execute trade
+            # Execute trade
             if simulate:
-                result["status"] = "simulated"
-                result["message"] = f"Would {action} by {correction_size:.6f} SOL"
-                Logger.info(f"[REBALANCER] SIMULATION: {result['message']}")
+                if self.driver:
+                     # Paper Mode Execution (VirtualDriver)
+                     from src.shared.drivers.virtual_driver import VirtualOrder
+                     
+                     # Map action to side
+                     # EXPAND_SHORT = Sell SOL-PERP (Open Short)
+                     # REDUCE_SHORT = Buy SOL-PERP (Close Short)
+                     side = "sell" if action == "EXPAND_SHORT" else "buy" 
+                     
+                     order = VirtualOrder(
+                        symbol="SOL-PERP",
+                        side=side,
+                        size=correction_size,
+                        order_type="market"
+                     )
+                     self.driver.set_price_feed({"SOL-PERP": sol_price})
+                     
+                     filled = await self.driver.place_order(order)
+                     
+                     result["status"] = "executed_paper"
+                     result["message"] = f"[PAPER] {action} {correction_size:.4f} SOL-PERP @ ${sol_price:.2f}"
+                     Logger.info(result["message"])
+                else:
+                     result["status"] = "simulated"
+                     result["message"] = f"Would {action} by {correction_size:.6f} SOL"
+                     Logger.info(f"[REBALANCER] SIMULATION: {result['message']}")
             else:
                 try:
                     tx_sig = await self._execute_rebalance(
@@ -325,72 +366,6 @@ class AutoRebalancer:
         
         return sig
     
-    async def run_loop(self, simulate: bool = True):
-        """Run continuous monitoring loop."""
-        
-        Logger.section("AUTO-REBALANCER LOOP STARTED")
-        Logger.info(f"Drift Tolerance: ±{self.config.drift_tolerance_pct}%")
-        Logger.info(f"Cooldown: {self.config.cooldown_seconds}s")
-        Logger.info(f"Loop Interval: {self.config.loop_interval_seconds}s")
-        Logger.info(f"Mode: {'SIMULATION' if simulate else 'LIVE'}")
-        
-        while True:
-            try:
-                result = await self.check_and_rebalance(simulate=simulate)
-                
-                status_icon = {
-                    "ok": "🟢",
-                    "cooldown": "⏳",
-                    "simulated": "🔵",
-                    "executed": "✅",
-                    "skip": "⏭️",
-                    "error": "❌",
-                }.get(result["status"], "❓")
-                
-                Logger.info(
-                    f"[{datetime.now().strftime('%H:%M:%S')}] "
-                    f"{status_icon} Drift: {result.get('drift_pct', 0):+.2f}% | "
-                    f"{result.get('message', '')}"
-                )
-                
-            except Exception as e:
-                Logger.error(f"[REBALANCER] Loop error: {e}")
-            
-            await asyncio.sleep(self.config.loop_interval_seconds)
 
-
-# =============================================================================
-# MAIN
-# =============================================================================
-
-
-async def main():
-    import sys
-    
-    loop_mode = "--loop" in sys.argv
-    live_mode = "--live" in sys.argv
-    
-    config = RebalanceConfig()
-    rebalancer = AutoRebalancer(config)
-    
-    if loop_mode:
-        await rebalancer.run_loop(simulate=not live_mode)
-    else:
-        result = await rebalancer.check_and_rebalance(simulate=not live_mode)
-        
-        print("\n" + "=" * 50)
-        print("  AUTO-REBALANCER CHECK")
-        print("=" * 50)
-        print(f"  Status:     {result['status'].upper()}")
-        print(f"  Drift:      {result.get('drift_pct', 0):+.2f}%")
-        print(f"  Net Delta:  {result.get('net_delta', 0):+.6f} SOL")
-        print(f"  Message:    {result.get('message', '')}")
-        if result.get('action_taken'):
-            print(f"  Action:     {result['action_taken']}")
-        if result.get('tx_signature'):
-            print(f"  Tx:         {result['tx_signature']}")
-        print("=" * 50)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# Backward Compatibility
+AutoRebalancer = FundingEngine

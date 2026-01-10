@@ -17,20 +17,19 @@ from src.drivers.wallet_manager import WalletManager
 from src.shared.state.app_state import state as app_state, ArbOpportunity
 from config.settings import Settings
 
-class ArbEngine:
+from src.engines.base_engine import BaseEngine
+
+class ArbEngine(BaseEngine):
     """
     Executes Triangular Arbitrage (A -> B -> C -> A).
     """
 
     def __init__(self, live_mode: bool = False):
-        self.live_mode = live_mode
-        self.wallet = WalletManager()
-        self.swapper = JupiterSwapper(self.wallet)
+        super().__init__("arb", live_mode)
         
         # Data & Calculation
-        self.feed = JupiterFeed() # Optimized Singleton Feed
         self.graph = get_hop_engine()
-        self.scanner = SpreadDetector(feeds=[self.feed]) 
+        self.scanner = SpreadDetector(feeds=[self.feed]) # Use Base feed
         
         # Configuration
         self.trade_size_usd = 30.0    # Fixed size as requested ($30)
@@ -45,7 +44,7 @@ class ArbEngine:
             "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", # mSOL
         ]
         
-        Logger.info(f"Arb Engine Initialized (Live={self.live_mode})")
+        # Logging handled by Base
 
     async def tick(self):
         """Single execution step for 'Trip Hopper'."""
@@ -87,11 +86,7 @@ class ArbEngine:
             Logger.error(f"Arb Tick Error: {e}")
             return {"state": "ERROR"}
 
-    async def run_loop(self):
-        """Legacy entry point - now delegates to TUIRunner."""
-        from src.shared.ui.tui_manager import TUIRunner
-        runner = TUIRunner(self, "ARB", tick_interval=0.5)
-        await runner.run()
+
 
     async def update_prices(self):
         """Fetch prices from Feed and update Graph."""
