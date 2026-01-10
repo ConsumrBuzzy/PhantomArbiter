@@ -23,6 +23,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 _run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_file = os.path.join(LOG_DIR, f"phantom_{_run_id}.log")
+ENGINE_LOG_PATH = os.path.join(LOG_DIR, "engine_runtime.log")
 
 # --- Source Icons ---
 SOURCE_ICONS = {

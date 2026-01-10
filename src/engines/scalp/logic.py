@@ -62,26 +62,25 @@ class ScalpEngine:
         
         Logger.info(f"🔫 Scalp Engine Initialized (Live={self.live_mode})")
 
+    async def tick(self):
+        """Single execution step for Scalp Engine."""
+        try:
+            # 1. Manage Active Positions (Fast)
+            await self.monitor_positions()
+            
+            # 2. Scan for New Entries
+            await self.scan_pods()
+            
+            return {"state": "ACTIVE"}
+        except Exception as e:
+            Logger.error(f"Scalp Tick Error: {e}")
+            return {"state": "ERROR"}
+
     async def run_loop(self):
-        """Main Engine Loop"""
-        Logger.section("🔫 SCALP ENGINE: HUNTING ACTIVE")
-        
-        while True:
-            try:
-                # 1. Manage Active Positions (Fast Loop)
-                await self.monitor_positions()
-                
-                # 2. Scan for New Entries (Slow Loop)
-                await self.scan_pods()
-                
-                # 3. Heartbeat / Rate Limit
-                await asyncio.sleep(10) 
-                
-            except KeyboardInterrupt:
-                break
-            except Exception as e:
-                Logger.error(f"Scalp Loop Error: {e}")
-                await asyncio.sleep(5)
+        """Legacy entry point - now delegates to TUIRunner if possible."""
+        from src.shared.ui.tui_manager import TUIRunner
+        runner = TUIRunner(self, "SCALP", tick_interval=5.0)
+        await runner.run()
 
     async def scan_pods(self):
         """Scan active pods for opportunities."""
@@ -101,9 +100,22 @@ class ScalpEngine:
             token_symbol = pair_name.split("/")[0]
             score = await self.sentiment.get_sentiment_score(token_symbol)
             
+            # V2: Update AppState for TUI
+            from src.shared.state.app_state import state as app_state, ScalpSignal
+            app_state.update_stat("pod_status", pod_manager.get_status()[:20])
+            
             if score.should_enter:
                 Logger.info(f"🚨 SIGNAL: {token_symbol} Sentiment={score.score:.0f} ({score.signal})")
                 
+                # Push to TUI
+                app_state.add_signal(ScalpSignal(
+                    token=token_symbol,
+                    signal_type=score.signal,
+                    confidence=score.confidence,
+                    action="BUY",
+                    price=score.momentum_score or 0.0 # Placeholder
+                ))
+
                 if self.live_mode:
                     await self.execute_entry(token_symbol, mint, score)
                 else:
