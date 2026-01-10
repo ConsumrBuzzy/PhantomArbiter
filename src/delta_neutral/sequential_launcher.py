@@ -217,6 +217,7 @@ async def main():
         direction=RebalanceDirection.ADD_SPOT,
         qty=qty,
         qty_usd=qty_usd,
+        current_drift_pct=0.0,
         reason="Manual Plan B",
         urgency=1
     )
