@@ -210,7 +210,7 @@ class ArbiterEngine:
         
         timestamp_last_cycle = 0
         
-        with Live(dashboard.layout, refresh_per_second=4, screen=True):
+        with Live(dashboard.layout, refresh_per_second=2, screen=True):
             while True:
                 try:
                     current_time = datetime.now()

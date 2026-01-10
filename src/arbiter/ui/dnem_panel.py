@@ -112,18 +112,27 @@ class DNEMDashboard:
         # Determine Status
         status = "SECURE"
         color = "green"
+        border_style = "green"
+        
         if health < 50: 
             status = "DANGER"
             color = "red"
+            border_style = "red"
         elif health < 80:
             status = "WARNING"
             color = "yellow"
+            border_style = "yellow"
             
         funding = data.get("funding_rate_hr", 0)
         unwind = "NO"
+        
+        # High Alert Visuals for User
         if funding < -0.0005:
             unwind = "WATCHDOG ACTIVE"
-            color = "yellow"
+            # Override for visibility
+            status = "Waitlist"
+            color = "white on red"
+            border_style = "red"
         
         grid = Table.grid(expand=True)
         grid.add_column()
@@ -135,7 +144,7 @@ class DNEMDashboard:
         grid.add_row("Health Score", f"[{color}]{health:.1f}% {bar}[/]")
         grid.add_row("Watchdog", f"[{color}]{unwind}[/]")
         
-        return Panel(grid, title=f"🛡️ Risk: [{color}]{status}[/]", border_style="red")
+        return Panel(grid, title=f"🛡️ Risk: [{color}]{status}[/]", border_style=border_style)
 
     def _sim_panel(self, data: dict):
         table = Table(box=box.SIMPLE, show_header=True)
