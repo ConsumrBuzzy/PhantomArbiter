@@ -175,7 +175,7 @@ def test_jupiter():
 
     try:
         # Test quote API
-        url = "https://quote-api.jup.ag/v6/quote"
+        url = "https://public.jupiterapi.com/quote"
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",  # SOL
             "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
