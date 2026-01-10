@@ -183,6 +183,8 @@ async def main():
     # 6. LST De-Pegger Engine (Paper Mode)
     from src.engines.lst_depeg.logic import LSTEngine
     lst_engine = LSTEngine(mode="paper")
+    dashboard.local_engines["lst"] = lst_engine
+    await engine_registry.update_status("lst", EngineStatus.STOPPED)
     
     async def on_lst_update(data):
         payload = {
@@ -193,11 +195,13 @@ async def main():
         await dashboard.broadcast(json.dumps(payload))
         
     lst_engine.set_callback(on_lst_update)
-    await lst_engine.start()
+    # await lst_engine.start() # Default OFF
     
     # 7. Scalp Engine (Meme/Token Scalper) - Paper Mode
     from src.engines.scalp.logic import ScalpEngine
     scalp_engine = ScalpEngine(live_mode=False)
+    dashboard.local_engines["scalp"] = scalp_engine
+    await engine_registry.update_status("scalp", EngineStatus.STOPPED)
     
     async def on_scalp_update(data):
         # data is {"type": "SIGNAL", "data": ...}
@@ -210,11 +214,13 @@ async def main():
         await dashboard.broadcast(json.dumps(payload))
         
     scalp_engine.set_callback(on_scalp_update)
-    await scalp_engine.start()
+    # await scalp_engine.start() # Default OFF
 
     # 8. Arb Engine (Trip Hopper) - Paper Mode
     from src.engines.arb.logic import ArbEngine
     arb_engine = ArbEngine(live_mode=False)
+    dashboard.local_engines["arb"] = arb_engine
+    await engine_registry.update_status("arb", EngineStatus.STOPPED)
 
     async def on_arb_update(data):
         payload = {
@@ -225,11 +231,13 @@ async def main():
         await dashboard.broadcast(json.dumps(payload))
     
     arb_engine.set_callback(on_arb_update)
-    await arb_engine.start()
+    # await arb_engine.start() # Default OFF
 
     # 9. Funding Engine (Delta Neutral) - Paper Mode
     from src.engines.funding.logic import FundingEngine
     funding_engine = FundingEngine(live_mode=False)
+    dashboard.local_engines["funding"] = funding_engine
+    await engine_registry.update_status("funding", EngineStatus.STOPPED)
 
     async def on_funding_update(data):
         payload = {
@@ -241,7 +249,7 @@ async def main():
         await dashboard.broadcast(json.dumps(payload))
 
     funding_engine.set_callback(on_funding_update)
-    await funding_engine.start()
+    # await funding_engine.start() # Default OFF
     
     # Add to engine manager (mock registration for now, ideally EngineManager handles this)
     # Since EngineManager is a subprocess manager, and we are running LST in-process for this MVP:
