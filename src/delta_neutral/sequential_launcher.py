@@ -177,7 +177,8 @@ class SequentialLauncher:
                 
                 # 4. Send
                 Logger.info("[SEQUENTIAL] Sending transaction...")
-                opts = Confirmed 
+                # Create TxOpts properly
+                opts = TxOpts(skip_confirmation=False, preflight_commitment=Confirmed)
                 resp = await client.send_transaction(tx, opts=opts) 
                 
                 sig = resp.value
