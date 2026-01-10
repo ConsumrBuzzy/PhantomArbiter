@@ -153,6 +153,17 @@ class ArbiterEngine:
                 # Beat
                 Logger.info("💓 Heartbeat... Walking the line.")
                 
+                # Update State File for Dashboard
+                import json
+                state_file = "data/engine_state.json"
+                with open(state_file, "w") as f:
+                    json.dump({
+                        "last_beat": timestamp,
+                        "next_beat": timestamp + REBALANCE_INTERVAL_SEC,
+                        "mode": mode_str,
+                        "leverage": self.target_leverage
+                    }, f)
+                
             except Exception as e:
                 Logger.error(f"💥 ENGINE LOOP ERROR: {e}")
                 import traceback

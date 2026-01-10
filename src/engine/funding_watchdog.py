@@ -122,13 +122,14 @@ class FundingWatchdog:
             
             Logger.info(f"Funding Check: Rate = {current_rate:.8f}/hr ({apr:.2f}% APR)")
             
-            # Logic: If rate < 0, increment strike counter
-            if current_rate < 0:
+            # Logic: If rate < THRESHOLD, increment strike counter
+            # -0.0017 < -0.0005 -> True (Strike)
+            if current_rate < NEGATIVE_THRESHOLD:
                 self.consecutive_negative_checks += 1
-                Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED! Streak: {self.consecutive_negative_checks}/4")
+                Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED ({current_rate:.6f} < {NEGATIVE_THRESHOLD})! Streak: {self.consecutive_negative_checks}/4")
             else:
                 if self.consecutive_negative_checks > 0:
-                    Logger.success("✅ Funding positive. Resetting negative counter.")
+                    Logger.success("✅ Funding ok (above threshold). Resetting negative counter.")
                 self.consecutive_negative_checks = 0
             
             self._save_state()
