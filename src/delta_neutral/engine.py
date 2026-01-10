@@ -325,6 +325,28 @@ class DeltaNeutralEngine:
         
         sol_price = self._get_price_cache().get_price("SOL")
         
+        # Safety gate check (live mode only)
+        if self.config.mode == "live":
+            from src.delta_neutral.safety_gates import SafetyGate
+            
+            gate = SafetyGate()
+            
+            # Estimate expected profit from funding
+            expected_profit = signal.qty_usd * 0.0001  # Conservative 0.01% rate
+            
+            can_execute = await gate.can_execute(
+                wallet=self.wallet,
+                latency_monitor=self.latency_monitor,
+                expected_profit_usd=expected_profit,
+                trade_amount_usd=signal.qty_usd,
+                sol_price=sol_price,
+                jito_tip_lamports=self.config.jito_tip_lamports,
+            )
+            
+            if not can_execute:
+                Logger.warning("[DNEM] SafetyGate blocked trade - skipping")
+                return
+        
         # Estimate profitability before executing
         revenue = self.sync_executor.estimate_trade_revenue(
             signal,
