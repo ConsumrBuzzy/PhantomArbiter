@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 def inspect_drift_idl():
-    idl_path = Path("node_modules/@drift-labs@/sdk/src/idl/drift.json")
+    idl_path = Path("node_modules/@drift-labs/sdk/src/idl/drift.json")
     if not idl_path.exists():
         # Fallback to alternative paths found earlier
         idl_path = Path("node_modules/@drift-labs/sdk/lib/node/idl/drift.json")
