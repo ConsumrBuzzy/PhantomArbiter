@@ -69,3 +69,8 @@ def get_neutrality_monitor():
     from src.delta_neutral.neutrality_monitor import NeutralityMonitor
     return NeutralityMonitor
 
+def get_engine():
+    """Lazy import for DeltaNeutralEngine."""
+    from src.delta_neutral.engine import DeltaNeutralEngine, DNEMConfig
+    return DeltaNeutralEngine, DNEMConfig
+
