@@ -184,6 +184,10 @@ class DriftOrderBuilder:
         user_stats: Optional[Pubkey] = None,
         state: Optional[Pubkey] = None,
     ):
+        # Convert string to Pubkey if needed
+        if isinstance(wallet_pubkey, str):
+            wallet_pubkey = Pubkey.from_string(wallet_pubkey)
+            
         self.wallet = wallet_pubkey
         
         # Derive accounts if not provided
