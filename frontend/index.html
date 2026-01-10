@@ -56,6 +56,18 @@
                     </div>
 
                     <div class="system-status">
+                        <!-- Market Pulse Bubbles -->
+                        <div class="pulse-bubble glass-inset" title="SOL/BTC Strength">
+                            <span class="pulse-label">SOL/BTC</span>
+                            <span class="pulse-value" id="pulse-sol-btc">--</span>
+                        </div>
+                        <div class="pulse-bubble glass-inset" title="Jito Tip Floor">
+                            <span class="pulse-label">TIP</span>
+                            <span class="pulse-value" id="pulse-jito">--</span>
+                        </div>
+
+                        <div class="status-divider"></div>
+
                         <!-- Master Arm Switch -->
                         <div class="master-control">
                             <span class="control-label">MASTER ARM</span>
@@ -72,7 +84,7 @@
                             <span class="status-value" id="stats-sol-price">--</span>
                         </div>
                         <div class="status-item">
-                            <span class="status-label">LATENCY</span>
+                            <span class="status-label">RPC</span>
                             <span class="status-value" id="stats-latency">0ms</span>
                         </div>
                         <div class="status-item">
@@ -81,6 +93,20 @@
                         </div>
                     </div>
                 </header>
+
+                <!-- Whale Tape -->
+                <div class="whale-tape-container glass-panel">
+                    <div class="tape-label">🐋 WHALE TAPE</div>
+                    <div class="tape-window">
+                        <div class="tape-content" id="whale-tape-content">
+                            <!-- Items injected by JS -->
+                            <span class="tape-item item-buy">SOL/USDC $120k 🟢</span>
+                            <span class="tape-item item-sell">BONK/SOL $50k 🔴</span>
+                            <span class="tape-item item-buy">WIF/USDC $200k 🟢</span>
+                            <span class="tape-item item-buy">MNGO/USDC $75k 🟢</span>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="left-column">
                     <section class="glass-panel" id="inventory-panel">

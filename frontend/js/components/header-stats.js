@@ -17,6 +17,10 @@ export class HeaderStats {
         this.modeDisplay = document.getElementById('global-mode-display');
         this.modeToggle = document.getElementById('global-mode-toggle');
 
+        // Market Pulse Components
+        this.pulseSolBtc = document.getElementById('pulse-sol-btc');
+        this.pulseJito = document.getElementById('pulse-jito');
+
         this.onModeToggle = null;
 
         this.bindEvents();
@@ -61,6 +65,26 @@ export class HeaderStats {
         }
         if (this.walletSol && data.sol_balance !== undefined) {
             this.walletSol.textContent = data.sol_balance.toFixed(4);
+        }
+    }
+
+    /**
+     * Update Market Pulse context
+     */
+    updateContext(data) {
+        if (this.pulseSolBtc && data.sol_btc_strength) {
+            this.pulseSolBtc.textContent = data.sol_btc_strength.toFixed(4);
+        }
+
+        if (this.pulseJito && data.jito_tip !== undefined) {
+            const tip = data.jito_tip || 0;
+            this.pulseJito.textContent = tip < 0.001 ? `${(tip * 1000000).toFixed(0)}µ` : `${tip.toFixed(4)}`;
+        }
+
+        if (data.rpc_latencies && data.rpc_latencies['Mainnet'] && this.statsLatency) {
+            const ms = data.rpc_latencies['Mainnet'];
+            this.statsLatency.textContent = `${ms}ms`;
+            this.statsLatency.style.color = ms > 500 ? 'var(--neon-red)' : 'var(--neon-green)';
         }
     }
 

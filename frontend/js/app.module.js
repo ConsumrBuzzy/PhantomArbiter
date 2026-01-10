@@ -18,6 +18,7 @@ import { EngineCard } from './components/engine-card.js';
 import { MarketData } from './components/market-data.js';
 import { TokenWatchlist } from './components/token-watchlist.js';
 import { ArbScanner, FundingMonitor, ScalpPods } from './components/market-component.js';
+import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 
@@ -28,6 +29,7 @@ class TradingOS {
         this.marketData = new MarketData();
         this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
         this.headerStats = new HeaderStats();
+        this.whaleTape = new WhaleTape('whale-tape-content');
         this.modal = new ModalManager();
 
         // Engine cards
@@ -131,6 +133,10 @@ class TradingOS {
             case 'SYSTEM_STATS':
                 this.headerStats.update(data);
                 if (data.engines) this.updateEngineStates(data.engines);
+                break;
+
+            case 'CONTEXT_UPDATE':
+                this.headerStats.updateContext(data);
                 break;
 
             case 'ENGINE_STATUS':

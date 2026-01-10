@@ -95,9 +95,28 @@ async def main():
     
     watchlist_feed.set_callback(on_watchlist_update)
     watchlist_feed.start()
+
+    # 5. Market Context - Environment Data
+    from src.drivers.context_driver import ContextDriver, MarketContext
+    context_driver = ContextDriver(interval=15.0)
+
+    async def on_context_update(ctx: MarketContext):
+        """Broadcast context updates."""
+        await dashboard.broadcast({
+            "type": "CONTEXT_UPDATE",
+            "data": {
+                "sol_btc_strength": ctx.sol_btc_strength,
+                "jito_tip": ctx.jito_tip_floor,
+                "rpc_latencies": ctx.rpc_latencies
+            }
+        })
+    
+    context_driver.set_callback(on_context_update)
+    context_driver.start()
     
     Logger.info("📈 Live price feed connected (Pyth WebSocket)")
     Logger.info("🎯 Token watchlist tracking 10 meme/AI tokens")
+    Logger.info("🌍 Market Context Driver active (SOL/BTC, Jito)")
     Logger.info("🔌 WebSocket server starting on ws://localhost:8765")
     Logger.info("")
     Logger.info("="*50)
@@ -112,6 +131,7 @@ async def main():
     finally:
         price_feed.stop()
         watchlist_feed.stop()
+        context_driver.stop()
 
 
 if __name__ == "__main__":
