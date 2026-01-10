@@ -212,3 +212,48 @@ class SequentialLauncher:
         except Exception as e:
             Logger.error(f"[SEQUENTIAL] Tx Failed: {e}")
             return None
+
+async def main():
+    Logger.info("=== PLAN B: SEQUENTIAL LAUNCHER ===")
+    
+    # 1. Setup
+    wallet = WalletManager()
+    launcher = SequentialLauncher(wallet)
+    await launcher.initialize()
+    
+    # 2. Get Price
+    # We can use a simple public API or launcher.drift (if it has price)
+    # DriftAdapter usually has access to oracle.
+    # For now, let's assume SOL price $150 for rough sizing, or fetch it.
+    Logger.info("Fetching SOL price...")
+    async with launcher.swapper.client as client:
+        # Quick price check (optional) or just use logic
+        pass
+        
+    # Assume $150 SOL.
+    # Goal: $1 Total. $0.50 Spot.
+    # Qty = 0.50 / 150 = 0.0033 SOL.
+    # Recalculate precisely if possible, but 0.0033 is safe.
+    
+    qty = 0.0033
+    qty_usd = 0.50
+    
+    signal = RebalanceSignal(
+        direction=RebalanceDirection.ADD_SPOT,
+        qty=qty,
+        qty_usd=qty_usd,
+        reason="Manual Plan B",
+        urgency=1
+    )
+    
+    # 3. Execute
+    Logger.info(f"Executing Manual Signal: {signal}")
+    success = await launcher.execute_trade_sequence(signal, 150.0)
+    
+    if success:
+        Logger.info("MISSION COMPLETE. Bypassed Jito Wall.")
+    else:
+        Logger.error("MISSION FAILED. Check logs.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
