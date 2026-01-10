@@ -57,7 +57,7 @@ MARKET_INDICES = {
 
 # Oracle pubkeys for price feeds
 ORACLES = {
-    "SOL-PERP": Pubkey.from_string("H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG"),
+    "SOL-PERP": Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz"),
     "BTC-PERP": Pubkey.from_string("GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU"),
     "ETH-PERP": Pubkey.from_string("JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB"),
 }
