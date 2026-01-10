@@ -83,7 +83,7 @@ async def simulate_drift_trade():
     except Exception as e:
         Logger.error(f"Error during simulation: {str(e)}")
         import traceback
-        Logger.debug(traceback.format_exc())
+        Logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     asyncio.run(simulate_drift_trade())
