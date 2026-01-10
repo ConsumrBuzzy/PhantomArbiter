@@ -19,7 +19,7 @@ async def simulate_drift_trade():
     Logger.section("DRIFT ORDER SIMULATION (Attempt #27)")
     
     # 1. Setup Environment
-    rpc_url = os.getenv("HELIUS_RPC_URL") or os.getenv("SOLANA_RPC_URL") or "https://api.mainnet-beta.solana.com"
+    rpc_url = "https://api.mainnet-beta.solana.com"
     private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
     
     if not private_key:
