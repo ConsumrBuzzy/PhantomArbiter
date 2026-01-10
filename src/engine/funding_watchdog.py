@@ -208,7 +208,9 @@ class FundingWatchdog:
         from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
         from solders.transaction import VersionedTransaction
         from solders.message import MessageV0
+        from solders.keypair import Keypair
         from solana.rpc.types import TxOpts
+        from solana.rpc.commitment import Confirmed
         from src.shared.execution.swapper import JupiterSwapper
         from src.shared.execution.wallet import WalletManager
         
