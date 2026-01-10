@@ -165,42 +165,50 @@ class SequentialLauncher:
         
         async with AsyncClient(Settings.RPC_URL) as client:
             try:
-                # 1. Blockhash
-                bh = (await client.get_latest_blockhash()).value.blockhash
-                
-                # 2. Message
-                msg = MessageV0.try_compile(
-                    payer=Pubkey.from_string(self.wallet.get_public_key()),
-                    instructions=instructions,
-                    address_lookup_table_accounts=[],
-                    recent_blockhash=bh
-                )
-                
-                # 3. Sign
-                tx = VersionedTransaction(msg, [self.wallet.keypair])
-                
-                if simulate:
-                    Logger.info("[SEQUENTIAL] Simulating transaction...")
-                    # Sim config: sig_verify=True to be sure
-                     # Force encoding fix
-                    resp = await client.simulate_transaction(tx)
+                # 1. Blockhash & Simulation Loop (Handles 6022/Stale Clock)
+                for attempt in range(3):
+                    bh = (await client.get_latest_blockhash()).value.blockhash
                     
-                    if resp.value.err:
-                        Logger.error(f"[SIMULATION] Error: {resp.value.err}")
-                        # Dump to file for debugging
-                        with open("error.log", "w") as f:
-                             f.write(f"Error: {resp.value.err}\n")
-                             if resp.value.logs:
-                                 f.write("Logs:\n")
-                                 for log in resp.value.logs:
-                                     f.write(f"{log}\n")
-                                     Logger.error(f"  > {log}")
-                        return None
-                    else:
-                        Logger.info(f"[SIMULATION] ✅ Success! Units: {resp.value.units_consumed}")
-                        if resp.value.logs:
-                            Logger.debug(f"[SIMULATION] Logs: {resp.value.logs}")
-                        return "SIMULATED_SIG"
+                    # 2. Message
+                    msg = MessageV0.try_compile(
+                        payer=Pubkey.from_string(self.wallet.get_public_key()),
+                        instructions=instructions,
+                        address_lookup_table_accounts=[],
+                        recent_blockhash=bh
+                    )
+                    
+                    # 3. Sign
+                    tx = VersionedTransaction(msg, [self.wallet.keypair])
+                    
+                    if simulate:
+                        Logger.info(f"[SEQUENTIAL] Simulating transaction (Attempt {attempt+1})...")
+                        resp = await client.simulate_transaction(tx)
+                        
+                        if resp.value.err:
+                            err_str = str(resp.value.err)
+                            if "6022" in err_str or "0x1786" in err_str:
+                                Logger.warning(f"[SEQUENTIAL] Clock desync detected (0x1786). Retrying with fresh blockhash...")
+                                await asyncio.sleep(0.5)
+                                continue
+                                
+                            Logger.error(f"[SIMULATION] Error: {resp.value.err}")
+                            # Dump to file for debugging
+                            with open("error.log", "w") as f:
+                                 f.write(f"Error: {resp.value.err}\n")
+                                 if resp.value.logs:
+                                     f.write("Logs:\n")
+                                     for log in resp.value.logs:
+                                         f.write(f"{log}\n")
+                                         Logger.error(f"  > {log}")
+                            return None
+                        else:
+                            Logger.info(f"[SIMULATION] ✅ Success! Units: {resp.value.units_consumed}")
+                            if resp.value.logs:
+                                Logger.debug(f"[SIMULATION] Logs: {resp.value.logs}")
+                            return "SIMULATED_SIG"
+                    
+                    # If not simulation, break loop and proceed to send
+                    break
 
                 # 4. Send
                 Logger.info("[SEQUENTIAL] Sending transaction...")
