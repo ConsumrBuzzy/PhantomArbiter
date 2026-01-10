@@ -262,8 +262,8 @@ async def main():
     
     # 3. Execute
     Logger.info(f"Executing Manual Signal: {signal}")
-    # SIMULATION MODE ENABLED BY DEFAULT FOR TESTING
-    success = await launcher.execute_trade_sequence(signal, 150.0, simulate=True)
+    # 🚀 LIVE MODE - Phase 2 Mainnet Trial
+    success = await launcher.execute_trade_sequence(signal, 150.0, simulate=False)
     
     if success:
         Logger.info("MISSION COMPLETE. Bypassed Jito Wall.")

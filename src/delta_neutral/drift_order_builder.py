@@ -56,13 +56,12 @@ MARKET_INDICES = {
     "BNB-PERP": 8,
 }
 
-# Oracle pubkeys for price feeds (Mainnet Pyth Lazer/Pull)
-# CRITICAL: Use canonical oracles from Drift's PerpMarket accounts (offset 48)
+# Oracle pubkeys for price feeds (from on-chain PerpMarket/SpotMarket offset 40)
 ORACLES = {
-    "SOL-PERP": Pubkey.from_string("ESaMMQw8gLhKZQCxXFjaJeozd3Sgt6HAJLNGJrpexjJw"),  # On-chain canonical
+    "SOL-PERP": Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz"),  # On-chain canonical
     "BTC-PERP": Pubkey.from_string("35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R"),
     "ETH-PERP": Pubkey.from_string("93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR"),
-    "USDC-SPOT": Pubkey.from_string("4n42n2oZAPrTyiYXhGYhUzRDoZnwmf6Q7gASDoqcLWsj"),  # On-chain canonical
+    "USDC-SPOT": Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV"),  # On-chain canonical
 }
 
 
@@ -478,17 +477,16 @@ class DriftOrderBuilder:
         """
         Builds the account list for place_perp_order.
         
-        Account sequence per Drift SDK:
+        Account sequence per Drift SDK (getRemainingAccounts):
         Named accounts (3):
           1. state (read)
           2. user (write) 
           3. authority (signer)
         
-        Remaining accounts (4):
-          4. perp_market (write)
-          5. perp_oracle (read)
-          6. quote_spot_market - USDC index 0 (read)
-          7. quote_spot_oracle (read)
+        Remaining accounts ORDER (critical!):
+          1. oracles first (perp oracle, quote oracle)
+          2. spot markets second (quote spot market)
+          3. perp markets third (perp market)
         """
         # Derive PDAs
         state_pda, _ = Pubkey.find_program_address(
@@ -513,11 +511,14 @@ class DriftOrderBuilder:
             AccountMeta(self.user_account, is_signer=False, is_writable=True),
             AccountMeta(self.wallet, is_signer=True, is_writable=False),
             
-            # Remaining Accounts (perp market, perp oracle, quote spot market, quote oracle)
-            AccountMeta(perp_market_pda, is_signer=False, is_writable=True),
+            # Remaining Accounts - ORDER MATTERS! (oracles, spot markets, perp markets)
+            # 1. Oracles first
             AccountMeta(perp_oracle, is_signer=False, is_writable=False),
-            AccountMeta(quote_spot_market_pda, is_signer=False, is_writable=False),
             AccountMeta(quote_oracle, is_signer=False, is_writable=False),
+            # 2. Spot markets second
+            AccountMeta(quote_spot_market_pda, is_signer=False, is_writable=False),
+            # 3. Perp markets third
+            AccountMeta(perp_market_pda, is_signer=False, is_writable=True),
         ]
     
     # =========================================================================

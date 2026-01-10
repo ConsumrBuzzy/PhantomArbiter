@@ -21,9 +21,14 @@ async function main() {
 
     const perpInfo = await conn.getAccountInfo(perpMarketPDA);
     if (perpInfo) {
-        // Oracle is at offset 48 in PerpMarket
-        const oracleBytes = perpInfo.data.slice(48, 80);
-        console.log('Oracle:', new PublicKey(oracleBytes).toBase58());
+        // PerpMarket struct layout:
+        // - 8 bytes: Anchor discriminator
+        // - 32 bytes: pubkey (self reference)
+        // - AMM struct starts at offset 40
+        //   - First field of AMM is oracle (32 bytes)
+        // So oracle is at offset 40
+        const oracleBytes = perpInfo.data.slice(40, 72);
+        console.log('Oracle (offset 40):', new PublicKey(oracleBytes).toBase58());
     }
 
     console.log('\n=== SPOT MARKET (USDC index 0) ===');
@@ -31,12 +36,15 @@ async function main() {
 
     const spotInfo = await conn.getAccountInfo(spotMarketPDA);
     if (spotInfo) {
-        // Oracle is at offset 48 in SpotMarket
-        const oracleBytes = spotInfo.data.slice(48, 80);
-        console.log('Oracle:', new PublicKey(oracleBytes).toBase58());
+        // SpotMarket struct layout:
+        // - 8 bytes: Anchor discriminator
+        // - 32 bytes: pubkey (self reference)
+        // - oracle is next field (at offset 40)
+        const oracleBytes = spotInfo.data.slice(40, 72);
+        console.log('Oracle (offset 40):', new PublicKey(oracleBytes).toBase58());
     }
 
-    // Also derive Drift State
+    // Drift State
     const [statePDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('drift_state')],
         DRIFT
