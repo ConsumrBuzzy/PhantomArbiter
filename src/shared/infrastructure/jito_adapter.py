@@ -139,11 +139,16 @@ class JitoAdapter:
         return random.choice(accounts) if accounts else None
 
     async def is_available(self) -> bool:
-        """Async availability check."""
-        accounts = await self.get_tip_accounts()
-        if not accounts:
-            Logger.debug("[JITO] is_available() -> False (No tip accounts)")
-        return len(accounts) > 0
+        """Async availability check with retries."""
+        for attempt in range(3):
+            accounts = await self.get_tip_accounts()
+            if accounts:
+                return True
+            Logger.debug(f"[JITO] is_available attempt {attempt+1}/3 failed. Waiting 2s...")
+            await asyncio.sleep(2.0)
+            
+        Logger.debug("[JITO] is_available() -> False (No tip accounts)")
+        return False
 
     async def submit_bundle(
         self, serialized_transactions: List[str], simulate: bool = True, rpc: Any = None
