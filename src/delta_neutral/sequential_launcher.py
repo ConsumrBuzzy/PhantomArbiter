@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import time
 from typing import Optional, List
 
@@ -8,13 +7,12 @@ from solders.transaction import VersionedTransaction
 from solders.message import MessageV0
 from solders.instruction import Instruction
 from solana.rpc.commitment import Confirmed
+from solana.rpc.async_api import AsyncClient
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.execution.wallet import WalletManager
-from src.shared.execution.wallet import WalletManager
 from src.shared.execution.swapper import JupiterSwapper
-# from src.leverage.drift_adapter import DriftAdapter  <-- Broken Import
 from src.delta_neutral.types import RebalanceSignal, RebalanceDirection
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder
 
@@ -29,7 +27,7 @@ class SequentialLauncher:
     def __init__(self, wallet_manager: WalletManager):
         self.wallet = wallet_manager
         self.swapper = JupiterSwapper(wallet_manager)
-        # self.drift = DriftAdapter(wallet_manager)
+        # self.drift = DriftAdapter(wallet_manager) # Bypass faulty import
         
     async def initialize(self):
         Logger.info("[SEQUENTIAL] Initializing Legacy Mode...")
@@ -90,8 +88,6 @@ class SequentialLauncher:
     async def _execute_spot_leg(self, signal: RebalanceSignal, spot_price: float) -> bool:
         try:
             # 1. Build Jupiter Instructions
-            # Need to convert signal to 'input/output' mint
-            # Assuming ADD_SPOT (Buy SOL)
             SOL_MINT = "So11111111111111111111111111111111111111112"
             USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
             
@@ -101,7 +97,7 @@ class SequentialLauncher:
                 # Amount in USDC atomic units
                 amount = int(signal.qty_usd * 1_000_000) 
             else:
-                return False # Not handling other directions for $1 trial yet
+                return False 
                 
             quote = await self.swapper.get_quote(input_mint, output_mint, amount)
             if not quote:
@@ -111,11 +107,7 @@ class SequentialLauncher:
             if not ixs:
                 return False
                 
-            # 2. Add Priority Fees (Compute Budget) manually?
-            # Jupiter usually adds them if requested, or we add compute budget ix.
-            # strict_params in quote?
-            
-            # 3. Send
+            # Send
             sig = await self._compile_and_send(ixs)
             return sig is not None
             
@@ -163,8 +155,6 @@ class SequentialLauncher:
         except Exception as e:
             Logger.error(f"[SEQUENTIAL] Rollback error: {e}")
             return False
-
-from solana.rpc.async_api import AsyncClient
 
     async def _compile_and_send(self, instructions: List[Instruction]) -> Optional[str]:
         """Helper to compile MessageV0, Sign, and Send via RPC."""
@@ -217,6 +207,7 @@ async def main():
     async with AsyncClient(Settings.RPC_URL) as client:
         # Just use dummy read to ensure connection
         await client.get_health()
+        Logger.info("RPC Connection: OK")
         
     # Assume $150 SOL.
     qty = 0.0033
