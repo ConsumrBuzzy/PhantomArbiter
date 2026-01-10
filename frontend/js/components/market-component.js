@@ -161,3 +161,57 @@ export class ScalpPods extends MarketComponent {
         `;
     }
 }
+
+/**
+ * LST Monitor View
+ * Displays LST/SOL pegs and alerts on discounts.
+ */
+export class LstMonitor extends MarketComponent {
+    render() {
+        this.container.innerHTML = `
+            <div class="market-view lst-view">
+                <div class="view-header">
+                    <span class="view-title">FAIR VALUE MONITOR</span>
+                    <span class="status-indicator safe" id="lst-global-status">SAFE</span>
+                </div>
+                <div class="lst-grid" id="lst-grid">
+                    <!-- Injected rows -->
+                </div>
+            </div>
+        `;
+        this.grid = this.container.querySelector('#lst-grid');
+        this.status = this.container.querySelector('#lst-global-status');
+
+        // Initial View
+        this.update({
+            "jitoSOL": { price: 1.072, fair: 1.072, diff: 0 },
+            "mSOL": { price: 1.145, fair: 1.145, diff: 0 }
+        });
+    }
+
+    update(data) {
+        if (!this.grid) return;
+        this.grid.innerHTML = '';
+
+        let anyDepeg = false;
+
+        Object.entries(data).forEach(([token, stats]) => {
+            const isDepeg = stats.diff <= -0.005;
+            if (isDepeg) anyDepeg = true;
+
+            const row = document.createElement('div');
+            row.className = `lst-row ${isDepeg ? 'danger' : ''}`;
+            row.innerHTML = `
+                <div class="token-name">${token}</div>
+                <div class="token-price">${stats.price.toFixed(4)}</div>
+                <div class="token-diff ${isDepeg ? 'alert' : ''}">${(stats.diff * 100).toFixed(2)}%</div>
+            `;
+            this.grid.appendChild(row);
+        });
+
+        if (this.status) {
+            this.status.textContent = anyDepeg ? 'DE-PEG ALERT' : 'PEG STABLE';
+            this.status.className = `status-indicator ${anyDepeg ? 'danger' : 'safe'}`;
+        }
+    }
+}
