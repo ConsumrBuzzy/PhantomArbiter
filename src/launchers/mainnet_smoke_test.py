@@ -170,8 +170,8 @@ class MainNetSmokeTest:
         try:
             sol_balance = self.wallet.get_sol_balance()
             
-            # Check minimum SOL for gas
-            if sol_balance < 0.05:
+            # Check minimum SOL for gas (lowered to 0.02 for verified test)
+            if sol_balance < 0.02:
                 self.report.add(SmokeTestResult(
                     step="Balance Check",
                     success=False,

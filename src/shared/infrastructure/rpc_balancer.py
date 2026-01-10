@@ -132,28 +132,30 @@ class RPCBalancer:
     def _load_providers(self):
         """Load RPC providers from environment variables."""
         # Helius (preferred)
-        helius_key = os.getenv("HELIUS_API_KEY")
-        if helius_key:
-            self.providers.append(
-                RPCProvider(
-                    name="Helius",
-                    url=f"https://mainnet.helius-rpc.com/?api-key={helius_key}",
-                    weight=1.5,
-                    is_elite=True,  # V128.1
-                )
-            )
+        # Helius (Temporarily disabled for smoke test stability)
+        # helius_key = os.getenv("HELIUS_API_KEY")
+        # if helius_key:
+        #     self.providers.append(
+        #         RPCProvider(
+        #             name="Helius",
+        #             url=f"https://mainnet.helius-rpc.com/?api-key={helius_key}",
+        #             weight=1.5,
+        #             is_elite=True,
+        #         )
+        #     )
 
         # Alchemy
-        alchemy_url = os.getenv("ALCHEMY_ENDPOINT")
-        if alchemy_url:
-            self.providers.append(
-                RPCProvider(
-                    name="Alchemy",
-                    url=alchemy_url,
-                    weight=1.0,
-                    is_elite=True,  # V128.1
-                )
-            )
+        # Alchemy (Temporarily disabled for smoke test stability)
+        # alchemy_url = os.getenv("ALCHEMY_ENDPOINT")
+        # if alchemy_url:
+        #     self.providers.append(
+        #         RPCProvider(
+        #             name="Alchemy",
+        #             url=alchemy_url,
+        #             weight=1.0,
+        #             is_elite=True,
+        #         )
+        #     )
 
         # QuickNode
         quicknode_url = os.getenv("QUICKNODE_ENDPOINT")

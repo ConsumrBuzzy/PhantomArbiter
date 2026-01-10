@@ -9,8 +9,8 @@ for backwards compatibility with existing code that imports from here.
 The real implementation is in src/infrastructure/drift_adapter.py
 """
 
-# Re-export from the full implementation
-from src.infrastructure.drift_adapter import DriftAdapter, DriftPosition
+# Re-export from the full implementation (in src/leverage)
+from src.leverage.drift_adapter import DriftAdapter, DriftPosition
 
 # Data classes for compatibility
 from dataclasses import dataclass

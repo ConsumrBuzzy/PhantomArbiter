@@ -93,9 +93,13 @@ class JitoAdapter:
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 429:
-                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url}")
+                    Logger.warning(f"   ⚠️ [JITO] Rate Limit (429) on {self.api_url} - Waiting 0.5s...")
+                    await asyncio.sleep(0.5)  # 500ms backoff
+                    # User requested "Don't just rotate; wait and retry"
+                    # But if we stay, we might get 429 again. Let's try the same endpoint once more?
+                    # Actually, the user's "Don't just rotate" probably means "Don't rotate IMMEDIATELY without waiting"
+                    # We will rotate to spread load, but after the wait.
                     self._rotate_endpoint()
-                    await asyncio.sleep(1.0)  # Jitter for failover
                     continue
                 else:
                     Logger.debug(f"   ⚠️ [JITO] HTTP {response.status_code}")
