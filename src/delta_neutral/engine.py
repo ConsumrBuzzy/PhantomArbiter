@@ -311,7 +311,16 @@ class DeltaNeutralEngine:
         else:
             # Live mode: Use SyncExecution with retries
             for attempt in range(5):
-                bundle = await self.sync_executor.execute_sync_trade(signal, sol_price)
+                # Dynamic Tip Bumping (Bribe Strategy)
+                # Base 50k + 25k per retry -> Max 150k
+                current_tip = 50_000 + (attempt * 25_000)
+                Logger.info(f"[DNEM] Attempt {attempt+1}/5 with Tip: {current_tip} lamports")
+                
+                bundle = await self.sync_executor.execute_sync_trade(
+                    signal, 
+                    sol_price,
+                    tip_lamports=current_tip
+                )
                 
                 if bundle.status == "CONFIRMED":
                     self._position_open = True
