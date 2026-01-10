@@ -398,6 +398,8 @@ class DriftOrderBuilder:
             AccountMeta(self.state, is_signer=False, is_writable=False),
             # User account (write)
             AccountMeta(self.user_account, is_signer=False, is_writable=True),
+            # User Stats (write)
+            AccountMeta(self.user_stats, is_signer=False, is_writable=True),
             # Authority/Signer (signer + write)
             AccountMeta(self.wallet, is_signer=True, is_writable=True),
             # Perp market (write)
