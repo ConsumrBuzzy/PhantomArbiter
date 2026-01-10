@@ -4,6 +4,8 @@ from solders.transaction import VersionedTransaction
 from solana.rpc.api import Client
 from solana.rpc.types import TxOpts
 from solana.rpc.commitment import Confirmed
+from solders.instruction import Instruction, AccountMeta
+from solders.pubkey import Pubkey
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
