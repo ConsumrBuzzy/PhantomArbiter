@@ -109,7 +109,7 @@ class SequentialLauncher:
                 return False
                 
             # Send
-            sig = await self._compile_and_send(ixs)
+            sig = await self._compile_and_send(ixs, simulate)
             return sig is not None
             
         except Exception as e:
@@ -125,7 +125,7 @@ class SequentialLauncher:
             # Assuming ADD_SPOT -> ADD_SHORT
             ixs = builder.build_short_order(market, signal.qty)
             
-            sig = await self._compile_and_send(ixs)
+            sig = await self._compile_and_send(ixs, simulate)
             return sig is not None
             
         except Exception as e:
