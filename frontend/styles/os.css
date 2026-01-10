@@ -113,13 +113,27 @@ body.os-mode .main-content {
 }
 
 @keyframes sos-idle {
-    0%, 100% { opacity: 0.9; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.9;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 @keyframes sos-pulse {
-    0%, 100% { box-shadow: 0 0 10px rgba(255, 68, 68, 0.6); }
-    50% { box-shadow: 0 0 25px rgba(255, 68, 68, 0.9); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(255, 68, 68, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(255, 68, 68, 0.9);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -201,16 +215,16 @@ body.os-mode .main-content {
     background: #666;
 }
 
-.engine-card[data-status="stopped"] .status-dot { 
-    background: #666; 
+.engine-card[data-status="stopped"] .status-dot {
+    background: #666;
 }
 
-.engine-card[data-status="starting"] .status-dot { 
+.engine-card[data-status="starting"] .status-dot {
     background: var(--neon-blue);
     animation: status-pulse 1s infinite;
 }
 
-.engine-card[data-status="running"] .status-dot { 
+.engine-card[data-status="running"] .status-dot {
     background: var(--neon-green);
     box-shadow: 0 0 8px var(--neon-green);
 }
@@ -220,14 +234,23 @@ body.os-mode .main-content {
     animation: status-pulse 0.5s infinite;
 }
 
-.engine-card[data-status="error"] .status-dot { 
+.engine-card[data-status="error"] .status-dot {
     background: var(--neon-red);
     box-shadow: 0 0 8px var(--neon-red);
 }
 
 @keyframes status-pulse {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.2); }
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
 }
 
 /* Power Toggle */
@@ -478,14 +501,188 @@ body.os-mode .main-content {
         width: 50px;
         min-width: 50px;
     }
-    
+
     .nav-item {
         width: 36px;
         height: 36px;
         font-size: 1rem;
     }
-    
+
     .engine-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCANNER VIEW STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.scanner-sources {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.source-card {
+    min-height: 200px;
+}
+
+.source-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.source-stats .stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.source-stats .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.source-signals {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.signal-placeholder {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Opportunities Heatmap */
+.opportunities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.opportunity-card {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    padding: 12px;
+    border-left: 3px solid var(--neon-green);
+    transition: all 0.2s ease;
+}
+
+.opportunity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.opportunity-card.urgency-3 {
+    border-left-color: var(--neon-red);
+    animation: opp-pulse 1s infinite;
+}
+
+.opportunity-card.urgency-2 {
+    border-left-color: var(--neon-gold);
+}
+
+.opportunity-card.urgency-1 {
+    border-left-color: var(--neon-blue);
+}
+
+@keyframes opp-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(255, 68, 68, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(255, 68, 68, 0.6);
+    }
+}
+
+.opp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.opp-symbol {
+    font-weight: bold;
+    font-size: 0.95rem;
+}
+
+.opp-source {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    text-transform: uppercase;
+}
+
+.opp-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--neon-green);
+}
+
+.opp-value.negative {
+    color: var(--neon-red);
+}
+
+.opp-meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 5px;
+}
+
+/* Signal Item */
+.signal-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.signal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.signal-symbol {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.signal-reason {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.signal-value {
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.signal-value.positive {
+    color: var(--neon-green);
+}
+
+.signal-value.negative {
+    color: var(--neon-red);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .scanner-sources {
         grid-template-columns: 1fr;
     }
 }

@@ -192,10 +192,16 @@ class DashboardApp {
 
             case 'ARB_OPP':
                 this.updateIntelTable('ARB', data);
+                this.addToScanner('arb', data);
                 break;
 
             case 'SCALP_SIGNAL':
                 this.updateIntelTable('SCALP', data);
+                this.addToScanner('scalp', data);
+                break;
+
+            case 'SCANNER_UPDATE':
+                this.updateScanner(data);
                 break;
 
             case 'INVENTORY_UPDATE':
@@ -608,6 +614,242 @@ class DashboardApp {
         if (this.logStream.children.length > this.maxLogs) {
             this.logStream.removeChild(this.logStream.lastChild);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCANNER VIEW METHODS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Update scanner view with aggregated data
+     */
+    updateScanner(data) {
+        const statusEl = document.getElementById('scanner-status');
+        if (statusEl) {
+            const activeCount = data.total_active || 0;
+            statusEl.textContent = `${activeCount} active signals`;
+        }
+
+        // Update critical alerts
+        this.updateCriticalAlerts(data.critical_alerts || []);
+
+        // Update opportunity heatmap
+        this.updateOpportunitiesHeatmap(data.top_opportunities || []);
+
+        // Update source breakdown
+        if (data.by_source) {
+            this.updateSourceCard('arb', data.by_source.arb);
+            this.updateSourceCard('funding', data.by_source.funding);
+            this.updateSourceCard('scalp', data.by_source.scalp);
+        }
+    }
+
+    /**
+     * Add individual signal to scanner (real-time)
+     */
+    addToScanner(source, data) {
+        // Convert to scanner format and add to display
+        const signal = this.convertToScannerSignal(source, data);
+        if (!signal) return;
+
+        // Add to opportunities heatmap if significant
+        if (signal.urgency >= 1) {
+            const heatmap = document.getElementById('opportunities-heatmap');
+            if (heatmap) {
+                // Remove placeholder
+                const placeholder = heatmap.querySelector('.opportunity-placeholder');
+                if (placeholder) placeholder.remove();
+
+                // Add new card at start
+                const card = this.renderOpportunityCard(signal);
+                heatmap.insertAdjacentHTML('afterbegin', card);
+
+                // Limit to 10 cards
+                while (heatmap.children.length > 10) {
+                    heatmap.removeChild(heatmap.lastChild);
+                }
+            }
+        }
+
+        // Update source card
+        this.addSignalToSource(source, signal);
+    }
+
+    /**
+     * Convert raw signal data to scanner format
+     */
+    convertToScannerSignal(source, data) {
+        if (source === 'arb') {
+            const profitPct = data.profit_pct || 0;
+            return {
+                symbol: data.token || '???',
+                source: 'arb',
+                value: profitPct,
+                valueDisplay: `+${profitPct.toFixed(2)}%`,
+                urgency: profitPct > 2 ? 3 : profitPct > 1 ? 2 : profitPct > 0.5 ? 1 : 0,
+                reason: data.route || '',
+                timestamp: Date.now()
+            };
+        } else if (source === 'scalp') {
+            const confidence = data.confidence || 0;
+            return {
+                symbol: data.token || '???',
+                source: 'scalp',
+                value: confidence * 100,
+                valueDisplay: `${(confidence * 100).toFixed(0)}%`,
+                urgency: confidence > 0.9 ? 2 : confidence > 0.7 ? 1 : 0,
+                reason: data.signal || data.action || '',
+                direction: data.action === 'BUY' ? 'long' : 'short',
+                timestamp: Date.now()
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Update critical alerts banner
+     */
+    updateCriticalAlerts(alerts) {
+        const container = document.getElementById('critical-alerts');
+        const list = document.getElementById('critical-alerts-list');
+
+        if (!container || !list) return;
+
+        if (alerts.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        list.innerHTML = alerts.map(alert => `
+            <div class="signal-item" style="border-left: 2px solid var(--neon-red);">
+                <div class="signal-info">
+                    <span class="signal-symbol">${alert.symbol}</span>
+                    <span class="signal-reason">${alert.reason}</span>
+                </div>
+                <span class="signal-value negative">${this.formatValue(alert.value, alert.source)}</span>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Update opportunities heatmap
+     */
+    updateOpportunitiesHeatmap(opportunities) {
+        const container = document.getElementById('opportunities-heatmap');
+        if (!container) return;
+
+        if (opportunities.length === 0) {
+            container.innerHTML = '<div class="opportunity-placeholder">Scanning for opportunities...</div>';
+            return;
+        }
+
+        container.innerHTML = opportunities.map(opp => this.renderOpportunityCard(opp)).join('');
+    }
+
+    /**
+     * Render single opportunity card
+     */
+    renderOpportunityCard(opp) {
+        const urgencyClass = `urgency-${opp.urgency}`;
+        const valueClass = opp.value < 0 ? 'negative' : '';
+        const sourceColors = {
+            'arb': 'var(--neon-green)',
+            'funding': 'var(--neon-blue)',
+            'scalp': 'var(--neon-gold)'
+        };
+
+        return `
+            <div class="opportunity-card ${urgencyClass}">
+                <div class="opp-header">
+                    <span class="opp-symbol">${opp.symbol}</span>
+                    <span class="opp-source" style="color: ${sourceColors[opp.source] || 'white'}">
+                        ${opp.source}
+                    </span>
+                </div>
+                <div class="opp-value ${valueClass}">
+                    ${opp.valueDisplay || this.formatValue(opp.value, opp.source)}
+                </div>
+                <div class="opp-meta">${opp.reason || ''}</div>
+            </div>
+        `;
+    }
+
+    /**
+     * Update source breakdown card
+     */
+    updateSourceCard(source, data) {
+        if (!data) return;
+
+        const countEl = document.getElementById(`${source}-count`);
+        const signalsEl = document.getElementById(`${source}-signals`);
+
+        if (countEl) {
+            countEl.textContent = data.count || 0;
+        }
+
+        if (signalsEl && data.signals) {
+            if (data.signals.length === 0) {
+                signalsEl.innerHTML = `<div class="signal-placeholder">No ${source} signals</div>`;
+            } else {
+                signalsEl.innerHTML = data.signals.map(s => this.renderSignalItem(s)).join('');
+            }
+        }
+    }
+
+    /**
+     * Add signal to source card (real-time)
+     */
+    addSignalToSource(source, signal) {
+        const signalsEl = document.getElementById(`${source}-signals`);
+        const countEl = document.getElementById(`${source}-count`);
+
+        if (!signalsEl) return;
+
+        // Remove placeholder
+        const placeholder = signalsEl.querySelector('.signal-placeholder');
+        if (placeholder) placeholder.remove();
+
+        // Add new signal
+        signalsEl.insertAdjacentHTML('afterbegin', this.renderSignalItem(signal));
+
+        // Limit to 5 signals
+        while (signalsEl.children.length > 5) {
+            signalsEl.removeChild(signalsEl.lastChild);
+        }
+
+        // Update count
+        if (countEl) {
+            countEl.textContent = parseInt(countEl.textContent || 0) + 1;
+        }
+    }
+
+    /**
+     * Render signal item for source card
+     */
+    renderSignalItem(signal) {
+        const valueClass = signal.value < 0 ? 'negative' : 'positive';
+        return `
+            <div class="signal-item">
+                <div class="signal-info">
+                    <span class="signal-symbol">${signal.symbol}</span>
+                    <span class="signal-reason">${signal.reason || ''}</span>
+                </div>
+                <span class="signal-value ${valueClass}">
+                    ${signal.valueDisplay || this.formatValue(signal.value, signal.source)}
+                </span>
+            </div>
+        `;
+    }
+
+    /**
+     * Format value based on source type
+     */
+    formatValue(value, source) {
+        if (source === 'arb') return `+${value.toFixed(2)}%`;
+        if (source === 'funding') return `${(value).toFixed(3)}%`;
+        if (source === 'scalp') return `${value.toFixed(0)}%`;
+        return `${value}`;
     }
 }
 

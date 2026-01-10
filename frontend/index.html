@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PHANTOM ARBITER | Trading OS</title>
     <link rel="stylesheet" href="styles/dashboard.css">
     <link rel="stylesheet" href="styles/os.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap"
+        rel="stylesheet">
 </head>
+
 <body class="os-mode">
     <!-- ═══════════════════════════════════════════════════════════════
          SIDEBAR NAVIGATION
          ═══════════════════════════════════════════════════════════════ -->
     <nav class="sidebar">
         <div class="nav-item active" data-view="dashboard" data-tooltip="Dashboard">🏠</div>
+        <div class="nav-item" data-view="scanner" data-tooltip="Scanner">📡</div>
         <div class="nav-item" data-view="engines" data-tooltip="Engines">⚡</div>
         <div class="nav-item" data-view="config" data-tooltip="Settings">⚙️</div>
         <div class="sos-button" id="sos-btn" title="EMERGENCY STOP">🆘</div>
@@ -23,13 +27,14 @@
          MAIN CONTENT AREA
          ═══════════════════════════════════════════════════════════════ -->
     <div class="main-content">
-        
+
         <!-- DASHBOARD VIEW (Default) -->
         <div id="view-dashboard" class="view-panel active">
             <div class="dashboard-container">
                 <header class="glass-panel">
                     <div class="logo">
-                        <span style="color: var(--neon-green); font-weight: bold; font-size: 1.2rem;">🏛️ PHANTOM ARBITER</span>
+                        <span style="color: var(--neon-green); font-weight: bold; font-size: 1.2rem;">🏛️ PHANTOM
+                            ARBITER</span>
                         <span style="margin-left: 10px; color: var(--text-dim); font-size: 0.8rem;">OS V21.0</span>
                     </div>
                     <div class="system-status">
@@ -64,14 +69,18 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td colspan="3" style="text-align: center; color: var(--text-dim);">Waiting for data...</td></tr>
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: var(--text-dim);">Waiting for
+                                        data...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </section>
                     <section class="glass-panel" id="pnl-panel">
                         <div class="panel-title">PnL Analytics</div>
                         <div id="chart-pnl" style="height: 100%; width: 100%;">
-                            <div style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-dim);">
+                            <div
+                                style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-dim);">
                                 Visualizing Market Coverage...
                             </div>
                         </div>
@@ -92,7 +101,10 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="4" style="text-align: center; color: var(--text-dim);">Listening for signals...</td></tr>
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--text-dim);">Listening
+                                            for signals...</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -125,7 +137,8 @@
                 <div class="engine-card" data-engine="arb" data-status="stopped">
                     <div class="engine-card-header">
                         <div class="engine-card-title">
-                            <div class="engine-icon" style="background: linear-gradient(135deg, #00ffaa 0%, #00cc88 100%);">📊</div>
+                            <div class="engine-icon"
+                                style="background: linear-gradient(135deg, #00ffaa 0%, #00cc88 100%);">📊</div>
                             <div>
                                 <div class="engine-name">Arbitrage Engine</div>
                                 <div class="engine-subtitle">Spatial Arbitrage Scanner</div>
@@ -165,7 +178,8 @@
                 <div class="engine-card" data-engine="funding" data-status="stopped">
                     <div class="engine-card-header">
                         <div class="engine-card-title">
-                            <div class="engine-icon" style="background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);">💰</div>
+                            <div class="engine-icon"
+                                style="background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);">💰</div>
                             <div>
                                 <div class="engine-name">Funding Rate Engine</div>
                                 <div class="engine-subtitle">Delta-Neutral Yield Farming</div>
@@ -205,7 +219,8 @@
                 <div class="engine-card" data-engine="scalp" data-status="stopped">
                     <div class="engine-card-header">
                         <div class="engine-card-title">
-                            <div class="engine-icon" style="background: linear-gradient(135deg, #ffd700 0%, #cc9900 100%);">🎯</div>
+                            <div class="engine-icon"
+                                style="background: linear-gradient(135deg, #ffd700 0%, #cc9900 100%);">🎯</div>
                             <div>
                                 <div class="engine-name">Scalp Sniper Engine</div>
                                 <div class="engine-subtitle">Sentiment-Based Trading</div>
@@ -243,11 +258,79 @@
             </div>
         </div>
 
+        <!-- SCANNER VIEW (Market Opportunities) -->
+        <div id="view-scanner" class="view-panel">
+            <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
+                <div class="logo">
+                    <span style="color: var(--neon-blue); font-weight: bold; font-size: 1.1rem;">📡 MARKET
+                        SCANNER</span>
+                    <span id="scanner-status" style="margin-left: 15px; font-size: 0.8rem; color: var(--text-dim);">
+                        Scanning...
+                    </span>
+                </div>
+            </header>
+
+            <!-- Critical Alerts Banner -->
+            <div id="critical-alerts" class="glass-panel"
+                style="display: none; margin-bottom: 20px; border-left: 3px solid var(--neon-red);">
+                <div class="panel-title" style="color: var(--neon-red);">🚨 Critical Alerts</div>
+                <div id="critical-alerts-list"></div>
+            </div>
+
+            <!-- Top Opportunities Heatmap -->
+            <div class="glass-panel" style="margin-bottom: 20px;">
+                <div class="panel-title">🔥 Top Opportunities</div>
+                <div id="opportunities-heatmap" class="opportunities-grid">
+                    <div class="opportunity-placeholder">Scanning for opportunities...</div>
+                </div>
+            </div>
+
+            <!-- Source Breakdown Cards -->
+            <div class="scanner-sources">
+                <!-- ARB Signals -->
+                <div class="glass-panel source-card" data-source="arb">
+                    <div class="panel-title" style="color: var(--neon-green);">📊 Arbitrage</div>
+                    <div class="source-stats">
+                        <span class="stat-value" id="arb-count">0</span>
+                        <span class="stat-label">signals</span>
+                    </div>
+                    <div class="source-signals" id="arb-signals">
+                        <div class="signal-placeholder">No arb opportunities</div>
+                    </div>
+                </div>
+
+                <!-- FUNDING Signals -->
+                <div class="glass-panel source-card" data-source="funding">
+                    <div class="panel-title" style="color: var(--neon-blue);">💰 Funding Rates</div>
+                    <div class="source-stats">
+                        <span class="stat-value" id="funding-count">0</span>
+                        <span class="stat-label">signals</span>
+                    </div>
+                    <div class="source-signals" id="funding-signals">
+                        <div class="signal-placeholder">No funding alerts</div>
+                    </div>
+                </div>
+
+                <!-- SCALP Signals -->
+                <div class="glass-panel source-card" data-source="scalp">
+                    <div class="panel-title" style="color: var(--neon-gold);">🎯 Scalp Signals</div>
+                    <div class="source-stats">
+                        <span class="stat-value" id="scalp-count">0</span>
+                        <span class="stat-label">signals</span>
+                    </div>
+                    <div class="source-signals" id="scalp-signals">
+                        <div class="signal-placeholder">No scalp signals</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- CONFIG VIEW -->
         <div id="view-config" class="view-panel">
             <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
                 <div class="logo">
-                    <span style="color: var(--neon-gold); font-weight: bold; font-size: 1.1rem;">⚙️ SYSTEM PREFERENCES</span>
+                    <span style="color: var(--neon-gold); font-weight: bold; font-size: 1.1rem;">⚙️ SYSTEM
+                        PREFERENCES</span>
                 </div>
             </header>
             <div class="glass-panel">
@@ -303,4 +386,5 @@
     <!-- Core Logic -->
     <script src="js/app.js"></script>
 </body>
+
 </html>
