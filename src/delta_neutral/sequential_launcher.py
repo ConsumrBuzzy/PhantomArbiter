@@ -12,8 +12,9 @@ from solana.rpc.commitment import Confirmed
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.execution.wallet import WalletManager
+from src.shared.execution.wallet import WalletManager
 from src.shared.execution.swapper import JupiterSwapper
-from src.leverage.drift_adapter import DriftAdapter
+# from src.leverage.drift_adapter import DriftAdapter  <-- Broken Import
 from src.delta_neutral.rebalancing import RebalanceSignal, RebalanceDirection
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder
 
@@ -28,16 +29,11 @@ class SequentialLauncher:
     def __init__(self, wallet_manager: WalletManager):
         self.wallet = wallet_manager
         self.swapper = JupiterSwapper(wallet_manager)
-        self.drift = DriftAdapter(wallet_manager)
-        
-        # Priority Fee (Micro-lamports)
-        # 100,000 micro-lamports = 0.0001 SOL? No.
-        # Compute Budget Unit Price usually.
-        # We'll rely on Jupiter's fee or add instructions manually.
+        # self.drift = DriftAdapter(wallet_manager)
         
     async def initialize(self):
         Logger.info("[SEQUENTIAL] Initializing Legacy Mode...")
-        await self.drift.subscribe()
+        # await self.drift.subscribe()
         Logger.info("[SEQUENTIAL] Ready.")
 
     async def execute_trade_sequence(self, signal: RebalanceSignal, spot_price: float) -> bool:
