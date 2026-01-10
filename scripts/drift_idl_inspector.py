@@ -3,10 +3,15 @@ import os
 from pathlib import Path
 
 def inspect_drift_idl():
-    idl_path = Path("node_modules/@drift-labs/sdk/src/idl/drift.json")
+    idl_path = Path("node_modules/@drift-labs@/sdk/src/idl/drift.json")
     if not idl_path.exists():
-        print(f"IDL not found at {idl_path}")
-        return
+        # Fallback to alternative paths found earlier
+        idl_path = Path("node_modules/@drift-labs/sdk/lib/node/idl/drift.json")
+        if not idl_path.exists():
+            idl_path = Path("node_modules/@drift-labs/sdk/lib/browser/idl/drift.json")
+            if not idl_path.exists():
+                print(f"IDL not found at any known path")
+                return
 
     with open(idl_path, "r") as f:
         idl = json.load(f)
@@ -23,40 +28,9 @@ def inspect_drift_idl():
         return
 
     fields = order_params["type"]["fields"]
-    struct_mapping = {
-        "u8": "B",
-        "u16": "<H",
-        "u32": "<I",
-        "u64": "<Q",
-        "i64": "<q",
-        "bool": "B",
-        "publicKey": "32s",
-        "i32": "<i",
-    }
-    print(f"{'#':<3} | {'Option':<8} | {'Field Name':<25} | {'Type':<20} | {'Struct'}")
-
-    print("-" * 75)
-    for i, field in enumerate(fields):
-        name = field["name"]
-        f_type = field["type"]
-        
-        is_option = False
-        if isinstance(f_type, dict) and "option" in f_type:
-            is_option = True
-            inner_type = f_type["option"]
-        else:
-            inner_type = f_type
-
-        # Handle defined types (Enums)
-        if isinstance(inner_type, dict) and "defined" in inner_type:
-            type_str = f"Enum({inner_type['defined']})"
-            fmt = "B"
-        else:
-            type_str = str(inner_type)
-            fmt = struct_mapping.get(inner_type, "Unknown")
-
-        option_str = "Yes" if is_option else "No"
-        print(f"{i+1:3d} | {option_str:<8} | {name:<25} | {type_str:<20} | {fmt}")
+    
+    print("\n--- Raw OrderParams Fields JSON ---")
+    print(json.dumps(fields, indent=2))
 
     # Also check Enums
     print("\n--- Enum Indices ---")
@@ -67,7 +41,6 @@ def inspect_drift_idl():
             variants = type_def["type"]["variants"]
             for idx, variant in enumerate(variants):
                 print(f"  {idx}: {variant['name']}")
-
 
 if __name__ == "__main__":
     inspect_drift_idl()
