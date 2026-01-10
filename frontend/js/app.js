@@ -219,6 +219,10 @@ class DashboardApp {
                 this.updateScanner(data);
                 break;
 
+            case 'MARKET_DATA':
+                this.updateMarketData(data);
+                break;
+
             case 'INVENTORY_UPDATE':
                 this.updateInventory(data);
                 break;
@@ -252,6 +256,22 @@ class DashboardApp {
         // Update engine states from heartbeat
         if (stats.engines) {
             this.updateEngineStates(stats.engines);
+        }
+    }
+
+    /**
+     * Update market data (live SOL price from Pyth)
+     */
+    updateMarketData(data) {
+        const priceEl = document.getElementById('stats-sol-price');
+        if (priceEl && data.sol_price) {
+            priceEl.textContent = `$${data.sol_price.toFixed(2)}`;
+
+            // Flash green on update
+            priceEl.style.color = 'var(--neon-green)';
+            setTimeout(() => {
+                priceEl.style.color = 'var(--neon-blue)';
+            }, 300);
         }
     }
 

@@ -271,6 +271,11 @@ class DashboardServer:
             *[client.send(message) for client in target_clients],
             return_exceptions=True
         )
+    
+    async def broadcast(self, data: Dict[str, Any]):
+        """Public broadcast method - accepts a dict, serializes to JSON."""
+        message = json.dumps(data)
+        await self._broadcast(message)
 
 
 if __name__ == "__main__":

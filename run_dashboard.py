@@ -2,6 +2,7 @@
 Dashboard Launcher (Minimal)
 ============================
 Launches just the Command Center UI without legacy engine dependencies.
+Includes live market data feed (SOL price from Pyth).
 
 Usage:
     python run_dashboard.py
@@ -22,8 +23,9 @@ load_dotenv()
 
 
 async def main():
-    """Launch the Command Center dashboard."""
+    """Launch the Command Center dashboard with live market data."""
     from src.shared.system.logging import Logger
+    from src.shared.feeds.simple_price_feed import SimplePriceFeed, PriceData
     
     Logger.info("🚀 Starting Phantom Arbiter Command Center...")
     
@@ -42,7 +44,26 @@ async def main():
     from src.interface.dashboard_server import DashboardServer
     dashboard = DashboardServer()
     
-    Logger.info("🔌 WebSocket server starting on ws://localhost:8001")
+    # 3. Price Feed - Streams live SOL price
+    price_feed = SimplePriceFeed()
+    
+    async def on_price_update(price: PriceData):
+        """Broadcast price updates to all connected clients."""
+        await dashboard.broadcast({
+            "type": "MARKET_DATA",
+            "data": {
+                "sol_price": price.price,
+                "change_24h": price.change_24h,
+                "volume_24h": price.volume_24h,
+                "timestamp": price.timestamp
+            }
+        })
+    
+    price_feed.set_callback(on_price_update)
+    price_feed.start()
+    
+    Logger.info("📈 Live price feed connected (Pyth WebSocket)")
+    Logger.info("🔌 WebSocket server starting on ws://localhost:8765")
     Logger.info("")
     Logger.info("="*50)
     Logger.info("🎛️  COMMAND CENTER ONLINE")
@@ -53,6 +74,8 @@ async def main():
         await dashboard.start()
     except KeyboardInterrupt:
         Logger.info("👋 Shutting down...")
+    finally:
+        price_feed.stop()
 
 
 if __name__ == "__main__":

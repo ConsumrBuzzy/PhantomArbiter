@@ -39,6 +39,10 @@
                     </div>
                     <div class="system-status">
                         <div class="status-item">
+                            <span class="status-label">SOL</span>
+                            <span class="status-value" id="stats-sol-price">--</span>
+                        </div>
+                        <div class="status-item">
                             <span class="status-label">ENGINE</span>
                             <span class="status-value pulse" id="engine-mode">CONNECTING...</span>
                         </div>
@@ -395,8 +399,8 @@
         </div>
     </div>
 
-    <!-- Core Logic -->
-    <script src="js/app.js"></script>
+    <!-- Core Logic (ES6 Modules) -->
+    <script type="module" src="js/app.module.js"></script>
 </body>
 
 </html>
