@@ -11,7 +11,7 @@ from solders.transaction import VersionedTransaction
 from solders.message import MessageV0
 import base58
 
-from src.shared.utils.logger import Logger
+from src.shared.system.logging import Logger
 from src.shared.execution.wallet import WalletManager
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
 
