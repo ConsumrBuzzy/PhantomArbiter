@@ -23,6 +23,9 @@ class LatencyMonitor:
     def __init__(self, window_size: int = 100):
         self.window_size = window_size
         self.wss_latencies = deque(maxlen=window_size)
+        self.ingress_deltas = deque(maxlen=window_size)
+        self.process_times = deque(maxlen=window_size)
+        self._pending = {}
     
     def record_wss_latency(self, latency_ms: float):
         """Record explicit network latency from WSS."""
