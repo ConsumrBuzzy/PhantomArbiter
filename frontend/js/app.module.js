@@ -16,6 +16,7 @@ import { WebSocketManager } from './core/websocket.js';
 import { Terminal } from './components/terminal.js';
 import { EngineCard } from './components/engine-card.js';
 import { MarketData } from './components/market-data.js';
+import { TokenWatchlist } from './components/token-watchlist.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 
@@ -24,6 +25,7 @@ class TradingOS {
         // Initialize components
         this.terminal = new Terminal('log-stream');
         this.marketData = new MarketData();
+        this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
         this.headerStats = new HeaderStats();
         this.modal = new ModalManager();
 
@@ -132,6 +134,10 @@ class TradingOS {
 
             case 'MARKET_DATA':
                 this.marketData.update(data);
+                break;
+
+            case 'TOKEN_WATCHLIST':
+                this.tokenWatchlist.update(data);
                 break;
 
             case 'ARB_OPP':
