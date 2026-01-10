@@ -192,15 +192,15 @@ class DeltaNeutralEngine:
         # Check Jito availability
         # Check Jito availability with retries
         jito_connected = False
-        for i in range(5):
+        for i in range(10):
             if await self.jito.is_available():
                 jito_connected = True
                 break
-            Logger.warning(f"[DNEM] Jito init failed (attempt {i+1}/5). Retrying...")
-            await asyncio.sleep(2.0)
+            Logger.warning(f"[DNEM] Jito init failed (attempt {i+1}/10). Retrying in 6s...")
+            await asyncio.sleep(6.0)
             
         if not jito_connected:
-            raise RuntimeError("Jito Block Engine not available after 5 attempts")
+            raise RuntimeError("Jito Block Engine not available after 10 attempts")
         
         Logger.info("[DNEM] Jito Block Engine connected")
         
