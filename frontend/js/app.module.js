@@ -17,6 +17,7 @@ import { Terminal } from './components/terminal.js';
 import { EngineCard } from './components/engine-card.js';
 import { MarketData } from './components/market-data.js';
 import { TokenWatchlist } from './components/token-watchlist.js';
+import { ArbScanner, FundingMonitor, ScalpPods } from './components/market-component.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 
@@ -51,6 +52,13 @@ class TradingOS {
             })
         };
 
+        // Market Components (Specialized Views)
+        this.marketComponents = {
+            arb: new ArbScanner('arb'),
+            funding: new FundingMonitor('funding'),
+            scalp: new ScalpPods('scalp')
+        };
+
         // WebSocket connection
         this.ws = new WebSocketManager({
             port: 8765,
@@ -63,6 +71,15 @@ class TradingOS {
         // Modal callbacks
         this.modal.onSaveConfig = (engine, config) => this.saveConfig(engine, config);
         this.modal.onSOS = () => this.executeSOS();
+
+        // Header callbacks
+        this.headerStats.onModeToggle = (mode) => {
+            this.ws.send('SET_GLOBAL_MODE', { mode: mode });
+            this.terminal.addLog('SYSTEM', 'WARNING', `GLOBAL MODE SWITCHED TO: ${mode}`);
+
+            // Update all engine cards to match default if not manually overridden
+            Object.values(this.engines).forEach(card => card.setMode(mode.toLowerCase()));
+        };
 
         // Bind navigation and SOS
         this.bindGlobalEvents();
@@ -142,10 +159,12 @@ class TradingOS {
 
             case 'ARB_OPP':
                 this.updateIntelTable('ARB', data);
+                if (this.marketComponents.arb) this.marketComponents.arb.update(data);
                 break;
 
             case 'SCALP_SIGNAL':
                 this.updateIntelTable('SCALP', data);
+                if (this.marketComponents.scalp) this.marketComponents.scalp.update(data);
                 break;
 
             default:

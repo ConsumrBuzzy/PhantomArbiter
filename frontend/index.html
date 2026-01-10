@@ -32,19 +32,44 @@
         <div id="view-dashboard" class="view-panel active">
             <div class="dashboard-container">
                 <header class="glass-panel">
-                    <div class="logo">
-                        <span style="color: var(--neon-green); font-weight: bold; font-size: 1.2rem;">🏛️ PHANTOM
-                            ARBITER</span>
-                        <span style="margin-left: 10px; color: var(--text-dim); font-size: 0.8rem;">OS V21.0</span>
+                    <div class="header-left">
+                        <div class="logo">
+                            <span class="logo-icon">🏛️</span>
+                            <div class="logo-text">
+                                <span class="brand">PHANTOM ARBITER</span>
+                                <span class="version">OS V22.1</span>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Global Wallet Monitor -->
+                    <div class="wallet-monitor glass-inset">
+                        <div class="wallet-mode-indicator" id="global-mode-display">PAPER</div>
+                        <div class="wallet-balance">
+                            <span class="label">EQUITY</span>
+                            <span class="value" id="wallet-balance">$0.00</span>
+                        </div>
+                        <div class="wallet-balance">
+                            <span class="label">SOL</span>
+                            <span class="value" id="wallet-sol">0.00</span>
+                        </div>
+                    </div>
+
                     <div class="system-status">
+                        <!-- Master Arm Switch -->
+                        <div class="master-control">
+                            <span class="control-label">MASTER ARM</span>
+                            <label class="switch-toggle" title="Global Mode Toggle">
+                                <input type="checkbox" id="global-mode-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="status-divider"></div>
+
                         <div class="status-item">
                             <span class="status-label">SOL</span>
                             <span class="status-value" id="stats-sol-price">--</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">ENGINE</span>
-                            <span class="status-value pulse" id="engine-mode">CONNECTING...</span>
                         </div>
                         <div class="status-item">
                             <span class="status-label">LATENCY</span>
@@ -53,10 +78,6 @@
                         <div class="status-item">
                             <span class="status-label">ACTIVE</span>
                             <span class="status-value" id="stats-engines">0/3</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">PNL</span>
-                            <span class="status-value" id="stats-pnl">$0.00</span>
                         </div>
                     </div>
                 </header>

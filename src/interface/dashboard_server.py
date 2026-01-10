@@ -47,6 +47,7 @@ class DashboardServer:
         self.clients: Set[websockets.WebSocketServerProtocol] = set()
         self.running = False
         self._server = None
+        self.global_mode = "PAPER"  # Default to Paper
         
         # Register for engine log streaming
         engine_manager.on_log(self._handle_engine_log)
@@ -103,7 +104,13 @@ class DashboardServer:
                         "type": "SYSTEM_STATS",
                         "data": {
                             **(state.stats or {}),
-                            "engines": engine_status
+                            "engines": engine_status,
+                            "mode": self.global_mode,
+                            "wallet": {
+                                "equity": 5000.00,  # Mock initial equity
+                                "sol_balance": 15.42,
+                                "type": self.global_mode
+                            }
                         },
                         "timestamp": asyncio.get_event_loop().time()
                     }
@@ -203,6 +210,22 @@ class DashboardServer:
                 "engine": engine_name,
                 "success": success
             }))
+        
+        elif action == "SET_GLOBAL_MODE":
+            mode = data.get("mode", "PAPER").upper()
+            if mode in ["PAPER", "LIVE"]:
+                self.global_mode = mode
+                Logger.warning(f"   ⚠️  GLOBAL MODE SET TO: {mode}")
+                
+                # Broadcast immediate update
+                await self._broadcast(json.dumps({
+                    "type": "SYSTEM_STATS",
+                    "data": {
+                        "mode": self.global_mode,
+                        # Include minimal update data
+                    },
+                    "timestamp": asyncio.get_event_loop().time()
+                }))
         
         elif action == "GET_STATUS":
             engine_status = await engine_manager.get_status()
