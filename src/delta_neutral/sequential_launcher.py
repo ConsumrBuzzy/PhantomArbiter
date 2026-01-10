@@ -164,50 +164,47 @@ class SequentialLauncher:
             Logger.error(f"[SEQUENTIAL] Rollback error: {e}")
             return False
 
+from solana.rpc.async_api import AsyncClient
+
+# ...
+
     async def _compile_and_send(self, instructions: List[Instruction]) -> Optional[str]:
-        """Helper to compile MessageV0, Sign, and Send via RPC Balancer."""
-        # TODO: Implement full tx cycle (blockhash, message, sign, send, confirm)
-        from solana.rpc.api import Client
+        """Helper to compile MessageV0, Sign, and Send via RPC."""
         
-        # Use simple client for now (or swapper.client)
-        client = self.swapper.client 
-        
-        try:
-            # 1. Blockhash
-            bh = (await client.get_latest_blockhash()).value.blockhash
-            
-            # 2. Message
-            msg = MessageV0.try_compile(
-                payer=Pubkey.from_string(self.wallet.get_public_key()),
-                instructions=instructions,
-                address_lookup_table_accounts=[],
-                recent_blockhash=bh
-            )
-            
-            # 3. Sign
-            tx = VersionedTransaction(msg, [self.wallet.keypair])
-            
-            # 4. Send
-            # Send and Wait for Confirmation (important for sequential!)
-            Logger.info("[SEQUENTIAL] Sending transaction...")
-            opts = Confirmed 
-            # Note: client.send_transaction returns signature or digest
-            resp = await client.send_transaction(tx, opts=opts) 
-            
-            sig = resp.value
-            Logger.info(f"[SEQUENTIAL] Tx Sent: {sig}")
-            
-            # 5. Confirm
-            Logger.info("[SEQUENTIAL] Waiting for confirmation...")
-            # Ideally use confirm_transaction helper
-            await client.confirm_transaction(sig, commitment=Confirmed)
-            Logger.info("[SEQUENTIAL] Tx Confirmed!")
-            
-            return str(sig)
-            
-        except Exception as e:
-            Logger.error(f"[SEQUENTIAL] Tx Failed: {e}")
-            return None
+        async with AsyncClient(Settings.RPC_URL) as client:
+            try:
+                # 1. Blockhash
+                bh = (await client.get_latest_blockhash()).value.blockhash
+                
+                # 2. Message
+                msg = MessageV0.try_compile(
+                    payer=Pubkey.from_string(self.wallet.get_public_key()),
+                    instructions=instructions,
+                    address_lookup_table_accounts=[],
+                    recent_blockhash=bh
+                )
+                
+                # 3. Sign
+                tx = VersionedTransaction(msg, [self.wallet.keypair])
+                
+                # 4. Send
+                Logger.info("[SEQUENTIAL] Sending transaction...")
+                opts = Confirmed 
+                resp = await client.send_transaction(tx, opts=opts) 
+                
+                sig = resp.value
+                Logger.info(f"[SEQUENTIAL] Tx Sent: {sig}")
+                
+                # 5. Confirm
+                Logger.info("[SEQUENTIAL] Waiting for confirmation...")
+                await client.confirm_transaction(sig, commitment=Confirmed)
+                Logger.info("[SEQUENTIAL] Tx Confirmed!")
+                
+                return str(sig)
+                
+            except Exception as e:
+                Logger.error(f"[SEQUENTIAL] Tx Failed: {e}")
+                return None
 
 async def main():
     Logger.info("=== PLAN B: SEQUENTIAL LAUNCHER ===")
@@ -218,19 +215,12 @@ async def main():
     await launcher.initialize()
     
     # 2. Get Price
-    # We can use a simple public API or launcher.drift (if it has price)
-    # DriftAdapter usually has access to oracle.
-    # For now, let's assume SOL price $150 for rough sizing, or fetch it.
     Logger.info("Fetching SOL price...")
-    async with launcher.swapper.client as client:
-        # Quick price check (optional) or just use logic
-        pass
+    async with AsyncClient(Settings.RPC_URL) as client:
+        # Just use dummy read to ensure connection
+        await client.get_health()
         
     # Assume $150 SOL.
-    # Goal: $1 Total. $0.50 Spot.
-    # Qty = 0.50 / 150 = 0.0033 SOL.
-    # Recalculate precisely if possible, but 0.0033 is safe.
-    
     qty = 0.0033
     qty_usd = 0.50
     
