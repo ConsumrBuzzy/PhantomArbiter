@@ -46,6 +46,23 @@ FUNDING_LOG = Path("data/funding_harvest.csv")
 # Status thresholds
 HEALTHY_THRESHOLD = 0.1   # Within 0.1%
 WARNING_THRESHOLD = 0.5   # Within 0.5%
+ALERT_THRESHOLD = 1.0     # Rebalance alert at 1%
+
+
+def trigger_alert(drift_pct: float):
+    """Trigger audio/visual alert when drift exceeds threshold."""
+    import winsound
+    print("\n" + "🚨" * 20)
+    print(f"   ⚠️  REBALANCE ALERT: Delta Drift = {drift_pct:+.2f}%")
+    print(f"   ⚠️  Threshold exceeded! Manual intervention recommended.")
+    print("🚨" * 20)
+    
+    # Windows beep (frequency=1000Hz, duration=500ms)
+    try:
+        winsound.Beep(1000, 500)
+        winsound.Beep(1500, 500)
+    except:
+        print("\a")  # Fallback terminal beep
 
 
 # =============================================================================
@@ -280,6 +297,10 @@ async def display_dashboard(client: AsyncClient, wallet_pk: Pubkey, user_pda: Pu
             "total_pnl": total_pnl,
         })
         print(f"\n✅ Logged to {FUNDING_LOG}")
+    
+    # Trigger alert if drift exceeds threshold
+    if abs_drift > ALERT_THRESHOLD:
+        trigger_alert(drift_pct)
 
 
 if __name__ == "__main__":
