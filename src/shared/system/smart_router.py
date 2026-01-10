@@ -166,13 +166,19 @@ class SmartRouter:
                 return None
 
             # V41.2: Auto-Fallback for Invalid Key (401)
-            if resp.status_code == 401 and self.jupiter_api_key:
-                Logger.warning("⚠️ Jupiter 401 Unauthorized. Removing invalid API key and retrying...")
+            # If 401, we MUST switch to the public endpoint (api.jup.ag requires strict key)
+            if resp.status_code == 401:
+                Logger.warning("⚠️ Jupiter 401 Unauthorized. Switching to Public API and retrying...")
+                
+                # 1. Clear Key
                 self.jupiter_api_key = ""
                 if "x-api-key" in self._session.headers:
                     del self._session.headers["x-api-key"]
                 
-                # Retry without key
+                # 2. Switch URL (api.jup.ag -> quote-api.jup.ag/v6)
+                self.jupiter_url = "https://quote-api.jup.ag/v6"
+                
+                # Retry
                 return self.get_jupiter_quote(input_mint, output_mint, amount, slippage_bps)
 
             if resp.status_code != 200:
