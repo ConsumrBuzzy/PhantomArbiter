@@ -159,6 +159,18 @@ class Logger:
         else:
             logger.configure(**config)
 
+    @staticmethod
+    def add_file_sink(path: str):
+        """Add a specific file sink (e.g. for unified engine logging)."""
+        logger.add(
+            path,
+            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {message}",
+            level="INFO",
+            rotation="10 MB",
+            retention="7 days",
+            compression="zip"
+        )
+
 # --- Test ---
 if __name__ == "__main__":
     Logger.section("LOGURU + RICH INTEGRATION")
