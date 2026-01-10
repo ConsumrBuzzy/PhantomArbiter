@@ -49,17 +49,18 @@ MARKET_INDICES = {
     "BTC-PERP": 1,
     "ETH-PERP": 2,
     "APT-PERP": 3,
-    "MATIC-PERP": 4,
-    "ARB-PERP": 5,
-    "DOGE-PERP": 6,
-    "BNB-PERP": 7,
+    "1MBONK-PERP": 4,
+    "POL-PERP": 5,
+    "ARB-PERP": 6,
+    "DOGE-PERP": 7,
+    "BNB-PERP": 8,
 }
 
-# Oracle pubkeys for price feeds
+# Oracle pubkeys for price feeds (Mainnet Pyth Lazer/Pull)
 ORACLES = {
-    "SOL-PERP": Pubkey.from_string("H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG"),
-    "BTC-PERP": Pubkey.from_string("GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU"),
-    "ETH-PERP": Pubkey.from_string("JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB"),
+    "SOL-PERP": Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz"),
+    "BTC-PERP": Pubkey.from_string("35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R"),
+    "ETH-PERP": Pubkey.from_string("93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR"),
     "USDC-SPOT": Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV"),
 }
 
