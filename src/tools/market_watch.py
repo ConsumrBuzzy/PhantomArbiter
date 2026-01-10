@@ -67,15 +67,18 @@ class MarketWatch:
     Connects to Drift and Jupiter to show real-time data.
     """
     
-    # Markets to scan
+    # Markets to scan (must match keys in market_map)
     MARKETS = [
         "SOL-PERP",
         "BTC-PERP",
         "ETH-PERP",
-        "JUP-PERP",
-        "PYTH-PERP",
-        "BONK-PERP",
         "WIF-PERP",
+        "BONK-PERP",
+        "JTO-PERP",
+        "RNDR-PERP",
+        "INJ-PERP",
+        "PYTH-PERP",
+        "JUP-PERP",
     ]
     
     def __init__(self):
@@ -156,16 +159,17 @@ class MarketWatch:
                                 raw_rate = float(latest.get("fundingRate", 0))
                                 oracle_twap = float(latest.get("oraclePriceTwap", 1)) or 1
                                 
-                                # Convert to percentage (fundingRate / oraclePriceTwap * 100)
-                                # This gives hourly rate since Drift updates hourly
-                                rate_1h = (raw_rate / oracle_twap) * 100
+                                # Drift funding rate precision:
+                                # fundingRate / oraclePriceTwap gives the hourly rate as a percentage
+                                # e.g., 543525375 / 90538581941 = 0.006 = 0.006%/hour
+                                rate_1h = raw_rate / oracle_twap  # Already in % form
                                 rate_8h = rate_1h * 8  # Estimate 8h rate
                                 
                                 result[market] = {
                                     "rate_8h": rate_8h,
                                     "rate_1h": rate_1h,
                                 }
-                                Logger.debug(f"[WATCH] {market}: {rate_1h:.4f}%/hr")
+                                Logger.debug(f"[WATCH] {market}: {rate_1h:.6f}%/hr")
                     except Exception as e:
                         Logger.debug(f"[WATCH] Failed to fetch {market}: {e}")
                         continue
