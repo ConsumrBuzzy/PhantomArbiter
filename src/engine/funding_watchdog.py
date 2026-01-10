@@ -297,7 +297,7 @@ class FundingWatchdog:
             # Correct API: execute_swap(direction, amount_usd, reason, target_mint=..., override_atomic_amount=...)
             amount_atomic = int(sell_amount * 1_000_000_000)
             
-            sig = await swapper.execute_swap(
+            sig = swapper.execute_swap(
                 direction="SELL",
                 amount_usd=0, # Use override
                 reason="Emergency Unwind",

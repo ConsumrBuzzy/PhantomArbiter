@@ -26,10 +26,20 @@ SETTLEMENT_HOUR_UTC = 0      # Midnight UTC
 STATE_ACTIVE = "ACTIVE"
 STATE_WAITLIST = "WAITLIST"
 
+from config.settings import Settings
+
 class ArbiterEngine:
     def __init__(self, live_mode: bool = False, target_leverage: float = 1.0):
         self.live_mode = live_mode
         self.target_leverage = target_leverage
+        
+        # Global Trading Switch
+        if self.live_mode:
+            Settings.ENABLE_TRADING = True
+            Logger.warning("⚠️ LIVE TRADING ENABLED. REAL FUNDS AT RISK.")
+        else:
+            Settings.ENABLE_TRADING = False
+            Logger.info("🔵 SIMULATION MODE. TRADING DISABLED.")
         
         # Init Components
         self.wallet_manager = WalletManager()
