@@ -57,9 +57,9 @@ MARKET_INDICES = {
 }
 
 # Oracle pubkeys for price feeds (Mainnet Pyth Lazer/Pull)
-# CRITICAL: Use canonical oracles from Drift's PerpMarket accounts
+# CRITICAL: Use canonical oracles from Drift's PerpMarket accounts (offset 48)
 ORACLES = {
-    "SOL-PERP": Pubkey.from_string("H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG"),  # Canonical SOL-PERP oracle
+    "SOL-PERP": Pubkey.from_string("ESaMMQw8gLhKZQCxXFjaJeozd3Sgt6HAJHnK4RtEuPMH"),  # On-chain canonical
     "BTC-PERP": Pubkey.from_string("35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R"),
     "ETH-PERP": Pubkey.from_string("93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR"),
     "USDC-SPOT": Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV"),
