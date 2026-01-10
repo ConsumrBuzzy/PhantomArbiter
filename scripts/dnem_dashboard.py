@@ -277,8 +277,6 @@ async def display_dashboard(client: AsyncClient, wallet_pk: Pubkey, user_pda: Pu
 
     # -----------------------------------------------------------------
     # Section 4: Risk Analytics (Phase 5.1)
-    # -----------------------------------------------------------------
-    
     # Heuristic Health Score
     # Total Collateral approx = Spot Value + USDC + Unrealized PnL
     total_collateral = (spot_sol * sol_price) + quote_amount + unrealized_pnl
@@ -320,7 +318,7 @@ async def display_dashboard(client: AsyncClient, wallet_pk: Pubkey, user_pda: Pu
         # If unhedged, calculate TTL based on 2% hourly vol
         hours_left = abs(liq_dist_pct) / 2.0
         ttl_msg = f"{hours_left:.1f} Hours (at 2% vol)"
-        
+    
     print("\n┌─────────────────────────────────────────────────────────────┐")
     print("│  🚑 RISK ANALYTICS                                          │")
     print("├─────────────────────────────────────────────────────────────┤")
@@ -328,8 +326,43 @@ async def display_dashboard(client: AsyncClient, wallet_pk: Pubkey, user_pda: Pu
     print(f"│  Liq Buffer:      {liq_dist_pct:>+5.1f}% (Liq Price: ${liq_price:.2f})      │")
     print(f"│  Est. TTL:        {ttl_msg:<30}            │")
     print("└─────────────────────────────────────────────────────────────┘")
+
+    # -----------------------------------------------------------------
+    # Section 5: Leverage Simulator (Phase 6.0)
+    # -----------------------------------------------------------------
+    print("\n┌─────────────────────────────────────────────────────────────┐")
+    print("│  🎢 LEVERAGE SIMULATOR                                      │")
+    print("├──────┬──────────┬──────────┬─────────┬──────────────┬───────┤")
+    print("│ Mode │ Short Sz │ Yield/Hr │ Health  │ Liq Ratio    │ Status│")
+    print("├──────┼──────────┼──────────┼─────────┼──────────────┼───────┤")
     
-    # Section 5: Funding Estimates
+    modes = [
+        {"name": "1x", "mult": 1.0, "risk_label": "1.0x (Base)"},
+        {"name": "2x", "mult": 2.0, "risk_label": "2.0x Risk"},
+        {"name": "3x", "mult": 3.0, "risk_label": "3.5x Risk!"},
+    ]
+    
+    base_short = abs(perp_sol) if abs(perp_sol) > 0 else 0.1 # Default to 0.1 if 0
+    
+    for m in modes:
+        sim_short = base_short * m["mult"]
+        sim_yield = sim_short * sol_price * 0.0001
+        
+        # Sim Health
+        sim_notional = sim_short * sol_price
+        sim_maint = sim_notional * 0.10
+        sim_health = 100 * (1 - (sim_maint / total_collateral)) if total_collateral > 0 else 0
+        sim_health = max(0, min(100, sim_health))
+        
+        status_icon = "🟢"
+        if sim_health < 30: status_icon = "🔴"
+        elif sim_health < 50: status_icon = "🟡"
+        
+        print(f"│ {m['name']:<4} │ {sim_short:>4.2f} SOL │ ${sim_yield:>7.4f} │ {sim_health:>6.0f}% │ {m['risk_label']:<12} │ {status_icon:<5} │")
+        
+    print("└──────┴──────────┴──────────┴─────────┴──────────────┴───────┘")
+
+    # Section 6: Funding Estimates
     print("\n┌─────────────────────────────────────────────────────────────┐")
     print("│  📈 FUNDING ESTIMATES (at 0.01%/hr)                         │")
     print("├─────────────────────────────────────────────────────────────┤")
