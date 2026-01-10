@@ -22,14 +22,15 @@ class ScalpTracker:
     def __init__(self):
         self.positions: Dict[str, Dict] = {}  # {mint: {entry_price: float, amount: float, time: float}}
 
-    def add_position(self, mint: str, entry_price: float, amount_token: float):
+    def add_position(self, mint: str, symbol: str, entry_price: float, amount_token: float):
         self.positions[mint] = {
+            "symbol": symbol,
             "entry_price": entry_price,
             "amount": amount_token,
             "timestamp": time.time(),
             "highest_price": entry_price # Trailing stop support
         }
-        Logger.info(f"📝 Tracking new position: {mint[:8]} @ ${entry_price:.4f}")
+        Logger.info(f"📝 Tracking new position: {symbol} ({mint[:8]}) @ ${entry_price:.4f}")
 
     def remove_position(self, mint: str):
         if mint in self.positions:
@@ -49,8 +50,10 @@ class ScalpEngine:
 
     def __init__(self, live_mode: bool = False):
         self.live_mode = live_mode
-        self.wallet = WalletManager()
-        self.swapper = JupiterSwapper(self.wallet)
+        self.wallet = None
+        self.swapper = None
+        self.driver = None
+        
         self.sentiment = SentimentEngine()
         self.tracker = ScalpTracker()
         
@@ -59,6 +62,13 @@ class ScalpEngine:
         self.min_confidence = 70   # Sentiment score
         self.tp_pct = 0.10         # +10% Take Profit
         self.sl_pct = 0.05         # -5% Stop Loss
+        
+        if self.live_mode:
+            self.wallet = WalletManager()
+            self.swapper = JupiterSwapper(self.wallet)
+        else:
+            from src.shared.drivers.virtual_driver import VirtualDriver
+            self.driver = VirtualDriver("scalp")
         
         Logger.info(f"Scalp Engine Initialized (Live={self.live_mode})")
 
@@ -122,34 +132,65 @@ class ScalpEngine:
                     Logger.info(f"   [SIM] Would BUY ${self.trade_size_usd} of {token_symbol}")
 
     async def execute_entry(self, symbol: str, mint: str, score: SentimentScore):
-        """Execute Buy Order via Jupiter."""
+        """Execute Buy Order via Jupiter or Paper Driver."""
         Logger.info(f"🚀 EXECUTING SNIPE: {symbol} (Score: {score.score})")
         
-        # 1. Buy
-        result = self.swapper.execute_swap(
-            direction="BUY",
-            amount_usd=self.trade_size_usd,
-            reason=f"Sentiment Snipe {score.score}",
-            target_mint=mint
-        )
-        
-        if result["success"]:
-            # Need to fetch execution price/amount to track
-            # Result gives 'outAmount'.
-            # Assume price = trade_size / out_amount roughly
-            # For exact tracking we'd need a price feed, but let's approximate
-            out_amount_atomic = int(result.get("outAmount", 0))
-            # Decimals? We need token info.
-            info = self.wallet.get_token_info(mint)
-            if info:
-                decimals = int(info["decimals"])
-                amount_token = out_amount_atomic / (10 ** decimals)
-                entry_price = self.trade_size_usd / amount_token if amount_token > 0 else 0
+        if self.live_mode:
+            # 1. Buy Live
+            result = self.swapper.execute_swap(
+                direction="BUY",
+                amount_usd=self.trade_size_usd,
+                reason=f"Sentiment Snipe {score.score}",
+                target_mint=mint
+            )
+            
+            if result["success"]:
+                out_amount_atomic = int(result.get("outAmount", 0))
+                info = self.wallet.get_token_info(mint)
+                if info:
+                    decimals = int(info["decimals"])
+                    amount_token = out_amount_atomic / (10 ** decimals)
+                    entry_price = self.trade_size_usd / amount_token if amount_token > 0 else 0
+                    
+                    self.tracker.add_position(mint, symbol, entry_price, amount_token)
+                    pod_manager.report_result(symbol, True, True, True) # Reward pod
+                else:
+                    Logger.warning("⚠️ Bought token but failed to get info for tracking.")
+                    
+        elif self.driver:
+            # 2. Buy Paper
+            # Needs price to calc size
+            from src.shared.feeds.jupiter_feed import JupiterFeed
+            feed = JupiterFeed()
+            quote = feed.get_spot_price(mint, Settings.USDC_MINT)
+            
+            if quote and quote.price > 0:
+                price = quote.price
+                amount_token = self.trade_size_usd / price
                 
-                self.tracker.add_position(mint, entry_price, amount_token)
-                pod_manager.report_result(symbol, True, True, True) # Reward pod
+                # Execute Virtual Order
+                # We use place_order directly to avoid leverage logic of open_position
+                from src.shared.drivers.virtual_driver import VirtualOrder
+                order = VirtualOrder(
+                    symbol=f"{symbol}", # Just symbol, e.g. "WIF"
+                    side="buy",
+                    size=amount_token,
+                    order_type="market"
+                )
+                
+                # Hack: VirtualDriver needs price feed.
+                # ScalpEngine usually doesn't update driver feed periodically like LST does.
+                # So we inject price.
+                self.driver.set_price_feed({f"{symbol}": price})
+                
+                filled = await self.driver.place_order(order)
+                
+                if filled.status == "filled":
+                    self.tracker.add_position(mint, symbol, filled.filled_price, filled.filled_size)
+                    pod_manager.report_result(symbol, True, True, True)
+                    Logger.info(f"[PAPER] ✅ SNIPED {amount_token:.4f} {symbol} @ ${price:.4f}")
             else:
-                Logger.warning("⚠️ Bought token but failed to get info for tracking.")
+                Logger.warning(f"[PAPER] Could not fetch price for {symbol}, aborting snipe.")
 
     async def monitor_positions(self):
         """Check PnL of held positions."""
@@ -179,10 +220,26 @@ class ScalpEngine:
                 Logger.success(f"💰 TAKE PROFIT: {mint[:8]} (+{pnl_pct*100:.1f}%)")
                 if self.live_mode:
                     self.swapper.execute_swap("SELL", 0, "Take Profit", target_mint=mint)
+                elif self.driver:
+                     # Paper Sell
+                    from src.shared.drivers.virtual_driver import VirtualOrder
+                    order = VirtualOrder(symbol=pos.get("symbol", mint), side="sell", size=pos["amount"], order_type="market")
+                    self.driver.set_price_feed({pos.get("symbol", mint): current_price})
+                    await self.driver.place_order(order)
+                    Logger.info(f"[PAPER] 💰 TP EXECUTED: {pos.get('symbol')} (+{pnl_pct*100:.1f}%)")
+                    
                 self.tracker.remove_position(mint)
                 
             elif pnl_pct <= -self.sl_pct:
                 Logger.warning(f"🛑 STOP LOSS: {mint[:8]} ({pnl_pct*100:.1f}%)")
                 if self.live_mode:
                     self.swapper.execute_swap("SELL", 0, "Stop Loss", target_mint=mint)
+                elif self.driver:
+                    # Paper Sell
+                    from src.shared.drivers.virtual_driver import VirtualOrder
+                    order = VirtualOrder(symbol=pos.get("symbol", mint), side="sell", size=pos["amount"], order_type="market")
+                    self.driver.set_price_feed({pos.get("symbol", mint): current_price})
+                    await self.driver.place_order(order)
+                    Logger.info(f"[PAPER] 🛑 SL EXECUTED: {pos.get('symbol')} ({pnl_pct*100:.1f}%)")
+                    
                 self.tracker.remove_position(mint)

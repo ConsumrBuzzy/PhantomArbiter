@@ -11,11 +11,18 @@ class LSTConfig:
     # Thresholds for triggering a buy (negative = discount)
     depeg_threshold: float = -0.005  # -0.5% discount
     
-    # Fair Value Ratios (hardcoded or fetched)
-    # Ideally fetched, but hardcoded fallback for safety
+    # Fair Value Ratios (LST/SOL)
+    # Ideally should be dynamic based on stake pool state
     fair_value = {
-        "jitoSOL": 1.072,  # Example: 1 jitoSOL = 1.072 SOL
-        "mSOL": 1.145,     # Example: 1 mSOL = 1.145 SOL
+        "jitoSOL": 1.072,
+        "mSOL": 1.145,
+    }
+    
+    # Token Mints
+    MINTS = {
+        "jitoSOL": "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
+        "mSOL": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "SOL": "So11111111111111111111111111111111111111112"
     }
     
     # Trade Sizing

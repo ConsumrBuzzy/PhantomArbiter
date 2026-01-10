@@ -105,16 +105,12 @@ class DashboardServer:
                     if self.global_mode == "PAPER":
                         from src.shared.state.paper_wallet import get_paper_wallet
                         pw = get_paper_wallet()
+                        pw.reload() # Sync with DB updates from VirtualDriver
                         
-                        # Get current SOL price from Context if available
-                        # For now, just using a simplistic fetch or last known
-                        # Ideally, context driver pushes price to a shared state
+                        # Get current SOL price from Feed
                         sol_price = 150.0 # Fallback
-                        try:
-                            # Try to get live price from latest broadcast if possible, or just use 150
-                            pass 
-                        except:
-                            pass
+                        if self.price_feed and self.price_feed.last_price:
+                            sol_price = self.price_feed.last_price.price
                             
                         wallet_data = pw.get_balances(sol_price=sol_price)
                         wallet_data['type'] = 'PAPER'

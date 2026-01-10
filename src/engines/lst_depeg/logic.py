@@ -12,13 +12,24 @@ from src.shared.drivers.virtual_driver import VirtualDriver, VirtualOrder
 
 logger = logging.getLogger("phantom.lst")
 
+from src.shared.feeds.jupiter_feed import JupiterFeed
+
 class LSTEngine:
     def __init__(self, mode: str = "paper"):
-        self.config = LSTConfig()
         self.mode = mode
+        self.config = LSTConfig
         self.running = False
-        self.driver = VirtualDriver("lst_depeg") if mode == "paper" else None
+        self.driver = None
+        self.jupiter = JupiterFeed()
         
+        if mode == "paper":
+            from src.shared.drivers.virtual_driver import VirtualDriver
+            self.driver = VirtualDriver("lst")
+            # For paper, we share the wallet state for inventory
+            from src.shared.state.paper_wallet import get_paper_wallet
+            # VirtualDriver writes to DB, PaperWallet reads from DB. 
+            # They are loosely coupled via DB.
+            
         # Determine real driver for live mode later
         if mode == "live":
             # For now, just warn implies no implementation
@@ -43,7 +54,7 @@ class LSTEngine:
         while self.running:
             try:
                 # 1. Fetch Prices
-                prices = self._fetch_lst_prices()
+                prices = await self._fetch_lst_prices()
                 
                 # Update Driver Price Feed
                 if self.mode == "paper" and self.driver:
@@ -73,14 +84,34 @@ class LSTEngine:
                 
             await asyncio.sleep(5.0)
 
-    def _fetch_lst_prices(self):
-        # Placeholder for price fetching logic
-        # Implementation would call Context or PriceFeed
-        # Simulating a slight dip for testing
-        return {
-            "jitoSOL": 1.065, # Discount! (Fair 1.072)
             "mSOL": 1.145     # Parity
         }
+
+    async def _fetch_lst_prices(self):
+        """Fetch real LST/SOL prices from Jupiter."""
+        try:
+            mints = [self.config.MINTS["jitoSOL"], self.config.MINTS["mSOL"]]
+            results = await self.jupiter.get_multiple_prices(
+                mints, vs_token=self.config.MINTS["SOL"]
+            )
+            
+            prices = {}
+            # Map mints back to symbols
+            if self.config.MINTS["jitoSOL"] in results:
+                prices["jitoSOL"] = results[self.config.MINTS["jitoSOL"]]
+            else:
+                prices["jitoSOL"] = self.config.fair_value["jitoSOL"] # Fallback
+                
+            if self.config.MINTS["mSOL"] in results:
+                prices["mSOL"] = results[self.config.MINTS["mSOL"]]
+            else:
+                prices["mSOL"] = self.config.fair_value["mSOL"] # Fallback
+                
+            return prices
+            
+        except Exception as e:
+            logger.error(f"[LST] Price fetch failed: {e}")
+            return self.config.fair_value.copy() # Fallback to fair value (no diff)
 
     async def _execute_signal(self, token: str, price: float, deviation: float):
         if self.mode == "paper" and self.driver:

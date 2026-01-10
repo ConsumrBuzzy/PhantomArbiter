@@ -18,6 +18,7 @@ import { EngineCard } from './components/engine-card.js';
 import { MarketData } from './components/market-data.js';
 import { TokenWatchlist } from './components/token-watchlist.js';
 import { ArbScanner, FundingMonitor, ScalpPods, LstMonitor } from './components/market-component.js';
+import { Inventory } from './components/inventory.js';
 import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
@@ -27,7 +28,9 @@ class TradingOS {
         // Initialize components
         this.terminal = new Terminal('log-stream');
         this.marketData = new MarketData();
+        this.marketData = new MarketData();
         this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
+        this.inventory = new Inventory('inventory-table');
         this.headerStats = new HeaderStats();
         this.whaleTape = new WhaleTape('whale-tape-content');
         this.modal = new ModalManager();
@@ -133,6 +136,7 @@ class TradingOS {
         switch (type) {
             case 'SYSTEM_STATS':
                 this.headerStats.update(data);
+                if (data.wallet) this.inventory.update(data.wallet);
                 if (data.engines) this.updateEngineStates(data.engines);
                 break;
 
