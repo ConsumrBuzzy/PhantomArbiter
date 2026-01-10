@@ -142,8 +142,8 @@ class MarketWatch:
                         if response.status_code == 200:
                             data = response.json()
                             
-                            # Response is a list of funding records, get the LAST one (most recent)
-                            records = data if isinstance(data, list) else data.get("data", data)
+                            # Response is {"fundingRates": [...records...]}
+                            records = data.get("fundingRates", [])
                             
                             if records and len(records) > 0:
                                 # Last record is most recent
