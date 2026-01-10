@@ -246,17 +246,19 @@ async def main():
         Logger.info("RPC Connection: OK")
         
     # Assume $150 SOL.
-    qty = 0.0033
-    qty_usd = 0.50
+    # --- MODIFIED FOR $1.50 MAINNET TRIAL ---
+    qty = 0.01     # 0.01 SOL
+    qty_usd = 1.50  # $1.50 (Covers Drift min)
     
     signal = RebalanceSignal(
         direction=RebalanceDirection.ADD_SPOT,
         qty=qty,
         qty_usd=qty_usd,
         current_drift_pct=0.0,
-        reason="Manual Plan B",
+        reason="MainNet Trial Run ($1.50)",
         urgency=1
     )
+    # ----------------------------------------
     
     # 3. Execute
     Logger.info(f"Executing Manual Signal: {signal}")
