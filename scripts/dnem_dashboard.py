@@ -185,6 +185,28 @@ async def display_dashboard(client: AsyncClient, wallet_pk: Pubkey, user_pda: Pu
     print("║" + f"   {now.strftime('%Y-%m-%d %H:%M:%S')}".center(62) + "║")
     print("╚" + "═" * 62 + "╝")
     
+    # Engine Heartbeat
+    engine_state_file = Path("data/engine_state.json")
+    heartbeat_msg = "⚪ OFFLINE"
+    if engine_state_file.exists():
+        try:
+            import json
+            import time
+            with open(engine_state_file) as f:
+                state = json.load(f)
+                next_beat = state.get("next_beat", 0)
+                remaining = int(next_beat - time.time())
+                mode = state.get("mode", "UNKNOWN")
+                
+                if remaining > 0:
+                     heartbeat_msg = f"{mode} | 💓 {remaining}s"
+                else:
+                     heartbeat_msg = f"{mode} | 💓 PENDING..."
+        except:
+            pass
+            
+    print(f"   Engine Status: {heartbeat_msg}")
+    
     # -----------------------------------------------------------------
     # Fetch Data
     # -----------------------------------------------------------------
