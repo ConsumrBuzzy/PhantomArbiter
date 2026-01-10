@@ -122,9 +122,10 @@ class FundingWatchdog:
             
             Logger.info(f"Funding Check: Rate = {current_rate:.8f}/hr ({apr:.2f}% APR)")
             
+            # Logic: If rate < 0, increment strike counter
             if current_rate < 0:
                 self.consecutive_negative_checks += 1
-                Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED! Count: {self.consecutive_negative_checks}/4")
+                Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED! Streak: {self.consecutive_negative_checks}/4")
             else:
                 if self.consecutive_negative_checks > 0:
                     Logger.success("✅ Funding positive. Resetting negative counter.")
@@ -134,23 +135,21 @@ class FundingWatchdog:
             
             # TRIGGER UNWIND?
             if self.consecutive_negative_checks >= 4:
-                Logger.critical("🚨 CRITICAL: NEGATIVE FUNDING FOR 1 HOUR. TRIGGERING UNWIND!")
+                Logger.critical("🚨 CRITICAL: NEGATIVE FUNDING PERSISTED FOR 1 HOUR. TRIGGERING UNWIND!")
                 await self.unwind_position(client)
-                # Reset after unwind attempt to avoid spam loop, or exit
+                
+                # Reset after unwind attempt to avoid spam loop, or exit?
+                # Ideally we stop the loop or just reset and let it check again 
                 self.consecutive_negative_checks = 0 
                 self._save_state()
 
     async def unwind_position(self, client: AsyncClient):
         """
-        Emergency Unwind:
-        1. Close Drift Short
-        2. Sell Spot SOL (Log only for now, manual confirmation recommended)
+        Emergency Unwind Protocol:
+        1. Close Drift Short (Reduce-Only)
+        2. Sell Spot SOL (Jupiter Swap)
         """
         Logger.section("🛑 EMERGENCY UNWIND INITIATED 🛑")
-        
-        # 1. Get Drift Position Size
-        # Re-use AutoRebalancer logic or standard fetch
-        # For simplicity, just close whatever short we find
         
         # Load wallet
         private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
@@ -158,39 +157,45 @@ class FundingWatchdog:
             Logger.error("No private key for unwind!")
             return
 
-        from src.delta_neutral.drift_order_builder import DriftOrderBuilder
+        from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
         from solders.transaction import VersionedTransaction
         from solders.message import MessageV0
         from solders.types import TxOpts
+        from src.shared.execution.swapper import JupiterSwapper
+        from src.shared.execution.wallet import WalletManager
         
         secret_bytes = base58.b58decode(private_key)
         keypair = Keypair.from_bytes(secret_bytes)
         wallet_pk = keypair.pubkey()
         
+        # -------------------------------------------------------------
+        # STEP 1: CLOSE DRIFT SHORT
+        # -------------------------------------------------------------
+        
         # Check current position
-        rebalancer = AutoRebalancer() # Reuse to get data
+        rebalancer = AutoRebalancer() 
         status = await rebalancer.check_and_rebalance(simulate=True)
         perp_size = status.get('perp_sol', 0)
         
-        Logger.info(f"Current Drift Position: {perp_size} SOL")
+        Logger.info(f"[UNWIND] Current Drift Position: {perp_size} SOL")
         
         if perp_size < 0:
-            Logger.info("Attempting to CLOSE Drift Short...")
-            # Build Close Order (Reduce-Only Market Buy)
+            Logger.info("[UNWIND] Closing Drift Short...")
             builder = DriftOrderBuilder(wallet_pk)
-            # Size should be positive for Long order
             close_size = abs(perp_size)
             
-            # Market Long, Reduce Only
-            # Note: build_long_order usually isn't reduce-only by default in some implementations, 
-            # let's assume we use standard loop or specific reduce call
-            # For now, let's use build_long_order and ensure we don't flip long (monitor logic?)
-            # Actually, standard long order to match size exactly reduces it to 0.
-            
-            ixs = builder.build_long_order("SOL-PERP", close_size)
-            # Safety: Force reduce-only if builder supports it? 
-            # If not, exact size match is "neutralizing".
-            
+            # Build LONG order to close SHORT
+            # reduce_only=True is CRITICAL
+            ixs = builder.build_order_instruction(
+                "SOL-PERP", 
+                close_size, 
+                direction=PositionDirection.LONG, 
+                reduce_only=True
+            )
+            # Make it a list if not already (builder usually returns list)
+            if not isinstance(ixs, list):
+                ixs = [ixs]
+                
             bh_resp = await client.get_latest_blockhash()
             msg = MessageV0.try_compile(
                 payer=wallet_pk,
@@ -201,16 +206,64 @@ class FundingWatchdog:
             tx = VersionedTransaction(msg, [keypair])
             
             try:
-                sig = await client.send_transaction(tx, opts=TxOpts(skip_confirmation=False, preflight_commitment=Confirmed))
-                Logger.success(f"Drift Close Tx Sent: {sig.value}")
+                # Execute Close
+                resp = await client.send_transaction(tx, opts=TxOpts(skip_confirmation=False, preflight_commitment=Confirmed))
+                Logger.success(f"[UNWIND] ✅ Drift Close Tx Sent: {resp.value}")
+                await client.confirm_transaction(resp.value, commitment=Confirmed)
+                
             except Exception as e:
-                Logger.error(f"Drift Close Failed: {e}")
+                Logger.error(f"[UNWIND] ❌ Drift Close Failed: {e}")
+                return # Abort if Drift fails - we don't want to be naked long spot
         else:
-            Logger.info("No Short Position to close.")
+            Logger.info("[UNWIND] No Short Position to close (or already positive/zero).")
 
-        # 2. Sell Spot SOL
-        Logger.warning("⚠️ SPOT SALE REQUIRED: Please manually sell SOL on Jupiter/Phantom.")
-        Logger.warning("   (Auto-Spot Sell not fully enabled in Watchdog v1)")
+        # -------------------------------------------------------------
+        # STEP 2: SELL SPOT SOL (Jupiter)
+        # -------------------------------------------------------------
+        Logger.info("[UNWIND] Selling Spot SOL...")
+        
+        # Check balance
+        sol_balance = await client.get_balance(wallet_pk)
+        current_sol = sol_balance.value / 1e9
+        reserved_gas = 0.02
+        sell_amount = current_sol - reserved_gas
+        
+        if sell_amount < 0.01:
+            Logger.warning(f"[UNWIND] Spot balance ({current_sol}) too low to sell (min 0.01). Skipping.")
+            return
+
+        Logger.info(f"[UNWIND] Swapping {sell_amount:.4f} SOL to USDC...")
+        
+        try:
+            # Init Swapper
+            wallet_manager = WalletManager() # Should load env keys
+            swapper = JupiterSwapper(wallet_manager)
+            
+            # USDC Mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+            USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+            SOL_MINT = "So11111111111111111111111111111111111111112"
+            
+            # Execute Swap
+            # Correct API: execute_swap(direction, amount_usd, reason, target_mint=..., override_atomic_amount=...)
+            amount_atomic = int(sell_amount * 1_000_000_000)
+            
+            sig = await swapper.execute_swap(
+                direction="SELL",
+                amount_usd=0, # Use override
+                reason="Emergency Unwind",
+                target_mint=SOL_MINT,
+                override_atomic_amount=amount_atomic
+            )
+            
+            if sig:
+                Logger.success(f"[UNWIND] ✅ Spot Sold: {sig}")
+            else:
+                Logger.error("[UNWIND] ❌ Spot Sell Failed (No signature)")
+                
+        except Exception as e:
+            Logger.error(f"[UNWIND] ❌ Jupiter Swap Error: {e}")
+            
+        Logger.section("🛑 UNWIND SEQUENCE COMPLETE 🛑")
 
     async def run_loop(self):
         Logger.section("Started Funding Watchdog")
