@@ -51,18 +51,18 @@ LAST_24H_AVG_FUNDING_RATE_OFFSET = 504
 
 FUNDING_RATE_PRECISION = 1_000_000_000  # 1e9
 NEGATIVE_THRESHOLD = -0.0005 # Stricter tolerance
+POSITIVE_THRESHOLD = 0.0005  # Re-Entry requirement
 
 WATCHDOG_STATE_FILE = Path("data/watchdog_state.json")
 
-# =============================================================================
-# WATCHDOG ENGINE
-# =============================================================================
+# ...
 
 class FundingWatchdog:
     def __init__(self, check_interval_sec: int = 900): # 15 minutes
         self.check_interval_sec = check_interval_sec
         self.rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
         self.consecutive_negative_checks = 0
+        self.consecutive_positive_checks = 0
         
         # Load state
         self._load_state()
@@ -73,13 +73,18 @@ class FundingWatchdog:
                 with open(WATCHDOG_STATE_FILE, 'r') as f:
                     data = json.load(f)
                     self.consecutive_negative_checks = data.get("negative_count", 0)
+                    self.consecutive_positive_checks = data.get("positive_count", 0)
             except:
                 self.consecutive_negative_checks = 0
+                self.consecutive_positive_checks = 0
 
     def _save_state(self):
         WATCHDOG_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(WATCHDOG_STATE_FILE, 'w') as f:
-            json.dump({"negative_count": self.consecutive_negative_checks}, f)
+            json.dump({
+                "negative_count": self.consecutive_negative_checks,
+                "positive_count": self.consecutive_positive_checks
+            }, f)
 
     async def get_funding_rate(self, client: AsyncClient) -> float:
         """Fetch current hourly funding rate for SOL-PERP."""
@@ -107,31 +112,41 @@ class FundingWatchdog:
         rate_decimal = raw_rate / FUNDING_RATE_PRECISION
         
         # Also check 24h average for context
-        raw_24h = struct.unpack_from("<q", data, LAST_24H_AVG_FUNDING_RATE_OFFSET)[0]
-        rate_24h = raw_24h / FUNDING_RATE_PRECISION
+        try:
+            raw_24h = struct.unpack_from("<q", data, LAST_24H_AVG_FUNDING_RATE_OFFSET)[0]
+            rate_24h = raw_24h / FUNDING_RATE_PRECISION
+        except:
+             pass 
         
         return rate_decimal
 
-    async def check_health(self):
-        """Single check loop."""
+    async def check_health(self) -> bool:
+        """
+        Single check loop. Returns True if UNWIND TRIGGERED.
+        """
         async with AsyncClient(self.rpc_url) as client:
             current_rate = await self.get_funding_rate(client)
             
             # Convert to APR for display
-            # Hourly rate * 24 * 365
             apr = current_rate * 24 * 365 * 100
             
             Logger.info(f"Funding Check: Rate = {current_rate:.8f}/hr ({apr:.2f}% APR)")
             
             # Logic: If rate < THRESHOLD, increment strike counter
-            # -0.0017 < -0.0005 -> True (Strike)
             if current_rate < NEGATIVE_THRESHOLD:
                 self.consecutive_negative_checks += 1
+                self.consecutive_positive_checks = 0 # Reset positive streak
                 Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED ({current_rate:.6f} < {NEGATIVE_THRESHOLD})! Streak: {self.consecutive_negative_checks}/4")
             else:
                 if self.consecutive_negative_checks > 0:
                     Logger.success("✅ Funding ok (above threshold). Resetting negative counter.")
                 self.consecutive_negative_checks = 0
+                
+            # Log positive streak for re-entry context (even if in Active mode)
+            if current_rate > POSITIVE_THRESHOLD:
+                self.consecutive_positive_checks += 1
+            else:
+                self.consecutive_positive_checks = 0
             
             self._save_state()
             
@@ -139,11 +154,40 @@ class FundingWatchdog:
             if self.consecutive_negative_checks >= 4:
                 Logger.critical("🚨 CRITICAL: NEGATIVE FUNDING PERSISTED FOR 1 HOUR. TRIGGERING UNWIND!")
                 await self.unwind_position(client)
-                
-                # Reset after unwind attempt to avoid spam loop, or exit?
-                # Ideally we stop the loop or just reset and let it check again 
                 self.consecutive_negative_checks = 0 
                 self._save_state()
+                return True # Signal Unwind
+            
+            return False
+
+    async def check_re_entry_opportunity(self) -> bool:
+        """
+        Checks if funding is consistently positive to justify Re-Entry.
+        Returns True if RE-ENTRY RECOMMENDED.
+        """
+        async with AsyncClient(self.rpc_url) as client:
+            current_rate = await self.get_funding_rate(client)
+            apr = current_rate * 24 * 365 * 100
+            
+            Logger.info(f"Waitlist Monitor: Funding = {current_rate:.8f}/hr ({apr:.2f}% APR)")
+            
+            if current_rate > POSITIVE_THRESHOLD:
+                self.consecutive_positive_checks += 1
+                Logger.success(f"📈 POSITIVE FUNDING DETECTED! Streak: {self.consecutive_positive_checks}/2")
+            else:
+                if self.consecutive_positive_checks > 0:
+                    Logger.info("📉 Funding dropped below threshold. Resetting re-entry counter.")
+                self.consecutive_positive_checks = 0
+                
+            self._save_state()
+            
+            if self.consecutive_positive_checks >= 2:
+                Logger.success("🚀 FUNDING STABLE POSITIVE. RECOMMENDING RE-ENTRY!")
+                self.consecutive_positive_checks = 0 # Reset on trigger
+                self._save_state()
+                return True
+                
+            return False
 
     async def unwind_position(self, client: AsyncClient):
         """
@@ -162,7 +206,7 @@ class FundingWatchdog:
         from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
         from solders.transaction import VersionedTransaction
         from solders.message import MessageV0
-        from solders.types import TxOpts
+        from solana.rpc.types import TxOpts
         from src.shared.execution.swapper import JupiterSwapper
         from src.shared.execution.wallet import WalletManager
         
