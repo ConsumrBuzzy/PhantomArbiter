@@ -16,7 +16,7 @@ def inspect_drift_idl():
     with open(idl_path, "r") as f:
         idl = json.load(f)
 
-    # Search in types
+    enums_to_check = ["MarketType", "PositionDirection", "OracleSource", "OrderType"]
     order_params = None
     for type_def in idl.get("types", []):
         if type_def["name"] == "OrderParams":
@@ -29,18 +29,18 @@ def inspect_drift_idl():
 
     fields = order_params["type"]["fields"]
     
-    print("\n--- Raw OrderParams Fields JSON ---")
-    print(json.dumps(fields, indent=2))
+    with open("src/delta_neutral/drift_order_params.json", "w") as f:
+        json.dump(fields, f, indent=2)
+    print(f"OrderParams layout written to src/delta_neutral/drift_order_params.json")
 
     # Also check Enums
-    print("\n--- Enum Indices ---")
-    enums_to_check = ["MarketType", "PositionDirection", "OracleSource", "OrderType"]
-    for type_def in idl.get("types", []):
-        if type_def["name"] in enums_to_check:
-            print(f"Enum: {type_def['name']}")
-            variants = type_def["type"]["variants"]
-            for idx, variant in enumerate(variants):
-                print(f"  {idx}: {variant['name']}")
+    with open("src/delta_neutral/drift_enums.json", "w") as f:
+        enums = {name: [] for name in enums_to_check}
+        for type_def in idl.get("types", []):
+            if type_def["name"] in enums_to_check:
+                enums[type_def["name"]] = [v["name"] for v in type_def["type"]["variants"]]
+        json.dump(enums, f, indent=2)
+    print(f"Enums written to src/delta_neutral/drift_enums.json")
 
 if __name__ == "__main__":
     inspect_drift_idl()
