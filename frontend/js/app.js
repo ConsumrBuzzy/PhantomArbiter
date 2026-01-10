@@ -81,12 +81,42 @@ class DashboardApp {
     }
 
     updateStats(stats) {
-        if (stats.mode) this.engineMode.textContent = stats.mode.toUpperCase();
+        if (stats.mode) {
+            const mode = stats.mode.toUpperCase();
+            this.engineMode.textContent = mode;
+            this.updateLayoutForMode(mode);
+        }
         if (stats.wss_latency_ms !== undefined) this.statsLatency.textContent = `${stats.wss_latency_ms}ms`;
+        if (stats.pod_status) {
+            // console.log("Pods:", stats.pod_status);
+        }
         if (stats.settled_pnl !== undefined) {
             const val = stats.settled_pnl;
             this.statsPnl.textContent = `$${val.toFixed(2)}`;
             this.statsPnl.style.color = val >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        }
+    }
+
+    updateLayoutForMode(mode) {
+        const intelTitle = document.getElementById('intel-title');
+        const intelHeader = document.getElementById('intel-header');
+
+        if (mode === 'SCALP') {
+            intelTitle.textContent = 'Snipe Intelligence (Pods)';
+            intelHeader.innerHTML = `
+                <th>TOKEN</th>
+                <th>SIGNAL</th>
+                <th>ACTION</th>
+                <th>CONF</th>
+            `;
+        } else {
+            intelTitle.textContent = 'Arb Opportunities';
+            intelHeader.innerHTML = `
+                <th>TOKEN</th>
+                <th>ROUTE</th>
+                <th>SPREAD</th>
+                <th>EST PROFIT</th>
+            `;
         }
     }
 

@@ -59,11 +59,14 @@ class DashboardTransformer:
                 }
             }
             
-        # 4. System Stats
+        # 4. System Stats / Pod Status
         elif sig_type == SignalType.SYSTEM_STATS:
             return {
                 "type": "SYSTEM_STATS",
-                "data": data
+                "data": {
+                    **data,
+                    "pod_status": data.get("pod_status", "Active")
+                }
             }
             
         # 5. Market Pulse / Intel
