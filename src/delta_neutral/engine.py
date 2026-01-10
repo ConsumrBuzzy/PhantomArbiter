@@ -309,19 +309,23 @@ class DeltaNeutralEngine:
             Logger.info(f"[DNEM] Position opened: {spot_qty:.4f} SOL spot + short")
             return True
         else:
-            # Live mode: Use SyncExecution
-            bundle = await self.sync_executor.execute_sync_trade(signal, sol_price)
-            
-            if bundle.status == "CONFIRMED":
-                self._position_open = True
-                Logger.info(f"[DNEM] Position opened via Jito bundle: {bundle.bundle_id}")
-                return True
-            elif bundle.needs_rollback:
-                await self.sync_executor.emergency_rollback(bundle)
-                return False
-            else:
-                Logger.error(f"[DNEM] Position open failed: {bundle.status}")
-                return False
+            # Live mode: Use SyncExecution with retries
+            for attempt in range(5):
+                bundle = await self.sync_executor.execute_sync_trade(signal, sol_price)
+                
+                if bundle.status == "CONFIRMED":
+                    self._position_open = True
+                    Logger.info(f"[DNEM] Position opened via Jito bundle: {bundle.bundle_id}")
+                    return True
+                elif bundle.needs_rollback:
+                    await self.sync_executor.emergency_rollback(bundle)
+                    return False
+                
+                Logger.warning(f"[DNEM] Position open failed (Attempt {attempt+1}/5). Retrying in 5s...")
+                await asyncio.sleep(5.0)
+                
+            return False
+
     
     async def start_monitoring(self):
         """Start the neutrality monitoring loop."""
