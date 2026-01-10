@@ -111,7 +111,8 @@ class PnLSettler:
         spot_market_pda = self.derive_spot_market_account(USDC_SPOT_MARKET_INDEX)
         
         # Additional Account: SOL Oracle
-        oracle_pk = Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz")
+        # Log error revealed program expects: 9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV
+        oracle_pk = Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV")
         
         accounts = [
             AccountMeta(state_pda, is_signer=False, is_writable=False),
