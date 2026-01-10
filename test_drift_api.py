@@ -15,13 +15,21 @@ async def test():
             if response.status_code == 200:
                 data = response.json()
                 print(f"Type: {type(data)}")
-                print(f"Data: {json.dumps(data, indent=2)[:500]}")
                 
-                # Handle both dict and list responses
                 if isinstance(data, dict):
-                    records = data.get("data", [data])
+                    print(f"Keys: {list(data.keys())}")
+                    records = data.get("data", data.get("records", [data]))
                 else:
                     records = data
+                
+                if isinstance(records, list):
+                    print(f"Records count: {len(records)}")
+                    if records:
+                        latest = records[-1]
+                        print(f"Latest record keys: {list(latest.keys()) if isinstance(latest, dict) else 'not dict'}")
+                else:
+                    latest = records
+                    print(f"Single record keys: {list(latest.keys()) if isinstance(latest, dict) else 'not dict'}")
                 
                 print(f"Records: {len(records)}")
                 
