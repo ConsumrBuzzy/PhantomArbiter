@@ -182,7 +182,15 @@ class PreFlightCheck:
             # For now, use SharedPriceCache
             try:
                 from src.core.shared_cache import SharedPriceCache
-                self.sol_price = SharedPriceCache.get_price("SOL") or 150.0
+                raw_price = SharedPriceCache.get_price("SOL")
+                
+                # Handle if price is tuple (price, timestamp) or just float
+                if isinstance(raw_price, tuple):
+                    self.sol_price = float(raw_price[0]) if raw_price[0] else 150.0
+                elif isinstance(raw_price, (int, float)):
+                    self.sol_price = float(raw_price)
+                else:
+                    self.sol_price = 150.0
                 
                 # Check if price is reasonable (sanity check)
                 if 10 < self.sol_price < 500:
@@ -199,7 +207,7 @@ class PreFlightCheck:
                         value=f"SOL: ${self.sol_price:.2f} (suspicious)",
                         recommendation="Check price feed source",
                     ))
-            except ImportError:
+            except (ImportError, Exception):
                 self.sol_price = 150.0
                 self.checks.append(CheckResult(
                     name="Oracle Price",
@@ -208,6 +216,7 @@ class PreFlightCheck:
                 ))
             
         except Exception as e:
+            self.sol_price = 150.0  # Ensure sol_price is always set
             self.checks.append(CheckResult(
                 name="Oracle Check",
                 passed=False,
@@ -299,16 +308,32 @@ class PreFlightCheck:
         """Check Drift account status."""
         try:
             from src.delta_neutral.drift_order_builder import DriftOrderBuilder
+            from solders.pubkey import Pubkey
             
-            if not self.wallet:
+            # Check if wallet exists and has keypair
+            if not self.wallet or not self.wallet.keypair:
                 self.checks.append(CheckResult(
                     name="Drift Account",
                     passed=False,
-                    value="No wallet",
+                    value="No wallet keypair",
+                    recommendation="Set SOLANA_PRIVATE_KEY first",
                 ))
                 return
             
-            builder = DriftOrderBuilder(self.wallet.get_public_key())
+            pubkey = self.wallet.get_public_key()
+            if not pubkey:
+                self.checks.append(CheckResult(
+                    name="Drift Account",
+                    passed=False,
+                    value="No wallet pubkey",
+                ))
+                return
+            
+            # Convert to Pubkey if string
+            if isinstance(pubkey, str):
+                pubkey = Pubkey.from_string(pubkey)
+            
+            builder = DriftOrderBuilder(pubkey)
             
             # Verify PDA derivation
             user_account = builder.user_account
@@ -318,9 +343,6 @@ class PreFlightCheck:
                 passed=True,
                 value=f"{str(user_account)[:16]}...",
             ))
-            
-            # Note: Full account verification would require RPC call
-            # to check if account is initialized
             
         except Exception as e:
             self.checks.append(CheckResult(
