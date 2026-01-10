@@ -70,6 +70,27 @@ ORACLES = {
 # =============================================================================
 
 
+class OracleSource(Enum):
+    """Drift OracleSource Enum."""
+
+    PYTH = 0
+    SWITCHBOARD = 1
+    QUOTE_ASSET = 2
+    PYTH_1K = 3
+    PYTH_1M = 4
+    PYTH_STABLE_COIN = 5
+    PRELAUNCH = 6
+    PYTH_PULL = 7
+    PYTH_1K_PULL = 8
+    PYTH_1M_PULL = 9
+    PYTH_STABLE_COIN_PULL = 10
+    SWITCHBOARD_ON_DEMAND = 11
+    PYTH_LAZER = 12
+    PYTH_LAZER_1K = 13
+    PYTH_LAZER_1M = 14
+    PYTH_LAZER_STABLE_COIN = 15
+
+
 class PositionDirection(Enum):
     """Direction of perp position."""
     LONG = 0
