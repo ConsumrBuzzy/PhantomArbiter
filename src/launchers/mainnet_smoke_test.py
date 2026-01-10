@@ -142,7 +142,7 @@ class MainNetSmokeTest:
             self.jito = JitoAdapter(region="ny")
             
             # Drift
-            from src.delta_neutral.drift_order_builder import DriftAdapter
+            from src.shared.infrastructure.drift_adapter import DriftAdapter
             self.drift = DriftAdapter("mainnet")
             self.drift.set_wallet(self.wallet)
             
@@ -291,8 +291,13 @@ class MainNetSmokeTest:
         
         try:
             from src.delta_neutral.drift_order_builder import DriftOrderBuilder
+            from solders.pubkey import Pubkey
             
-            builder = DriftOrderBuilder(self.wallet.get_public_key())
+            pubkey = self.wallet.get_public_key()
+            if isinstance(pubkey, str):
+                pubkey = Pubkey.from_string(pubkey)
+            
+            builder = DriftOrderBuilder(pubkey)
             
             # Verify PDA derivation
             user_account = builder.user_account
