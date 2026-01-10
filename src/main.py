@@ -122,23 +122,57 @@ class ArbiterEngine:
     async def detect_initial_state(self):
         """
         Check if we have an open position to determine startup state.
+        Handles 'Orphaned Spot' (Spot held, Short closed) by checking funding.
         """
         Logger.info("🔎 Detecting Initial State...")
+        from solana.rpc.async_api import AsyncClient
+        
+        rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
+        
         try:
             # Reuse rebalancer to get position data
             status = await self.rebalancer.check_and_rebalance(simulate=True)
             perp_sol = status.get('perp_sol', 0.0)
+            spot_sol = status.get('spot_sol', 0.0)
             
-            # If we have a significant short position, we are ACTIVE
+            # Scenario A: Healthy Short Position
             if abs(perp_sol) > 0.01:
                 Logger.section(f"✅ EXISTING POSITION FOUND ({perp_sol} SOL). RESUMING ACTIVE MODE.")
                 self.state = STATE_ACTIVE
-            else:
-                Logger.section("💤 NO POSITION DETECTED. STARTING IN WAITLIST MODE.")
-                self.state = STATE_WAITLIST
+                return
+
+            # Scenario B: Orphaned Spot (Unhedged Long)
+            if spot_sol > 0.02:
+                Logger.warning(f"⚠️ ORPHANED SPOT DETECTED ({spot_sol} SOL) WITH NO SHORT.")
+                
+                # Check Funding Context
+                async with AsyncClient(rpc_url) as client:
+                    funding_rate = await self.watchdog.get_funding_rate(client)
+                    
+                Logger.info(f"   Context: Funding Rate is {funding_rate:.6f}/hr")
+                
+                from src.engine.funding_watchdog import NEGATIVE_THRESHOLD
+                if funding_rate < NEGATIVE_THRESHOLD:
+                    Logger.critical("🛑 FUNDING IS HOSTILE. FINISHING EMERGENCY UNWIND (SELLING SPOT).")
+                    if self.live_mode:
+                        async with AsyncClient(rpc_url) as client:
+                            await self.watchdog.unwind_position(client, simulate=False)
+                    else:
+                        Logger.info("   [SIM] Would Sell Spot now.")
+                    
+                    self.state = STATE_WAITLIST
+                else:
+                    Logger.success("✅ FUNDING IS SAFE. RESUMING ACTIVE MODE TO RE-HEDGE.")
+                    self.state = STATE_ACTIVE
+                return
+
+            # Scenario C: Clean Slate (USDC)
+            Logger.section("💤 NO POSITION DETECTED. STARTING IN WAITLIST MODE.")
+            self.state = STATE_WAITLIST
                 
         except Exception as e:
             Logger.error(f"Failed to detect state: {e}. Defaulting to ACTIVE.")
+            # Fallback to ACTIVE is risky if funding bad, but safest for "do something"
             self.state = STATE_ACTIVE
 
     async def run_loop(self):

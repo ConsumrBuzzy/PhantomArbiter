@@ -165,6 +165,16 @@ class SmartRouter:
                 self.trigger_jupiter_cooldown(15)  # 15s cooldown
                 return None
 
+            # V41.2: Auto-Fallback for Invalid Key (401)
+            if resp.status_code == 401 and self.jupiter_api_key:
+                Logger.warning("⚠️ Jupiter 401 Unauthorized. Removing invalid API key and retrying...")
+                self.jupiter_api_key = ""
+                if "x-api-key" in self._session.headers:
+                    del self._session.headers["x-api-key"]
+                
+                # Retry without key
+                return self.get_jupiter_quote(input_mint, output_mint, amount, slippage_bps)
+
             if resp.status_code != 200:
                 Logger.error(f"Jupiter API Error: {resp.status_code} - {resp.text}")
                 return None
@@ -227,6 +237,16 @@ class SmartRouter:
             if resp.status_code == 429:
                 self.trigger_jupiter_cooldown(15)
                 return None
+
+            # V41.2: Auto-Fallback for Invalid Key (401)
+            if resp.status_code == 401 and self.jupiter_api_key:
+                Logger.warning("⚠️ Jupiter Swap 401 Unauthorized. Retrying without key...")
+                self.jupiter_api_key = ""
+                if "x-api-key" in self._session.headers:
+                    del self._session.headers["x-api-key"]
+                
+                # Retry
+                return self.get_swap_transaction(payload)
 
             if resp.status_code != 200:
                 Logger.error(f"Jupiter Swap Error: {resp.status_code} - {resp.text}")
