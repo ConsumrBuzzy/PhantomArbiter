@@ -33,6 +33,13 @@ def inspect_drift_idl():
         json.dump(fields, f, indent=2)
     print(f"OrderParams layout written to src/delta_neutral/drift_order_params.json")
 
+    # Check placePerpOrder instruction accounts
+    place_perp_order = next((ix for ix in idl.get("instructions", []) if ix["name"] == "placePerpOrder"), None)
+    if place_perp_order:
+        with open("src/delta_neutral/drift_instruction_accounts.json", "w") as f:
+            json.dump(place_perp_order["accounts"], f, indent=2)
+        print(f"placePerpOrder accounts written to src/delta_neutral/drift_instruction_accounts.json")
+
     # Also check Enums
     with open("src/delta_neutral/drift_enums.json", "w") as f:
         enums = {name: [] for name in enums_to_check}
