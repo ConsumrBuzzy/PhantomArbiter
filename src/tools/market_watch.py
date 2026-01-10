@@ -119,15 +119,19 @@ class MarketWatch:
         """Fetch live funding rates from Drift public Data API."""
         result = {}
         
-        # Map our market names to Drift API format
+        # Map our display names to Drift API marketName format
+        # Note: BONK is "1MBONK" (1 million BONK per contract)
         market_map = {
             "SOL-PERP": "SOL",
-            "BTC-PERP": "BTC",
+            "BTC-PERP": "BTC", 
             "ETH-PERP": "ETH",
-            "JUP-PERP": "JUP",
-            "PYTH-PERP": "PYTH",
-            "BONK-PERP": "BONK",
             "WIF-PERP": "WIF",
+            "BONK-PERP": "1MBONK",  # 1 million BONK per contract
+            "JTO-PERP": "JTO",      # Jito token
+            "RNDR-PERP": "RNDR",    # Render
+            "INJ-PERP": "INJ",      # Injective
+            "PYTH-PERP": "PYTH",
+            "JUP-PERP": "JUP",
         }
         
         try:
