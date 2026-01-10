@@ -193,8 +193,8 @@ async def check_hedge_health():
         
         # Assume we're hedging against a "base" spot position
         # For delta-neutral: spot_sol + perp_sol should = 0
-        # But we exclude "reserved" SOL for fees (~0.05)
-        reserved_sol = 0.05
+        # Reserve only minimal SOL for fees (~0.017 SOL = ~$2.50)
+        reserved_sol = 0.017
         hedgeable_spot = max(0, spot_sol - reserved_sol)
         
         # Net delta = spot exposure + perp exposure
