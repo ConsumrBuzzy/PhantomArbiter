@@ -120,6 +120,7 @@ class SyncExecution:
         latency_monitor: Any,  # LatencyMonitor
         wallet: Any,   # WalletManager
         config: Optional[SyncExecutionConfig] = None,
+        use_redis_snapshots: bool = False,
     ):
         self.swapper = swapper
         self.drift = drift
@@ -127,6 +128,11 @@ class SyncExecution:
         self.latency = latency_monitor
         self.wallet = wallet
         self.config = config or SyncExecutionConfig()
+        
+        # Position snapshot manager for partial fill protection
+        from src.delta_neutral.position_snapshot import create_snapshot_manager
+        self.snapshot_manager = create_snapshot_manager(use_redis=use_redis_snapshots)
+        self._current_snapshot_key: Optional[str] = None
         
         # Statistics
         self._bundles_attempted = 0
@@ -168,6 +174,15 @@ class SyncExecution:
         
         # Step 1: GUARD - Check latency kill-switch
         await self._check_kill_switch()
+        
+        # Step 1.5: SNAPSHOT - Capture pre-trade state for rollback detection
+        snapshot_key = await self.snapshot_manager.capture_pre_trade(
+            self.wallet,
+            self.drift,
+            signal,
+            block_height=await self._get_current_slot(),
+        )
+        self._current_snapshot_key = snapshot_key
         
         # Step 2: PREP - Build instructions
         Logger.info(f"[DNEM] Building atomic bundle for {signal}")
@@ -465,14 +480,26 @@ class SyncExecution:
         """
         Check if only one leg of the bundle executed.
         
-        This is the MOST DANGEROUS failure mode - creates directional exposure.
+        Uses pre-trade snapshot to detect imbalance.
         """
-        # Check wallet state for unexpected position changes
-        # This would compare pre-trade snapshot to current state
+        Logger.debug("[DNEM] Checking for partial fill via snapshot comparison...")
         
-        # For now, return False as a placeholder
-        # Actual implementation requires position monitoring
-        Logger.debug("[DNEM] Checking for partial fill...")
+        analysis = await self.snapshot_manager.analyze_post_trade(
+            self.wallet,
+            self.drift,
+            key=self._current_snapshot_key,
+        )
+        
+        if analysis is None:
+            Logger.warning("[DNEM] No snapshot available for partial fill check")
+            return False
+        
+        if analysis.is_partial_fill:
+            Logger.warning(
+                f"[DNEM] PARTIAL FILL DETECTED: "
+                f"Spot={analysis.spot_executed}, Perp={analysis.perp_executed}"
+            )
+            return True
         
         return False
     
