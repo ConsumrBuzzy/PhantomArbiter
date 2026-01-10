@@ -416,7 +416,7 @@ class SyncExecution:
         
         # Build versioned message
         message = MessageV0.try_compile(
-            payer=self.wallet.get_public_key(),
+            payer=Pubkey.from_string(self.wallet.get_public_key()),
             instructions=all_instructions,
             address_lookup_table_accounts=[],
             recent_blockhash=recent_blockhash,
