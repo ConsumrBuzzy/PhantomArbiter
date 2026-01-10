@@ -173,6 +173,11 @@ class Logger:
         )
 
     @staticmethod
+    def add_signal_bus_sink():
+        """Ensure SignalBus sink is active."""
+        logger.add(signal_bus_sink, level="INFO")
+
+    @staticmethod
     def add_memory_sink(maxlen: int = 10):
         """Add a deque sink for TUI display."""
         from collections import deque

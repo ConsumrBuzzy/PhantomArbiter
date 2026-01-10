@@ -268,49 +268,63 @@ class ArbiterEngine:
                     Logger.error(f"Engine Loop Error: {e}")
                     await asyncio.sleep(5)
 
-if __name__ == "__main__":
-    load_dotenv()
-    Logger.add_file_sink(ENGINE_LOG_PATH)
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--live", action="store_true", help="Enable LIVE execution")
-    parser.add_argument("--leverage", type=float, default=1.0, help="Target Leverage")
-    parser.add_argument("--engine", type=str, default="funding", help="Engine Selection (funding/scalp)")
-    args = parser.parse_args()
-    
+async def run_selected_engine(args):
+    """Factory to run the selected engine."""
     if args.engine == "arb":
         Logger.info("🏗️ Starting ARBITRAGE Engine...")
-        try:
-            from src.engines.arb.logic import ArbEngine
-            engine = ArbEngine(live_mode=args.live)
-            asyncio.run(engine.run_loop())
-        except KeyboardInterrupt:
-            Logger.section("👋 Arb Engine Shutdown.")
-            sys.exit(0)
-        except Exception as e:
-            Logger.critical(f"❌ Failed to load Arb Engine: {e}")
-            sys.exit(1)
+        from src.engines.arb.logic import ArbEngine
+        engine = ArbEngine(live_mode=args.live)
+        await engine.run_loop()
 
     elif args.engine == "scalp":
         Logger.info("🔫 Starting SCALP Engine (Meme Hunter)...")
-        try:
-            from src.engines.scalp.logic import ScalpEngine
-            engine = ScalpEngine(live_mode=args.live)
-            asyncio.run(engine.run_loop())
-        except KeyboardInterrupt:
-            Logger.section("👋 Scalp Engine Shutdown.")
-            sys.exit(0)
-        except Exception as e:
-            Logger.critical(f"❌ Failed to load Scalp Engine: {e}")
-            sys.exit(1)
+        from src.engines.scalp.logic import ScalpEngine
+        engine = ScalpEngine(live_mode=args.live)
+        await engine.run_loop()
 
     elif args.engine == "funding":
         Logger.info("💰 Starting FUNDING Engine...")
         engine = ArbiterEngine(live_mode=args.live, target_leverage=args.leverage)
-        try:
-            asyncio.run(engine.run_loop())
-        except KeyboardInterrupt:
-            Logger.section("👋 Engine Shutdown Requested.")
-            sys.exit(0)
+        await engine.run_loop()
     else:
         Logger.error(f"Unknown Engine: {args.engine}")
         sys.exit(1)
+
+async def main():
+    load_dotenv()
+    Logger.add_file_sink(ENGINE_LOG_PATH)
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--live", action="store_true", help="Enable LIVE execution")
+    parser.add_argument("--leverage", type=float, default=1.0, help="Target Leverage")
+    parser.add_argument("--engine", type=str, default="funding", help="Engine Selection (funding/scalp/arb)")
+    parser.add_argument("--dashboard", action="store_true", help="Start Web Dashboard Server")
+    args = parser.parse_args()
+
+    tasks = []
+
+    # 1. Dashboard Server (Background)
+    if args.dashboard:
+        from src.interface.dashboard_server import DashboardServer
+        dash = DashboardServer()
+        tasks.append(asyncio.create_task(dash.start()))
+        Logger.info("   [SYSTEM] Web Dashboard Server task queued.")
+
+    # 2. Trading Engine
+    tasks.append(asyncio.create_task(run_selected_engine(args)))
+
+    try:
+        # Wait for either to fail or finish (Trading engine usually runs forever)
+        await asyncio.gather(*tasks)
+    except KeyboardInterrupt:
+        Logger.section("👋 Shutdown Requested")
+    except Exception as e:
+        Logger.critical(f"🛑 Critical System Failure: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

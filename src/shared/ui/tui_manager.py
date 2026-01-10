@@ -28,6 +28,7 @@ class TUIRunner:
         # 1. Reconfigure Logging for TUI
         logger.remove()
         Logger.add_file_sink(ENGINE_LOG_PATH)
+        Logger.add_signal_bus_sink()
         self.log_buffer = Logger.add_memory_sink(maxlen=10)
         
         # 2. Prepare Data Object
