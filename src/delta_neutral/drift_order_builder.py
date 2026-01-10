@@ -226,9 +226,12 @@ class DriftOrderBuilder:
         return stats_pda
     
     def _get_drift_state(self) -> Pubkey:
-        """Get the Drift state account (constant)."""
-        # This is a known constant for Drift mainnet
-        return Pubkey.from_string("DfYCNezifxAEsQamrAH2R8CgqMKLb6VpfHEV6r9n4MCz")
+        """Get the Drift state account (derived)."""
+        state_pda, _ = Pubkey.find_program_address(
+            [b"drift_state"],
+            DRIFT_PROGRAM_ID,
+        )
+        return state_pda
     
     def _get_perp_market(self, market_index: int) -> Pubkey:
         """Get or derive perp market account."""
