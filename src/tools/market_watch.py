@@ -48,12 +48,14 @@ class MarketOpportunity:
     @property
     def daily_yield_usd(self) -> float:
         """Daily yield on $12 position."""
-        return 12.0 * (self.funding_rate_8h * 3)  # 3 funding periods per day
+        # rate_8h is in % form (e.g., 0.048 = 0.048%), so divide by 100
+        return 12.0 * (self.funding_rate_8h / 100) * 3  # 3 funding periods per day
     
     @property
     def hourly_yield_usd(self) -> float:
         """Hourly yield on $12 position."""
-        return 12.0 * self.funding_rate_1h
+        # rate_1h is in % form, divide by 100 for decimal
+        return 12.0 * (self.funding_rate_1h / 100)
     
     @property
     def is_profitable(self) -> bool:
