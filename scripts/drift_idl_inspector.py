@@ -22,7 +22,19 @@ def inspect_drift_idl():
         print("OrderParams not found in types")
         return
 
+    fields = order_params["type"]["fields"]
+    struct_mapping = {
+        "u8": "B",
+        "u16": "<H",
+        "u32": "<I",
+        "u64": "<Q",
+        "i64": "<q",
+        "bool": "B",
+        "publicKey": "32s",
+        "i32": "<i",
+    }
     print(f"{'#':<3} | {'Option':<8} | {'Field Name':<25} | {'Type':<20} | {'Struct'}")
+
     print("-" * 75)
     for i, field in enumerate(fields):
         name = field["name"]
