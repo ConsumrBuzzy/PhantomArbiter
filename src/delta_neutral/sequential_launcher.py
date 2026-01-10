@@ -15,7 +15,7 @@ from src.shared.execution.wallet import WalletManager
 from src.shared.execution.wallet import WalletManager
 from src.shared.execution.swapper import JupiterSwapper
 # from src.leverage.drift_adapter import DriftAdapter  <-- Broken Import
-from src.delta_neutral.rebalancing import RebalanceSignal, RebalanceDirection
+from src.delta_neutral.types import RebalanceSignal, RebalanceDirection
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder
 
 class SequentialLauncher:
