@@ -11,13 +11,13 @@ from typing import Optional
 from dataclasses import dataclass
 
 from src.shared.system.logging import Logger
-from src.arbiter.core.spread_detector import SpreadOpportunity
-from src.arbiter.core.executor import ArbitrageExecutor
+from src.legacy.arbiter.core.spread_detector import SpreadOpportunity
+from src.legacy.arbiter.core.executor import ArbitrageExecutor
 from src.shared.execution.unified_adapter import UnifiedEngineAdapter
 from src.shared.execution.pool_index import get_pool_index
-from src.arbiter.core.fee_estimator import get_fee_estimator
+from src.legacy.arbiter.core.fee_estimator import get_fee_estimator
 from src.shared.system.db_manager import db_manager
-from src.arbiter.core.pod_engine import pod_manager
+from src.legacy.arbiter.core.pod_engine import pod_manager
 
 
 @dataclass

@@ -119,7 +119,7 @@ class MainNetSmokeTest:
         
         try:
             # Wallet
-            from src.shared.execution.wallet import WalletManager
+            from src.drivers.wallet_manager import WalletManager
             self.wallet = WalletManager()
             
             if not self.wallet.keypair:
@@ -134,7 +134,7 @@ class MainNetSmokeTest:
             Logger.info(f"Wallet: {self.wallet.get_public_key()}")
             
             # Swapper
-            from src.shared.execution.swapper import JupiterSwapper
+            from src.drivers.jupiter_driver import JupiterSwapper
             self.swapper = JupiterSwapper(self.wallet)
             
             # Jito

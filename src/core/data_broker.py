@@ -128,7 +128,7 @@ class DataBroker:
         self.universal_watcher = DexScreenerProvider()
 
         # Initialize execution for wallet scanning
-        from src.shared.execution.wallet import WalletManager
+        from src.drivers.wallet_manager import WalletManager
 
         self.wallet = WalletManager()
         self.wallet_scan_interval = 6

@@ -7,8 +7,8 @@ Integrates safety checks, liquidity verification, and impact analysis.
 
 import asyncio
 from typing import List
-from src.arbiter.core.spread_detector import SpreadOpportunity
-from src.arbiter.core.executor import ArbitrageExecutor
+from src.legacy.arbiter.core.spread_detector import SpreadOpportunity
+from src.legacy.arbiter.core.executor import ArbitrageExecutor
 from src.shared.system.data_source_manager import DataSourceManager
 from src.shared.infrastructure.validator import TokenValidator
 

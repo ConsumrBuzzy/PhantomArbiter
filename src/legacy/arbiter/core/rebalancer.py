@@ -264,7 +264,7 @@ class RebalancingEngine:
 # ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    from src.arbiter.core.atomic_executor import AtomicExecutor, AtomicPosition
+    from src.legacy.arbiter.core.atomic_executor import AtomicExecutor, AtomicPosition
 
     async def test():
         print("=" * 60)

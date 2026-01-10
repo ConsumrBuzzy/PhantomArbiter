@@ -8,7 +8,7 @@ import json
 import os
 from src.shared.infrastructure.validator import TokenValidator
 from src.strategies.logic.portfolio import PortfolioManager
-from src.shared.execution.wallet import WalletManager
+from src.drivers.wallet_manager import WalletManager
 
 
 class SmartScout:

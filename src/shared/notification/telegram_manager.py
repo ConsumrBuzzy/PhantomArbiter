@@ -313,8 +313,8 @@ class TelegramManager:
         await update.message.reply_text(f"🧹 Starting cleanup: {target}...")
 
         try:
-            from src.shared.execution.wallet import WalletManager
-            from src.shared.execution.swapper import JupiterSwapper
+            from src.drivers.wallet_manager import WalletManager
+            from src.drivers.jupiter_driver import JupiterSwapper
             from config.settings import Settings
 
             Settings.ENABLE_TRADING = True

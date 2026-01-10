@@ -713,8 +713,8 @@ class ArbitrageExecutor:
             try:
                 # V131-FIX: Ensure swapper is initialized for instruction-level API
                 if not self.swapper:
-                    from src.shared.execution.swapper import JupiterSwapper
-                    from src.shared.execution.wallet import WalletManager
+                    from src.drivers.jupiter_driver import JupiterSwapper
+                    from src.drivers.wallet_manager import WalletManager
 
                     self.swapper = JupiterSwapper(WalletManager())
 
@@ -911,8 +911,8 @@ class ArbitrageExecutor:
         try:
             # Ensure swapper is initialized
             if not self.swapper:
-                from src.shared.execution.swapper import JupiterSwapper
-                from src.shared.execution.wallet import WalletManager
+                from src.drivers.jupiter_driver import JupiterSwapper
+                from src.drivers.wallet_manager import WalletManager
 
                 self.swapper = JupiterSwapper(WalletManager())
 
@@ -1103,8 +1103,8 @@ class ArbitrageExecutor:
 
         try:
             if not self.swapper:
-                from src.shared.execution.swapper import JupiterSwapper
-                from src.shared.execution.wallet import WalletManager
+                from src.drivers.jupiter_driver import JupiterSwapper
+                from src.drivers.wallet_manager import WalletManager
 
                 wallet = WalletManager()
                 self.swapper = JupiterSwapper(wallet)
@@ -1372,7 +1372,7 @@ class ArbitrageExecutor:
         Execute a multi-hop opportunity using Rust MultiHopBuilder.
         Zero-latency transaction assembly and submission.
         """
-        from src.arbiter.core.hop_engine import HopOpportunity
+        from src.legacy.arbiter.core.hop_engine import HopOpportunity
         if not isinstance(opportunity, HopOpportunity):
              return self._error_result("Invalid multi-hop opportunity type", time.time())
 
@@ -1463,7 +1463,7 @@ class ArbitrageExecutor:
 # ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    from src.arbiter.core.spread_detector import SpreadOpportunity
+    from src.legacy.arbiter.core.spread_detector import SpreadOpportunity
 
     async def test():
         print("=" * 60)

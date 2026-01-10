@@ -18,19 +18,19 @@ from typing import Optional, Dict, List, Any, Tuple
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
-from src.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
-from src.arbiter.core.adaptive_scanner import AdaptiveScanner
-from src.arbiter.core.triangular_scanner import TriangularScanner
+from src.legacy.arbiter.core.spread_detector import SpreadDetector, SpreadOpportunity
+from src.legacy.arbiter.core.executor import ArbitrageExecutor, ExecutionMode
+from src.legacy.arbiter.core.adaptive_scanner import AdaptiveScanner
+from src.legacy.arbiter.core.triangular_scanner import TriangularScanner
 from src.shared.infrastructure.jito_adapter import JitoAdapter
-from src.arbiter.core.trade_engine import TradeEngine
-from src.arbiter.core.reporter import ArbiterReporter
+from src.legacy.arbiter.core.trade_engine import TradeEngine
+from src.legacy.arbiter.core.reporter import ArbiterReporter
 
 
 # ═══════════════════════════════════════════════════════════════════
 # CONSTANTS & POD ENGINE
 # ═══════════════════════════════════════════════════════════════════
-from src.arbiter.core.pod_engine import USDC_MINT, CORE_PAIRS
+from src.legacy.arbiter.core.pod_engine import USDC_MINT, CORE_PAIRS
 
 
 @dataclass
@@ -143,8 +143,8 @@ class PhantomArbiter:
         try:
             Settings.ENABLE_TRADING = True
 
-            from src.shared.execution.wallet import WalletManager
-            from src.shared.execution.swapper import JupiterSwapper
+            from src.drivers.wallet_manager import WalletManager
+            from src.drivers.jupiter_driver import JupiterSwapper
 
             self._wallet = WalletManager()
             if not self._wallet.keypair:
@@ -154,7 +154,7 @@ class PhantomArbiter:
             self._jito = JitoAdapter()
 
             # V120: Initialize StuckTokenGuard for safety net
-            from src.arbiter.core.stuck_token_guard import StuckTokenGuard
+            from src.legacy.arbiter.core.stuck_token_guard import StuckTokenGuard
 
             self._stuck_guard = StuckTokenGuard()
 
@@ -524,7 +524,7 @@ class PhantomArbiter:
 
                     # Try to add to config pairs if missing
                     # self.config.pairs... (Logic similar to _check_signals)
-                    from src.arbiter.core.pod_engine import USDC_MINT
+                    from src.legacy.arbiter.core.pod_engine import USDC_MINT
                     from config.settings import Settings
 
                     mint = Settings.ASSETS.get(token_symbol)
@@ -567,7 +567,7 @@ class PhantomArbiter:
         landlord=None,
     ) -> None:
         """Main trading loop (Delegated to ArbiterEngine)."""
-        from src.arbiter.core.arbiter_engine import ArbiterEngine
+        from src.legacy.arbiter.core.arbiter_engine import ArbiterEngine
 
         if not self._engine:
             # V2.0: Unified Wallet Interface
@@ -605,7 +605,7 @@ class PhantomArbiter:
         # V2.0: Delegate to PaperWallet or Live Wallet
         if self.config.live_mode and hasattr(self, "_wallet"):
             # V115: Live USDC Balance
-            from src.arbiter.core.pod_engine import USDC_MINT
+            from src.legacy.arbiter.core.pod_engine import USDC_MINT
 
             return self._wallet.get_balance(USDC_MINT)
         return self.paper_wallet.cash_balance

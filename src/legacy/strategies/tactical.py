@@ -2,8 +2,8 @@ import time
 import asyncio
 from typing import Dict
 from config.settings import Settings
-from src.shared.execution.wallet import WalletManager
-from src.shared.execution.swapper import JupiterSwapper
+from src.drivers.wallet_manager import WalletManager
+from src.drivers.jupiter_driver import JupiterSwapper
 from src.shared.system.priority_queue import priority_queue
 from src.tools.asset_manager import AssetManager
 from src.legacy.strategies.logic.portfolio import PortfolioManager

@@ -13,12 +13,12 @@ from typing import List, Dict, Any, Optional
 from src.shared.system.logging import Logger
 from config.settings import Settings
 from src.shared.core.pod_system import pod_system, USDC_MINT
-from src.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_spread
-from src.arbiter.core.adaptive_scanner import AdaptiveScanner
+from src.legacy.arbiter.core.calibration import get_pair_threshold, get_bootstrap_min_spread
+from src.legacy.arbiter.core.adaptive_scanner import AdaptiveScanner
 from src.shared.state.app_state import state as app_state, ArbOpportunity
 from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 from src.shared.system.priority_queue import priority_queue
-from src.arbiter.ui.dashboard_formatter import DashboardFormatter
+from src.legacy.arbiter.ui.dashboard_formatter import DashboardFormatter
 
 
 class ArbiterEngine:
@@ -40,7 +40,7 @@ class ArbiterEngine:
         self._last_spreads = {}    # V140: ML decay tracking
         
         # Phase 3: Fast-Lane Integration
-        from src.arbiter.core.hop_engine import get_hop_engine
+        from src.legacy.arbiter.core.hop_engine import get_hop_engine
         self.hop_engine = get_hop_engine()
 
     async def run(
@@ -78,7 +78,7 @@ class ArbiterEngine:
         wake_event = asyncio.Event()
 
         # Signal Coordinator Setup
-        from src.arbiter.core.signal_coordinator import (
+        from src.legacy.arbiter.core.signal_coordinator import (
             SignalCoordinator,
             CoordinatorConfig,
         )

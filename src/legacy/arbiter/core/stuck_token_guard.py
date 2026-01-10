@@ -9,7 +9,7 @@ Features:
 - Attempts auto-sell back to USDC via Jupiter
 
 Usage:
-    from src.arbiter.core.stuck_token_guard import StuckTokenGuard
+    from src.legacy.arbiter.core.stuck_token_guard import StuckTokenGuard
 
     guard = StuckTokenGuard()
     stuck = guard.check_wallet()  # Returns list of stuck tokens

@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from src.shared.system.logging import Logger
-from src.arbiter.core.spread_detector import SpreadOpportunity
-from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
+from src.legacy.arbiter.core.spread_detector import SpreadOpportunity
+from src.legacy.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 from src.shared.notification.telegram_manager import TelegramManager
 
 
@@ -38,7 +38,7 @@ class ArbiterReporter:
         pod_names: List[str] = None,
     ):
         """Print the market dashboard."""
-        from src.arbiter.ui.dashboard_formatter import DashboardFormatter
+        from src.legacy.arbiter.ui.dashboard_formatter import DashboardFormatter
 
         # 1. Terminal Output
         print(

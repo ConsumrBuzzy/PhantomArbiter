@@ -12,8 +12,8 @@ from solana.rpc.types import TxOpts
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.shared.execution.wallet import WalletManager
-from src.shared.execution.swapper import JupiterSwapper
+from src.drivers.wallet_manager import WalletManager
+from src.drivers.jupiter_driver import JupiterSwapper
 from src.delta_neutral.types import RebalanceSignal, RebalanceDirection
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder
 

@@ -36,7 +36,7 @@ class VisualBridge:
         """Subscribe to SignalBus for real-time events."""
         
         # V33: Import Transformer
-        from src.arbiter.visual_transformer import VisualTransformer
+        from src.legacy.arbiter.visual_transformer import VisualTransformer
 
         async def handle_market_update(sig: Signal):
             # Transform Raw Signal -> Visual Globe
@@ -148,7 +148,7 @@ class VisualBridge:
     async def heartbeat_loop(self):
         """Sends PING every 5s and Test Archetypes if idle."""
         import random
-        from src.arbiter.visual_transformer import VisualTransformer
+        from src.legacy.arbiter.visual_transformer import VisualTransformer
         
         while self.is_running:
             if self.connected_clients:

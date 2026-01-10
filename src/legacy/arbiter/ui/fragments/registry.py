@@ -8,7 +8,7 @@ Allows dynamic toggling of panels based on Active Strategy.
 """
 
 from typing import Dict, List, Any
-from src.arbiter.ui.fragments.base import BaseFragment
+from src.legacy.arbiter.ui.fragments.base import BaseFragment
 
 
 class DashboardRegistry:

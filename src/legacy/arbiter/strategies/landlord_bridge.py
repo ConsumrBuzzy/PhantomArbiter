@@ -5,7 +5,7 @@ Since driftpy requires Python 3.11 and the main arbiter may run on 3.14,
 this bridge calls the Landlord via subprocess using py -3.11.
 
 Usage in Arbiter:
-    from src.arbiter.strategies.landlord_bridge import LandlordBridge
+    from src.legacy.arbiter.strategies.landlord_bridge import LandlordBridge
 
     landlord = LandlordBridge()
     status = landlord.get_funding_rate()
@@ -128,7 +128,7 @@ print(json.dumps(result) if result else "{{}}")
         code = f"""
 import asyncio
 import json
-from src.arbiter.strategies.landlord import Landlord
+from src.legacy.arbiter.strategies.landlord import Landlord
 
 async def check():
     landlord = Landlord()
@@ -149,7 +149,7 @@ print(json.dumps(result))
         code = f"""
 import asyncio
 import json
-from src.arbiter.strategies.landlord import Landlord
+from src.legacy.arbiter.strategies.landlord import Landlord
 
 async def run():
     landlord = Landlord()
@@ -168,7 +168,7 @@ print(json.dumps(result))
         code = f'''
 import asyncio
 import json
-from src.arbiter.strategies.landlord import Landlord
+from src.legacy.arbiter.strategies.landlord import Landlord
 
 async def run():
     landlord = Landlord()

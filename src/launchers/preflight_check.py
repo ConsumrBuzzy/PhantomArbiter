@@ -80,7 +80,7 @@ class PreFlightCheck:
     async def _check_wallet(self):
         """Check wallet connectivity and balances."""
         try:
-            from src.shared.execution.wallet import WalletManager
+            from src.drivers.wallet_manager import WalletManager
             self.wallet = WalletManager()
             
             if not self.wallet.keypair:

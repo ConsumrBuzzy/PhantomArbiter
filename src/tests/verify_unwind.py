@@ -27,8 +27,8 @@ from solana.rpc.commitment import Confirmed
 
 from src.shared.system.logging import Logger
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
-from src.shared.execution.swapper import JupiterSwapper
-from src.shared.execution.wallet import WalletManager
+from src.drivers.jupiter_driver import JupiterSwapper
+from src.drivers.wallet_manager import WalletManager
 
 async def simulate_unwind():
     load_dotenv()

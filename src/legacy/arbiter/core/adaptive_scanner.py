@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List
 
-from src.arbiter.core.spread_detector import SpreadOpportunity
+from src.legacy.arbiter.core.spread_detector import SpreadOpportunity
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -305,7 +305,7 @@ class AdaptiveScanner:
         )
 
         # Track near-miss status for priority sorting
-        from src.arbiter.core.near_miss_analyzer import NearMissAnalyzer
+        from src.legacy.arbiter.core.near_miss_analyzer import NearMissAnalyzer
 
         metrics.last_status = NearMissAnalyzer.classify_status(opp.net_profit_usd)
 

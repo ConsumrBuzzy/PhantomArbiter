@@ -11,7 +11,7 @@ V36 Enhancements:
 
 from typing import Dict, Any, Optional
 from src.shared.system.signal_bus import Signal, SignalType
-from src.arbiter.coordinate_transformer import CoordinateTransformer
+from src.legacy.arbiter.coordinate_transformer import CoordinateTransformer
 import math
 
 # Thresholds for whale detection

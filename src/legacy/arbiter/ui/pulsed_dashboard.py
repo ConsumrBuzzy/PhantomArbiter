@@ -15,8 +15,8 @@ from rich import box
 from datetime import datetime
 from typing import List, Dict, Any
 
-from src.arbiter.core.reporter import ArbiterReporter
-from src.arbiter.ui.fragments.registry import registry
+from src.legacy.arbiter.core.reporter import ArbiterReporter
+from src.legacy.arbiter.ui.fragments.registry import registry
 from config.settings import Settings
 
 
@@ -54,12 +54,12 @@ class PulsedDashboard:
         """Register fragments based on active mode."""
         if getattr(Settings, "HOP_ENGINE_ENABLED", False):
             # Phase 17: Narrow Path / Hop Mode
-            from src.arbiter.ui.fragments.narrow_path import (
+            from src.legacy.arbiter.ui.fragments.narrow_path import (
                 MultiverseFragment,
                 GraphStatsFragment,
                 JitoBundleFragment,
             )
-            from src.arbiter.ui.fragments.scavenger import ScavengerFragment
+            from src.legacy.arbiter.ui.fragments.scavenger import ScavengerFragment
 
             # Left Bottom
             registry.register("shadow", ScavengerFragment())
@@ -71,7 +71,7 @@ class PulsedDashboard:
         else:
             # Legacy Mode / Scalper Mode
             # Placeholder ShadowFragment if not in narrow_path
-            from src.arbiter.ui.fragments.narrow_path import ShadowFragment
+            from src.legacy.arbiter.ui.fragments.narrow_path import ShadowFragment
 
             registry.register("shadow", ShadowFragment())
             # registry.register("stats", StandardStatsFragment())

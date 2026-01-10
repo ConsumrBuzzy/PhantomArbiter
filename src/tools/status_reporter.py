@@ -8,7 +8,7 @@ Replaces legacy BotEngine display logic.
 from config.settings import Settings
 from src.core.shared_cache import SharedPriceCache
 from src.tools.asset_manager import AssetManager
-from src.shared.execution.wallet import WalletManager
+from src.drivers.wallet_manager import WalletManager
 
 
 class StatusReporter:

@@ -10,8 +10,8 @@ from typing import List
 from dataclasses import dataclass
 
 from src.shared.system.logging import Logger
-from src.arbiter.monitoring.live_dashboard import LiveDashboard, SpreadInfo
-from src.arbiter.core.stuck_token_guard import StuckTokenGuard
+from src.legacy.arbiter.monitoring.live_dashboard import LiveDashboard, SpreadInfo
+from src.legacy.arbiter.core.stuck_token_guard import StuckTokenGuard
 
 
 @dataclass
@@ -93,8 +93,8 @@ class ArbitrageOrchestrator:
 
     def _init_spread_detector(self):
         """Initialize spread detector with feeds."""
-        from src.arbiter.core.spread_detector import SpreadDetector
-        from src.arbiter.core.triangular_scanner import TriangularScanner
+        from src.legacy.arbiter.core.spread_detector import SpreadDetector
+        from src.legacy.arbiter.core.triangular_scanner import TriangularScanner
 
         self._spread_detector = SpreadDetector(feeds=self._feeds)
         self._triangular_scanner = TriangularScanner(feeds=self._feeds)

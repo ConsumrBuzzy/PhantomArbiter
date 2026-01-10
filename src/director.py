@@ -31,7 +31,7 @@ from src.shared.system.priority_queue import priority_queue # V140
 from config.settings import Settings
 
 # Engines
-from src.arbiter.arbiter import PhantomArbiter, ArbiterConfig
+from src.legacy.arbiter.arbiter import PhantomArbiter, ArbiterConfig
 from src.legacy.strategies.tactical import TacticalStrategy 
 
 # Rust Acceleration

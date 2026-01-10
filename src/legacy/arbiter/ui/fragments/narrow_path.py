@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table, box
 from rich.console import RenderableType
 
-from src.arbiter.ui.fragments.base import BaseFragment
+from src.legacy.arbiter.ui.fragments.base import BaseFragment
 
 
 class MultiverseFragment(BaseFragment):

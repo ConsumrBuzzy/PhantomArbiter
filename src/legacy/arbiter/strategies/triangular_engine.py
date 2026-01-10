@@ -18,7 +18,7 @@ WARNING: This strategy is HEAVILY competed by MEV bots.
 They have faster infrastructure and will front-run you.
 
 Usage:
-    from src.arbiter.strategies.triangular_engine import TriangularEngine
+    from src.legacy.arbiter.strategies.triangular_engine import TriangularEngine
     engine = TriangularEngine(dex="Jupiter")
     opportunities = await engine.find_opportunities()
 """

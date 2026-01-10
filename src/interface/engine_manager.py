@@ -267,7 +267,7 @@ class EngineManager:
         
         # Trigger position closure (if available)
         try:
-            from src.shared.execution.wallet import WalletManager
+            from src.drivers.wallet_manager import WalletManager
             wallet = WalletManager()
             # Close Drift positions if integrated
             # await wallet.close_all_drift_positions()

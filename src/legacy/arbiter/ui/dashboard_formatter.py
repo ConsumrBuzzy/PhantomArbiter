@@ -7,7 +7,7 @@ Responsible for "How the data looks".
 
 from datetime import datetime
 from typing import List, Dict, Optional
-from src.arbiter.core.spread_detector import SpreadOpportunity
+from src.legacy.arbiter.core.spread_detector import SpreadOpportunity
 
 
 class DashboardFormatter:
