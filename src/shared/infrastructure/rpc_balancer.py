@@ -126,7 +126,7 @@ class RPCBalancer:
         self._load_providers()
 
         print(
-            f"   🔀 [RPC] Loaded {len(self.providers)} providers: {[p.name for p in self.providers]}"
+            f"   [RPC] Loaded {len(self.providers)} providers: {[p.name for p in self.providers]}"
         )
 
     def _load_providers(self):
