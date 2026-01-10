@@ -107,10 +107,10 @@ class DriftOrderParams:
         # This is a simplified version - production needs full borsh serialization
         data = bytearray()
         
-        # Order type discriminator (place_order)
-        # Anchor discriminator: sha256("global:place_order")[:8]
-        # [51, 194, 155, 175, 109, 130, 96, 106]
-        data.extend([51, 194, 155, 175, 109, 130, 96, 106])
+        # Order type discriminator (place_perp_order)
+        # Anchor discriminator: sha256("global:place_perp_order")[:8]
+        # [69, 161, 93, 202, 120, 126, 76, 185]
+        data.extend([69, 161, 93, 202, 120, 126, 76, 185])
         
         # Market index (u16 little-endian)
         data.extend(self.market_index.to_bytes(2, 'little'))
@@ -226,9 +226,13 @@ class DriftOrderBuilder:
         return stats_pda
     
     def _get_drift_state(self) -> Pubkey:
-        """Get the Drift state account (constant)."""
-        # This is a known constant for Drift mainnet
-        return Pubkey.from_string("DfYCNezifxAEsQamrAH2R8CgqMKLb6VpfHEV6r9n4MCz")
+        """Get the Drift state account (derived)."""
+        # Dynamic derivation to prevent hardcoding errors
+        state_pda, _ = Pubkey.find_program_address(
+            [b"drift_state"],
+            DRIFT_PROGRAM_ID,
+        )
+        return state_pda
     
     def _get_perp_market(self, market_index: int) -> Pubkey:
         """Get or derive perp market account."""
