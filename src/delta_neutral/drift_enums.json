@@ -31,5 +31,17 @@
     "TriggerMarket",
     "TriggerLimit",
     "Oracle"
+  ],
+  "PostOnlyParam": [
+    "None",
+    "MustPostOnly",
+    "TryPostOnly",
+    "Slide"
+  ],
+  "OrderTriggerCondition": [
+    "Above",
+    "Below",
+    "TriggeredAbove",
+    "TriggeredBelow"
   ]
 }

@@ -16,7 +16,7 @@ def inspect_drift_idl():
     with open(idl_path, "r") as f:
         idl = json.load(f)
 
-    enums_to_check = ["MarketType", "PositionDirection", "OracleSource", "OrderType"]
+    enums_to_check = ["MarketType", "PositionDirection", "OracleSource", "OrderType", "PostOnlyParam", "OrderTriggerCondition"]
     order_params = None
     for type_def in idl.get("types", []):
         if type_def["name"] == "OrderParams":
