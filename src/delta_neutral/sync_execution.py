@@ -54,8 +54,9 @@ class SyncExecutionConfig:
     max_latency_ms: float = 500.0
     
     # Jito bundle settings
-    default_tip_lamports: int = 10_000
-    max_tip_lamports: int = 100_000
+    # Jito bundle settings
+    default_tip_lamports: int = 50_000
+    max_tip_lamports: int = 200_000
     
     # Confirmation settings
     confirmation_timeout_sec: float = 30.0
