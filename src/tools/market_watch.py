@@ -35,7 +35,8 @@ class MarketOpportunity:
     @property
     def annualized_yield(self) -> float:
         """Annualized funding yield (%)."""
-        return self.funding_rate_8h * 3 * 365 * 100  # 3x per day * 365 days
+        # rate_8h is already in % (e.g., 0.048 = 0.048%)
+        return self.funding_rate_8h * 3 * 365  # 3x per day * 365 days
     
     @property
     def basis_spread_pct(self) -> float:
@@ -248,7 +249,7 @@ class MarketWatch:
             print(
                 f"{opp.symbol:<12} "
                 f"${opp.spot_price:>9.2f} "
-                f"{opp.funding_rate_1h*100:>9.4f}% "
+                f"{opp.funding_rate_1h:>9.4f}% "  # Already in % form
                 f"{opp.annualized_yield:>9.1f}% "
                 f"${opp.daily_yield_usd:>8.4f} "
                 f"{status:>8}"
