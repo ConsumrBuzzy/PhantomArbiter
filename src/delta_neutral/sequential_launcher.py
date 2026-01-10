@@ -206,7 +206,7 @@ async def main():
     Logger.info("Fetching SOL price...")
     async with AsyncClient(Settings.RPC_URL) as client:
         # Just use dummy read to ensure connection
-        await client.get_health()
+        await client.get_version()
         Logger.info("RPC Connection: OK")
         
     # Assume $150 SOL.
