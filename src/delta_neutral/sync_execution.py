@@ -321,49 +321,33 @@ class SyncExecution:
     ) -> List[Instruction]:
         """Build Drift order instructions for perp leg."""
         
+        # Import the order builder
+        from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
+        
+        # Create builder from wallet
+        builder = DriftOrderBuilder(self.wallet.get_public_key())
+        
         # Determine order side based on signal
+        market = "SOL-PERP"
+        
         if signal.direction == RebalanceDirection.ADD_SHORT:
             # Increase short position (SELL perp)
-            side = "SHORT"
-            size = signal.qty
+            instructions = builder.build_short_order(market, signal.qty)
+            Logger.info(f"[DNEM] Perp leg: SHORT {signal.qty:.4f} {market} (${signal.qty_usd:.2f})")
         elif signal.direction == RebalanceDirection.ADD_SPOT:
-            # Reduce short position (BUY perp)
-            side = "LONG"
-            size = signal.qty
+            # Reduce short position (BUY perp to close)
+            instructions = builder.build_long_order(market, signal.qty, reduce_only=True)
+            Logger.info(f"[DNEM] Perp leg: LONG (close) {signal.qty:.4f} {market} (${signal.qty_usd:.2f})")
+        elif signal.direction == RebalanceDirection.REDUCE_SHORT:
+            # Close short position
+            instructions = builder.build_long_order(market, signal.qty, reduce_only=True)
+            Logger.info(f"[DNEM] Perp leg: CLOSE SHORT {signal.qty:.4f} {market}")
         else:
-            # For REDUCE operations, inverse the direction
-            side = "LONG" if signal.direction == RebalanceDirection.REDUCE_SHORT else "SHORT"
-            size = signal.qty
-        
-        Logger.info(
-            f"[DNEM] Perp leg: {side} {size:.4f} SOL-PERP (${signal.qty_usd:.2f})"
-        )
-        
-        # Get order instructions from Drift
-        # Note: This assumes drift adapter has a method to build order instructions
-        # If not available, we'll need to use the Drift SDK directly
-        instructions = await self._get_drift_order_instructions(side, size)
+            # REDUCE_SPOT → need to add more short to rebalance
+            instructions = builder.build_short_order(market, signal.qty)
+            Logger.info(f"[DNEM] Perp leg: SHORT {signal.qty:.4f} {market}")
         
         return instructions
-    
-    async def _get_drift_order_instructions(
-        self,
-        side: str,
-        size: float,
-    ) -> List[Instruction]:
-        """
-        Get Drift order instructions.
-        
-        TODO: Integrate with actual Drift SDK for production.
-        For now, returns a placeholder that will need to be replaced.
-        """
-        # Placeholder - actual implementation requires Drift SDK integration
-        # The Drift order would be built using their Python/TypeScript SDK
-        Logger.debug(f"[DNEM] Building Drift {side} order for {size} SOL-PERP")
-        
-        # Return empty list for now - will be implemented with Drift SDK
-        # In production, this would return the actual order instructions
-        return []
     
     async def _build_tip_instruction(self, lamports: int) -> Instruction:
         """Build Jito tip instruction."""
