@@ -834,3 +834,40 @@ body.os-mode .main-content {
     padding: 20px;
 }
 
+
+/* MATRIX VIEW STYLES */
+.matrix-cell {
+    text-align: right;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--text-dim);
+}
+
+.price-val {
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.price-best {
+    color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.1);
+    font-weight: bold;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+}
+
+.price-worst {
+    color: var(--neon-blue);
+    background: rgba(0, 243, 255, 0.1);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+}
+
+.price-empty {
+    color: rgba(255, 255, 255, 0.1);
+}
+
+.spread-hot {
+    color: var(--neon-gold);
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+

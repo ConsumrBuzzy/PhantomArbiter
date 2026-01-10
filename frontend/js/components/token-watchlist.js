@@ -20,23 +20,23 @@ export class TokenWatchlist {
     render() {
         this.container.innerHTML = `
             <div class="watchlist-header">
-                <span class="panel-title">Token Watchlist</span>
+                <span class="panel-title">Token Matrix (Arb View)</span>
                 <span class="watchlist-count">0 tokens</span>
             </div>
             <div class="watchlist-table-wrapper">
-                <table class="watchlist-table">
+                <table class="watchlist-table matrix-view">
                     <thead>
                         <tr>
-                            <th>TOKEN</th>
-                            <th>PRICE</th>
-                            <th>24H</th>
-                            <th>SPREAD</th>
-                            <th>VENUES</th>
+                            <th style="width: 25%">ASSET</th>
+                            <th style="width: 20%">RAYDIUM</th>
+                            <th style="width: 20%">ORCA</th>
+                            <th style="width: 20%">METEORA</th>
+                            <th style="width: 15%">SPREAD</th>
                         </tr>
                     </thead>
                     <tbody id="watchlist-tbody">
                         <tr>
-                            <td colspan="5" class="loading-row">Loading tokens...</td>
+                            <td colspan="5" class="loading-row">Loading matrix...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -58,9 +58,9 @@ export class TokenWatchlist {
             this.countEl.textContent = `${data.tokens.length} tokens`;
         }
 
-        // Sort by volume descending
+        // Sort by spread descending (hottest arbs first)
         const sorted = [...data.tokens].sort((a, b) =>
-            (b.volume_24h || 0) - (a.volume_24h || 0)
+            (b.spread_pct || 0) - (a.spread_pct || 0)
         );
 
         // Build table rows
@@ -68,31 +68,41 @@ export class TokenWatchlist {
     }
 
     /**
-     * Render a single token row
+     * Render a single token row (Matrix Style)
      */
     renderRow(token) {
-        const price = token.best_ask || Object.values(token.prices || {})[0] || 0;
-        const change = token.change_24h || 0;
+        const rayPrice = token.prices['raydium'] || 0;
+        const orcaPrice = token.prices['orca'] || 0;
+        const metPrice = token.prices['meteora'] || 0;
         const spread = token.spread_pct || 0;
-        const venues = Object.keys(token.prices || {});
 
-        // Format price (handle very small numbers)
-        let priceStr;
-        if (price === 0) {
-            priceStr = '--';
-        } else if (price < 0.0001) {
-            priceStr = `$${price.toExponential(2)}`;
-        } else if (price < 1) {
-            priceStr = `$${price.toFixed(6)}`;
-        } else {
-            priceStr = `$${price.toFixed(2)}`;
-        }
+        // Helper to format price cell
+        const formatPriceCell = (price, isBest, isWorst) => {
+            if (!price) return '<span class="price-empty">--</span>';
 
-        // Color classes
-        const changeClass = change >= 0 ? 'positive' : 'negative';
+            let className = 'price-val';
+            if (isBest) className += ' price-best'; // Sell here (highest)
+            if (isWorst) className += ' price-worst'; // Buy here (lowest)
+
+            // Format number
+            let priceStr;
+            if (price < 0.0001) priceStr = price.toExponential(2);
+            else if (price < 1) priceStr = price.toFixed(5);
+            else priceStr = price.toFixed(2);
+
+            return `<span class="${className}">$${priceStr}</span>`;
+        };
+
+        // Find min/max for highlighting
+        const prices = [rayPrice, orcaPrice, metPrice].filter(p => p > 0);
+        const maxPrice = Math.max(...prices);
+        const minPrice = Math.min(...prices);
+
+        // Spread styling
         const spreadClass = spread > 0.5 ? 'spread-hot' : '';
+        const spreadIcon = spread > 1.0 ? '🔥' : '';
 
-        // Category badge colors
+        // Category color
         const categoryColors = {
             'major': 'var(--neon-blue)',
             'meme': 'var(--neon-gold)',
@@ -106,15 +116,21 @@ export class TokenWatchlist {
                     <span class="token-symbol">${token.symbol}</span>
                     <span class="token-category" style="color: ${categoryColor}">${token.category}</span>
                 </td>
-                <td class="price-cell">${priceStr}</td>
-                <td class="change-cell ${changeClass}">
-                    ${change >= 0 ? '+' : ''}${change.toFixed(1)}%
+                
+                <td class="matrix-cell">
+                    ${formatPriceCell(rayPrice, rayPrice === maxPrice && spread > 0, rayPrice === minPrice && spread > 0)}
                 </td>
+                
+                <td class="matrix-cell">
+                    ${formatPriceCell(orcaPrice, orcaPrice === maxPrice && spread > 0, orcaPrice === minPrice && spread > 0)}
+                </td>
+                
+                <td class="matrix-cell">
+                    ${formatPriceCell(metPrice, metPrice === maxPrice && spread > 0, metPrice === minPrice && spread > 0)}
+                </td>
+                
                 <td class="spread-cell ${spreadClass}">
-                    ${spread > 0 ? spread.toFixed(2) + '%' : '--'}
-                </td>
-                <td class="venues-cell">
-                    ${venues.slice(0, 3).map(v => `<span class="venue-badge">${v.slice(0, 3)}</span>`).join('')}
+                    ${spread > 0 ? `${spread.toFixed(2)}% ${spreadIcon}` : '--'}
                 </td>
             </tr>
         `;
