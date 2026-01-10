@@ -8,6 +8,7 @@ from solders.message import MessageV0
 from solders.instruction import Instruction
 from solana.rpc.commitment import Confirmed
 from solana.rpc.async_api import AsyncClient
+from solana.rpc.types import TxOpts
 
 from config.settings import Settings
 from src.shared.system.logging import Logger
