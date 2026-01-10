@@ -354,7 +354,7 @@ class DashboardService:
 
         # V67.0: Get execution drift from ShadowManager
         try:
-            from src.strategies.components.shadow_manager import ShadowManager
+            from src.legacy.strategies.components.shadow_manager import ShadowManager
 
             shadow = ShadowManager()
             stats = shadow.get_stats()
@@ -378,7 +378,7 @@ class DashboardService:
 
         # V67.0: Get slippage calibrator status
         try:
-            from src.strategies.components.slippage_calibrator import get_calibrator
+            from src.legacy.strategies.components.slippage_calibrator import get_calibrator
 
             calibrator = get_calibrator()
             if calibrator:
@@ -390,7 +390,7 @@ class DashboardService:
 
         # V67.0: Get congestion monitor status (Phase 5D)
         try:
-            from src.strategies.components.congestion_monitor import get_congestion_monitor
+            from src.legacy.strategies.components.congestion_monitor import get_congestion_monitor
 
             monitor = get_congestion_monitor()
             if monitor:
