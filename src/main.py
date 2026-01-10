@@ -8,12 +8,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from src.shared.system.logging import Logger
-from src.engine.funding_watchdog import FundingWatchdog
-from src.engine.auto_rebalancer import AutoRebalancer, RebalanceConfig
-from src.engine.pnl_settler import PnLSettler
-from src.engine.leverage_manager import LeverageManager
-from src.shared.execution.wallet import WalletManager
-from src.shared.execution.swapper import JupiterSwapper
+from src.engines.funding.watchdog import FundingWatchdog
+from src.engines.funding.logic import AutoRebalancer, RebalanceConfig
+from src.engines.funding.settler import PnLSettler
+from src.engines.funding.leverage import LeverageManager
+from src.drivers.wallet_manager import WalletManager
+from src.drivers.jupiter_driver import JupiterSwapper
 from solders.pubkey import Pubkey
 
 # Constants
@@ -177,26 +177,24 @@ class ArbiterEngine:
 
     async def run_loop(self):
         mode_str = "🛑 LIVE TRADING" if self.live_mode else "🔵 SIMULATION"
-        Logger.section(f"🤖 ARBITER ENGINE ONLINE: {mode_str}")
-        Logger.info(f"Target Leverage: {self.target_leverage}x")
-        Logger.info(f"Logging to: {ENGINE_LOG_PATH}")
+        Logger.section(f"🤖 ARBITER FACTORY ONLINE: {mode_str}")
+        Logger.info(f"Active Engine: FUNDING (v2)")
         
-        # 1. Detect Initial State (Console Mode)
+        # 1. Detect Initial State
         await self.detect_initial_state()
         
-        # 2. Switch to TUI Mode
-        from src.arbiter.ui.dnem_panel import DNEMDashboard
+        # 2. Switch to TUI Mode (Shared)
+        from src.shared.ui.rich_panel import DNEMDashboard
         from rich.live import Live
         from loguru import logger
         
-        # Reconfigure Logging: Mute Console, Keep File, Add Memory Sink
+        # Reconfigure Logging
         logger.remove()
         Logger.add_file_sink(ENGINE_LOG_PATH)
         log_buffer = Logger.add_memory_sink(maxlen=10)
         
         dashboard = DNEMDashboard()
         
-        # State Container for TUI
         engine_data = {
             "mode": mode_str,
             "state": self.state,
@@ -210,6 +208,7 @@ class ArbiterEngine:
         
         timestamp_last_cycle = 0
         
+        # TUI Loop
         with Live(dashboard.layout, refresh_per_second=2, screen=True):
             while True:
                 try:
@@ -217,60 +216,56 @@ class ArbiterEngine:
                     now_ts = current_time.timestamp()
                     
                     # ---------------------------------------------------------
-                    # SLOW LOOP: Engine Logic (Every REBALANCE_INTERVAL_SEC)
+                    # SLOW LOOP: Engine Logic
                     # ---------------------------------------------------------
                     if now_ts - timestamp_last_cycle >= REBALANCE_INTERVAL_SEC:
                         timestamp_last_cycle = now_ts
                         
-                        # A. Update TUI Logs from Buffer
+                        # Sync Logs
                         engine_data["recent_logs"] = list(log_buffer)
                         engine_data["state"] = self.state
                         
-                        # B. Watchdog Check
+                        # 1. Watchdog
                         Logger.info("🛡️ [WATCHDOG] Checking Funding Rates...")
                         unwound = await self.watchdog.check_health(simulate=not self.live_mode)
                         if unwound:
                             self.state = STATE_WAITLIST
-                        
-                        # C. State Machine
+                            
+                        # 2. Strategy Logic
                         if self.state == STATE_ACTIVE:
-                            # Rebalancer
                             status = await self.rebalancer.check_and_rebalance(simulate=not self.live_mode)
                             
-                            # Update TUI Data
                             engine_data["perp_sol"] = status.get("perp_sol", 0)
                             engine_data["spot_sol"] = status.get("spot_sol", 0)
                             engine_data["sol_price"] = status.get("sol_price", 150)
-                            engine_data["funding_rate_hr"] = -0.0017 # TODO: Fetch real
-                            engine_data["unrealized_pnl"] = 0.0 # TODO: Fetch real
                             
                         elif self.state == STATE_WAITLIST:
                             Logger.info("🕵️ [WAITLIST] Checking for Re-Entry Opportunity...")
-                            # Just monitor
-                            await self.watchdog.check_health(simulate=True)
+                            should_return = await self.watchdog.check_re_entry_opportunity()
+                            if should_return:
+                                self.state = STATE_ACTIVE
+                                await self.re_enter_position()
 
-                        # Write Heartbeat Helper
+                        # Heartbeat
                         with open("data/engine_state.json", "w") as f:
                             json.dump({
                                 "last_beat": now_ts,
-                                "next_beat": now_ts + REBALANCE_INTERVAL_SEC,
-                                "mode": f"{mode_str} | {self.state}",
-                                "leverage": self.target_leverage
+                                "engine": "funding",
+                                "mode": str(self.live_mode),
+                                "state": self.state
                             }, f)
 
                     # ---------------------------------------------------------
-                    # FAST LOOP: TUI Refresh
+                    # FAST LOOP: UI
                     # ---------------------------------------------------------
                     engine_data["recent_logs"] = list(log_buffer)
                     dashboard.update(engine_data)
-                    
-                    await asyncio.sleep(0.1) # Fast tick
-                
+                    await asyncio.sleep(0.1)
+
                 except KeyboardInterrupt:
-                    Logger.info("👋 Engine Shutdown Requested.")
                     break
                 except Exception as e:
-                    Logger.error(f"💥 ENGINE LOOP ERROR: {e}")
+                    Logger.error(f"Engine Loop Error: {e}")
                     await asyncio.sleep(5)
 
 if __name__ == "__main__":
@@ -279,11 +274,47 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true", help="Enable LIVE execution")
     parser.add_argument("--leverage", type=float, default=1.0, help="Target Leverage")
+    parser.add_argument("--engine", type=str, default="funding", help="Engine Selection (funding/scalp)")
     args = parser.parse_args()
     
-    engine = ArbiterEngine(live_mode=args.live, target_leverage=args.leverage)
-    try:
-        asyncio.run(engine.run_loop())
-    except KeyboardInterrupt:
-        Logger.section("👋 Engine Shutdown Requested.")
-        sys.exit(0)
+    if args.engine == "arb":
+        Logger.info("🏗️ Starting ARBITRAGE Engine...")
+        try:
+            from src.engines.arb.scanner import SpreadDetector
+            from src.engines.arb.graph import HopGraphEngine, get_hop_engine
+            
+            # Verify imports work
+            detector = SpreadDetector()
+            graph = get_hop_engine()
+            Logger.info(f"✅ Arb Engine Loaded: Scanner={detector} Graph={graph}")
+            sys.exit(0) # Placeholder until full loop
+        except Exception as e:
+            Logger.critical(f"❌ Failed to load Arb Engine: {e}")
+            sys.exit(1)
+
+    elif args.engine == "scalp":
+        Logger.info("🔫 Starting SCALP Engine (Meme Hunter)...")
+        try:
+            from src.engines.scalp.pods import pod_manager
+            from src.engines.scalp.sentiment import SentimentEngine
+            
+            # Verify imports
+            sent = SentimentEngine()
+            pods = pod_manager.get_active_pods()
+            Logger.info(f"✅ Scalp Engine Loaded: Active Pods={len(pods)} Sentiment={sent}")
+            sys.exit(0) # Placeholder until full loop
+        except Exception as e:
+            Logger.critical(f"❌ Failed to load Scalp Engine: {e}")
+            sys.exit(1)
+
+    elif args.engine == "funding":
+        Logger.info("💰 Starting FUNDING Engine...")
+        engine = ArbiterEngine(live_mode=args.live, target_leverage=args.leverage)
+        try:
+            asyncio.run(engine.run_loop())
+        except KeyboardInterrupt:
+            Logger.section("👋 Engine Shutdown Requested.")
+            sys.exit(0)
+    else:
+        Logger.error(f"Unknown Engine: {args.engine}")
+        sys.exit(1)

@@ -1,8 +1,8 @@
 """
-Pod Engine
-==========
+Scalp Engine Targets (Pods)
+===========================
 Manages smart pod rotation and trading pair definitions.
-Extracted from arbiter.py for modularity.
+Migrated to src/engines/scalp.
 """
 
 import time

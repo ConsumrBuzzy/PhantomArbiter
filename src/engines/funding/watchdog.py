@@ -28,7 +28,7 @@ from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
 
 from src.shared.system.logging import Logger
-from src.engine.auto_rebalancer import AutoRebalancer # For position parsing reuse
+from src.engines.funding.logic import AutoRebalancer # For position parsing reuse
 
 # =============================================================================
 # CONSTANTS
@@ -211,8 +211,8 @@ class FundingWatchdog:
         from solders.keypair import Keypair
         from solana.rpc.types import TxOpts
         from solana.rpc.commitment import Confirmed
-        from src.shared.execution.swapper import JupiterSwapper
-        from src.shared.execution.wallet import WalletManager
+        from src.drivers.jupiter_driver import JupiterSwapper
+        from src.drivers.wallet_manager import WalletManager
         
         secret_bytes = base58.b58decode(private_key)
         keypair = Keypair.from_bytes(secret_bytes)

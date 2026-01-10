@@ -1,7 +1,8 @@
 """
-V1.0: Spread Detector
-=====================
+V2.0: Arb Engine Scanner
+=======================
 Monitors price differences across DEXs to detect arbitrage opportunities.
+Migrated to Modular Factory Architecture.
 """
 
 import time
@@ -265,7 +266,7 @@ class SpreadDetector:
         gross_profit = trade_size * (spread_pct / 100)
 
         # Use centralized FeeEstimator for adaptive fees
-        from src.arbiter.core.fee_estimator import get_fee_estimator
+        from src.shared.pricing.fee_estimator import get_fee_estimator
 
         fee_est = get_fee_estimator()
 
@@ -459,7 +460,7 @@ class SpreadDetector:
         # Calculate spreads for each pair
         # print(f"DEBUG: Parallel Scan: {len(pairs)} pairs | Feeds: {list(feed_prices.keys())}") # CONFIRM FEEDS
 
-        from src.arbiter.core.fee_estimator import get_fee_estimator
+        from src.shared.pricing.fee_estimator import get_fee_estimator
 
         fee_est = get_fee_estimator()
         fee_est._sol_price_cache = await self._get_sol_price()

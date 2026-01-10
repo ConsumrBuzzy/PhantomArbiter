@@ -1,6 +1,6 @@
 """
-Phantom Arbiter - Sentiment Engine
-==================================
+Phantom Arbiter - Scalp Engine Sentiment
+======================================
 The "missing piece" that tells the bot whether funding will stay high.
 
 Free Data Sources:

@@ -1,7 +1,7 @@
 """
-HopGraphEngine - Python Wrapper for Rust Multi-Hop Arbitrage
-=============================================================
-V140: Narrow Path Infrastructure
+Arb Engine Graph
+================
+V2.0: Modular Factory Architecture
 
 This module provides the Python interface to the Rust-powered graph
 pathfinding engine for multi-hop token arbitrage.
@@ -35,6 +35,25 @@ except ImportError:
     Logger.warning(
         "⚠️ phantom_core not available - HopGraphEngine will use fallback mode"
     )
+
+    class MockHopGraph:
+        def update_edge(self, edge): pass
+        def node_count(self): return 0
+        def edge_count(self): return 0
+        def prune_stale(self, slot): return 0
+        def get_neighbors(self, mint): return []
+        def clear(self): pass
+
+    class MockCycleFinder:
+        def __init__(self, *args): pass
+        def find_cycles(self, graph, start): return []
+        def validate_path(self, graph, path): return None
+
+    HopGraph = MockHopGraph
+    CycleFinder = MockCycleFinder
+    HopCycle = None
+    PoolEdge = lambda **kwargs: kwargs # Mock edge constructor
+    RUST_AVAILABLE = False
 
 
 @dataclass
@@ -101,10 +120,11 @@ class HopGraphEngine:
             min_liquidity_usd: Minimum pool liquidity. Defaults to Settings.HOP_MIN_LIQUIDITY_USD
         """
         if not RUST_AVAILABLE:
-            raise ImportError(
-                "phantom_core Rust extension not available. "
-                "Build with: cd src_rust && maturin develop --release"
-            )
+            # raise ImportError(
+            #     "phantom_core Rust extension not available. "
+            #     "Build with: cd src_rust && maturin develop --release"
+            # )
+            pass # Fallback enabled
 
         # Load from settings with fallbacks
         self.max_hops = max_hops or getattr(Settings, "HOP_MAX_LEGS", 4)

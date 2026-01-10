@@ -12,7 +12,7 @@ from solders.message import MessageV0
 import base58
 
 from src.shared.system.logging import Logger
-from src.shared.execution.wallet import WalletManager
+from src.drivers.wallet_manager import WalletManager
 from src.delta_neutral.drift_order_builder import DriftOrderBuilder, PositionDirection
 
 # Constants
@@ -42,7 +42,7 @@ class LeverageManager:
         
         # 2. Simplification: Assume we are identifying state via the AutoRebalancer logic
         # Ideally, we import AutoRebalancer
-        from src.engine.auto_rebalancer import AutoRebalancer
+        from src.engines.funding.logic import AutoRebalancer
         rebalancer = AutoRebalancer()
         status = await rebalancer.check_and_rebalance(simulate=True)
         
