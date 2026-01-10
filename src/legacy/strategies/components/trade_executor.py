@@ -21,16 +21,16 @@ from src.shared.system.priority_queue import priority_queue
 from src.shared.system.logging import Logger
 
 if TYPE_CHECKING:
-    from src.strategies.logic.watcher import Watcher
+    from src.legacy.strategies.logic.watcher import Watcher
     from src.shared.execution.paper_wallet import PaperWallet
     from src.shared.system.capital_manager import CapitalManager
     from src.shared.infrastructure.validator import TokenValidator
     from src.core.prices.pyth_adapter import PythAdapter
     from src.shared.infrastructure.jito_adapter import JitoAdapter
     from src.shared.execution.execution_backend import ExecutionBackend
-    from src.strategies.components.slippage_calibrator import SlippageCalibrator
-    from src.strategies.components.congestion_monitor import CongestionMonitor
-    from src.strategies.components.shadow_manager import ShadowManager
+    from src.legacy.strategies.components.slippage_calibrator import SlippageCalibrator
+    from src.legacy.strategies.components.congestion_monitor import CongestionMonitor
+    from src.legacy.strategies.components.shadow_manager import ShadowManager
 
 
 from src.shared.models.trade_result import TradeResult
@@ -356,7 +356,7 @@ class TradeExecutor:
         try:
             import numpy as np
             import time
-            from src.strategies.logic.signals import TechnicalAnalysis
+            from src.legacy.strategies.logic.signals import TechnicalAnalysis
 
             # 1. Base Metrics
             prices = (

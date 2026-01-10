@@ -7,10 +7,10 @@ V37.0: Now inherits from BaseStrategy for shared functionality.
 
 from config.settings import Settings
 import time
-from src.strategies.logic.base_strategy import BaseStrategy
-from src.strategies.logic.watcher import Watcher
-from src.strategies.logic.risk import PositionSizer
-from src.strategies.logic.metrics import Metrics
+from src.legacy.strategies.logic.base_strategy import BaseStrategy
+from src.legacy.strategies.logic.watcher import Watcher
+from src.legacy.strategies.logic.risk import PositionSizer
+from src.legacy.strategies.logic.metrics import Metrics
 from src.shared.system.logging import Logger
 
 
@@ -242,7 +242,7 @@ class DecisionEngine(BaseStrategy):
         if rsi < rsi_threshold:
             # V19.2: Check short-term Uptrend (SMA 20) for faster signals
             history = watcher.data_feed.raw_prices
-            from src.strategies.logic.signals import TechnicalAnalysis
+            from src.legacy.strategies.logic.signals import TechnicalAnalysis
 
             is_uptrend = TechnicalAnalysis.is_uptrend(
                 price, history, sma_period=20

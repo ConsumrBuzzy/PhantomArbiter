@@ -16,7 +16,7 @@ from typing import Dict, List, Any, Optional
 from config.settings import Settings
 from src.shared.system.logging import Logger
 from src.shared.state.app_state import state
-from src.strategies.logic.watcher import Watcher
+from src.legacy.strategies.logic.watcher import Watcher
 
 
 class SignalScanner:

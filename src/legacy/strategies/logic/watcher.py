@@ -11,7 +11,7 @@ Delegates logic to:
 from src.core.data import DataFeed
 from src.shared.execution.position_manager import PositionManager
 
-from src.strategies.logic.signals import TechnicalAnalysis
+from src.legacy.strategies.logic.signals import TechnicalAnalysis
 
 
 class Watcher:

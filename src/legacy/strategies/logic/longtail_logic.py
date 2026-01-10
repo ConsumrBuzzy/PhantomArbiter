@@ -7,10 +7,10 @@ Uses MACD (12/26/9) crossovers for entry signals.
 
 from config.settings import Settings
 import time
-from src.strategies.logic.watcher import Watcher
+from src.legacy.strategies.logic.watcher import Watcher
 from src.shared.system.priority_queue import priority_queue
-from src.strategies.logic.risk import PositionSizer, TrailingStopManager
-from src.strategies.logic.metrics import Metrics
+from src.legacy.strategies.logic.risk import PositionSizer, TrailingStopManager
+from src.legacy.strategies.logic.metrics import Metrics
 from src.shared.system.logging import Logger
 
 

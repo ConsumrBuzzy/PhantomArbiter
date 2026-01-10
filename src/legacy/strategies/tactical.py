@@ -6,15 +6,15 @@ from src.shared.execution.wallet import WalletManager
 from src.shared.execution.swapper import JupiterSwapper
 from src.shared.system.priority_queue import priority_queue
 from src.tools.asset_manager import AssetManager
-from src.strategies.logic.portfolio import PortfolioManager
+from src.legacy.strategies.logic.portfolio import PortfolioManager
 from src.shared.infrastructure.validator import TokenValidator
 from src.shared.system.logging import Logger
 from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 
 
 # V10.2 Delegates
-from src.strategies.components.data_feed_manager import DataFeedManager
-from src.strategies.components.decision_engine import DecisionEngine
+from src.legacy.strategies.components.data_feed_manager import DataFeedManager
+from src.legacy.strategies.components.decision_engine import DecisionEngine
 
 # V14.0: Remote Control
 import queue
@@ -24,10 +24,10 @@ from src.shared.execution.paper_wallet import PaperWallet
 from src.shared.system.capital_manager import get_capital_manager
 
 # V48.0: Extracted Trade Executor
-from src.strategies.components.trade_executor import TradeExecutor
+from src.legacy.strategies.components.trade_executor import TradeExecutor
 
 # V48.0: Extracted Heartbeat Reporter
-from src.strategies.components.heartbeat_reporter import HeartbeatReporter
+from src.legacy.strategies.components.heartbeat_reporter import HeartbeatReporter
 
 # V48.0: Pyth Network Low-Latency Oracle
 from src.core.prices.pyth_adapter import PythAdapter
@@ -41,24 +41,24 @@ from src.shared.infrastructure.jito_adapter import JitoAdapter
 from src.shared.notification.notifications import get_notifier
 
 # V133: WatcherManager (SRP Refactor)
-from src.strategies.components.watcher_manager import WatcherManager
+from src.legacy.strategies.components.watcher_manager import WatcherManager
 
 # V133: SignalScanner (SRP Refactor)
-from src.strategies.components.signal_scanner import SignalScanner
+from src.legacy.strategies.components.signal_scanner import SignalScanner
 
 # V67.0: Phase 5 - Institutional Realism
-from src.strategies.components.shadow_manager import ShadowManager
-from src.strategies.components.slippage_calibrator import SlippageCalibrator
-from src.strategies.components.congestion_monitor import CongestionMonitor
+from src.legacy.strategies.components.shadow_manager import ShadowManager
+from src.legacy.strategies.components.slippage_calibrator import SlippageCalibrator
+from src.legacy.strategies.components.congestion_monitor import CongestionMonitor
 
 # V133: MaintenanceService (SRP Refactor)
-from src.strategies.components.maintenance_service import MaintenanceService
+from src.legacy.strategies.components.maintenance_service import MaintenanceService
 
 # V133: ConfigSyncService (SRP Refactor)
-from src.strategies.components.config_sync_service import ConfigSyncService
+from src.legacy.strategies.components.config_sync_service import ConfigSyncService
 
 # V133: PositionSizer (SRP Refactor)
-from src.strategies.components.position_sizer import PositionSizer
+from src.legacy.strategies.components.position_sizer import PositionSizer
 
 
 class TacticalStrategy:
