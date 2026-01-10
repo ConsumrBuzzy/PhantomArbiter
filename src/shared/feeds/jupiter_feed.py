@@ -13,10 +13,11 @@ import os
 import time
 import asyncio
 import httpx
+import requests
 from typing import Optional, Dict
 
 from src.shared.system.logging import Logger
-from src.shared.system.smart_router import SmartRouter
+from src.shared.system.smart_router import get_smart_router
 from .price_source import PriceSource, Quote, SpotPrice
 
 
@@ -52,7 +53,7 @@ class JupiterFeed(PriceSource):
     }
 
     def __init__(self):
-        self.router = SmartRouter()
+        self.router = get_smart_router()
         self._price_cache: dict = {}
         self._cache_ttl = 2.0  # 2 second cache
 
