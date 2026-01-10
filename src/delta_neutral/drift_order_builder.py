@@ -57,8 +57,9 @@ MARKET_INDICES = {
 }
 
 # Oracle pubkeys for price feeds (Mainnet Pyth Lazer/Pull)
+# CRITICAL: Use canonical oracles from Drift's PerpMarket accounts
 ORACLES = {
-    "SOL-PERP": Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz"),
+    "SOL-PERP": Pubkey.from_string("H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG"),  # Canonical SOL-PERP oracle
     "BTC-PERP": Pubkey.from_string("35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R"),
     "ETH-PERP": Pubkey.from_string("93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR"),
     "USDC-SPOT": Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV"),
@@ -125,52 +126,79 @@ class DriftOrderParams:
     price: int = 0  # 0 for market orders (PRICE_PRECISION = 1e6)
     
     def to_bytes(self) -> bytes:
-        """Serialize order params to bytes for instruction data using exact IDL layout."""
+        """
+        Serialize OrderParams to bytes matching Drift IDL v2.140.0 exactly.
+        
+        CRITICAL LAYOUT (17 fields, 37 bytes total):
+        - Discriminator: 8 bytes
+        - Fixed fields (1-10): 22 bytes
+        - Option/Enum fields (11-17): 7 bytes (all None/default)
+        
+        Field 13 (triggerCondition) is a DIRECT enum u8, NOT an Option!
+        This was the source of the 0x66 deserialization error.
+        """
         import struct
         
-        # discriminator = sha256("global:place_perp_order")[:8]
-        # [69, 161, 93, 202, 120, 126, 76, 185]
+        # place_perp_order discriminator = sha256("global:place_perp_order")[:8]
         data = bytearray([69, 161, 93, 202, 120, 126, 76, 185])
         
-        # OrderParams Struct (17 fields)
-        # 1. order_type (Enum u8)
+        # ===== FIXED FIELDS (1-10) = 22 bytes =====
+        
+        # 1. orderType (u8 enum): Market=0, Limit=1, TriggerMarket=2, TriggerLimit=3, Oracle=4
         data.append(self.order_type.value)
-        # 2. market_type (Enum u8)
+        
+        # 2. marketType (u8 enum): Spot=0, Perp=1
         data.append(self.market_type.value)
-        # 3. direction (Enum u8)
+        
+        # 3. direction (u8 enum): Long=0, Short=1
         data.append(self.direction.value)
-        # 4. user_order_id (u8)
+        
+        # 4. userOrderId (u8)
         data.append(0)
-        # 5. base_asset_amount (u64)
+        
+        # 5. baseAssetAmount (u64) - little-endian
         data.extend(struct.pack("<Q", self.base_asset_amount))
-        # 6. price (u64)
+        
+        # 6. price (u64) - little-endian, 0 for market orders
         data.extend(struct.pack("<Q", self.price))
-        # 7. market_index (u16)
+        
+        # 7. marketIndex (u16) - little-endian
         data.extend(struct.pack("<H", self.market_index))
-        # 8. reduce_only (bool -> u8)
+        
+        # 8. reduceOnly (bool -> u8)
         data.append(1 if self.reduce_only else 0)
-        # 9. post_only (Enum PostOnlyParam -> u8)
-        # 0: None, 1: MustPostOnly, 2: TryPostOnly, 3: Slide
-        data.append(0)
-        # 10. bit_flags (u8)
+        
+        # 9. postOnly (u8 enum): None=0, MustPostOnly=1, TryPostOnly=2, Slide=3
         data.append(0)
         
-        # Optional fields (11-17) - Handled as (1-byte prefix + data if Some)
-        # 11. max_ts (Option<i64>) -> None (0)
-        data.append(0)
-        # 12. trigger_price (Option<u64>) -> None (0)
-        data.append(0)
-        # 13. trigger_condition (Enum u8) -> Above (0)
-        data.append(0)
-        # 14. oracle_price_offset (Option<i32>) -> None (0)
-        data.append(0)
-        # 15. auction_duration (Option<u8>) -> None (0)
-        data.append(0)
-        # 16. auction_start_price (Option<i64>) -> None (0)
-        data.append(0)
-        # 17. auction_end_price (Option<i64>) -> None (0)
+        # 10. bitFlags (u8) - reserved flags
         data.append(0)
         
+        # ===== OPTION/ENUM FIELDS (11-17) = 7 bytes =====
+        # Option<T> serialization: 0x00 = None, 0x01 + value = Some(value)
+        
+        # 11. maxTs (Option<i64>) -> None
+        data.append(0)
+        
+        # 12. triggerPrice (Option<u64>) -> None
+        data.append(0)
+        
+        # 13. triggerCondition (u8 enum, NOT an Option!): Above=0, Below=1, TriggeredAbove=2, TriggeredBelow=3
+        data.append(0)  # Above
+        
+        # 14. oraclePriceOffset (Option<i32>) -> None
+        data.append(0)
+        
+        # 15. auctionDuration (Option<u8>) -> None
+        data.append(0)
+        
+        # 16. auctionStartPrice (Option<i64>) -> None
+        data.append(0)
+        
+        # 17. auctionEndPrice (Option<i64>) -> None
+        data.append(0)
+        
+        # Total: 8 + 22 + 7 = 37 bytes
         return bytes(data)
 
 
