@@ -171,6 +171,20 @@ class Logger:
             compression="zip"
         )
 
+    @staticmethod
+    def add_memory_sink(maxlen: int = 10):
+        """Add a deque sink for TUI display."""
+        from collections import deque
+        memory_buffer = deque(maxlen=maxlen)
+        
+        def memory_sink(message):
+            # Strip coloring? Maybe keep it for Rich
+            # Loguru message is an object, convert to string
+            memory_buffer.append(message.record["message"])
+            
+        logger.add(memory_sink, level="INFO", format="{message}")
+        return memory_buffer
+
 # --- Test ---
 if __name__ == "__main__":
     Logger.section("LOGURU + RICH INTEGRATION")

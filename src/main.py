@@ -181,80 +181,97 @@ class ArbiterEngine:
         Logger.info(f"Target Leverage: {self.target_leverage}x")
         Logger.info(f"Logging to: {ENGINE_LOG_PATH}")
         
-        # Detect initial state
+        # 1. Detect Initial State (Console Mode)
         await self.detect_initial_state()
         
-        while True:
-            try:
-                current_time = datetime.utcnow()
-                timestamp = current_time.timestamp()
-                
-                # Update State File Logic (Moved to top of loop or end? End is fine)
-                
-                # ---------------------------------------------------------
-                # STATE MACHINE
-                # ---------------------------------------------------------
-                
-                if self.state == STATE_ACTIVE:
-                    # 1. Safety (Watchdog)
-                    if timestamp - self.last_watchdog_check >= WATCHDOG_INTERVAL_SEC:
+        # 2. Switch to TUI Mode
+        from src.arbiter.ui.dnem_panel import DNEMDashboard
+        from rich.live import Live
+        from loguru import logger
+        
+        # Reconfigure Logging: Mute Console, Keep File, Add Memory Sink
+        logger.remove()
+        Logger.add_file_sink(ENGINE_LOG_PATH)
+        log_buffer = Logger.add_memory_sink(maxlen=10)
+        
+        dashboard = DNEMDashboard()
+        
+        # State Container for TUI
+        engine_data = {
+            "mode": mode_str,
+            "state": self.state,
+            "perp_sol": 0.0,
+            "spot_sol": 0.0,
+            "sol_price": 0.0,
+            "funding_rate_hr": 0.0,
+            "health_score": 100.0,
+            "recent_logs": []
+        }
+        
+        timestamp_last_cycle = 0
+        
+        with Live(dashboard.layout, refresh_per_second=4, screen=True):
+            while True:
+                try:
+                    current_time = datetime.now()
+                    now_ts = current_time.timestamp()
+                    
+                    # ---------------------------------------------------------
+                    # SLOW LOOP: Engine Logic (Every REBALANCE_INTERVAL_SEC)
+                    # ---------------------------------------------------------
+                    if now_ts - timestamp_last_cycle >= REBALANCE_INTERVAL_SEC:
+                        timestamp_last_cycle = now_ts
+                        
+                        # A. Update TUI Logs from Buffer
+                        engine_data["recent_logs"] = list(log_buffer)
+                        engine_data["state"] = self.state
+                        
+                        # B. Watchdog Check
                         Logger.info("🛡️ [WATCHDOG] Checking Funding Rates...")
                         unwound = await self.watchdog.check_health(simulate=not self.live_mode)
-                        self.last_watchdog_check = timestamp
-                        
                         if unwound:
-                            Logger.critical("🛑 WATCHDOG TRIGGERED UNWIND. SWITCHING TO WAITLIST.")
                             self.state = STATE_WAITLIST
-                    
-                    # 2. Health & Balance
-                    # ... [Existing Checks]
-                    
-                    # 3. Harvest
-                    today_str = current_time.strftime("%Y-%m-%d")
-                    if current_time.hour == SETTLEMENT_HOUR_UTC and self.last_settlement_date != today_str:
-                        Logger.section("💰 [HARVEST] Daily PnL Settlement Triggered")
-                        await self.settler.execute_settlement(simulate=not self.live_mode)
-                        self.last_settlement_date = today_str
-
-                    # 4. Rebalance (Only if near 1x)
-                    if abs(self.target_leverage - 1.0) < 0.1:
-                         await self.rebalancer.check_and_rebalance(simulate=not self.live_mode)
-                    else:
-                        # Heartbeat log for 2x mode
-                        Logger.info(f"⚖️ [REBALANCER] Standby ({self.target_leverage}x mode)")
-
-                elif self.state == STATE_WAITLIST:
-                     # Monitoring Mode
-                     if timestamp - self.last_watchdog_check >= WATCHDOG_INTERVAL_SEC:
-                        Logger.info("🕵️ [WAITLIST] Checking for Re-Entry Opportunity...")
-                        should_return = await self.watchdog.check_re_entry_opportunity()
-                        self.last_watchdog_check = timestamp
                         
-                        if should_return:
-                            Logger.section("🌤️ CONDITIONS IMPROVED. SURFACING...")
-                            await self.re_enter_position()
-                            self.state = STATE_ACTIVE
-                     else:
-                        Logger.info(f"💤 [WAITLIST] Hibernate... (Status: {self.state})")
+                        # C. State Machine
+                        if self.state == STATE_ACTIVE:
+                            # Rebalancer
+                            status = await self.rebalancer.check_and_rebalance(simulate=not self.live_mode)
+                            
+                            # Update TUI Data
+                            engine_data["perp_sol"] = status.get("perp_sol", 0)
+                            engine_data["spot_sol"] = status.get("spot_sol", 0)
+                            engine_data["sol_price"] = status.get("sol_price", 150)
+                            engine_data["funding_rate_hr"] = -0.0017 # TODO: Fetch real
+                            engine_data["unrealized_pnl"] = 0.0 # TODO: Fetch real
+                            
+                        elif self.state == STATE_WAITLIST:
+                            Logger.info("🕵️ [WAITLIST] Checking for Re-Entry Opportunity...")
+                            # Just monitor
+                            await self.watchdog.check_health(simulate=True)
 
-                # Heartbeat
-                Logger.info(f"💓 Heartbeat... State: {self.state}")
+                        # Write Heartbeat Helper
+                        with open("data/engine_state.json", "w") as f:
+                            json.dump({
+                                "last_beat": now_ts,
+                                "next_beat": now_ts + REBALANCE_INTERVAL_SEC,
+                                "mode": f"{mode_str} | {self.state}",
+                                "leverage": self.target_leverage
+                            }, f)
+
+                    # ---------------------------------------------------------
+                    # FAST LOOP: TUI Refresh
+                    # ---------------------------------------------------------
+                    engine_data["recent_logs"] = list(log_buffer)
+                    dashboard.update(engine_data)
+                    
+                    await asyncio.sleep(0.1) # Fast tick
                 
-                # Write State
-                with open("data/engine_state.json", "w") as f:
-                    json.dump({
-                        "last_beat": timestamp,
-                        "next_beat": timestamp + REBALANCE_INTERVAL_SEC,
-                        "mode": f"{mode_str} | {self.state}", # Show State in UI
-                        "leverage": self.target_leverage
-                    }, f)
-                
-            except Exception as e:
-                Logger.error(f"💥 ENGINE LOOP ERROR: {e}")
-                import traceback
-                traceback.print_exc()
-            
-            await asyncio.sleep(REBALANCE_INTERVAL_SEC)
+                except KeyboardInterrupt:
+                    Logger.info("👋 Engine Shutdown Requested.")
+                    break
+                except Exception as e:
+                    Logger.error(f"💥 ENGINE LOOP ERROR: {e}")
+                    await asyncio.sleep(5)
 
 if __name__ == "__main__":
     load_dotenv()
