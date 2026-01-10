@@ -467,7 +467,11 @@ class DriftAdapter:
         """Set wallet and initialize builder."""
         self._wallet = wallet
         if hasattr(wallet, 'get_public_key'):
-            self._builder = DriftOrderBuilder(wallet.get_public_key())
+            pk = wallet.get_public_key()
+            # Ensure Pubkey object
+            if isinstance(pk, str):
+                pk = Pubkey.from_string(pk)
+            self._builder = DriftOrderBuilder(pk)
     
     async def get_short_instructions(
         self,

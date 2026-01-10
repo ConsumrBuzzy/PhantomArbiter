@@ -20,6 +20,7 @@ import time
 from typing import Optional, Literal
 from dataclasses import dataclass
 
+import traceback
 from src.shared.system.logging import Logger
 
 
@@ -147,6 +148,7 @@ class DeltaNeutralEngine:
             
         except Exception as e:
             Logger.error(f"[DNEM] ❌ Initialization failed: {e}")
+            traceback.print_exc()
             return False
     
     async def _init_paper_mode(self):
