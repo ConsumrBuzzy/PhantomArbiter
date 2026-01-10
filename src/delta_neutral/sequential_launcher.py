@@ -35,7 +35,7 @@ class SequentialLauncher:
         # await self.drift.subscribe()
         Logger.info("[SEQUENTIAL] Ready.")
 
-    async def execute_trade_sequence(self, signal: RebalanceSignal, spot_price: float) -> bool:
+    async def execute_trade_sequence(self, signal: RebalanceSignal, spot_price: float, simulate: bool = False) -> bool:
         """
         Execute trade sequentially with safety rollback.
         Returns True if successful, False if rolled back.
@@ -46,7 +46,7 @@ class SequentialLauncher:
         # Step 1: Execute Spot Leg (The Lead)
         # ---------------------------------------------------------
         Logger.info("[SEQUENTIAL] Step 1: Executing Spot Leg (Jupiter)...")
-        spot_success = await self._execute_spot_leg(signal, spot_price)
+        spot_success = await self._execute_spot_leg(signal, spot_price, simulate)
         
         if not spot_success:
             Logger.error("[SEQUENTIAL] Spot leg failed. Aborting sequence (No trades made).")
@@ -61,7 +61,7 @@ class SequentialLauncher:
         perp_success = False
         for attempt in range(3):
             Logger.info(f"[SEQUENTIAL] Step 2: Executing Perp Leg (Drift) - Attempt {attempt+1}/3...")
-            if await self._execute_perp_leg(signal):
+            if await self._execute_perp_leg(signal, simulate):
                 perp_success = True
                 break
             await asyncio.sleep(1.0) # Short breath
@@ -77,7 +77,7 @@ class SequentialLauncher:
         # If we are here, Spot bought, but Perp failed. We are long unhedged.
         Logger.warning("[SEQUENTIAL] 🚨 CRITICAL: Perp leg failed 3 times! INITIATING ROLLBACK.")
         
-        rollback_success = await self._execute_rollback(signal)
+        rollback_success = await self._execute_rollback(signal, simulate)
         
         if rollback_success:
             Logger.info("[SEQUENTIAL] ✅ Rollback successful. Neutrality restored (minus fees).")
@@ -86,7 +86,7 @@ class SequentialLauncher:
             
         return False
 
-    async def _execute_spot_leg(self, signal: RebalanceSignal, spot_price: float) -> bool:
+    async def _execute_spot_leg(self, signal: RebalanceSignal, spot_price: float, simulate: bool) -> bool:
         try:
             # 1. Build Jupiter Instructions
             SOL_MINT = "So11111111111111111111111111111111111111112"
@@ -116,7 +116,7 @@ class SequentialLauncher:
             Logger.error(f"[SEQUENTIAL] Spot error: {e}")
             return False
 
-    async def _execute_perp_leg(self, signal: RebalanceSignal) -> bool:
+    async def _execute_perp_leg(self, signal: RebalanceSignal, simulate: bool) -> bool:
         try:
             # Build Drift Instructions
             builder = DriftOrderBuilder(Pubkey.from_string(self.wallet.get_public_key()))
@@ -132,7 +132,7 @@ class SequentialLauncher:
             Logger.error(f"[SEQUENTIAL] Perp error: {e}")
             return False
 
-    async def _execute_rollback(self, original_signal: RebalanceSignal) -> bool:
+    async def _execute_rollback(self, original_signal: RebalanceSignal, simulate: bool) -> bool:
         """Sell the SOL we just bought."""
         try:
             Logger.info("[SEQUENTIAL] Rolling back: SELLING SOL for USDC...")
@@ -149,7 +149,7 @@ class SequentialLauncher:
                 return False
             
             ixs = await self.swapper.get_swap_instructions(quote)
-            sig = await self._compile_and_send(ixs)
+            sig = await self._compile_and_send(ixs, simulate)
             
             return sig is not None
             
@@ -157,7 +157,7 @@ class SequentialLauncher:
             Logger.error(f"[SEQUENTIAL] Rollback error: {e}")
             return False
 
-    async def _compile_and_send(self, instructions: List[Instruction]) -> Optional[str]:
+    async def _compile_and_send(self, instructions: List[Instruction], simulate: bool = False) -> Optional[str]:
         """Helper to compile MessageV0, Sign, and Send via RPC."""
         
         async with AsyncClient(Settings.RPC_URL) as client:
@@ -176,6 +176,23 @@ class SequentialLauncher:
                 # 3. Sign
                 tx = VersionedTransaction(msg, [self.wallet.keypair])
                 
+                if simulate:
+                    Logger.info("[SEQUENTIAL] Simulating transaction...")
+                    # Sim config: sig_verify=True to be sure
+                    resp = await client.simulate_transaction(tx)
+                    
+                    if resp.value.err:
+                        Logger.error(f"[SIMULATION] Error: {resp.value.err}")
+                        if resp.value.logs:
+                            for log in resp.value.logs:
+                                Logger.error(f"  > {log}")
+                        return None
+                    else:
+                        Logger.info(f"[SIMULATION] ✅ Success! Units: {resp.value.units_consumed}")
+                        if resp.value.logs:
+                            Logger.debug(f"[SIMULATION] Logs: {resp.value.logs}")
+                        return "SIMULATED_SIG"
+
                 # 4. Send
                 Logger.info("[SEQUENTIAL] Sending transaction...")
                 # Create TxOpts properly
@@ -226,7 +243,8 @@ async def main():
     
     # 3. Execute
     Logger.info(f"Executing Manual Signal: {signal}")
-    success = await launcher.execute_trade_sequence(signal, 150.0)
+    # SIMULATION MODE ENABLED BY DEFAULT FOR TESTING
+    success = await launcher.execute_trade_sequence(signal, 150.0, simulate=True)
     
     if success:
         Logger.info("MISSION COMPLETE. Bypassed Jito Wall.")
