@@ -12,7 +12,7 @@ Responsibilities:
 from typing import Dict
 from config.settings import Settings
 from src.shared.system.logging import Logger
-from src.strategies.tactical import TacticalStrategy
+from src.legacy.strategies.tactical import TacticalStrategy
 
 
 class EngineManager:
@@ -48,7 +48,7 @@ class EngineManager:
     def _init_merchant_engines(self):
         """V45.0: Initialize the Unified Merchant Engine (Ensemble Strategy)."""
         try:
-            from src.strategies.logic.ensemble import MerchantEnsemble
+            from src.legacy.strategies.logic.ensemble import MerchantEnsemble
 
             # The Unified Merchant
             merchant = TacticalStrategy(
