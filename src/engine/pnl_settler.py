@@ -110,9 +110,10 @@ class PnLSettler:
         # Additional Account: Spot Market (USDC)
         spot_market_pda = self.derive_spot_market_account(USDC_SPOT_MARKET_INDEX)
         
-        # Additional Account: SOL Oracle
-        # Log error revealed program expects: 9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV
-        oracle_pk = Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV")
+        # Additional Account: SOL Oracle A (Standard Pyth?)
+        oracle_a = Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz")
+        # Additional Account: SOL Oracle B (Requested by log?)
+        oracle_b = Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV")
         
         accounts = [
             AccountMeta(state_pda, is_signer=False, is_writable=False),
@@ -120,12 +121,11 @@ class PnLSettler:
             AccountMeta(wallet_pk, is_signer=True, is_writable=False),
             AccountMeta(spot_vault_pda, is_signer=False, is_writable=True), 
             
-            # Remaining Accounts (Convention: Oracle map built from these)
-            # Try: Oracles first? Or Markets first?
-            # Standard: Oracle, then SpotMarket, then PerpMarket?
-            # Let's try adding ALL potential context.
+            # Remaining Accounts (Oracle Map construction)
+            # Pass BOTH to be safe
+            AccountMeta(oracle_a, is_signer=False, is_writable=False),
+            AccountMeta(oracle_b, is_signer=False, is_writable=False),
             
-            AccountMeta(oracle_pk, is_signer=False, is_writable=False), # Oracle first?
             AccountMeta(spot_market_pda, is_signer=False, is_writable=True),
             AccountMeta(perp_market_pda, is_signer=False, is_writable=True),
         ]
