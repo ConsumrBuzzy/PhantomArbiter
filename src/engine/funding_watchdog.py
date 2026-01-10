@@ -120,7 +120,7 @@ class FundingWatchdog:
         
         return rate_decimal
 
-    async def check_health(self) -> bool:
+    async def check_health(self, simulate: bool = False) -> bool:
         """
         Single check loop. Returns True if UNWIND TRIGGERED.
         """
@@ -153,7 +153,7 @@ class FundingWatchdog:
             # TRIGGER UNWIND?
             if self.consecutive_negative_checks >= 4:
                 Logger.critical("🚨 CRITICAL: NEGATIVE FUNDING PERSISTED FOR 1 HOUR. TRIGGERING UNWIND!")
-                await self.unwind_position(client)
+                await self.unwind_position(client, simulate=simulate)
                 self.consecutive_negative_checks = 0 
                 self._save_state()
                 return True # Signal Unwind
@@ -189,7 +189,7 @@ class FundingWatchdog:
                 
             return False
 
-    async def unwind_position(self, client: AsyncClient):
+    async def unwind_position(self, client: AsyncClient, simulate: bool = False):
         """
         Emergency Unwind Protocol:
         1. Close Drift Short (Reduce-Only)
@@ -197,7 +197,9 @@ class FundingWatchdog:
         """
         Logger.section("🛑 EMERGENCY UNWIND INITIATED 🛑")
         
-        # Load wallet
+        if simulate:
+            Logger.info("[SIMULATION] Would close Drift Perp and Sell Spot SOL.")
+            return
         private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
         if not private_key:
             Logger.error("No private key for unwind!")

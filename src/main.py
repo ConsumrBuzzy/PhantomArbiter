@@ -133,7 +133,7 @@ class ArbiterEngine:
                     # 1. Safety (Watchdog)
                     if timestamp - self.last_watchdog_check >= WATCHDOG_INTERVAL_SEC:
                         Logger.info("🛡️ [WATCHDOG] Checking Funding Rates...")
-                        unwound = await self.watchdog.check_health()
+                        unwound = await self.watchdog.check_health(simulate=not self.live_mode)
                         self.last_watchdog_check = timestamp
                         
                         if unwound:
