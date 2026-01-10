@@ -62,7 +62,7 @@ ORACLES = {
     "SOL-PERP": Pubkey.from_string("ESaMMQw8gLhKZQCxXFjaJeozd3Sgt6HAJLNGJrpexjJw"),  # On-chain canonical
     "BTC-PERP": Pubkey.from_string("35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R"),
     "ETH-PERP": Pubkey.from_string("93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR"),
-    "USDC-SPOT": Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV"),
+    "USDC-SPOT": Pubkey.from_string("4n42n2oZAPrTyiYXhGYhUzRDoZnwmf6Q7gASDoqcLWsj"),  # On-chain canonical
 }
 
 
@@ -478,12 +478,17 @@ class DriftOrderBuilder:
         """
         Builds the account list for place_perp_order.
         
-        Canonical 5-account sequence:
-        1. state (read)
-        2. user (write)
-        3. authority (signer)
-        4. perp_market (write)
-        5. oracle (read)
+        Account sequence per Drift SDK:
+        Named accounts (3):
+          1. state (read)
+          2. user (write) 
+          3. authority (signer)
+        
+        Remaining accounts (4):
+          4. perp_market (write)
+          5. perp_oracle (read)
+          6. quote_spot_market - USDC index 0 (read)
+          7. quote_spot_oracle (read)
         """
         # Derive PDAs
         state_pda, _ = Pubkey.find_program_address(
@@ -493,18 +498,26 @@ class DriftOrderBuilder:
         perp_market_pda, _ = Pubkey.find_program_address(
             [b"perp_market", market_index.to_bytes(2, "little")], DRIFT_PROGRAM_ID
         )
+        
+        # Quote spot market (USDC = index 0)
+        quote_spot_market_pda, _ = Pubkey.find_program_address(
+            [b"spot_market", (0).to_bytes(2, "little")], DRIFT_PROGRAM_ID
+        )
 
-        oracle = self._get_oracle(market)
+        perp_oracle = self._get_oracle(market)
+        quote_oracle = ORACLES.get("USDC-SPOT", Pubkey.from_string("En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce"))
 
         return [
-            # Named Accounts
+            # Named Accounts (per IDL: state, user, authority)
             AccountMeta(state_pda, is_signer=False, is_writable=False),
             AccountMeta(self.user_account, is_signer=False, is_writable=True),
             AccountMeta(self.wallet, is_signer=True, is_writable=False),
             
-            # Remaining Accounts
+            # Remaining Accounts (perp market, perp oracle, quote spot market, quote oracle)
             AccountMeta(perp_market_pda, is_signer=False, is_writable=True),
-            AccountMeta(oracle, is_signer=False, is_writable=False),
+            AccountMeta(perp_oracle, is_signer=False, is_writable=False),
+            AccountMeta(quote_spot_market_pda, is_signer=False, is_writable=False),
+            AccountMeta(quote_oracle, is_signer=False, is_writable=False),
         ]
     
     # =========================================================================
