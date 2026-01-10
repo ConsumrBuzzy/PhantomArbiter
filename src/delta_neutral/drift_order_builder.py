@@ -57,7 +57,7 @@ MARKET_INDICES = {
 
 # Oracle pubkeys for price feeds
 ORACLES = {
-    "SOL-PERP": Pubkey.from_string("3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz"),
+    "SOL-PERP": Pubkey.from_string("H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG"),
     "BTC-PERP": Pubkey.from_string("GVXRSBjFk6e6J3NbVPXohDJetcTjaeeuykUpbQF8UoMU"),
     "ETH-PERP": Pubkey.from_string("JBu1AL4obBcCMqKBBxhpWCNUt136ijcuMZLFvTP7iWdB"),
     "USDC-SPOT": Pubkey.from_string("9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV"),
@@ -435,23 +435,35 @@ class DriftOrderBuilder:
     # =========================================================================
     
     def _build_order_accounts(self, market_index: int, market: str) -> List[AccountMeta]:
-        """Build the account metas for a perp order instruction."""
+        """
+        Builds the account list for place_perp_order.
         
-        perp_market = self._get_perp_market(market_index)
+        Canonical 5-account sequence:
+        1. state (read)
+        2. user (write)
+        3. authority (signer)
+        4. perp_market (write)
+        5. oracle (read)
+        """
+        # Derive PDAs
+        state_pda, _ = Pubkey.find_program_address(
+            [b"drift_state"], DRIFT_PROGRAM_ID
+        )
+        
+        perp_market_pda, _ = Pubkey.find_program_address(
+            [b"perp_market", market_index.to_bytes(2, "little")], DRIFT_PROGRAM_ID
+        )
+
         oracle = self._get_oracle(market)
-        
-        # Standard account order for place_perp_order
-        # This matches Drift's expected account layout
+
         return [
-            # State (read)
-            AccountMeta(self.state, is_signer=False, is_writable=False),
-            # User account (write)
+            # Named Accounts
+            AccountMeta(state_pda, is_signer=False, is_writable=False),
             AccountMeta(self.user_account, is_signer=False, is_writable=True),
-            # Authority/Signer (signer)
             AccountMeta(self.wallet, is_signer=True, is_writable=False),
-            # Perp market (write)
-            AccountMeta(perp_market, is_signer=False, is_writable=True),
-            # Oracle (read)
+            
+            # Remaining Accounts
+            AccountMeta(perp_market_pda, is_signer=False, is_writable=True),
             AccountMeta(oracle, is_signer=False, is_writable=False),
         ]
     
