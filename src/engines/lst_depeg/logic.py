@@ -45,6 +45,11 @@ class LSTEngine:
                 # 1. Fetch Prices
                 prices = self._fetch_lst_prices()
                 
+                # Update Driver Price Feed
+                if self.mode == "paper" and self.driver:
+                    feed = {f"{t}/SOL": p for t, p in prices.items()}
+                    self.driver.set_price_feed(feed)
+                
                 # 2. Analyze & Updates
                 update_data = {}
                 

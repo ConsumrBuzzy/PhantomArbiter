@@ -14,6 +14,7 @@ import os
 import http.server
 import socketserver
 import threading
+import json
 from dataclasses import asdict
 
 # Add project root to path
