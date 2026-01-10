@@ -131,7 +131,7 @@ class MarketWatch:
         }
         
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 for market, drift_name in market_map.items():
                     try:
                         # Drift Data API requires marketName parameter
@@ -142,27 +142,32 @@ class MarketWatch:
                         if response.status_code == 200:
                             data = response.json()
                             
-                            # Get the most recent funding rate
-                            if data and len(data) > 0:
-                                latest = data[0]  # Most recent entry
+                            # Response is a list of funding records, get the LAST one (most recent)
+                            records = data if isinstance(data, list) else data.get("data", data)
+                            
+                            if records and len(records) > 0:
+                                # Last record is most recent
+                                latest = records[-1]
                                 
                                 raw_rate = float(latest.get("fundingRate", 0))
                                 oracle_twap = float(latest.get("oraclePriceTwap", 1)) or 1
                                 
-                                # Convert to percentage
-                                rate_8h = (raw_rate / oracle_twap) * 100
-                                rate_1h = rate_8h / 8
+                                # Convert to percentage (fundingRate / oraclePriceTwap * 100)
+                                # This gives hourly rate since Drift updates hourly
+                                rate_1h = (raw_rate / oracle_twap) * 100
+                                rate_8h = rate_1h * 8  # Estimate 8h rate
                                 
                                 result[market] = {
                                     "rate_8h": rate_8h,
                                     "rate_1h": rate_1h,
                                 }
+                                Logger.debug(f"[WATCH] {market}: {rate_1h:.4f}%/hr")
                     except Exception as e:
                         Logger.debug(f"[WATCH] Failed to fetch {market}: {e}")
                         continue
                         
             if result:
-                Logger.info(f"[WATCH] Fetched live funding for {len(result)} markets")
+                Logger.info(f"[WATCH] ✅ Fetched LIVE funding for {len(result)} markets")
                 return result
                 
         except Exception as e:
