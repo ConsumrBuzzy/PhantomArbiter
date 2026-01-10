@@ -374,7 +374,7 @@ class SyncExecution:
         # Build SOL transfer to tip account
         tip_ix = transfer(
             TransferParams(
-                from_pubkey=self.wallet.get_public_key(),
+                from_pubkey=Pubkey.from_string(self.wallet.get_public_key()),
                 to_pubkey=Pubkey.from_string(tip_account),
                 lamports=lamports,
             )
