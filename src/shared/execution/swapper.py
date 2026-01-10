@@ -298,7 +298,8 @@ class JupiterSwapper:
         Fetch a quote from Jupiter V6 API.
         'amount' must be in raw units (e.g., lamports or USDC 6-decimal units).
         """
-        url = f"https://quote-api.jup.ag/v6/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&slippageBps={slippage}"
+        # Uses public.jupiterapi.com as fallback for DNS issues with quote-api.jup.ag
+        url = f"https://public.jupiterapi.com/quote?inputMint={input_mint}&outputMint={output_mint}&amount={amount}&slippageBps={slippage}"
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, timeout=10.0)
@@ -309,7 +310,7 @@ class JupiterSwapper:
         """
         Fetch raw instructions for a given quote and convert to Solders objects.
         """
-        url = "https://quote-api.jup.ag/v6/swap-instructions"
+        url = "https://public.jupiterapi.com/swap-instructions"
         payload = {
             "quoteResponse": quote_response,
             "userPublicKey": str(self.wallet.keypair.pubkey()),
