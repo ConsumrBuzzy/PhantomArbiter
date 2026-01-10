@@ -295,14 +295,12 @@ if __name__ == "__main__":
     elif args.engine == "scalp":
         Logger.info("🔫 Starting SCALP Engine (Meme Hunter)...")
         try:
-            from src.engines.scalp.pods import pod_manager
-            from src.engines.scalp.sentiment import SentimentEngine
-            
-            # Verify imports
-            sent = SentimentEngine()
-            pods = pod_manager.get_active_pods()
-            Logger.info(f"✅ Scalp Engine Loaded: Active Pods={len(pods)} Sentiment={sent}")
-            sys.exit(0) # Placeholder until full loop
+            from src.engines.scalp.logic import ScalpEngine
+            engine = ScalpEngine(live_mode=args.live)
+            asyncio.run(engine.run_loop())
+        except KeyboardInterrupt:
+            Logger.section("👋 Scalp Engine Shutdown.")
+            sys.exit(0)
         except Exception as e:
             Logger.critical(f"❌ Failed to load Scalp Engine: {e}")
             sys.exit(1)
