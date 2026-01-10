@@ -103,53 +103,42 @@ class DriftOrderParams:
     price: int = 0  # 0 for market orders (PRICE_PRECISION = 1e6)
     
     def to_bytes(self) -> bytes:
-        """Serialize order params to bytes for instruction data."""
-        # Drift uses a specific serialization format
-        # This is a simplified version - production needs full borsh serialization
-        data = bytearray()
+        """Serialize order params to bytes for instruction data using exact IDL layout."""
+        import struct
         
-        # Order type discriminator (place_perp_order)
-        # Anchor discriminator: sha256("global:place_perp_order")[:8]
+        # discriminator = sha256("global:place_perp_order")[:8]
         # [69, 161, 93, 202, 120, 126, 76, 185]
-        data.extend([69, 161, 93, 202, 120, 126, 76, 185])
+        data = bytearray([69, 161, 93, 202, 120, 126, 76, 185])
         
-        # --- OrderParams Struct ---
-        # 1. order_type (Enum u8): Market=0
-        data.append(0)
-        
-        # 2. market_type (Enum u8): Perp=0
-        data.append(0)
-        
-        # 3. direction (Enum u8): Long=0, Short=1
+        # OrderParams Struct (17 fields)
+        # 1. order_type (Enum u8)
+        data.append(self.order_type.value)
+        # 2. market_type (Enum u8)
+        data.append(self.market_type.value)
+        # 3. direction (Enum u8)
         data.append(self.direction.value)
-        
         # 4. user_order_id (u8)
         data.append(0)
-        
-        # 5. base_asset_amount (u64 little-endian)
-        data.extend(self.base_asset_amount.to_bytes(8, 'little'))
-        
-        # 6. price (u64 little-endian)
-        # Assuming Market = 0
-        data.extend(self.price.to_bytes(8, 'little'))
-
-        # 7. market_index (u16 little-endian)
-        data.extend(self.market_index.to_bytes(2, 'little'))
-        
+        # 5. base_asset_amount (u64)
+        data.extend(struct.pack("<Q", self.base_asset_amount))
+        # 6. price (u64)
+        data.extend(struct.pack("<Q", self.price))
+        # 7. market_index (u16)
+        data.extend(struct.pack("<H", self.market_index))
         # 8. reduce_only (bool -> u8)
         data.append(1 if self.reduce_only else 0)
-        
-        # 9. post_only (bool -> u8)
+        # 9. post_only (Enum PostOnlyParam -> u8)
+        # 0: None, 1: MustPostOnly, 2: TryPostOnly, 3: Slide
+        data.append(0)
+        # 10. bit_flags (u8)
         data.append(0)
         
-        # 10. immediate_or_cancel (bool -> u8)
-        data.append(0) # Standard PlacePerpOrder does not allow IOC=1 for Market orders
-
+        # Optional fields (11-17) - Handled as (1-byte prefix + data if Some)
         # 11. max_ts (Option<i64>) -> None (0)
         data.append(0)
         # 12. trigger_price (Option<u64>) -> None (0)
         data.append(0)
-        # 13. trigger_condition (Enum u8) -> Above=0
+        # 13. trigger_condition (Enum u8) -> Above (0)
         data.append(0)
         # 14. oracle_price_offset (Option<i32>) -> None (0)
         data.append(0)
@@ -161,6 +150,7 @@ class DriftOrderParams:
         data.append(0)
         
         return bytes(data)
+
 
 
 @dataclass
