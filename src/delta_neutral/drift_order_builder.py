@@ -446,8 +446,8 @@ class DriftOrderBuilder:
             AccountMeta(self.state, is_signer=False, is_writable=False),
             # User account (write)
             AccountMeta(self.user_account, is_signer=False, is_writable=True),
-            # Authority/Signer (signer + write)
-            AccountMeta(self.wallet, is_signer=True, is_writable=True),
+            # Authority/Signer (signer)
+            AccountMeta(self.wallet, is_signer=True, is_writable=False),
             # Perp market (write)
             AccountMeta(perp_market, is_signer=False, is_writable=True),
             # Oracle (read)
