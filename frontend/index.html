@@ -299,150 +299,178 @@
                             <span class="config-label">Take Profit</span>
                             <span class="config-value" data-config="take_profit_pct">+10%</span>
                         </div>
-                        <div class="config-item">
-                            <span class="config-label">Stop Loss</span>
-                            <span class="config-value" data-config="stop_loss_pct">-5%</span>
+                        <!-- LST De-Pegger Engine -->
+                        <div class="engine-card" data-engine="lst" data-status="stopped">
+                            <div class="engine-card-header">
+                                <div class="engine-card-title">
+                                    <div class="engine-icon"
+                                        style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);">💧</div>
+                                    <div>
+                                        <div class="engine-name">LST De-Pegger</div>
+                                        <div class="engine-subtitle">Fair Value Protector</div>
+                                    </div>
+                                </div>
+                                <div class="engine-controls">
+                                    <button class="settings-btn" data-engine="lst" title="Configure">⚙️</button>
+                                    <button class="power-toggle" data-engine="lst" title="Toggle">⏻</button>
+                                </div>
+                            </div>
+                            <div class="engine-status">
+                                <span class="status-dot"></span>
+                                <span class="status-text">Stopped</span>
+                                <span class="status-uptime" style="margin-left: auto; color: var(--text-dim);"></span>
+                            </div>
+                            <div class="mode-selector" data-engine="lst">
+                                <button class="mode-btn active" data-mode="paper">📄 Paper</button>
+                                <button class="mode-btn" data-mode="live">🔥 Live</button>
+                            </div>
+                            <div class="engine-config">
+                                <div class="config-item">
+                                    <span class="config-label">De-Peg Thresh</span>
+                                    <span class="config-value" data-config="depeg_threshold">-0.5%</span>
+                                </div>
+                                <div class="config-item">
+                                    <span class="config-label">Max Size</span>
+                                    <span class="config-value" data-config="max_trade_sol">1.0 SOL</span>
+                                </div>
+                                <div class="config-item">
+                                    <span class="config-label">Pairs</span>
+                                    <span class="config-value">jitoSOL/mSOL</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="config-item">
-                            <span class="config-label">Max Pods</span>
-                            <span class="config-value" data-config="max_pods">5</span>
+                    </div>
+                </div>
+
+                <!-- SCANNER VIEW (Market Opportunities) -->
+                <div id="view-scanner" class="view-panel">
+                    <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
+                        <div class="logo">
+                            <span style="color: var(--neon-blue); font-weight: bold; font-size: 1.1rem;">📡 MARKET
+                                SCANNER</span>
+                            <span id="scanner-status"
+                                style="margin-left: 15px; font-size: 0.8rem; color: var(--text-dim);">
+                                Scanning...
+                            </span>
                         </div>
-                        <div class="config-item">
-                            <span class="config-label">Sentiment</span>
-                            <span class="config-value" data-config="sentiment_threshold">70%</span>
+                    </header>
+
+                    <!-- Critical Alerts Banner -->
+                    <div id="critical-alerts" class="glass-panel"
+                        style="display: none; margin-bottom: 20px; border-left: 3px solid var(--neon-red);">
+                        <div class="panel-title" style="color: var(--neon-red);">🚨 Critical Alerts</div>
+                        <div id="critical-alerts-list"></div>
+                    </div>
+
+                    <!-- Top Opportunities Heatmap -->
+                    <div class="glass-panel" style="margin-bottom: 20px;">
+                        <div class="panel-title">🔥 Top Opportunities</div>
+                        <div id="opportunities-heatmap" class="opportunities-grid">
+                            <div class="opportunity-placeholder">Scanning for opportunities...</div>
+                        </div>
+                    </div>
+
+                    <!-- Source Breakdown Cards -->
+                    <div class="scanner-sources">
+                        <!-- ARB Signals -->
+                        <div class="glass-panel source-card" data-source="arb">
+                            <div class="panel-title" style="color: var(--neon-green);">📊 Arbitrage</div>
+                            <div class="source-stats">
+                                <span class="stat-value" id="arb-count">0</span>
+                                <span class="stat-label">signals</span>
+                            </div>
+                            <div class="source-signals" id="arb-signals">
+                                <div class="signal-placeholder">No arb opportunities</div>
+                            </div>
+                        </div>
+
+                        <!-- FUNDING Signals -->
+                        <div class="glass-panel source-card" data-source="funding">
+                            <div class="panel-title" style="color: var(--neon-blue);">💰 Funding Rates</div>
+                            <div class="source-stats">
+                                <span class="stat-value" id="funding-count">0</span>
+                                <span class="stat-label">signals</span>
+                            </div>
+                            <div class="source-signals" id="funding-signals">
+                                <div class="signal-placeholder">No funding alerts</div>
+                            </div>
+                        </div>
+
+                        <!-- SCALP Signals -->
+                        <div class="glass-panel source-card" data-source="scalp">
+                            <div class="panel-title" style="color: var(--neon-gold);">🎯 Scalp Signals</div>
+                            <div class="source-stats">
+                                <span class="stat-value" id="scalp-count">0</span>
+                                <span class="stat-label">signals</span>
+                            </div>
+                            <div class="source-signals" id="scalp-signals">
+                                <div class="signal-placeholder">No scalp signals</div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- SCANNER VIEW (Market Opportunities) -->
-        <div id="view-scanner" class="view-panel">
-            <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
-                <div class="logo">
-                    <span style="color: var(--neon-blue); font-weight: bold; font-size: 1.1rem;">📡 MARKET
-                        SCANNER</span>
-                    <span id="scanner-status" style="margin-left: 15px; font-size: 0.8rem; color: var(--text-dim);">
-                        Scanning...
-                    </span>
-                </div>
-            </header>
-
-            <!-- Critical Alerts Banner -->
-            <div id="critical-alerts" class="glass-panel"
-                style="display: none; margin-bottom: 20px; border-left: 3px solid var(--neon-red);">
-                <div class="panel-title" style="color: var(--neon-red);">🚨 Critical Alerts</div>
-                <div id="critical-alerts-list"></div>
-            </div>
-
-            <!-- Top Opportunities Heatmap -->
-            <div class="glass-panel" style="margin-bottom: 20px;">
-                <div class="panel-title">🔥 Top Opportunities</div>
-                <div id="opportunities-heatmap" class="opportunities-grid">
-                    <div class="opportunity-placeholder">Scanning for opportunities...</div>
-                </div>
-            </div>
-
-            <!-- Source Breakdown Cards -->
-            <div class="scanner-sources">
-                <!-- ARB Signals -->
-                <div class="glass-panel source-card" data-source="arb">
-                    <div class="panel-title" style="color: var(--neon-green);">📊 Arbitrage</div>
-                    <div class="source-stats">
-                        <span class="stat-value" id="arb-count">0</span>
-                        <span class="stat-label">signals</span>
-                    </div>
-                    <div class="source-signals" id="arb-signals">
-                        <div class="signal-placeholder">No arb opportunities</div>
-                    </div>
-                </div>
-
-                <!-- FUNDING Signals -->
-                <div class="glass-panel source-card" data-source="funding">
-                    <div class="panel-title" style="color: var(--neon-blue);">💰 Funding Rates</div>
-                    <div class="source-stats">
-                        <span class="stat-value" id="funding-count">0</span>
-                        <span class="stat-label">signals</span>
-                    </div>
-                    <div class="source-signals" id="funding-signals">
-                        <div class="signal-placeholder">No funding alerts</div>
-                    </div>
-                </div>
-
-                <!-- SCALP Signals -->
-                <div class="glass-panel source-card" data-source="scalp">
-                    <div class="panel-title" style="color: var(--neon-gold);">🎯 Scalp Signals</div>
-                    <div class="source-stats">
-                        <span class="stat-value" id="scalp-count">0</span>
-                        <span class="stat-label">signals</span>
-                    </div>
-                    <div class="source-signals" id="scalp-signals">
-                        <div class="signal-placeholder">No scalp signals</div>
+                <!-- CONFIG VIEW -->
+                <div id="view-config" class="view-panel">
+                    <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
+                        <div class="logo">
+                            <span style="color: var(--neon-gold); font-weight: bold; font-size: 1.1rem;">⚙️ SYSTEM
+                                PREFERENCES</span>
+                        </div>
+                    </header>
+                    <div class="glass-panel">
+                        <div class="panel-title">Global Settings</div>
+                        <p style="color: var(--text-dim); font-size: 0.85rem;">Configuration panel coming soon...</p>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- CONFIG VIEW -->
-        <div id="view-config" class="view-panel">
-            <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
-                <div class="logo">
-                    <span style="color: var(--neon-gold); font-weight: bold; font-size: 1.1rem;">⚙️ SYSTEM
-                        PREFERENCES</span>
-                </div>
-            </header>
-            <div class="glass-panel">
-                <div class="panel-title">Global Settings</div>
-                <p style="color: var(--text-dim); font-size: 0.85rem;">Configuration panel coming soon...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════════
+            <!-- ═══════════════════════════════════════════════════════════════
          SETTINGS MODAL
          ═══════════════════════════════════════════════════════════════ -->
-    <div class="modal-overlay" id="settings-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="modal-title" id="modal-engine-title">Engine Settings</span>
-                <button class="modal-close">✕</button>
+            <div class="modal-overlay" id="settings-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span class="modal-title" id="modal-engine-title">Engine Settings</span>
+                        <button class="modal-close">✕</button>
+                    </div>
+                    <div class="modal-body" id="modal-config-form">
+                        <!-- Dynamic form fields injected by JS -->
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-action="cancel">Cancel</button>
+                        <button class="btn btn-primary" data-action="save">Save Changes</button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body" id="modal-config-form">
-                <!-- Dynamic form fields injected by JS -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-action="cancel">Cancel</button>
-                <button class="btn btn-primary" data-action="save">Save Changes</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- ═══════════════════════════════════════════════════════════════
+            <!-- ═══════════════════════════════════════════════════════════════
          SOS CONFIRMATION MODAL
          ═══════════════════════════════════════════════════════════════ -->
-    <div class="modal-overlay" id="sos-modal">
-        <div class="modal-content">
-            <div class="modal-header" style="border-bottom: 2px solid var(--neon-red); padding-bottom: 15px;">
-                <span class="modal-title" style="color: var(--neon-red);">🆘 EMERGENCY STOP</span>
+            <div class="modal-overlay" id="sos-modal">
+                <div class="modal-content">
+                    <div class="modal-header" style="border-bottom: 2px solid var(--neon-red); padding-bottom: 15px;">
+                        <span class="modal-title" style="color: var(--neon-red);">🆘 EMERGENCY STOP</span>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 20px 0;">
+                        <p style="font-size: 1rem; margin-bottom: 10px;">This will:</p>
+                        <ul style="text-align: left; color: var(--text-dim); font-size: 0.9rem; margin: 15px 30px;">
+                            <li>Stop ALL running engines</li>
+                            <li>Attempt to close ALL open positions</li>
+                            <li>Cancel ALL pending orders</li>
+                        </ul>
+                        <p style="color: var(--neon-red); font-weight: bold; margin-top: 15px;">⚠️ This cannot be
+                            undone!</p>
+                    </div>
+                    <div class="modal-footer" style="justify-content: center;">
+                        <button class="btn btn-secondary" data-action="cancel">Cancel</button>
+                        <button class="btn btn-danger" data-action="confirm-sos">CONFIRM STOP</button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body" style="text-align: center; padding: 20px 0;">
-                <p style="font-size: 1rem; margin-bottom: 10px;">This will:</p>
-                <ul style="text-align: left; color: var(--text-dim); font-size: 0.9rem; margin: 15px 30px;">
-                    <li>Stop ALL running engines</li>
-                    <li>Attempt to close ALL open positions</li>
-                    <li>Cancel ALL pending orders</li>
-                </ul>
-                <p style="color: var(--neon-red); font-weight: bold; margin-top: 15px;">⚠️ This cannot be undone!</p>
-            </div>
-            <div class="modal-footer" style="justify-content: center;">
-                <button class="btn btn-secondary" data-action="cancel">Cancel</button>
-                <button class="btn btn-danger" data-action="confirm-sos">CONFIRM STOP</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- Core Logic (ES6 Modules) -->
-    <script type="module" src="js/app.module.js"></script>
+            <!-- Core Logic (ES6 Modules) -->
+            <script type="module" src="js/app.module.js"></script>
 </body>
 
 </html>

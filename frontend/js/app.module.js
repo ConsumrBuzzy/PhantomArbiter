@@ -17,7 +17,7 @@ import { Terminal } from './components/terminal.js';
 import { EngineCard } from './components/engine-card.js';
 import { MarketData } from './components/market-data.js';
 import { TokenWatchlist } from './components/token-watchlist.js';
-import { ArbScanner, FundingMonitor, ScalpPods } from './components/market-component.js';
+import { ArbScanner, FundingMonitor, ScalpPods, LstMonitor } from './components/market-component.js';
 import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
@@ -58,7 +58,8 @@ class TradingOS {
         this.marketComponents = {
             arb: new ArbScanner('arb'),
             funding: new FundingMonitor('funding'),
-            scalp: new ScalpPods('scalp')
+            scalp: new ScalpPods('scalp'),
+            lst: new LstMonitor('lst')
         };
 
         // WebSocket connection
@@ -171,6 +172,10 @@ class TradingOS {
             case 'SCALP_SIGNAL':
                 this.updateIntelTable('SCALP', data);
                 if (this.marketComponents.scalp) this.marketComponents.scalp.update(data);
+                break;
+
+            case 'LST_UPDATE':
+                if (this.marketComponents.lst) this.marketComponents.lst.update(data);
                 break;
 
             default:

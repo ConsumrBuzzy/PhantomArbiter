@@ -1290,3 +1290,46 @@ input:checked+.slider:before {
         transform: translateX(-100%);
     }
 }
+/* 
+   LST MONITOR STYLES
+    */
+
+.lst-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.lst-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.lst-row.danger {
+    background: rgba(255, 215, 0, 0.1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.token-name { color: var(--text-primary); font-weight: bold; }
+.token-price { font-family: 'Roboto Mono'; color: var(--text-dim); }
+.token-diff { font-family: 'Roboto Mono'; color: var(--neon-green); }
+.token-diff.alert { color: var(--neon-gold); font-weight: bold; }
+
+.status-indicator {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+.status-indicator.safe { color: var(--neon-green); background: rgba(0, 255, 157, 0.1); }
+.status-indicator.danger { color: var(--neon-gold); background: rgba(255, 215, 0, 0.2); animation: status-pulse 1s infinite alternate; }
+
+@keyframes status-pulse {
+    to { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+}
+

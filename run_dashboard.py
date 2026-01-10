@@ -113,10 +113,31 @@ async def main():
     
     context_driver.set_callback(on_context_update)
     context_driver.start()
+
+    # 6. LST De-Pegger Engine (Paper Mode)
+    from src.engines.lst_depeg.logic import LSTEngine
+    lst_engine = LSTEngine(mode="paper")
     
+    async def on_lst_update(data):
+        payload = {
+            "type": "LST_UPDATE",
+            "data": data,
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        await dashboard.broadcast(json.dumps(payload))
+        
+    lst_engine.set_callback(on_lst_update)
+    await lst_engine.start()
+    
+    # Add to engine manager (mock registration for now, ideally EngineManager handles this)
+    # Since EngineManager is a subprocess manager, and we are running LST in-process for this MVP:
+    # We might need to manually inject status into the stats broadcast or register it properly.
+    # For MVP, we'll let it run and log to console, and maybe add a UI card later.
+
     Logger.info("📈 Live price feed connected (Pyth WebSocket)")
     Logger.info("🎯 Token watchlist tracking 10 meme/AI tokens")
     Logger.info("🌍 Market Context Driver active (SOL/BTC, Jito)")
+    Logger.info("💧 LST De-Pegger Engine active (Paper Mode)")
     Logger.info("🔌 WebSocket server starting on ws://localhost:8765")
     Logger.info("")
     Logger.info("="*50)
@@ -132,6 +153,7 @@ async def main():
         price_feed.stop()
         watchlist_feed.stop()
         context_driver.stop()
+        await lst_engine.stop()
 
 
 if __name__ == "__main__":
