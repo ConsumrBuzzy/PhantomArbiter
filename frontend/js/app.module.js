@@ -27,6 +27,8 @@ import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
+import { UnifiedVaultController } from './components/unified-vault.js';
+import { TickerTape } from './components/ticker-tape.js';
 
 class TradingOS {
     constructor() {
@@ -43,6 +45,16 @@ class TradingOS {
         this.solTape = new SolTape('sol-tape-container');
         this.toast = new Toast();
         this.apiHealth = new APIHealth('api-health-container');
+
+        // NEW: Design System Components
+        this.unifiedVault = new UnifiedVaultController('unified-vault-container');
+        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-mount', 'paper');
+
+        // Wire bridge button
+        this.unifiedVault.setBridgeCallback((amount) => {
+            this.ws.send('BRIDGE_TRIGGER', { amount });
+            this.terminal.addLog('BRIDGE', 'INFO', `Bridge initiated: $${amount.toFixed(2)} USDC → Phantom`);
+        });
 
         // Engine cards
         this.engines = {
@@ -397,27 +409,36 @@ class TradingOS {
                 if (data.engines) this.updateEngineStates(data.engines);
                 if (data.metrics) this.systemMetrics.update(data.metrics);
 
-                // NEW: Watchlist
+                // Watchlist
                 if (data.watchlist) this.updateScalperWatch(data.watchlist);
 
-                if (data.live_wallet && data.live_wallet.drift_equity !== undefined) {
-                    const equity = data.live_wallet.drift_equity;
+                // ═══════════════════════════════════════════════════════════════
+                // UNIFIED BALANCE (Single Source of Truth)
+                // ═══════════════════════════════════════════════════════════════
+                if (data.unified_balance) {
+                    // Update the UnifiedVaultController
+                    this.unifiedVault.update(data.unified_balance);
+
+                    // Update Drift Panel (legacy support)
+                    const driftEquity = data.unified_balance.drift?.equity || 0;
                     const equityEl = document.getElementById('drift-equity');
                     const pnlEl = document.getElementById('drift-pnl');
 
-                    if (equityEl) equityEl.textContent = '$' + equity.toFixed(2);
+                    if (equityEl) equityEl.textContent = '$' + driftEquity.toFixed(2);
+                    if (driftEquity > 0 && pnlEl) {
+                        const pnl = data.unified_balance.drift?.pnl || 0;
+                        pnlEl.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
+                        pnlEl.className = 'drift-value ' + (pnl >= 0 ? 'positive' : 'negative');
+                    }
 
-                    // Logic for PnL and Leverage would go here (need backend support)
-                    // For now, simulate small PnL if equity > 0
-                    if (equity > 0 && pnlEl) {
-                        // Placeholder: Access proper PnL from backend in future
-                        pnlEl.textContent = '+$0.00';
-                        pnlEl.className = 'drift-value positive';
+                    // Update ticker mode based on global mode
+                    if (data.mode && this.whaleTicker) {
+                        this.whaleTicker.setMode(data.mode);
                     }
                 }
 
-                // CEX UI UPDATE (Coinbase)
-                if (data.cex_wallet) {
+                // Legacy CEX UI UPDATE (for backward compat)
+                if (data.cex_wallet && !data.unified_balance) {
                     const cexBalEl = document.getElementById('cex-wallet-balance');
                     const cexUsdcEl = document.getElementById('cex-usdc');
 

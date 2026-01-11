@@ -84,6 +84,47 @@ class CEXWalletSnapshot:
 
 
 @dataclass
+class UnifiedBalance:
+    """
+    Single source of truth for all wallet balances.
+    
+    Aggregates Coinbase, Phantom, and Drift into one view.
+    This is what the UnifiedVaultController consumes.
+    """
+    # Aggregates
+    net_worth_usd: float = 0.0
+    deployed_usd: float = 0.0
+    idle_usd: float = 0.0
+    
+    # Venue Breakdown
+    coinbase: Dict[str, Any] = field(default_factory=lambda: {
+        "usdc": 0.0, "usd": 0.0, "sol": 0.0, "total": 0.0, "status": "disconnected"
+    })
+    phantom: Dict[str, Any] = field(default_factory=lambda: {
+        "sol": 0.0, "usdc": 0.0, "total": 0.0, "token_count": 0, "status": "disconnected"
+    })
+    drift: Dict[str, Any] = field(default_factory=lambda: {
+        "equity": 0.0, "pnl": 0.0, "leverage": 0.0, "status": "disconnected"
+    })
+    
+    # Bridge State
+    bridge: Dict[str, Any] = field(default_factory=lambda: {
+        "available": False, "max_amount": 0.0, "cooldown_remaining": 0
+    })
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "net_worth_usd": self.net_worth_usd,
+            "deployed_usd": self.deployed_usd,
+            "idle_usd": self.idle_usd,
+            "coinbase": self.coinbase,
+            "phantom": self.phantom,
+            "drift": self.drift,
+            "bridge": self.bridge,
+        }
+
+
+@dataclass
 class EngineSnapshot:
     """Status snapshot for a single engine."""
     name: str
@@ -137,6 +178,9 @@ class SystemSnapshot:
     live_wallet: WalletSnapshot
     cex_wallet: CEXWalletSnapshot = field(default_factory=CEXWalletSnapshot)
     
+    # Unified Balance (single source of truth)
+    unified_balance: UnifiedBalance = field(default_factory=UnifiedBalance)
+    
     # Engines
     engines: Dict[str, EngineSnapshot] = field(default_factory=dict)
     
@@ -161,6 +205,7 @@ class SystemSnapshot:
             "paper_wallet": self.paper_wallet.to_dict(),
             "live_wallet": self.live_wallet.to_dict(),
             "cex_wallet": self.cex_wallet.to_dict(),
+            "unified_balance": self.unified_balance.to_dict(),
             "wallet": self.paper_wallet.to_dict(),  # Legacy compat
             "engines": {
                 name: {
@@ -266,10 +311,61 @@ class HeartbeatDataCollector:
         
         latency_ms = (time.time() - start_time) * 1000
         
+        # ─────────────────────────────────────────────────────────────────────
+        # BUILD UNIFIED BALANCE (Single Source of Truth)
+        # ─────────────────────────────────────────────────────────────────────
+        
+        # Calculate net worth across all venues
+        coinbase_total = cex_wallet.total_value_usd
+        phantom_total = live_wallet.equity
+        drift_total = live_wallet.drift_equity
+        net_worth = coinbase_total + phantom_total + drift_total
+        
+        # Determine connection statuses
+        coinbase_status = "connected" if cex_wallet.is_configured else "disconnected"
+        phantom_status = "connected" if phantom_total > 0 or len(live_wallet.assets) > 0 else "disconnected"
+        drift_status = "connected" if drift_total > 0 else "disconnected"
+        
+        # Bridge availability (min $5 required)
+        bridge_available = cex_wallet.withdrawable_usdc >= 5.0
+        bridge_max = max(0, cex_wallet.withdrawable_usdc - 1.0)  # Leave $1 dust floor
+        
+        unified_balance = UnifiedBalance(
+            net_worth_usd=net_worth,
+            deployed_usd=drift_total,  # Drift = Deployed capital
+            idle_usd=cex_wallet.withdrawable_usdc + (phantom_total - drift_total),
+            coinbase={
+                "usdc": cex_wallet.withdrawable_usdc,
+                "usd": 0.0,  # Could be enhanced to track USD separately
+                "sol": 0.0,
+                "total": coinbase_total,
+                "status": coinbase_status,
+            },
+            phantom={
+                "sol": live_wallet.sol_balance,
+                "usdc": live_wallet.assets.get("USDC", AssetBalance("USDC", 0)).amount,
+                "total": phantom_total,
+                "token_count": len(live_wallet.assets),
+                "status": phantom_status,
+            },
+            drift={
+                "equity": drift_total,
+                "pnl": 0.0,  # Could be enhanced with proper PnL tracking
+                "leverage": 0.0,  # Could be enhanced with leverage calculation
+                "status": drift_status,
+            },
+            bridge={
+                "available": bridge_available,
+                "max_amount": bridge_max,
+                "cooldown_remaining": 0,
+            },
+        )
+        
         snapshot = SystemSnapshot(
             paper_wallet=paper_wallet,
             live_wallet=live_wallet,
             cex_wallet=cex_wallet,
+            unified_balance=unified_balance,
             engines=engines,
             sol_price=sol_price,
             watchlist=watchlist,

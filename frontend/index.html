@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="styles/components/metrics.css">
     <link rel="stylesheet" href="styles/components/drift.css">
     <link rel="stylesheet" href="styles/components/engine-details.css">
+    <link rel="stylesheet" href="styles/components/unified-vault.css">
+    <link rel="stylesheet" href="styles/components/ticker-tape.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap"
         rel="stylesheet">
 </head>
@@ -54,8 +56,11 @@
                     </div>
 
                     <!-- LEFT-CENTER: CEX Wallet (Coinbase) -->
-                    <div class="header-section left-center-section" id="cex-wallet-display" style="border-right: 1px solid rgba(255, 255, 255, 0.1); padding-right: 20px; margin-right: 20px;">
-                        <div class="wallet-status-indicator live" style="background: rgba(0, 82, 255, 0.2); color: #0052FF; border: 1px solid #0052FF;">COINBASE</div>
+                    <div class="header-section left-center-section" id="cex-wallet-display"
+                        style="border-right: 1px solid rgba(255, 255, 255, 0.1); padding-right: 20px; margin-right: 20px;">
+                        <div class="wallet-status-indicator live"
+                            style="background: rgba(0, 82, 255, 0.2); color: #0052FF; border: 1px solid #0052FF;">
+                            COINBASE</div>
                         <div class="wallet-info">
                             <span class="label">TOTAL EQUITY</span>
                             <span class="value" id="cex-wallet-balance">$0.00</span>
@@ -94,17 +99,20 @@
                     </div>
                 </header>
 
-                <!-- Whale Tape -->
-                <div class="whale-tape-container" id="whale-tape-container">
-                    <div class="tape-label">🐋 WHALE TAPE</div>
-                    <div class="tape-window">
-                        <div class="tape-content" id="whale-tape-content">
-                            <!-- Items injected by JS -->
-                            <span class="tape-item item-buy">SOL/USDC $120k 🟢</span>
-                            <span class="tape-item item-sell">BONK/SOL $50k 🔴</span>
-                            <span class="tape-item item-buy">WIF/USDC $200k 🟢</span>
-                            <span class="tape-item item-buy">MNGO/USDC $75k 🟢</span>
-                        </div>
+                <!-- ═══════════════════════════════════════════════════════════════
+                     UNIFIED VAULT (CFO Component)
+                     ═══════════════════════════════════════════════════════════════ -->
+                <section id="unified-vault-container" class="unified-vault-mount">
+                    <!-- UnifiedVaultController mounts here -->
+                </section>
+
+                <!-- ═══════════════════════════════════════════════════════════════
+                     TICKER TAPES (Mode-Aware Marquees)
+                     ═══════════════════════════════════════════════════════════════ -->
+                <div class="ticker-row">
+                    <!-- Whale Tape (Large Transactions > $50k) -->
+                    <div class="ticker-mount" id="whale-tape-mount" data-mode="paper">
+                        <span class="ticker-label">🐋 WHALE TAPE</span>
                     </div>
                 </div>
 
@@ -354,7 +362,7 @@
                         <button class="power-toggle detail-power" title="Toggle Engine">⏻</button>
                     </div>
                 </div>
-                
+
                 <!-- Content Grid -->
                 <div class="detail-content">
                     <!-- Vault Panel (The Bank) -->
@@ -374,7 +382,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Config Panel (The Brain) -->
                     <div class="config-panel">
                         <div class="config-panel-title">Strategy Knobs</div>
@@ -386,7 +394,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Log Panel (The Tape) -->
                     <div class="log-panel">
                         <div class="log-panel-header">

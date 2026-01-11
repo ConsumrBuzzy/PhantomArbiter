@@ -1,0 +1,260 @@
+/**
+ * TickerTape Styles
+ * =================
+ * Mode-aware scrolling marquee with whale highlighting.
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE TICKER
+   ═══════════════════════════════════════════════════════════════ */
+
+.ticker-tape {
+    position: relative;
+    overflow: hidden;
+    background: rgba(15, 15, 25, 0.8);
+    border: 1px solid rgba(100, 100, 150, 0.2);
+    border-radius: 6px;
+    height: 32px;
+}
+
+.ticker-tape::before,
+.ticker-tape::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.ticker-tape::before {
+    left: 0;
+    background: linear-gradient(to right, rgba(15, 15, 25, 1), transparent);
+}
+
+.ticker-tape::after {
+    right: 0;
+    background: linear-gradient(to left, rgba(15, 15, 25, 1), transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODE-AWARE STYLING
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Paper Mode - Purple Glow */
+.ticker-tape--paper {
+    border-color: rgba(124, 58, 237, 0.3);
+    box-shadow:
+        0 0 10px rgba(124, 58, 237, 0.1),
+        inset 0 0 20px rgba(124, 58, 237, 0.05);
+}
+
+.ticker-tape--paper::before {
+    background: linear-gradient(to right, rgba(124, 58, 237, 0.1), transparent);
+}
+
+.ticker-tape--paper::after {
+    background: linear-gradient(to left, rgba(124, 58, 237, 0.1), transparent);
+}
+
+/* Live Mode - Red Glow */
+.ticker-tape--live {
+    border-color: rgba(255, 68, 68, 0.4);
+    box-shadow:
+        0 0 15px rgba(255, 68, 68, 0.15),
+        inset 0 0 25px rgba(255, 68, 68, 0.08);
+    animation: live-pulse 2s ease-in-out infinite;
+}
+
+.ticker-tape--live::before {
+    background: linear-gradient(to right, rgba(255, 68, 68, 0.15), transparent);
+}
+
+.ticker-tape--live::after {
+    background: linear-gradient(to left, rgba(255, 68, 68, 0.15), transparent);
+}
+
+@keyframes live-pulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 15px rgba(255, 68, 68, 0.15),
+            inset 0 0 25px rgba(255, 68, 68, 0.08);
+    }
+
+    50% {
+        box-shadow:
+            0 0 25px rgba(255, 68, 68, 0.25),
+            inset 0 0 35px rgba(255, 68, 68, 0.12);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TRACK & CONTENT
+   ═══════════════════════════════════════════════════════════════ */
+
+.ticker-track {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.ticker-content {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 0 20px;
+}
+
+.ticker-content.ticker-animate {
+    animation: ticker-scroll linear infinite;
+}
+
+@keyframes ticker-scroll {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TICKER ITEMS
+   ═══════════════════════════════════════════════════════════════ */
+
+.ticker-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    margin: 0 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: 'Roboto Mono', monospace;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.ticker-separator {
+    color: rgba(100, 100, 150, 0.4);
+    font-size: 0.6rem;
+    margin: 0 8px;
+}
+
+.ticker-placeholder {
+    color: var(--text-dim, #666);
+    font-size: 0.75rem;
+    font-style: italic;
+}
+
+/* Item Types */
+.ticker-item--neutral {
+    color: var(--text-bright, #fff);
+    background: rgba(100, 100, 150, 0.2);
+}
+
+.ticker-item--buy {
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.ticker-item--sell {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   WHALE ALERTS
+   ═══════════════════════════════════════════════════════════════ */
+
+.ticker-item--whale {
+    font-weight: 700;
+    font-size: 0.85rem;
+    animation: whale-flash 1.5s ease-in-out infinite;
+    position: relative;
+}
+
+.ticker-item--whale.ticker-item--buy {
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 212, 255, 0.2));
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    box-shadow:
+        0 0 10px rgba(0, 255, 136, 0.2),
+        inset 0 0 10px rgba(0, 255, 136, 0.1);
+}
+
+.ticker-item--whale.ticker-item--sell {
+    background: linear-gradient(135deg, rgba(255, 68, 68, 0.2), rgba(255, 136, 0, 0.2));
+    border: 1px solid rgba(255, 68, 68, 0.4);
+    box-shadow:
+        0 0 10px rgba(255, 68, 68, 0.2),
+        inset 0 0 10px rgba(255, 68, 68, 0.1);
+}
+
+@keyframes whale-flash {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.9;
+        transform: scale(1.02);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RATE INDICATORS (for funding tape)
+   ═══════════════════════════════════════════════════════════════ */
+
+.ticker-item--positive-rate {
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.ticker-item--positive-rate::before {
+    content: '⬆ ';
+}
+
+.ticker-item--negative-rate {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.ticker-item--negative-rate::before {
+    content: '⬇ ';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPACT VARIANT
+   ═══════════════════════════════════════════════════════════════ */
+
+.ticker-tape--compact {
+    height: 24px;
+}
+
+.ticker-tape--compact .ticker-item {
+    padding: 2px 8px;
+    font-size: 0.65rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    .ticker-tape {
+        height: 28px;
+    }
+
+    .ticker-item {
+        font-size: 0.65rem;
+        padding: 3px 8px;
+    }
+}

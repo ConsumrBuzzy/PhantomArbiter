@@ -1,0 +1,270 @@
+/**
+ * UnifiedVaultController Styles
+ * =============================
+ * Atomic CSS for the 3-pillar wallet aggregator.
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   VAULT CONTAINER
+   ═══════════════════════════════════════════════════════════════ */
+
+.unified-vault {
+    background: linear-gradient(135deg, rgba(15, 15, 25, 0.95), rgba(25, 25, 40, 0.9));
+    border: 1px solid rgba(100, 100, 150, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.vault-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(100, 100, 150, 0.2);
+}
+
+.vault-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-bright, #fff);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.vault-net-worth {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #00ffaa, #00d4ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(0, 255, 170, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PILLARS GRID
+   ═══════════════════════════════════════════════════════════════ */
+
+.vault-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.vault-pillar {
+    background: rgba(30, 30, 50, 0.6);
+    border: 1px solid rgba(100, 100, 150, 0.2);
+    border-radius: 8px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.vault-pillar:hover {
+    border-color: rgba(100, 100, 150, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Pillar Header */
+.pillar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.pillar-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.pillar-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-dim, #888);
+    letter-spacing: 0.5px;
+    flex: 1;
+}
+
+.pillar-status {
+    font-size: 10px;
+    transition: color 0.3s ease;
+}
+
+.pillar-status.connected {
+    color: #00ff88;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    animation: pulse-status 2s infinite;
+}
+
+.pillar-status.disconnected {
+    color: #666;
+}
+
+.pillar-status.error {
+    color: #ff4444;
+    animation: pulse-error 1s infinite;
+    cursor: pointer;
+}
+
+@keyframes pulse-status {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes pulse-error {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Pillar Balance Rows */
+.pillar-balance {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.balance-label {
+    font-size: 0.7rem;
+    color: var(--text-dim, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.balance-value {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-bright, #fff);
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* Pillar Total */
+.pillar-total {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(100, 100, 150, 0.2);
+    text-align: center;
+}
+
+.pillar-total span {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-bright, #fff);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VAULT FOOTER
+   ═══════════════════════════════════════════════════════════════ */
+
+.vault-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid rgba(100, 100, 150, 0.2);
+}
+
+.vault-allocation {
+    display: flex;
+    gap: 30px;
+}
+
+.alloc-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.alloc-label {
+    font-size: 0.65rem;
+    color: var(--text-dim, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alloc-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-bright, #fff);
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* Bridge Button */
+.vault-bridge-btn {
+    background: linear-gradient(135deg, rgba(100, 100, 150, 0.3), rgba(80, 80, 120, 0.3));
+    border: 1px solid rgba(100, 100, 150, 0.4);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dim, #888);
+    cursor: not-allowed;
+    transition: all 0.3s ease;
+}
+
+.vault-bridge-btn:disabled {
+    opacity: 0.5;
+}
+
+.vault-bridge-btn.available {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(124, 58, 237, 0.2));
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+    cursor: pointer;
+    animation: bridge-glow 2s infinite;
+}
+
+.vault-bridge-btn.available:hover {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(124, 58, 237, 0.3));
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+@keyframes bridge-glow {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(0, 212, 255, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    .vault-pillars {
+        grid-template-columns: 1fr;
+    }
+    
+    .vault-footer {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .vault-allocation {
+        width: 100%;
+        justify-content: space-around;
+    }
+    
+    .vault-bridge-btn {
+        width: 100%;
+    }
+}
