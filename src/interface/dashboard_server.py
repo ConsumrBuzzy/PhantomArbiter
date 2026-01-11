@@ -458,10 +458,10 @@ class DashboardServer:
             # Handle both Signal object and dict
             payload = signal.to_dict() if hasattr(signal, 'to_dict') else signal
             
-            self.broadcast({
+            asyncio.create_task(self.broadcast({
                 "type": "SIGNAL",
                 "data": payload
-            })
+            }))
             Logger.info(f"📡 Signal Broadcast: {payload.get('type')} on {payload.get('symbol')}")
         except Exception as e:
             Logger.debug(f"Signal broadcast error: {e}")
