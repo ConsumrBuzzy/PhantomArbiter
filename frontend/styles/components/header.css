@@ -9,10 +9,13 @@
 /* Header Split Layout */
 .header-split {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    gap: 20px;
+    grid-template-columns: minmax(120px, 1fr) minmax(200px, 2fr) minmax(120px, 1fr);
+    gap: 15px;
     align-items: center;
-    padding: 10px 20px;
+    padding: 10px 15px;
+    overflow: visible;
+    min-width: 0;
+    /* Prevent grid blowout */
 }
 
 .header-section {

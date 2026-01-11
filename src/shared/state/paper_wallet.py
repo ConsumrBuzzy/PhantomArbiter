@@ -17,7 +17,7 @@ from src.shared.system.persistence import get_db
 logger = logging.getLogger("phantom.paper_wallet")
 
 class PaperWallet:
-    def __init__(self, initial_equity: float = 10000.0, initial_sol: float = 50.0):
+    def __init__(self, initial_equity: float = 50.0, initial_sol: float = 0.25):
         self.db = get_db()
         self.initial_equity = initial_equity
         self.initial_sol = initial_sol
