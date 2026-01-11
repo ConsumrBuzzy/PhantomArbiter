@@ -400,12 +400,10 @@ class TradingOS {
                 // NEW: Watchlist
                 if (data.watchlist) this.updateScalperWatch(data.watchlist);
 
-                // DRIFT UI UPDATE
                 if (data.live_wallet && data.live_wallet.drift_equity !== undefined) {
                     const equity = data.live_wallet.drift_equity;
                     const equityEl = document.getElementById('drift-equity');
                     const pnlEl = document.getElementById('drift-pnl');
-                    const levEl = document.getElementById('drift-leverage');
 
                     if (equityEl) equityEl.textContent = '$' + equity.toFixed(2);
 
@@ -415,6 +413,19 @@ class TradingOS {
                         // Placeholder: Access proper PnL from backend in future
                         pnlEl.textContent = '+$0.00';
                         pnlEl.className = 'drift-value positive';
+                    }
+                }
+
+                // CEX UI UPDATE (Coinbase)
+                if (data.cex_wallet) {
+                    const cexBalEl = document.getElementById('cex-wallet-balance');
+                    const cexUsdcEl = document.getElementById('cex-usdc');
+
+                    if (cexBalEl) {
+                        cexBalEl.textContent = '$' + (data.cex_wallet.total_value_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                    if (cexUsdcEl) {
+                        cexUsdcEl.textContent = (data.cex_wallet.withdrawable_usdc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     }
                 }
                 break;
