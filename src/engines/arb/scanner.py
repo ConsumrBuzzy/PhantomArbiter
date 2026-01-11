@@ -34,6 +34,7 @@ class SpreadOpportunity:
     gross_profit_usd: float  # Profit before fees
     estimated_fees_usd: float  # Trading + gas fees
     net_profit_usd: float  # Profit after all costs
+    net_profit_pct: float = 0.0  # ROI percentage
 
     max_size_usd: float  # Limited by liquidity depth
     confidence: float  # 0-1, based on price freshness
@@ -248,6 +249,7 @@ class SpreadDetector:
             gross_profit_usd=0,
             estimated_fees_usd=0,
             net_profit_usd=0,
+            net_profit_pct=0.0,
             max_size_usd=0,
             confidence=0,
         )
@@ -361,6 +363,7 @@ class SpreadDetector:
             gross_profit_usd=gross_profit,
             estimated_fees_usd=fees.total_usd,
             net_profit_usd=net_profit,
+            net_profit_pct=(net_profit / trade_size * 100) if trade_size > 0 else 0.0,
             max_size_usd=trade_size,
             confidence=0.9,
             timestamp=time.time(),
@@ -580,6 +583,7 @@ class SpreadDetector:
                     gross_profit_usd=gross_profit,
                     estimated_fees_usd=fees.total_usd,
                     net_profit_usd=net_profit,
+                    net_profit_pct=(net_profit / trade_size * 100) if trade_size > 0 else 0.0,
                     max_size_usd=trade_size,
                     confidence=0.9,
                     timestamp=time.time(),
