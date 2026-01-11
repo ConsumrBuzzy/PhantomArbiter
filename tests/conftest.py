@@ -14,6 +14,9 @@ with clean state isolation and mocked external dependencies.
 import asyncio
 import sys
 
+# Force plugin load
+pytest_plugins = ["pytest_asyncio"]
+
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 

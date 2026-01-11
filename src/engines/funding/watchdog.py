@@ -63,6 +63,7 @@ class FundingWatchdog:
         self.rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
         self.consecutive_negative_checks = 0
         self.consecutive_positive_checks = 0
+        self.unwind_triggered = False
         
         # Load state
         self._load_state()
@@ -74,16 +75,19 @@ class FundingWatchdog:
                     data = json.load(f)
                     self.consecutive_negative_checks = data.get("negative_count", 0)
                     self.consecutive_positive_checks = data.get("positive_count", 0)
+                    self.unwind_triggered = data.get("unwind_triggered", False)
             except:
                 self.consecutive_negative_checks = 0
                 self.consecutive_positive_checks = 0
+                self.unwind_triggered = False
 
     def _save_state(self):
         WATCHDOG_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(WATCHDOG_STATE_FILE, 'w') as f:
             json.dump({
                 "negative_count": self.consecutive_negative_checks,
-                "positive_count": self.consecutive_positive_checks
+                "positive_count": self.consecutive_positive_checks,
+                "unwind_triggered": self.unwind_triggered
             }, f)
 
     async def get_funding_rate(self, client: AsyncClient) -> float:
@@ -156,6 +160,7 @@ class FundingWatchdog:
                 await self.unwind_position(client, simulate=simulate)
                 self.consecutive_negative_checks = 0 
                 self._save_state()
+                self.unwind_triggered = True
                 return True # Signal Unwind
             
             return False
