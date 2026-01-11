@@ -66,6 +66,17 @@ def setup_venv():
 
     venv_path = Path(".venv")
 
+    # Nuclear Reset: Delete existing venv to prevent version conflicts
+    if venv_path.exists():
+        print(f"♻️  Removing existing {venv_path}...")
+        try:
+            shutil.rmtree(venv_path)
+            print("✅ Existing venv removed.")
+        except Exception as e:
+            print(f"⚠️  Failed to remove .venv: {e}")
+            print("Please manually delete the folder and try again.")
+            sys.exit(1)
+
     # If using 'py -3.12' string, we need to handle it
     cmd = []
     if python_exe.startswith("py "):
@@ -76,7 +87,6 @@ def setup_venv():
     print(f"Creating venv with: {cmd}")
     subprocess.run(cmd, check=True)
 
-    # Install dependencies
     # Install dependencies
     pip_path = (
         venv_path / "Scripts" / "pip"
