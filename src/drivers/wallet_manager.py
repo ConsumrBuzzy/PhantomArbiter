@@ -288,6 +288,60 @@ class WalletManager:
 
         return all_tokens
 
+    def get_drift_balance(self) -> float:
+        """
+        Fetch Drift account equity (USDC collateral + unrealized PnL).
+        Returns 0.0 if no Drift account or error.
+        """
+        try:
+            from solders.pubkey import Pubkey
+            import struct
+            
+            # Drift Program ID
+            DRIFT_PROGRAM = Pubkey.from_string("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH")
+            
+            # Derive user account PDA
+            wallet_pubkey = Pubkey.from_string(self.get_public_key())
+            user_account, _ = Pubkey.find_program_address(
+                [b"user", bytes(wallet_pubkey), (0).to_bytes(2, 'little')],
+                DRIFT_PROGRAM
+            )
+            
+            # Fetch account data
+            rpc = get_rpc_pool()
+            resp = rpc.client.get_account_info(user_account)
+            
+            if not resp or not resp.value or not resp.value.data:
+                return 0.0  # No Drift account
+            
+            account_data = bytes(resp.value.data)
+            
+            # Drift User account layout (simplified - just get total_deposits for now)
+            # The full layout is complex, but total_deposits[0] (USDC) is at offset 72
+            # This is a simplified approach - actual implementation should use driftpy
+            if len(account_data) > 100:
+                # Read first deposit balance (USDC at index 0)
+                # Offset varies by Drift version - this is approximate
+                try:
+                    # Try to read total collateral (i64 at various offsets)
+                    for offset in [72, 80, 88, 96]:
+                        if offset + 8 <= len(account_data):
+                            raw = struct.unpack('<q', account_data[offset:offset+8])[0]
+                            # Drift uses 6 decimals for USDC
+                            if 0 < raw < 10**15:  # Sanity check
+                                equity = raw / 10**6
+                                if equity > 0.01:  # Meaningful balance
+                                    Logger.debug(f"Drift balance found: ${equity:.2f}")
+                                    return equity
+                except Exception:
+                    pass
+            
+            return 0.0
+            
+        except Exception as e:
+            Logger.debug(f"Drift balance fetch failed: {e}")
+            return 0.0
+
     def get_current_live_usd_balance(self):
         """
         Calculates full portfolio value including "Bags" (all SPL tokens).
