@@ -110,8 +110,6 @@ def mock_jupiter_feed(monkeypatch):
     return mock_feed
 
 
-# Force load pytest-asyncio
-pytest_plugins = ["pytest_asyncio"]
 
 @pytest.fixture
 def mock_feed(mock_settings):
