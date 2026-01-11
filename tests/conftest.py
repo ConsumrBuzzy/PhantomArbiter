@@ -20,15 +20,10 @@ pytest_plugins = ["pytest_asyncio"]
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-import pytest
+# NOTE: Do NOT define a custom event_loop fixture here.
+# pytest-asyncio manages this automatically. A custom fixture causes conflicts.
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Force the event loop to use the Selector policy for the whole session."""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
+import pytest
 
 import os
 from pathlib import Path
