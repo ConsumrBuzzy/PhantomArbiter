@@ -73,7 +73,24 @@ class DashboardServer:
         Logger.info(f"   🎮 Command Center active on ws://{self.host}:{self.port}")
 
         # 2. Start Heartbeat (includes engine status)
-        asyncio.create_task(self._heartbeat_loop())
+        Logger.info("[DEBUG] Creating Heartbeat Task...")
+        try:
+            hb_task = asyncio.create_task(self._heartbeat_loop())
+            
+            def hb_done(f):
+                try:
+                    exc = f.exception()
+                    if exc:
+                        Logger.error(f"[HEARTBEAT] Task DIED with error: {exc}")
+                    else:
+                        Logger.info(f"[HEARTBEAT] Task finished cleanly")
+                except Exception as e:
+                    Logger.error(f"[HEARTBEAT] Callback error: {e}")
+
+            hb_task.add_done_callback(hb_done)
+            Logger.info("[DEBUG] Heartbeat Task Scheduled")
+        except Exception as e:
+            Logger.error(f"[DEBUG] Failed to create Heartbeat Task: {e}")
 
         # 3. Start Server
         try:
@@ -93,9 +110,12 @@ class DashboardServer:
 
     async def _heartbeat_loop(self):
         """1Hz System Pulse with engine status."""
+        Logger.info("[HEARTBEAT] Loop starting...")
         while self.running:
             try:
+                Logger.info("[HEARTBEAT] Pulse...") # Debug pulse
                 if self.clients:
+                    Logger.info(f"[HEARTBEAT] Broadcasting to {len(self.clients)} clients")
                     from src.shared.state.app_state import state
                     
                     # Get engine statuses
@@ -104,11 +124,57 @@ class DashboardServer:
                     # Get wallet state (Paper vs Live)
                     wallet_data = {}
                     if self.global_mode == "PAPER":
-                        from src.shared.state.paper_wallet import get_paper_wallet
-                        from src.shared.feeds.jupiter_feed import JupiterFeed
+                        # Load Paper Wallet balances
+                        try:
+                            pw.reload() # Reload from DB
+                            # Logger.debug("Paper Wallet reloaded")
+                        except Exception as e:
+                            Logger.error(f"Paper Wallet reload failed: {e}")
                         
-                        pw = get_paper_wallet()
-                        pw.reload()
+                        # Initialize feed on demand (singleton)
+                        if not hasattr(self, '_val_feed'):
+                            try:
+                                from src.data.feed.jupiter_feed import JupiterFeed
+                                self._val_feed = JupiterFeed()
+                                Logger.info("JupiterFeed initialized in Heartbeat")
+                            except Exception as e:
+                                Logger.error(f"Feed init failed: {e}")
+
+                        enriched_wallet = {}
+                        total_equity = 0.0
+                        
+                        # Calculate valuations
+                        try:
+                            # 1. Assets list
+                            assets = list(pw.balances.keys())
+                            # 2. Get Prices (Mock or Real)
+                            # For safety, wrap the feed call
+                            if hasattr(self, '_val_feed'):
+                                # Just use simple get_spot_price for now to avoid async complexity in loop if confusing
+                                pass 
+                            
+                            for asset, balance in pw.balances.items():
+                                price = 0.0
+                                value = 0.0
+                                
+                                if asset == "USDC":
+                                    price = 1.0
+                                    value = balance
+                                else:
+                                    if hasattr(self, '_val_feed'):
+                                        quote = self._val_feed.get_spot_price(asset, "USDC")
+                                        if quote:
+                                            price = quote.price
+                                            value = balance * price
+                                
+                                total_equity += value
+                                enriched_wallet[asset] = {
+                                    "amount": balance,
+                                    "value_usd": value,
+                                    "price": price
+                                }
+                        except Exception as e:
+                            Logger.error(f"Valuation loop error: {e}")
                         
                         # Initialize feed on demand (singleton)
                         if not hasattr(self, '_val_feed'):

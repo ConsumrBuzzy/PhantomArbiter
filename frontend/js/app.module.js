@@ -23,8 +23,6 @@ import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
-import { HeaderStats } from './components/header-stats.js';
-import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
 
@@ -37,8 +35,6 @@ class TradingOS {
         this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
         this.inventory = new Inventory('inventory-table');
         this.headerStats = new HeaderStats();
-        this.whaleTape = new WhaleTape('whale-tape-content');
-        this.modal = new ModalManager();
         this.whaleTape = new WhaleTape('whale-tape-content');
         this.modal = new ModalManager();
         this.systemMetrics = new SystemMetrics('chart-metrics');
