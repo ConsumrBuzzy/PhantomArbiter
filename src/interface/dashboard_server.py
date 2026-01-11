@@ -131,11 +131,17 @@ class DashboardServer:
                     # Collect system snapshot (all data aggregation happens here)
                     snapshot = await collector.collect(global_mode=self.global_mode)
                     
-                    # Broadcast SOL price for SolTape
+                    # Broadcast Market Data (SOL + Majors)
                     if snapshot.sol_price > 0:
                         await self._broadcast(json.dumps({
                             "type": "MARKET_DATA",
-                            "data": {"sol_price": snapshot.sol_price, "source": "JUPITER"}
+                            "data": {
+                                "sol_price": snapshot.sol_price,
+                                "btc_price": snapshot.major_prices.get("BTC", 0),
+                                "eth_price": snapshot.major_prices.get("ETH", 0),
+                                "prices": snapshot.major_prices,
+                                "source": "JUPITER+CG"
+                            }
                         }))
                     
                     # Broadcast main system stats packet

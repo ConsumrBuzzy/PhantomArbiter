@@ -21,7 +21,8 @@
     <link rel="stylesheet" href="styles/components/engine-details.css">
     <link rel="stylesheet" href="styles/components/unified-vault.css">
     <link rel="stylesheet" href="styles/components/ticker-tape.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap"
         rel="stylesheet">
 </head>
 
@@ -46,168 +47,149 @@
         <div id="view-dashboard" class="view-panel active">
             <div class="dashboard-container">
                 <header class="glass-panel header-streamlined">
-                    <!-- Branding -->
-                    <div class="header-brand">
-                        <span class="logo-icon">🏛️</span>
-                        <div class="logo-text">
-                            <span class="brand">PHANTOM ARBITER</span>
-                            <span class="version">OS V23.0</span>
+                    <header class="glass-panel header-streamlined">
+                        <!-- Meme Sniper Strip (Meme Scraper View) -->
+                        <div class="meme-sniper-header" id="meme-sniper-strip">
+                            <div class="sniper-loading">🚀 Initializing Meme Scope...</div>
                         </div>
-                    </div>
-                    <!-- Stacked Ticker Tapes -->
-                    <div class="header-tapes">
-                        <!-- Sol Cross-Venue Price Tape -->
-                        <div class="tape-row">
-                            <span class="tape-label">SOL</span>
-                            <div class="sol-tape-wrapper sol-tape-expanded" id="sol-tape-container">
-                                <div class="sol-tape-loading">Loading Markets...</div>
-                            </div>
-                        </div>
-                        <!-- Majors Price Tape (BTC, ETH, SOL global) -->
-                        <div class="tape-row">
-                            <span class="tape-label">MAJORS</span>
-                            <div class="sol-tape-wrapper sol-tape-expanded" id="majors-tape-container">
-                                <div class="sol-tape-loading">Loading Majors...</div>
-                            </div>
-                        </div>
-                    </div>
-                </header>
+                    </header>
 
-                <!-- ═══════════════════════════════════════════════════════════════
+                    <!-- ═══════════════════════════════════════════════════════════════
                      UNIFIED VAULT (CFO Component)
                      ═══════════════════════════════════════════════════════════════ -->
-                <section id="unified-vault-container" class="unified-vault-mount">
-                    <!-- UnifiedVaultController mounts here -->
-                </section>
+                    <section id="unified-vault-container" class="unified-vault-mount">
+                        <!-- UnifiedVaultController mounts here -->
+                    </section>
 
-                <!-- ═══════════════════════════════════════════════════════════════
+                    <!-- ═══════════════════════════════════════════════════════════════
                      TICKER TAPES (Mode-Aware Marquees)
                      ═══════════════════════════════════════════════════════════════ -->
-                <div class="ticker-row">
-                    <!-- Whale Tape (Large Transactions > $50k) -->
-                    <div class="ticker-mount" id="whale-tape-mount" data-mode="paper">
-                        <span class="ticker-label">🐋 WHALE TAPE</span>
+                    <div class="ticker-row">
+                        <!-- Whale Tape (Large Transactions > $50k) -->
+                        <div class="ticker-mount" id="whale-tape-mount" data-mode="paper">
+                            <span class="ticker-label">🐋 WHALE TAPE</span>
+                        </div>
                     </div>
-                </div>
 
-                <div class="left-column">
-                    <section class="glass-panel" id="inventory-panel">
-                        <div class="panel-title">Inventory</div>
-                        <div class="inventory-split">
-                            <!-- LIVE INVENTORY -->
-                            <div class="inventory-half live">
-                                <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
-                                <table id="live-inventory-table">
+                    <div class="left-column">
+                        <section class="glass-panel" id="inventory-panel">
+                            <div class="panel-title">Inventory</div>
+                            <div class="inventory-split">
+                                <!-- LIVE INVENTORY -->
+                                <div class="inventory-half live">
+                                    <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
+                                    <table id="live-inventory-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ASSET</th>
+                                                <th>AMOUNT</th>
+                                                <th>VALUE</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="3" style="text-align: center; color: var(--text-dim);">
+                                                    Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <!-- PAPER INVENTORY -->
+                                <div class="inventory-half paper">
+                                    <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
+                                    <table id="paper-inventory-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ASSET</th>
+                                                <th>AMOUNT</th>
+                                                <th>VALUE</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="3" style="text-align: center; color: var(--text-dim);">
+                                                    Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="glass-panel" id="watchlist-panel">
+                            <!-- Watchlist injected by token-watchlist.js -->
+                            <div class="panel-loading">Initializing Watchlist...</div>
+                        </section>
+                    </div>
+
+
+                    <!-- ... -->
+                    <div class="right-column">
+                        <!-- DRIFT PROTOCOL VAULT -->
+                        <section class="drift-vault-card" id="drift-panel">
+                            <div class="drift-header">
+                                <div class="drift-logo">
+                                    <span>🌊 DRIFT PROTOCOL</span>
+                                </div>
+                                <div class="drift-status-badge">MAINNET</div>
+                            </div>
+                            <div class="drift-stats-grid">
+                                <div class="drift-stat">
+                                    <span class="drift-label">EQUITY</span>
+                                    <span class="drift-value" id="drift-equity">$0.00</span>
+                                </div>
+                                <div class="drift-stat">
+                                    <span class="drift-label">Unrealized PnL</span>
+                                    <span class="drift-value" id="drift-pnl">--</span>
+                                </div>
+                                <div class="drift-stat">
+                                    <span class="drift-label">LEVERAGE</span>
+                                    <span class="drift-value" id="drift-leverage">0x</span>
+                                </div>
+                            </div>
+                            <div class="drift-actions">
+                                <button class="drift-btn" title="Coming Soon">Deposit</button>
+                                <button class="drift-btn" title="Coming Soon">Manage</button>
+                            </div>
+                            <div id="drift-ticker"
+                                style="margin-top: 10px; font-size: 0.8rem; color: var(--neon-purple); text-align: center; height: 20px;">
+                                Scanning for opportunities...
+                            </div>
+                        </section>
+
+                        <section class="glass-panel" id="intel-panel">
+                            <div class="panel-title" id="intel-title">Token Scalper Watch</div>
+                            <div id="intel-content" style="overflow-y: auto;">
+                                <table id="intel-table">
                                     <thead>
-                                        <tr>
-                                            <th>ASSET</th>
-                                            <th>AMOUNT</th>
-                                            <th>VALUE</th>
+                                        <tr id="intel-header">
+                                            <th>TOKEN</th>
+                                            <th>PRICE</th>
+                                            <th>5M FLUX</th>
+                                            <th>VOL (24H)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="3" style="text-align: center; color: var(--text-dim);">
-                                                Loading...</td>
+                                            <td colspan="4" style="text-align: center; color: var(--text-dim);">
+                                                Listening
+                                                for signals...</td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
-                            <!-- PAPER INVENTORY -->
-                            <div class="inventory-half paper">
-                                <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
-                                <table id="paper-inventory-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ASSET</th>
-                                            <th>AMOUNT</th>
-                                            <th>VALUE</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="3" style="text-align: center; color: var(--text-dim);">
-                                                Loading...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
-                    <section class="glass-panel" id="watchlist-panel">
-                        <!-- Watchlist injected by token-watchlist.js -->
-                        <div class="panel-loading">Initializing Watchlist...</div>
-                    </section>
-                </div>
-
-
-                <!-- ... -->
-                <div class="right-column">
-                    <!-- DRIFT PROTOCOL VAULT -->
-                    <section class="drift-vault-card" id="drift-panel">
-                        <div class="drift-header">
-                            <div class="drift-logo">
-                                <span>🌊 DRIFT PROTOCOL</span>
-                            </div>
-                            <div class="drift-status-badge">MAINNET</div>
-                        </div>
-                        <div class="drift-stats-grid">
-                            <div class="drift-stat">
-                                <span class="drift-label">EQUITY</span>
-                                <span class="drift-value" id="drift-equity">$0.00</span>
-                            </div>
-                            <div class="drift-stat">
-                                <span class="drift-label">Unrealized PnL</span>
-                                <span class="drift-value" id="drift-pnl">--</span>
-                            </div>
-                            <div class="drift-stat">
-                                <span class="drift-label">LEVERAGE</span>
-                                <span class="drift-value" id="drift-leverage">0x</span>
-                            </div>
-                        </div>
-                        <div class="drift-actions">
-                            <button class="drift-btn" title="Coming Soon">Deposit</button>
-                            <button class="drift-btn" title="Coming Soon">Manage</button>
-                        </div>
-                        <div id="drift-ticker"
-                            style="margin-top: 10px; font-size: 0.8rem; color: var(--neon-purple); text-align: center; height: 20px;">
-                            Scanning for opportunities...
-                        </div>
-                    </section>
-
-                    <section class="glass-panel" id="intel-panel">
-                        <div class="panel-title" id="intel-title">Token Scalper Watch</div>
-                        <div id="intel-content" style="overflow-y: auto;">
-                            <table id="intel-table">
-                                <thead>
-                                    <tr id="intel-header">
-                                        <th>TOKEN</th>
-                                        <th>PRICE</th>
-                                        <th>5M FLUX</th>
-                                        <th>VOL (24H)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="4" style="text-align: center; color: var(--text-dim);">Listening
-                                            for signals...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-                    <section class="glass-panel" id="metrics-panel">
-                        <div class="panel-title">System Metrics</div>
-                        <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
-                    </section>
-                </div>
-
-                <footer class="glass-panel">
-                    <div class="panel-title">Terminal Logs</div>
-                    <div class="log-container" id="log-stream">
-                        <div class="log-entry INFO">System Initialized. Awaiting link...</div>
+                        </section>
+                        <section class="glass-panel" id="metrics-panel">
+                            <div class="panel-title">System Metrics</div>
+                            <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
+                        </section>
                     </div>
-                </footer>
+
+                    <footer class="glass-panel">
+                        <div class="panel-title">Terminal Logs</div>
+                        <div class="log-container" id="log-stream">
+                            <div class="log-entry INFO">System Initialized. Awaiting link...</div>
+                        </div>
+                    </footer>
             </div>
         </div>
 

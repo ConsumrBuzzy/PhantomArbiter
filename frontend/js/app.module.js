@@ -24,8 +24,7 @@ import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
-import { SolTape } from './components/sol-tape.js';
-import { MajorsTape } from './components/majors-tape.js';
+import { MemeSniperStrip } from './components/meme-sniper-strip.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
@@ -43,13 +42,13 @@ class TradingOS {
         this.whaleTape = new WhaleTape('whale-tape-content');
         this.modal = new ModalManager();
         this.systemMetrics = new SystemMetrics('chart-metrics');
-        this.solTape = new SolTape('sol-tape-container');
+        // SolTape removed in V23.1
         this.toast = new Toast();
         this.apiHealth = new APIHealth('api-health-container');
 
         // NEW: Design System Components
         this.unifiedVault = new UnifiedVaultController('unified-vault-container');
-        this.majorsTape = new MajorsTape('majors-tape-container');
+        this.memeSniperStrip = new MemeSniperStrip('meme-sniper-strip');
         this.whaleTicker = TickerTape.createWhaleTape('whale-tape-mount', 'paper');
 
         // Wire bridge button
@@ -484,20 +483,13 @@ class TradingOS {
 
             case 'MARKET_DATA':
                 this.marketData.update(data);
-                if (data.sol_price) {
-                    this.solTape.update(data.sol_price);
-                    // Feed majors tape with available prices
-                    this.majorsTape.update({
-                        SOL: data.sol_price,
-                        BTC: data.btc_price || 0,
-                        ETH: data.eth_price || 0,
-                        ...data.prices  // Additional prices if available
-                    });
-                }
+                // SolTape & MajorsTape removed in V23.1
                 break;
 
             case 'TOKEN_WATCHLIST':
                 this.tokenWatchlist.update(data);
+                // ALSO update the header sniper strip
+                this.memeSniperStrip.update(data);
                 break;
 
             case 'API_HEALTH':
