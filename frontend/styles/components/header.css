@@ -384,3 +384,113 @@
         box-shadow: 0 0 25px rgba(255, 68, 68, 0.9);
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MEME SNIPER / SCALPER VIEW (Main Dashboard)
+   ═══════════════════════════════════════════════════════════════ */
+#meme-sniper-mount {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-auto-rows: 60px;
+    gap: 8px;
+    padding: 10px !important;
+    overflow-y: auto !important;
+    align-content: start;
+}
+
+#meme-sniper-mount::-webkit-scrollbar {
+    width: 4px;
+}
+
+#meme-sniper-mount::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 2px;
+}
+
+.sniper-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--neon-blue);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.9rem;
+    animation: pulse 2s infinite;
+    padding-top: 20px;
+}
+
+/* Token Card Styles */
+.meme-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px 10px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.meme-card:hover {
+    background: rgba(25, 35, 60, 0.9);
+    border-color: var(--neon-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+.meme-card.hot {
+    border-color: rgba(255, 215, 0, 0.5);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(50, 40, 0, 0.3) 100%);
+}
+
+.meme-card.hot::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--neon-gold);
+    box-shadow: 0 0 8px var(--neon-gold);
+}
+
+.meme-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.meme-symbol {
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: var(--text-bright);
+}
+
+.meme-spread {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--neon-green);
+}
+
+.meme-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.meme-price {
+    font-family: 'Roboto Mono', monospace;
+}
+
+.meme-venue {
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.05);
+}

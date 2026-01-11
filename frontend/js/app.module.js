@@ -25,7 +25,9 @@ import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
+import { SolTape } from './components/sol-tape.js';
 import { MajorsTape } from './components/majors-tape.js';
+import { MemeSniperStrip } from './components/meme-sniper-strip.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
@@ -50,7 +52,10 @@ class TradingOS {
         // NEW: Design System Components
         this.unifiedVault = new UnifiedVaultController('unified-vault-container');
         this.majorsTape = new MajorsTape('majors-tape-container');
-        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-mount', 'paper');
+        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-header-mount', 'paper');
+
+        // Meme Sniper in Main View (replacing old Whale location)
+        this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
 
         // Wire bridge button
         this.unifiedVault.setBridgeCallback((amount) => {
@@ -412,7 +417,10 @@ class TradingOS {
                 if (data.metrics) this.systemMetrics.update(data.metrics);
 
                 // Watchlist
-                if (data.watchlist) this.updateScalperWatch(data.watchlist);
+                if (data.watchlist) {
+                    this.updateScalperWatch(data.watchlist);
+                    this.memeSniper.update({ tokens: data.watchlist });
+                }
 
                 // ═══════════════════════════════════════════════════════════════
                 // UNIFIED BALANCE (Single Source of Truth)
@@ -498,6 +506,7 @@ class TradingOS {
 
             case 'TOKEN_WATCHLIST':
                 this.tokenWatchlist.update(data);
+                this.memeSniper.update(data);
                 break;
 
             case 'API_HEALTH':
