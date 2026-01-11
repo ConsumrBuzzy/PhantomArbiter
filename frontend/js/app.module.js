@@ -22,12 +22,13 @@ import { Inventory } from './components/inventory.js';
 import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
+import { LayoutManager } from './components/layout-manager.js';
 
 class TradingOS {
     constructor() {
         // Initialize components
+        this.layoutManager = new LayoutManager();
         this.terminal = new Terminal('log-stream');
-        this.marketData = new MarketData();
         this.marketData = new MarketData();
         this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
         this.inventory = new Inventory('inventory-table');

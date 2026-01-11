@@ -114,6 +114,7 @@ async def main():
     dashboard = LocalDashboardServer({})
     
     # 3. Price Feed - Streams live SOL price (Pyth WebSocket)
+    price_feed = SimplePriceFeed()
     
     async def on_price_update(price: PriceData):
         """Broadcast SOL price updates to all connected clients."""

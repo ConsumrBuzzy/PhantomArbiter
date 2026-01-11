@@ -117,27 +117,85 @@ class BaseEngine(ABC):
         """Set the callback for broadcasting updates to the dashboard."""
         self._callback = callback
 
-    async def start(self):
-        """Start the engine loop."""
+    async def start(self, config: Optional[Dict[str, Any]] = None):
+        """
+        Start the engine loop with optional configuration overrides.
+        Args:
+            config: Optional dictionary of runtime parameters (risk, leverage, etc.)
+        """
         if self.running:
+            Logger.info(f"[{self.name.upper()}] Already running.")
             return
-            
+
+        if config:
+            self.config = config # Update internal config if provided
+            Logger.info(f"[{self.name.upper()}] Configuration updated: {config}")
+
         self.running = True
-        Logger.info(f"[{self.name.upper()}] Started")
+        self.start_time = time.time()
+        self.status = "RUNNING"
+        Logger.info(f"[{self.name.upper()}] Started (Mode: {self.mode.upper()})")
+        
+        # Start the monitor loop as a background task
         asyncio.create_task(self._monitor_loop())
 
     async def stop(self):
-        """Stop the engine loop."""
+        """Stop the engine loop and persist state."""
+        if not self.running:
+            return
+            
         self.running = False
+        self.status = "STOPPED"
         Logger.info(f"[{self.name.upper()}] Stopped")
+        
+        # Optional: Hook for persistence/cleanup
+        await self.on_stop()
+
+    async def on_stop(self):
+        """Override to perform cleanup or state saving on stop."""
+        pass
+
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Returns standardized JSON operational status.
+        Structure: {status, uptime, pnl, mode, config}
+        """
+        uptime = time.time() - self.start_time if self.running and hasattr(self, 'start_time') else 0
+        return {
+            "name": self.name,
+            "status": self.status, # RUNNING, STOPPED, ERROR
+            "uptime": int(uptime),
+            "mode": self.mode,
+            "live_mode": self.live_mode,
+            "pnl": getattr(self, "pnl", 0.0), # Engines should update self.pnl
+            "config": getattr(self, "config", {})
+        }
+
+    def export_state(self) -> Dict[str, Any]:
+        """
+        High-frequency State Export for Dashboard UI.
+        Subclasses should override this to provide engine-specific real-time data.
+        Returns: Dict of metrics/state to be broadcasted.
+        """
+        return {}
 
     async def _monitor_loop(self):
         """Internal loop handling errors and intervals."""
         while self.running:
             try:
+                # 1. Execute Logic
                 await self.tick()
+                
+                # 2. Export State (Heartbeat)
+                # We can auto-broadcast state if desired, or let tick() handle it.
+                # For standardization, let's allow tick() to return state upgrades or handle it explicitly.
+                # Here we strictly run tick().
+                
             except Exception as e:
                 Logger.error(f"[{self.name.upper()}] Error: {e}")
+                self.status = "ERROR"
+                # decided NOT to stop on error immediately to allow retry or recovery, 
+                # but valid to consider self.stop() here depending on severity.
             
             await asyncio.sleep(self.get_interval())
 
@@ -153,4 +211,6 @@ class BaseEngine(ABC):
     async def broadcast(self, data: Dict[str, Any]):
         """Helper to send data via callback."""
         if self._callback:
+            # Wrap in standard envelope if not already? 
+            # For now passing raw data as engines might have specific schemas.
             await self._callback(data)
