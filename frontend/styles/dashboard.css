@@ -27,7 +27,7 @@ body {
 .dashboard-container {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
-    grid-template-rows: 80px auto 1fr 200px;
+    grid-template-rows: 150px auto 1fr 200px;
     gap: 20px;
     height: 100%;
     grid-template-areas:
