@@ -23,7 +23,10 @@ import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
+import { HeaderStats } from './components/header-stats.js';
+import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
+import { SolTape } from './components/sol-tape.js';
 
 class TradingOS {
     constructor() {
@@ -36,7 +39,10 @@ class TradingOS {
         this.headerStats = new HeaderStats();
         this.whaleTape = new WhaleTape('whale-tape-content');
         this.modal = new ModalManager();
+        this.whaleTape = new WhaleTape('whale-tape-content');
+        this.modal = new ModalManager();
         this.systemMetrics = new SystemMetrics('chart-metrics');
+        this.solTape = new SolTape('sol-tape-container');
 
         // Engine cards
         this.engines = {
@@ -138,6 +144,9 @@ class TradingOS {
         const detailView = document.getElementById('view-engine-detail');
         detailView.classList.add('active');
 
+        // Update Inventory Context
+        if (this.inventory) this.inventory.setContext(engineId);
+
         // 3. Populate Content (Mock for now, will pull from card later)
         const contentArea = document.getElementById('detail-content-area');
         contentArea.innerHTML = `
@@ -167,6 +176,9 @@ class TradingOS {
 
         // 2. Show List
         document.querySelector('.engine-stack').style.display = 'flex';
+
+        // Reset Inventory Context
+        if (this.inventory) this.inventory.setContext('GLOBAL');
     }
 
     initializeWebSocket() {
@@ -228,6 +240,7 @@ class TradingOS {
 
             case 'MARKET_DATA':
                 this.marketData.update(data);
+                if (data.sol_price) this.solTape.update(data.sol_price);
                 break;
 
             case 'TOKEN_WATCHLIST':

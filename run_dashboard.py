@@ -65,6 +65,24 @@ async def main():
                 
                 if name in self.local_engines:
                     eng = self.local_engines[name]
+                    
+                    # SINGLE ENGINE PER MODE CHECK
+                    is_live_req = (mode == "live")
+                    
+                    for other_name, other_eng in self.local_engines.items():
+                        if other_name != name and other_eng.running:
+                            other_is_live = getattr(other_eng, 'live_mode', False)
+                            
+                            if is_live_req and other_is_live:
+                                await self._send_engine_response(websocket, "START", name, False, 
+                                    f"Start Failed: '{other_name}' is already LIVE. Only one live engine allowed.")
+                                return
+                            
+                            if not is_live_req and not other_is_live:
+                                await self._send_engine_response(websocket, "START", name, False, 
+                                    f"Start Failed: '{other_name}' is running in PAPER mode. Only one paper engine allowed.")
+                                return
+
                     if not eng.running:
                         # Set mode
                         eng.live_mode = (mode == "live")
