@@ -1210,27 +1210,6 @@ input:checked+.slider:before {
 .pulse-value {
     font-size: 0.85rem;
     font-weight: bold;
-    color: var(--text-primary);
-    font-family: 'Roboto Mono';
-}
-
-/* Whale Tape Ticker */
-.whale-tape-container {
-    margin-bottom: 10px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    padding: 0;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid var(--border-color);
-    background: rgba(0, 0, 0, 0.4);
-}
-
-.tape-label {
-    background: var(--panel-bg);
-    color: var(--neon-blue);
-    font-size: 0.7rem;
     font-weight: bold;
     padding: 0 10px;
     height: 100%;
@@ -1290,6 +1269,7 @@ input:checked+.slider:before {
         transform: translateX(-100%);
     }
 }
+
 /* 
    LST MONITOR STYLES
     */
@@ -1315,10 +1295,25 @@ input:checked+.slider:before {
     border: 1px solid rgba(255, 215, 0, 0.3);
 }
 
-.token-name { color: var(--text-primary); font-weight: bold; }
-.token-price { font-family: 'Roboto Mono'; color: var(--text-dim); }
-.token-diff { font-family: 'Roboto Mono'; color: var(--neon-green); }
-.token-diff.alert { color: var(--neon-gold); font-weight: bold; }
+.token-name {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.token-price {
+    font-family: 'Roboto Mono';
+    color: var(--text-dim);
+}
+
+.token-diff {
+    font-family: 'Roboto Mono';
+    color: var(--neon-green);
+}
+
+.token-diff.alert {
+    color: var(--neon-gold);
+    font-weight: bold;
+}
 
 .status-indicator {
     font-size: 0.65rem;
@@ -1326,10 +1321,20 @@ input:checked+.slider:before {
     border-radius: 4px;
     font-weight: bold;
 }
-.status-indicator.safe { color: var(--neon-green); background: rgba(0, 255, 157, 0.1); }
-.status-indicator.danger { color: var(--neon-gold); background: rgba(255, 215, 0, 0.2); animation: status-pulse 1s infinite alternate; }
 
-@keyframes status-pulse {
-    to { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+.status-indicator.safe {
+    color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.1);
 }
 
+.status-indicator.danger {
+    color: var(--neon-gold);
+    background: rgba(255, 215, 0, 0.2);
+    animation: status-pulse 1s infinite alternate;
+}
+
+@keyframes status-pulse {
+    to {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+    }
+}

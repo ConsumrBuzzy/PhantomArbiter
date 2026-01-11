@@ -27,11 +27,12 @@ body {
 .dashboard-container {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
-    grid-template-rows: 80px 1fr 200px;
+    grid-template-rows: 80px 45px 1fr 200px;
     gap: 20px;
     height: 100%;
     grid-template-areas:
         "header header"
+        "tape tape"
         "left right"
         "footer footer";
 }
