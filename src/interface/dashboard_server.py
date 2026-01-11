@@ -109,186 +109,45 @@ class DashboardServer:
             Logger.error(f"   Command Center Error: {e}")
 
     async def _heartbeat_loop(self):
-        """1Hz System Pulse with engine status."""
-        # Logger.info("[HEARTBEAT] Loop starting...")
+        """
+        1Hz System Pulse with engine status.
+        
+        SRP Refactor: Data collection delegated to HeartbeatDataCollector.
+        This method now only handles:
+        1. Calling the collector
+        2. Broadcasting the snapshot
+        3. Error handling
+        """
+        from src.interface.heartbeat_collector import get_heartbeat_collector
+        
+        collector = get_heartbeat_collector()
+        
         while self.running:
             try:
-                # Logger.info("[HEARTBEAT] Pulse...") 
                 if self.clients:
-                    # Logger.info(f"[HEARTBEAT] Broadcasting to {len(self.clients)} clients")
-                    from src.shared.state.app_state import state
+                    # Collect system snapshot (all data aggregation happens here)
+                    snapshot = await collector.collect(global_mode=self.global_mode)
                     
-                    # Get engine statuses
-                    engine_status = await engine_manager.get_status()
-                    
-                    # V23.1: Always fetch BOTH wallets
-                    # LIVE = Real Solana on-chain balance
-                    # PAPER = Simulation wallet for paper trading
-                    
-                    paper_wallet_data = {}
-                    live_wallet_data = {}
-                    
-                    # 1. PAPER WALLET (Simulation)
-                    try:
-                        pw.reload()
-                    except Exception:
-                        pass
-                    
-                    enriched_paper = {}
-                    paper_equity = 0.0
-                    FALLBACK_PRICES = {"SOL": 150.0, "USDC": 1.0, "JTO": 2.5, "JUP": 0.8}
-                    
-                    for asset, balance in pw.balances.items():
-                        price = FALLBACK_PRICES.get(asset, 0.0)
-                        try:
-                            if not hasattr(self, '_val_feed'):
-                                from src.shared.feeds.jupiter_feed import JupiterFeed
-                                self._val_feed = JupiterFeed()
-                            if hasattr(self, '_val_feed') and asset != "USDC":
-                                quote = self._val_feed.get_spot_price(asset, "USDC")
-                                if quote and quote.price > 0:
-                                    price = quote.price
-                        except Exception:
-                            pass
-                        
-                        value = balance * price
-                        paper_equity += value
-                        enriched_paper[asset] = {"amount": balance, "value_usd": value, "price": price}
-                    
-                    paper_wallet_data = {
-                        "assets": enriched_paper,
-                        "equity": paper_equity,
-                        "sol_balance": pw.balances.get("SOL", 0.0),
-                        "type": "PAPER"
-                    }
-                    
-                    # 2. LIVE WALLET (Real Solana On-Chain)
-                    enriched_live = {}  # Initialize before try
-                    drift_equity = 0.0  # Drift account balance
-                    try:
-                        from src.drivers.wallet_manager import WalletManager
-                        if not hasattr(self, '_wallet_mgr'):
-                            self._wallet_mgr = WalletManager()
-                        
-                        live_data = self._wallet_mgr.get_current_live_usd_balance()
-                        
-                        for asset_info in live_data.get("assets", []):
-                            sym = asset_info.get("symbol", "UNKNOWN")
-                            amt = asset_info.get("amount", 0)
-                            val = asset_info.get("usd_value", 0)
-                            enriched_live[sym] = {
-                                "amount": amt,
-                                "value_usd": val,
-                                "price": val / max(amt, 0.0001) if amt else 0
-                            }
-                        
-                        breakdown = live_data.get("breakdown", {})
-                        if "SOL" in breakdown:
-                            sol_bal = breakdown["SOL"]
-                            sol_price = enriched_live.get("SOL", {}).get("price", 150.0)
-                            enriched_live["SOL"] = {"amount": sol_bal, "value_usd": sol_bal * sol_price, "price": sol_price}
-                        if "USDC" in breakdown:
-                            enriched_live["USDC"] = {"amount": breakdown["USDC"], "value_usd": breakdown["USDC"], "price": 1.0}
-                        
-                        # 3. DRIFT BALANCE (Perp Account Equity)
-                        try:
-                            from src.delta_neutral.drift_order_builder import DriftAdapter
-                            if not hasattr(self, '_drift'):
-                                self._drift = DriftAdapter("mainnet")
-                                self._drift.set_wallet(self._wallet_mgr)
-                            
-                            # Try to get Drift account equity (USDC collateral + unrealized PnL)
-                            # Using DriftAdapter's integrated balance fetch
-                            drift_equity = self._drift.get_user_equity()
-                            
-                            # Add to payload for dedicated UI
-                            live_data['drift_equity'] = drift_equity
-                            
-                            if drift_equity > 0:
-                                enriched_live["DRIFT"] = {
-                                    "amount": drift_equity,  # Show as equity amount
-                                    "value_usd": drift_equity,
-                                    "price": 1.0  # USDC-denominated
-                                }
-                        except Exception as drift_err:
-                            Logger.debug(f"Drift balance fetch: {drift_err}")
-                            Logger.debug(f"Drift balance fetch: {drift_err}")
-                        
-                        total_live_equity = live_data.get("total_usd", 0.0) + drift_equity
-                        
-                        live_wallet_data = {
-                            "assets": enriched_live,
-                            "equity": total_live_equity,
-                            "sol_balance": breakdown.get("SOL", 0.0),
-                            "drift_equity": drift_equity,
-                            "type": "LIVE"
-                        }
-                    except Exception as live_err:
-                        Logger.debug(f"Live wallet fetch: {live_err}")
-                        live_wallet_data = {"assets": {}, "equity": 0.0, "sol_balance": 0.0, "type": "LIVE (error)"}
-                    
-                    # 4. WATCHLIST (Scalper Data)
-                    try:
-                        from src.shared.feeds.token_watchlist import get_token_watchlist
-                        wl = get_token_watchlist()
-                        # Convert dataclasses to dicts
-                        watchlist_data = []
-                        for p in wl.prices.values():
-                            p_dict = {
-                                "symbol": p.symbol,
-                                "price": p.prices.get("raydium", p.best_ask), # Preferred price
-                                "change_5m": p.change_5m,
-                                "change_1h": p.change_1h,
-                                "change_24h": p.change_24h,
-                                "volume": p.volume_24h,
-                                "spread": p.spread_pct
-                            }
-                            watchlist_data.append(p_dict)
-                        
-                        system_stats["watchlist"] = watchlist_data
-                    except Exception as wl_err:
-                        Logger.debug(f"Watchlist fetch: {wl_err}")
-
                     # Broadcast SOL price for SolTape
-                    sol_price = enriched_paper.get("SOL", {}).get("price", 0) or enriched_live.get("SOL", {}).get("price", 0) or 150.0
-                    if sol_price > 0:
+                    if snapshot.sol_price > 0:
                         await self._broadcast(json.dumps({
                             "type": "MARKET_DATA",
-                            "data": {"sol_price": sol_price, "source": "JUPITER"}
+                            "data": {"sol_price": snapshot.sol_price, "source": "JUPITER"}
                         }))
-
-                    # Gather System Metrics
-                    import psutil
-                    try:
-                        disk_pct = psutil.disk_usage('C:').percent
-                    except Exception:
-                        disk_pct = 0.0
-                    metrics = {
-                        "cpu_percent": psutil.cpu_percent(interval=None),
-                        "memory_percent": psutil.virtual_memory().percent,
-                        "disk_percent": disk_pct
-                    }
-
-                    # Send BOTH wallets in payload
+                    
+                    # Broadcast main system stats packet
                     stats_payload = {
                         "type": "SYSTEM_STATS",
-                        "data": {
-                            **(state.stats or {}),
-                            "engines": engine_status,
-                            "mode": self.global_mode,
-                            "wallet": paper_wallet_data,  # For Inventory (based on mode)
-                            "paper_wallet": paper_wallet_data,
-                            "live_wallet": live_wallet_data,
-                            "metrics": metrics
-                        },
+                        "data": snapshot.to_dict(),
                         "timestamp": asyncio.get_event_loop().time()
                     }
-                    message = json.dumps(stats_payload)
-                    await self._broadcast(message)
+                    await self._broadcast(json.dumps(stats_payload))
+                    
             except Exception as e:
                 Logger.warning(f"Heartbeat error: {e}")
                 import traceback
                 traceback.print_exc()
+                
             await asyncio.sleep(1.0)
 
     async def _handler(self, websocket):
