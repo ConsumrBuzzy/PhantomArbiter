@@ -25,7 +25,17 @@ export class EngineCard {
      * Bind card events
      */
     bindEvents() {
-        // Power toggle
+        // Card Click (Navigation) - Ignore if clicking buttons
+        this.card.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('.mode-selector')) return;
+
+            this.card.dispatchEvent(new CustomEvent('engine-selected', {
+                bubbles: true,
+                detail: { engineId: this.name }
+            }));
+        });
+
+        // Event Listeners for Controls
         const powerBtn = this.card.querySelector('.power-toggle');
         if (powerBtn) {
             powerBtn.addEventListener('click', (e) => {

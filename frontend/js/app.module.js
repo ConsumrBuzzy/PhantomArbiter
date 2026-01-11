@@ -111,7 +111,63 @@ class TradingOS {
             item.addEventListener('click', () => this.switchView(item.dataset.view));
         });
 
-        // SOS Button
+        // Listen for navigation events from existing cards
+        Object.values(this.engines).forEach(engine => {
+            engine.card.addEventListener('engine-selected', (e) => {
+                this.showEngineDetail(e.detail.engineId);
+            });
+        });
+
+        // Initialize Detail View Back Button
+        const backBtn = document.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                this.showEngineList();
+            });
+        }
+    }
+
+    showEngineDetail(engineId) {
+        console.log(`Navigating to details: ${engineId}`);
+        // 1. Hide List
+        document.querySelector('.engine-stack').style.display = 'none';
+
+        // 2. Show Detail Container
+        const detailView = document.getElementById('view-engine-detail');
+        detailView.classList.add('active');
+
+        // 3. Populate Content (Mock for now, will pull from card later)
+        const contentArea = document.getElementById('detail-content-area');
+        contentArea.innerHTML = `
+            <div>
+                <h3>Refined Controls for ${engineId.toUpperCase()}</h3>
+                <p>Detailed statistics and deep-dive configuration would go here.</p>
+                <div class="glass-panel" style="margin-top:20px; padding:20px;">
+                     <h4>Active Configuration</h4>
+                     <pre style="color:var(--neon-green)">${JSON.stringify(this.engineCards[engineId].config, null, 2)}</pre>
+                </div>
+            </div>
+            <div>
+                 <div class="glass-panel">
+                    <h4>Performance History</h4>
+                    <div style="height: 200px; display:flex; align-items:center; justify-content:center; color:var(--text-dim);">
+                        [Chart Placeholder]
+                    </div>
+                 </div>
+            </div>
+        `;
+    }
+
+    showEngineList() {
+        // 1. Hide Detail
+        const detailView = document.getElementById('view-engine-detail');
+        detailView.classList.remove('active');
+
+        // 2. Show List
+        document.querySelector('.engine-stack').style.display = 'flex';
+    }
+
+    initializeWebSocket() {
         document.getElementById('sos-btn')?.addEventListener('click', () => {
             this.modal.openSOS();
         });
