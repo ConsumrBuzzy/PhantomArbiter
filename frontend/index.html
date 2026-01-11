@@ -45,57 +45,18 @@
         <!-- DASHBOARD VIEW (Default) -->
         <div id="view-dashboard" class="view-panel active">
             <div class="dashboard-container">
-                <header class="glass-panel header-split">
-                    <!-- LEFT: Live Wallet (Solana + Drift) -->
-                    <div class="header-section left-section" id="live-wallet-display">
-                        <div class="wallet-status-indicator live">LIVE WALLET</div>
-                        <div class="wallet-info">
-                            <span class="label">SOLANA</span>
-                            <span class="value" id="live-wallet-balance">$0.00</span>
+                <header class="glass-panel header-streamlined">
+                    <!-- Streamlined Header: Branding + Full-Width Sol Tape -->
+                    <div class="header-brand">
+                        <span class="logo-icon">🏛️</span>
+                        <div class="logo-text">
+                            <span class="brand">PHANTOM ARBITER</span>
+                            <span class="version">OS V22.1</span>
                         </div>
                     </div>
-
-                    <!-- LEFT-CENTER: CEX Wallet (Coinbase) -->
-                    <div class="header-section left-center-section" id="cex-wallet-display"
-                        style="border-right: 1px solid rgba(255, 255, 255, 0.1); padding-right: 20px; margin-right: 20px;">
-                        <div class="wallet-status-indicator live"
-                            style="background: rgba(0, 82, 255, 0.2); color: #0052FF; border: 1px solid #0052FF;">
-                            COINBASE</div>
-                        <div class="wallet-info">
-                            <span class="label">TOTAL EQUITY</span>
-                            <span class="value" id="cex-wallet-balance">$0.00</span>
-                        </div>
-                        <div class="wallet-details">
-                            <span id="cex-usdc">0.00</span> USDC
-                        </div>
-                    </div>
-
-                    <!-- CENTER: Branding & Sol Tape -->
-                    <div class="header-section center-section">
-                        <div class="logo">
-                            <span class="logo-icon">🏛️</span>
-                            <div class="logo-text">
-                                <span class="brand">PHANTOM ARBITER</span>
-                                <span class="version">OS V22.1</span>
-                            </div>
-                        </div>
-                        <!-- Sol Tape Container -->
-                        <div class="sol-tape-wrapper" id="sol-tape-container">
-                            <!-- Injected by sol-tape.js -->
-                            <div class="sol-tape-loading">Loading Markets...</div>
-                        </div>
-                    </div>
-
-                    <!-- RIGHT: Paper Wallet (Global) -->
-                    <div class="header-section right-section" id="paper-wallet-display">
-                        <div class="wallet-status-indicator paper">PAPER WALLET</div>
-                        <div class="wallet-info">
-                            <span class="label">EQUITY</span>
-                            <span class="value" id="wallet-balance">$0.00</span>
-                        </div>
-                        <div class="wallet-details">
-                            <span id="wallet-sol">0.00</span> SOL
-                        </div>
+                    <!-- Sol Tape (Full Width Marquee) -->
+                    <div class="sol-tape-wrapper sol-tape-expanded" id="sol-tape-container">
+                        <div class="sol-tape-loading">Loading Markets...</div>
                     </div>
                 </header>
 

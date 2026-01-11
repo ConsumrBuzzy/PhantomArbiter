@@ -18,6 +18,54 @@
     min-width: 0;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   STREAMLINED HEADER (V23.0)
+   Compact branding + full-width Sol Tape marquee
+   ═══════════════════════════════════════════════════════════════ */
+.header-streamlined {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 20px;
+    min-width: 0;
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.header-brand .logo-icon {
+    font-size: 1.4rem;
+}
+
+.header-brand .logo-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.header-brand .brand {
+    font-size: 0.95rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.header-brand .version {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+}
+
+/* Expanded Sol Tape fills remaining header space */
+.sol-tape-expanded {
+    flex: 1;
+    min-width: 0;
+    margin-top: 0;
+}
+
 .header-section {
     display: flex;
     flex-direction: column;
