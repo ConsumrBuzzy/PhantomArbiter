@@ -52,26 +52,40 @@ export class HeaderStats {
         if (!this.liveContainer) return;
 
         const indicator = this.liveContainer.querySelector('.wallet-status-indicator');
+        const isLiveWallet = walletData && walletData.type && walletData.type.startsWith('LIVE');
 
-        if (liveEngine) {
-            // Active Live Engine - Trigger Danger Pulse
+        if (isLiveWallet || liveEngine) {
+            // Active Live Wallet or Live Engine Running
             this.liveContainer.style.opacity = '1';
-            indicator.textContent = `LIVE: ${liveEngine.name.toUpperCase()}`;
-            indicator.classList.add('active'); // Triggers CSS pulse animation
 
-            // For MVP, if we don't have separate live wallet data, we show "Connected" or 0.00
-            // Or if the backend sends live wallet data in a different field.
-            // Currently assuming 'walletData' is the paper wallet.
-            // We'll calculate a mock "Live" value or show Real Live balance if available.
-            // For now, let's just make it look active.
-            if (this.liveBalance) this.liveBalance.textContent = "CONNECTED";
-            this.liveBalance.style.color = "var(--neon-red)";
+            if (isLiveWallet) {
+                // Display actual live wallet balance
+                indicator.textContent = 'LIVE WALLET';
+                if (this.liveBalance) {
+                    const equity = walletData.equity || 0;
+                    this.liveBalance.textContent = `$${equity.toFixed(2)}`;
+                    this.liveBalance.style.color = equity > 0 ? 'var(--neon-green)' : 'var(--text-dim)';
+                }
+            } else if (liveEngine) {
+                // Live engine running but wallet not in LIVE mode
+                indicator.textContent = `LIVE: ${liveEngine.name.toUpperCase()}`;
+                indicator.classList.add('active');
+                if (this.liveBalance) this.liveBalance.textContent = "ACTIVE";
+                this.liveBalance.style.color = "var(--neon-red)";
+            }
+
+            // Trigger pulse if live engine is running
+            if (liveEngine) {
+                indicator.classList.add('active');
+            } else {
+                indicator.classList.remove('active');
+            }
         } else {
-            // No Live Engine - Disable Pulse
-            this.liveContainer.style.opacity = '0.3';
-            indicator.textContent = "NO LIVE ENGINE";
-            indicator.classList.remove('active'); // Stop pulse animation
-            if (this.liveBalance) this.liveBalance.textContent = "--";
+            // No Live Data - Show dimmed state
+            this.liveContainer.style.opacity = '0.5';
+            indicator.textContent = "LIVE WALLET";
+            indicator.classList.remove('active');
+            if (this.liveBalance) this.liveBalance.textContent = "$0.00";
             this.liveBalance.style.color = "var(--text-dim)";
         }
     }

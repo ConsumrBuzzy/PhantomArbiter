@@ -1,0 +1,74 @@
+/**
+ * API Health Styles
+ * =================
+ */
+
+.api-health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.api-health-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.api-health-card:hover {
+    border-color: var(--neon-blue);
+    transform: translateY(-2px);
+}
+
+.api-name {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.api-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.status-icon {
+    font-size: 1rem;
+}
+
+.status-label {
+    font-weight: bold;
+}
+
+.api-latency {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+    font-family: 'Roboto Mono', monospace;
+}
+
+.api-health-legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.api-health-loading {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 20px;
+    font-size: 0.85rem;
+}

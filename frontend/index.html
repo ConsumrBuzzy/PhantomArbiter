@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="styles/components/tables.css">
     <link rel="stylesheet" href="styles/components/modals.css">
     <link rel="stylesheet" href="styles/components/toast.css">
+    <link rel="stylesheet" href="styles/components/api-health.css">
     <link rel="stylesheet" href="styles/components/metrics.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap"
         rel="stylesheet">
@@ -41,11 +42,11 @@
         <div id="view-dashboard" class="view-panel active">
             <div class="dashboard-container">
                 <header class="glass-panel header-split">
-                    <!-- LEFT: Live Wallet (Engine Tied) -->
+                    <!-- LEFT: Live Wallet (Solana + Drift) -->
                     <div class="header-section left-section" id="live-wallet-display">
-                        <div class="wallet-status-indicator live">LIVE ENGINE</div>
+                        <div class="wallet-status-indicator live">LIVE WALLET</div>
                         <div class="wallet-info">
-                            <span class="label">ACTIVE</span>
+                            <span class="label">BALANCE</span>
                             <span class="value" id="live-wallet-balance">$0.00</span>
                         </div>
                     </div>
@@ -349,8 +350,18 @@
                 </div>
             </header>
             <div class="glass-panel">
-                <div class="panel-title">Global Settings</div>
-                <p style="color: var(--text-dim); font-size: 0.85rem;">Configuration panel coming soon...</p>
+                <div class="panel-title">🔌 API & RPC Status</div>
+                <div id="api-health-container">
+                    <!-- API Health grid rendered by JS -->
+                    <div class="api-health-loading">
+                        <span>Initializing health checks...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-panel" style="margin-top: 15px;">
+                <div class="panel-title">⚙️ Global Settings</div>
+                <p style="color: var(--text-dim); font-size: 0.85rem;">Additional configuration options coming soon...
+                </p>
             </div>
         </div>
     </div>

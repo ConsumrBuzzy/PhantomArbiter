@@ -280,13 +280,66 @@ class DashboardServer:
                             await self._broadcast(json.dumps(market_payload))
 
                     else:
-                        # Live wallet stub
-                        wallet_data = {
-                            "assets": {},
-                            "equity": 0.0,
-                            "sol_balance": 0.0,
-                            "type": "LIVE ( disconnected )"
-                        }
+                        # V23.0: Live Wallet - Fetch real on-chain balance
+                        try:
+                            from src.drivers.wallet_manager import WalletManager
+                            wallet_mgr = WalletManager()
+                            live_data = wallet_mgr.get_current_live_usd_balance()
+                            
+                            # Format assets for frontend
+                            enriched_live = {}
+                            for asset_info in live_data.get("assets", []):
+                                sym = asset_info.get("symbol", "UNKNOWN")
+                                enriched_live[sym] = {
+                                    "amount": asset_info.get("amount", 0),
+                                    "value_usd": asset_info.get("usd_value", 0),
+                                    "price": asset_info.get("usd_value", 0) / max(asset_info.get("amount", 1), 0.0001)
+                                }
+                            
+                            # Add SOL and USDC from breakdown
+                            breakdown = live_data.get("breakdown", {})
+                            if "SOL" in breakdown:
+                                sol_bal = breakdown["SOL"]
+                                sol_price = enriched_live.get("SOL", {}).get("price", 0) or 150.0
+                                enriched_live["SOL"] = {
+                                    "amount": sol_bal,
+                                    "value_usd": sol_bal * sol_price,
+                                    "price": sol_price
+                                }
+                            if "USDC" in breakdown:
+                                enriched_live["USDC"] = {
+                                    "amount": breakdown["USDC"],
+                                    "value_usd": breakdown["USDC"],
+                                    "price": 1.0
+                                }
+                            
+                            wallet_data = {
+                                "assets": enriched_live,
+                                "equity": live_data.get("total_usd", 0.0),
+                                "sol_balance": breakdown.get("SOL", 0.0),
+                                "type": "LIVE"
+                            }
+                            
+                            # Broadcast SOL price for SolTape
+                            sol_price_live = enriched_live.get("SOL", {}).get("price", 0)
+                            if sol_price_live > 0:
+                                market_payload = {
+                                    "type": "MARKET_DATA",
+                                    "data": {
+                                        "sol_price": sol_price_live,
+                                        "source": "LIVE WALLET"
+                                    }
+                                }
+                                await self._broadcast(json.dumps(market_payload))
+                                
+                        except Exception as live_err:
+                            Logger.debug(f"Live wallet fetch error: {live_err}")
+                            wallet_data = {
+                                "assets": {},
+                                "equity": 0.0,
+                                "sol_balance": 0.0,
+                                "type": "LIVE (error)"
+                            }
 
                     # Gather System Metrics
                     import psutil
