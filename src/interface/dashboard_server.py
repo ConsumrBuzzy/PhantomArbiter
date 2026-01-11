@@ -42,7 +42,7 @@ class DashboardServer:
         - Signal passthrough (ARB_OPP, SCALP_SIGNAL, etc.)
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765):
+    def __init__(self, host: str = "127.0.0.1", port: int = 8765):
         self.host = host
         self.port = port
         self.clients: Set[websockets.WebSocketServerProtocol] = set()
