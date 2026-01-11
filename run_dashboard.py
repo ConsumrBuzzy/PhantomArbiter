@@ -78,10 +78,8 @@ async def main():
                                     f"Start Failed: '{other_name}' is already LIVE. Only one live engine allowed.")
                                 return
                             
-                            if not is_live_req and not other_is_live:
-                                await self._send_engine_response(websocket, "START", name, False, 
-                                    f"Start Failed: '{other_name}' is running in PAPER mode. Only one paper engine allowed.")
-                                return
+                            # PAPER mode: Allow multiple engines for simulation
+                            # (Removed restriction - users can run multiple paper engines)
 
                     if not eng.running:
                         # Set mode
