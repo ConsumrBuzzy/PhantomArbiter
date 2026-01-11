@@ -140,3 +140,6 @@ def get_paper_wallet() -> PaperWallet:
     if _paper_wallet is None:
         _paper_wallet = PaperWallet()
     return _paper_wallet
+
+# Export default singleton instance
+pw = get_paper_wallet()
