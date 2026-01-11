@@ -217,6 +217,9 @@ class TradingOS {
                 if (data.engines) this.updateEngineStates(data.engines);
                 if (data.metrics) this.systemMetrics.update(data.metrics);
 
+                // NEW: Watchlist
+                if (data.watchlist) this.updateScalperWatch(data.watchlist);
+
                 // DRIFT UI UPDATE
                 if (data.live_wallet && data.live_wallet.drift_equity !== undefined) {
                     const equity = data.live_wallet.drift_equity;
@@ -234,6 +237,11 @@ class TradingOS {
                         pnlEl.className = 'drift-value positive';
                     }
                 }
+                break;
+
+            case 'SIGNAL':
+                // Handle generic signals (including Drift)
+                this.handleSignal(data);
                 break;
 
             case 'CONTEXT_UPDATE':
@@ -337,6 +345,65 @@ class TradingOS {
     saveConfig(engineName, config) {
         this.ws.send('UPDATE_CONFIG', { engine: engineName, config });
         this.terminal.addLog('SYSTEM', 'INFO', `Updated config for ${engineName}`);
+    }
+
+    /**
+     * Update Token Scalper Watch Table
+     */
+    updateScalperWatch(watchlist) {
+        if (!watchlist || !Array.isArray(watchlist)) return;
+
+        const tbody = document.querySelector('#intel-table tbody');
+        if (!tbody) return;
+
+        // Clear if only "Listening..." row exists
+        if (tbody.rows.length === 1 && tbody.rows[0].innerText.includes('Listening')) {
+            tbody.innerHTML = '';
+        }
+
+        // We'll rebuild or update. For simplicity, rebuild (max 10-20 items)
+        let html = '';
+        watchlist.forEach(token => {
+            const isPos = token.change_5m >= 0;
+            const fluxClass = isPos ? 'profit-positive' : 'profit-negative';
+            const fluxSign = isPos ? '+' : '';
+
+            // Format Volume (e.g. 1.2M)
+            const vol = token.volume > 1000000 ? (token.volume / 1000000).toFixed(1) + 'M' : (token.volume / 1000).toFixed(1) + 'K';
+
+            html += `
+                <tr>
+                    <td><span class="token-ticker">${token.symbol}</span></td>
+                    <td>$${token.price.toFixed(4)}</td>
+                    <td class="${fluxClass}">${fluxSign}${token.change_5m.toFixed(2)}%</td>
+                    <td style="color: var(--text-dim);">${vol}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    /**
+     * Handle generic signals (e.g. for Drift Ticker)
+     */
+    handleSignal(payload) {
+        // Update Drift Ticker
+        const ticker = document.getElementById('drift-ticker');
+        if (ticker && payload) {
+            let msg = '';
+            if (payload.type === 'funding') {
+                msg = `💰 Funding Opp: ${payload.symbol} ${payload.apr}% APR`;
+            } else if (payload.type === 'arb') {
+                msg = `⚡ Arb Signal: ${payload.symbol} -> ${payload.profit_pct}%`;
+            }
+
+            if (msg) {
+                ticker.textContent = msg;
+                ticker.style.animation = 'none';
+                ticker.offsetHeight; /* trigger reflow */
+                ticker.style.animation = 'pulse-text 2s infinite';
+            }
+        }
     }
 
     /**

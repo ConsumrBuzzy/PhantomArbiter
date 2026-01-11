@@ -227,6 +227,28 @@ class DashboardServer:
                         Logger.debug(f"Live wallet fetch: {live_err}")
                         live_wallet_data = {"assets": {}, "equity": 0.0, "sol_balance": 0.0, "type": "LIVE (error)"}
                     
+                    # 4. WATCHLIST (Scalper Data)
+                    try:
+                        from src.shared.feeds.token_watchlist import get_token_watchlist
+                        wl = get_token_watchlist()
+                        # Convert dataclasses to dicts
+                        watchlist_data = []
+                        for p in wl.prices.values():
+                            p_dict = {
+                                "symbol": p.symbol,
+                                "price": p.prices.get("raydium", p.best_ask), # Preferred price
+                                "change_5m": p.change_5m,
+                                "change_1h": p.change_1h,
+                                "change_24h": p.change_24h,
+                                "volume": p.volume_24h,
+                                "spread": p.spread_pct
+                            }
+                            watchlist_data.append(p_dict)
+                        
+                        system_stats["watchlist"] = watchlist_data
+                    except Exception as wl_err:
+                        Logger.debug(f"Watchlist fetch: {wl_err}")
+
                     # Broadcast SOL price for SolTape
                     sol_price = enriched_paper.get("SOL", {}).get("price", 0) or enriched_live.get("SOL", {}).get("price", 0) or 150.0
                     if sol_price > 0:
@@ -440,15 +462,19 @@ class DashboardServer:
             # Schedule broadcast (we're in sync context)
             asyncio.create_task(self._broadcast(payload))
 
-    async def _handle_signal(self, signal: Signal):
+    def _handle_signal(self, signal: Any):
         """Transform and broadcast signals."""
-        if not self.clients:
-            return
-
-        payload = DashboardTransformer.transform(signal)
-        if payload:
-            message = json.dumps(payload)
-            await self._broadcast(message)
+        try:
+            # Handle both Signal object and dict
+            payload = signal.to_dict() if hasattr(signal, 'to_dict') else signal
+            
+            self.broadcast({
+                "type": "SIGNAL",
+                "data": payload
+            })
+            Logger.info(f"📡 Signal Broadcast: {payload.get('type')} on {payload.get('symbol')}")
+        except Exception as e:
+            Logger.debug(f"Signal broadcast error: {e}")
 
     async def _broadcast(self, message: str):
         """Safe broadcast to all clients."""

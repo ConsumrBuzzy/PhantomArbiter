@@ -88,6 +88,8 @@ class TokenPrice:
     spread_pct: float = 0.0
     volume_24h: float = 0.0
     change_24h: float = 0.0
+    change_5m: float = 0.0
+    change_1h: float = 0.0
     last_update: float = 0.0
 
 
@@ -215,6 +217,8 @@ class TokenWatchlistFeed:
                     price = float(pair.get("priceUsd", 0) or 0)
                     volume = float(pair.get("volume", {}).get("h24", 0) or 0)
                     change = float(pair.get("priceChange", {}).get("h24", 0) or 0)
+                    change_5m = float(pair.get("priceChange", {}).get("m5", 0) or 0)
+                    change_1h = float(pair.get("priceChange", {}).get("h1", 0) or 0)
                     
                     if price > 0:
                         # Map DEX names
@@ -250,6 +254,8 @@ class TokenWatchlistFeed:
                     spread_pct=spread_pct,
                     volume_24h=total_volume,
                     change_24h=change_24h,
+                    change_5m=change_5m,
+                    change_1h=change_1h,
                     last_update=time.time()
                 )
                 
