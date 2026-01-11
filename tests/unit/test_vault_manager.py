@@ -112,7 +112,9 @@ class TestVaultRegistry:
         registry = get_vault_registry()
         # Ensure fresh start
         from src.shared.state.vault_manager import VaultRegistry
+        import src.shared.state.vault_manager as vm
         VaultRegistry._instance = None
+        vm._vault_registry = None
         registry = get_vault_registry()
         
         # Registry starts empty

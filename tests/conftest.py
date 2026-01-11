@@ -64,7 +64,9 @@ def temp_db(tmp_path, monkeypatch):
     # Also reset VaultRegistry singleton
     try:
         from src.shared.state.vault_manager import VaultRegistry
+        import src.shared.state.vault_manager as vm
         VaultRegistry._instance = None
+        vm._vault_registry = None
     except ImportError:
         pass
     
@@ -75,8 +77,10 @@ def temp_db(tmp_path, monkeypatch):
     try:
         from src.shared.system.persistence import PersistenceDB
         from src.shared.state.vault_manager import VaultRegistry
+        import src.shared.state.vault_manager as vm
         PersistenceDB._instance = None
         VaultRegistry._instance = None
+        vm._vault_registry = None
     except ImportError:
         pass
 
