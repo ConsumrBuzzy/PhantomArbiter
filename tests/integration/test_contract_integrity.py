@@ -80,7 +80,7 @@ class TestTradeSignalContract:
         parsed = json.loads(json_str)
         
         # Timestamp should be close to now
-        assert abs(parsed["timestamp"] - (now_ms / 1000)) < 1.0
+        assert abs(parsed["timestamp_ms"] - now_ms) < 1000  # Within 1 second (1000ms)
     
     def test_enum_serialization(self):
         """Enums serialize to strings."""
@@ -112,7 +112,7 @@ class TestStructDrift:
         
         data = signal.to_dict()
         
-        required = ["id", "symbol", "mint", "action", "size_usd", "timestamp"]
+        required = ["id", "symbol", "mint", "action", "size_usd", "timestamp_ms"]
         for field in required:
             assert field in data, f"Missing required field: {field}"
     
@@ -136,7 +136,7 @@ class TestStructDrift:
         assert isinstance(data["size_usd"], float)
         assert isinstance(data["target_price"], float)
         assert isinstance(data["confidence"], float)
-        assert isinstance(data["timestamp"], float)
+        assert isinstance(data["timestamp_ms"], int)
 
 
 class TestExecutionResultContract:

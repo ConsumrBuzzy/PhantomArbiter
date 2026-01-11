@@ -88,8 +88,15 @@ class TestVaultIsolation:
 class TestPaperTradeExecution:
     """Test paper trade execution debits correct vault."""
 
+    @pytest.fixture(autouse=True)
+    def reset_registry(self):
+        from src.shared.state.vault_manager import VaultRegistry
+        VaultRegistry._instance = None
+        yield
+        VaultRegistry._instance = None
+
     @pytest.fixture
-    def mock_engine_with_vault(self, temp_db):
+    def mock_engine_with_vault(self, temp_db, reset_registry):
         """Create mock engine with real vault binding."""
         from tests.mocks.mock_engine import MockTradingEngine
         from src.shared.state.vault_manager import get_engine_vault
