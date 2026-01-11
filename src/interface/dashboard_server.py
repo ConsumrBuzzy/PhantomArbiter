@@ -78,12 +78,15 @@ class DashboardServer:
             hb_task = asyncio.create_task(self._heartbeat_loop())
             
             def hb_done(f):
+                # Guard against CancelledError which is expected on shutdown
+                if f.cancelled():
+                    return
                 try:
                     exc = f.exception()
                     if exc:
                         Logger.error(f"[HEARTBEAT] Task DIED with error: {exc}")
-                    else:
-                        Logger.info(f"[HEARTBEAT] Task finished cleanly")
+                except asyncio.CancelledError:
+                    pass  # Normal shutdown, ignore
                 except Exception as e:
                     Logger.error(f"[HEARTBEAT] Callback error: {e}")
 
@@ -453,7 +456,12 @@ class DashboardServer:
             asyncio.create_task(self._broadcast(payload))
 
     def _handle_signal(self, signal: Any):
-        """Transform and broadcast signals."""
+        """
+        Transform and broadcast signals.
+        
+        CRITICAL: This runs INSIDE a Loguru sink for LOG_UPDATE signals.
+        DO NOT call Logger methods here - it causes re-entrancy deadlock!
+        """
         try:
             # Handle both Signal object and dict
             payload = signal.to_dict() if hasattr(signal, 'to_dict') else signal
@@ -462,9 +470,10 @@ class DashboardServer:
                 "type": "SIGNAL",
                 "data": payload
             }))
-            Logger.info(f"📡 Signal Broadcast: {payload.get('type')} on {payload.get('symbol')}")
-        except Exception as e:
-            Logger.debug(f"Signal broadcast error: {e}")
+            # NOTE: Logging removed - this callback runs inside Loguru sink
+            # and would cause re-entrancy deadlock
+        except Exception:
+            pass  # Silent fail - cannot log here safely
 
     async def _broadcast(self, message: str):
         """Safe broadcast to all clients."""
