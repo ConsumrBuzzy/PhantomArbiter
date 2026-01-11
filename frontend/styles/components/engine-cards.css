@@ -1,0 +1,381 @@
+/**
+ * Engine Cards & Detail Views
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   ENGINE CARDS (STACKED)
+   ═══════════════════════════════════════════════════════════════ */
+
+.engine-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+    max-width: 800px;
+    /* Optional: limit width for readability */
+}
+
+.engine-card {
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    /* Click to view details */
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.engine-card:hover {
+    border-color: var(--neon-green);
+    transform: translateX(5px);
+    /* Slide right instead of up */
+    background: rgba(15, 25, 35, 0.9);
+}
+
+.engine-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.engine-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.engine-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.engine-name {
+    font-weight: bold;
+    font-size: 0.95rem;
+}
+
+.engine-subtitle {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.engine-controls {
+    display: flex;
+    gap: 8px;
+}
+
+/* Status Indicator */
+.engine-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    margin-bottom: 15px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #666;
+}
+
+.engine-card[data-status="stopped"] .status-dot {
+    background: #666;
+}
+
+.engine-card[data-status="starting"] .status-dot {
+    background: var(--neon-blue);
+    animation: status-pulse 1s infinite;
+}
+
+.engine-card[data-status="running"] .status-dot {
+    background: var(--neon-green);
+    box-shadow: 0 0 8px var(--neon-green);
+}
+
+.engine-card[data-status="stopping"] .status-dot {
+    background: var(--neon-gold);
+    animation: status-pulse 0.5s infinite;
+}
+
+.engine-card[data-status="error"] .status-dot {
+    background: var(--neon-red);
+    box-shadow: 0 0 8px var(--neon-red);
+}
+
+@keyframes status-pulse {
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+/* Power Toggle */
+.power-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.power-toggle:hover {
+    background: rgba(0, 255, 170, 0.1);
+    border-color: var(--neon-green);
+}
+
+.engine-card[data-status="running"] .power-toggle {
+    background: rgba(0, 255, 170, 0.2);
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+}
+
+.engine-card[data-status="running"] .power-toggle:hover {
+    background: rgba(255, 68, 68, 0.2);
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+}
+
+/* Settings Gear */
+.settings-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(45deg);
+}
+
+/* Engine Config Preview */
+.engine-config {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.75rem;
+}
+
+.config-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.config-label {
+    color: var(--text-dim);
+}
+
+.config-value {
+    color: var(--neon-blue);
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODE SELECTOR (Paper/Live Toggle)
+   ═══════════════════════════════════════════════════════════════ */
+
+.mode-selector {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Mode Button Colors */
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mode-btn.active[data-mode="paper"] {
+    background: rgba(138, 43, 226, 0.2);
+    border-color: #8a2be2;
+    color: #8a2be2;
+    box-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
+}
+
+.mode-btn.active[data-mode="live"] {
+    background: rgba(0, 255, 157, 0.2);
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LST MONITOR STYLES (Specific to LST Engine)
+   ═══════════════════════════════════════════════════════════════ */
+
+.lst-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.lst-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.lst-row.danger {
+    background: rgba(255, 215, 0, 0.1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.token-name {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.token-price {
+    font-family: 'Roboto Mono';
+    color: var(--text-dim);
+}
+
+.token-diff {
+    font-family: 'Roboto Mono';
+    color: var(--neon-green);
+}
+
+.token-diff.alert {
+    color: var(--neon-gold);
+    font-weight: bold;
+}
+
+.status-indicator {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.status-indicator.safe {
+    color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.1);
+}
+
+.status-indicator.danger {
+    color: var(--neon-gold);
+    background: rgba(255, 215, 0, 0.2);
+    animation: status-pulse 1s infinite alternate;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ENGINE DETAIL VIEW
+   ═══════════════════════════════════════════════════════════════ */
+
+#view-engine-detail {
+    display: none;
+    /* Hidden by default */
+}
+
+#view-engine-detail.active {
+    display: block;
+    animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.back-btn {
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--neon-green);
+}
+
+.detail-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.detail-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+/* Adjust for smaller screens */
+@media (max-width: 1024px) {
+    .detail-content {
+        grid-template-columns: 1fr;
+    }
+}

@@ -206,7 +206,18 @@ async def main():
     
     async def on_scalp_update(data):
         # data is {"type": "SIGNAL", "data": ...}
-        # We wrap it in SCALP_UPDATE for frontend routing
+        # If it's a signal, we want to broadcast SCALP_SIGNAL for the intel table
+        # AND SCALP_UPDATE for the component view.
+        
+        if data.get("type") == "SIGNAL":
+             # 1. Update Intel Table
+             await dashboard.broadcast({
+                 "type": "SCALP_SIGNAL",
+                 "data": data.get("data"),
+                 "timestamp": asyncio.get_event_loop().time()
+             })
+        
+        # 2. Update Component View
         payload = {
             "type": "SCALP_UPDATE",
             "payload": data, # Nested
@@ -224,6 +235,15 @@ async def main():
     await engine_registry.update_status("arb", EngineStatus.STOPPED)
 
     async def on_arb_update(data):
+        # Broadcast as ARB_OPP for the intel table
+        if "est_profit" in data:
+             await dashboard.broadcast({
+                 "type": "ARB_OPP",
+                 "data": data,
+                 "timestamp": asyncio.get_event_loop().time()
+             })
+
+        # Also broadcast ARB_UPDATE for component if needed (though ArbScanner listens to ARB_OPP mostly)
         payload = {
             "type": "ARB_UPDATE",
             "payload": data,

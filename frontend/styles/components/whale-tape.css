@@ -1,0 +1,83 @@
+/**
+ * Whale Tape Styles
+ */
+
+/* Whale Tape Ticker */
+.whale-tape-container {
+    grid-area: tape;
+    margin-bottom: 0px;
+    height: 100%;
+    /* Will fill the 45px row */
+    display: flex;
+    align-items: center;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+}
+
+.tape-label {
+    background: var(--panel-bg);
+    color: var(--neon-blue);
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 0 10px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border-color);
+    z-index: 10;
+    white-space: nowrap;
+    box-shadow: 5px 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.tape-window {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.tape-content {
+    display: flex;
+    gap: 30px;
+    padding-left: 100%;
+    /* Start off-screen */
+    animation: tape-scroll 20s linear infinite;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* Pause animation on hover */
+.whale-tape-container:hover .tape-content {
+    animation-play-state: paused;
+}
+
+.tape-item {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0.9;
+}
+
+.tape-item.item-buy {
+    color: var(--neon-green);
+    text-shadow: 0 0 5px rgba(0, 255, 157, 0.2);
+}
+
+.tape-item.item-sell {
+    color: var(--neon-red);
+    text-shadow: 0 0 5px rgba(255, 0, 50, 0.2);
+}
+
+@keyframes tape-scroll {
+    to {
+        transform: translateX(-100%);
+    }
+}

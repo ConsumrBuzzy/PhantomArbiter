@@ -1,0 +1,340 @@
+/**
+ * Market Scanner & Intelligence Styles
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   SCANNER VIEW STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.scanner-sources {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.source-card {
+    min-height: 200px;
+}
+
+.source-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.source-stats .stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.source-stats .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.source-signals {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.signal-placeholder {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Opportunities Heatmap */
+.opportunities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.opportunity-card {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    padding: 12px;
+    border-left: 3px solid var(--neon-green);
+    transition: all 0.2s ease;
+}
+
+.opportunity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.opportunity-card.urgency-3 {
+    border-left-color: var(--neon-red);
+    animation: opp-pulse 1s infinite;
+}
+
+.opportunity-card.urgency-2 {
+    border-left-color: var(--neon-gold);
+}
+
+.opportunity-card.urgency-1 {
+    border-left-color: var(--neon-blue);
+}
+
+@keyframes opp-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(255, 68, 68, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(255, 68, 68, 0.6);
+    }
+}
+
+.opp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.opp-symbol {
+    font-weight: bold;
+    font-size: 0.95rem;
+}
+
+.opp-source {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    text-transform: uppercase;
+}
+
+.opp-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--neon-green);
+}
+
+.opp-value.negative {
+    color: var(--neon-red);
+}
+
+.opp-meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 5px;
+}
+
+/* Signal Item */
+.signal-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.signal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.signal-symbol {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.signal-reason {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.signal-value {
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.signal-value.positive {
+    color: var(--neon-green);
+}
+
+.signal-value.negative {
+    color: var(--neon-red);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .scanner-sources {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MARKET COMPONENTS (SPECIALIZED ENGINE VIEWS)
+   ═══════════════════════════════════════════════════════════════ */
+
+.market-view {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.view-title {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+/* Arb Scanner Styles */
+.spread-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    font-size: 0.8rem;
+}
+
+.pair-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.pair-info .token {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.pair-info .route {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+}
+
+.spread-value.positive {
+    color: var(--neon-green);
+    font-family: 'Roboto Mono';
+}
+
+/* Funding Monitor Styles */
+.yield-display {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.yield-metric {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.yield-metric .label {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+}
+
+.yield-metric .value {
+    font-size: 1rem;
+    color: var(--neon-blue);
+    font-family: 'Roboto Mono';
+}
+
+/* Scalp Pods Styles */
+.pod-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.pod-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pod-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+}
+
+.pod-sentiment {
+    font-size: 0.7rem;
+    text-align: center;
+    padding: 2px;
+    border-radius: 2px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.pod-sentiment.bullish {
+    background: rgba(0, 255, 157, 0.1);
+    color: var(--neon-green);
+}
+
+.pod-sentiment.bearish {
+    background: rgba(255, 0, 50, 0.1);
+    color: var(--neon-red);
+}
+
+.pod-sentiment.neutral {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    padding: 10px 0;
+    font-style: italic;
+}
+
+/* 
+   MARKET CONTEXT COMPONENTS
+*/
+
+/* Market Pulse Bubbles */
+.pulse-bubble {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    min-width: 60px;
+}
+
+.pulse-label {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.pulse-value {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    font-family: 'Roboto Mono';
+}
