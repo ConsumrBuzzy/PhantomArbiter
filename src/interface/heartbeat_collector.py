@@ -378,8 +378,14 @@ class HeartbeatDataCollector:
             if not driver.is_configured:
                 return CEXWalletSnapshot(is_configured=False)
             
-            # Get balance
-            balance = await driver.get_withdrawable_usdc()
+            # Get live balances (USDC, USD, SOL)
+            real_balances = await driver.sync_real_balances()
+            
+            # Use 'usdc' as withdrawable (for bridge logic)
+            withdrawable = real_balances.get("usdc", 0.0)
+            
+            # Use 'total_usd' for total equity view
+            total_value = real_balances.get("total_usd", 0.0)
             
             # Get bridge state
             try:
@@ -390,8 +396,8 @@ class HeartbeatDataCollector:
             
             return CEXWalletSnapshot(
                 exchange="coinbase",
-                withdrawable_usdc=balance,
-                total_value_usd=balance,  # USDC = USD
+                withdrawable_usdc=withdrawable,
+                total_value_usd=total_value,
                 bridge_state=bridge_state,
                 is_configured=True,
                 last_update=time.time(),
