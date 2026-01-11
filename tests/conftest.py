@@ -110,6 +110,26 @@ def mock_jupiter_feed(monkeypatch):
     return mock_feed
 
 
+# Force load pytest-asyncio if auto-discovery fails
+pytest_plugins = ["pytest_asyncio"]
+
+@pytest.fixture
+def mock_settings():
+    """
+    Default price dictionary for testing.
+    
+    Provides a consistent market state for deterministic tests.
+    """
+    return {
+        "SOL": 150.0,
+        "USDC": 1.0,
+        "JUP": 0.85,
+        "JTO": 2.50,
+        "BONK": 0.00001,
+        "WIF": 1.20,
+    }
+
+
 @pytest.fixture
 def mock_prices():
     """
