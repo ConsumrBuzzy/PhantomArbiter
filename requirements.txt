@@ -52,8 +52,8 @@ uvicorn>=0.22.0
 python-multipart>=0.0.6
 
 # V55.0: gRPC Support (DataFeed)
-grpcio>=1.59.0
-grpcio-tools>=1.59.0
+# grpcio>=1.59.0
+# grpcio-tools>=1.59.0
 
 # Testing (pinned for Windows 3.12 stability)
 pytest==7.4.4
