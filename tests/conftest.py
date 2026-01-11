@@ -7,12 +7,22 @@ This module provides the foundation for testing the trading system
 with clean state isolation and mocked external dependencies.
 """
 
-import pytest
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRITICAL: Force SelectorEventLoopPolicy BEFORE any other imports
+# This fixes the pytest-asyncio "Zombie" plugin state on Windows 3.12
+# ═══════════════════════════════════════════════════════════════════════════════
 import asyncio
+import sys
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+import pytest
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 from unittest.mock import MagicMock, AsyncMock
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
