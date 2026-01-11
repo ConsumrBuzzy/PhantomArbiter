@@ -12,6 +12,8 @@ import pytest
 def test_tick_array_imports():
     """Verify Tick Array Manager functions are available."""
     import phantom_core
+    import importlib
+    importlib.reload(phantom_core)
 
     assert hasattr(phantom_core, "ClmmPoolInfo")
     assert hasattr(phantom_core, "parse_clmm_pool_state")

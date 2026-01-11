@@ -13,37 +13,58 @@ import os
 import pytest
 from unittest.mock import MagicMock
 
-# 1. Mock dependencies inside sys.modules BEFORE importing the module under test
-sys.path.append(os.getcwd())
+import sys
+import os
+import pytest
+from unittest.mock import MagicMock, patch
+import importlib
 
-# Mock phantom_core
-mock_phantom = MagicMock()
-sys.modules["phantom_core"] = mock_phantom
+@pytest.fixture(scope="function")
+def mock_rust_deps():
+    """Setup mocked environment for RaydiumBridge."""
+    # Create mocks
+    mock_phantom = MagicMock()
+    mock_solders = MagicMock()
+    mock_solders.pubkey.Pubkey = MagicMock()
+    mock_solders.keypair.Keypair = MagicMock()
+    
+    mock_spl_instructions = MagicMock()
+    
+    mock_requests = MagicMock()
+    mock_logger = MagicMock()
 
-# Mock solders
-mock_solders = MagicMock()
-sys.modules["solders"] = mock_solders
-mock_solders_pubkey = MagicMock()
-sys.modules["solders.pubkey"] = mock_solders_pubkey
-mock_solders_keypair = MagicMock()
-sys.modules["solders.keypair"] = mock_solders_keypair
+    # Dictionary of modules to patch
+    modules = {
+        "phantom_core": mock_phantom,
+        "solders": mock_solders,
+        "solders.pubkey": mock_solders, # simplified
+        "solders.keypair": mock_solders, # simplified
+        "spl": MagicMock(),
+        "spl.token": MagicMock(),
+        "spl.token.instructions": mock_spl_instructions,
+        "requests": mock_requests,
+        "src.shared.system.logging": mock_logger,
+    }
 
-# Mock spl.token.instructions
-sys.modules["spl"] = MagicMock()
-sys.modules["spl.token"] = MagicMock()
-mock_spl_instructions = MagicMock()
-sys.modules["spl.token.instructions"] = mock_spl_instructions
+    # Apply patch
+    with patch.dict(sys.modules, modules):
+        # We must import/reload RaydiumBridge while mocks are active
+        if "src.shared.execution.raydium_bridge" in sys.modules:
+            import src.shared.execution.raydium_bridge
+            importlib.reload(src.shared.execution.raydium_bridge)
+        else:
+            import src.shared.execution.raydium_bridge
+        
+        from src.shared.execution.raydium_bridge import RaydiumBridge
+        
+        yield {
+            "phantom": mock_phantom,
+            "requests": mock_requests,
+            "bridge_cls": RaydiumBridge,
+            "spl_ix": mock_spl_instructions
+        }
 
-# Mock requests
-mock_requests = MagicMock()
-sys.modules["requests"] = mock_requests
-
-# Mock Logger
-mock_logger_module = MagicMock()
-sys.modules["src.shared.system.logging"] = mock_logger_module
-
-# 2. Import Module Under Test
-from src.shared.execution.raydium_bridge import RaydiumBridge
+# Fake data
 
 # Fake data
 
@@ -53,16 +74,20 @@ MINT_B = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
 
 
 @pytest.fixture
-def bridge():
+def bridge(mock_rust_deps):
+    RaydiumBridge = mock_rust_deps["bridge_cls"]
     return RaydiumBridge(bridge_path="dummy")
 
 
-def test_execute_swap_rust_success(bridge):
+def test_execute_swap_rust_success(bridge, mock_rust_deps):
     """Verify successfully wired execution flow."""
+    mock_requests = mock_rust_deps["requests"]
+    mock_phantom = mock_rust_deps["phantom"]
+    mock_spl_instructions = mock_rust_deps["spl_ix"]
+    
     # Reset mocks
     mock_requests.reset_mock()
     mock_phantom.reset_mock()
-    mock_solders_keypair.Keypair.reset_mock()
     mock_spl_instructions.get_associated_token_address.reset_mock()
 
     # Setup Mocks logic
@@ -103,9 +128,7 @@ def test_execute_swap_rust_success(bridge):
     mock_phantom.build_atomic_transaction.return_value = b"transaction_bytes"
 
     # Mock Keys
-    mock_kp_instance = MagicMock()
-    mock_kp_instance.pubkey.return_value = "PayerPubkey"
-    mock_solders_keypair.Keypair.from_base58_string.return_value = mock_kp_instance
+    # Keypair mocking simplified in fixture
     mock_spl_instructions.get_associated_token_address.return_value = "ATA_Addr"
 
     # Execute
@@ -153,8 +176,9 @@ def test_execute_swap_rust_success(bridge):
     )
 
 
-def test_execute_swap_rust_rpc_failure(bridge):
+def test_execute_swap_rust_rpc_failure(bridge, mock_rust_deps):
     """Verify RPC failure handling."""
+    mock_requests = mock_rust_deps["requests"]
     mock_requests.reset_mock()
     mock_requests.post.side_effect = None  # Clear previous side effect
     mock_requests.post.return_value.json.return_value = {"error": "RPC Fail"}

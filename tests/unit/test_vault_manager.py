@@ -16,27 +16,9 @@ class TestVaultRegistry:
     """Test VaultRegistry isolation and operations."""
 
     @pytest.fixture(autouse=True)
-    def setup_temp_db(self, tmp_path, monkeypatch):
-        """Use a temporary database for each test."""
-        test_db = tmp_path / "test_arbiter.db"
-        
-        # Patch the persistence module to use temp db
-        def mock_get_db():
-            from src.shared.system.persistence import PersistenceDB
-            # Reset singleton for test isolation
-            PersistenceDB._instance = None
-            return PersistenceDB(str(test_db))
-        
-        monkeypatch.setattr("src.shared.system.persistence.get_db", mock_get_db)
-        
-        # Reset VaultRegistry singleton
-        from src.shared.state.vault_manager import VaultRegistry
-        VaultRegistry._instance = None
-        
-        yield
-        
-        # Cleanup
-        VaultRegistry._instance = None
+    def use_global_fixture(self, temp_db):
+        """Enable temp_db autouse for this class."""
+        pass
 
     def test_vault_isolation_between_engines(self):
         """Two engines with same asset should have independent balances."""
@@ -157,22 +139,9 @@ class TestEngineVault:
     """Test individual EngineVault operations."""
 
     @pytest.fixture(autouse=True)
-    def setup_temp_db(self, tmp_path, monkeypatch):
-        """Use a temporary database for each test."""
-        test_db = tmp_path / "test_arbiter.db"
-        
-        def mock_get_db():
-            from src.shared.system.persistence import PersistenceDB
-            PersistenceDB._instance = None
-            return PersistenceDB(str(test_db))
-        
-        monkeypatch.setattr("src.shared.system.persistence.get_db", mock_get_db)
-        
-        from src.shared.state.vault_manager import VaultRegistry
-        VaultRegistry._instance = None
-        
-        yield
-        VaultRegistry._instance = None
+    def use_global_fixture(self, temp_db):
+        """Enable temp_db autouse for this class."""
+        pass
 
     def test_credit_adds_to_balance(self):
         """Credit should increase balance."""
