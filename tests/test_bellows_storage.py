@@ -59,7 +59,8 @@ class TestTrendEngine:
     def test_ohlc_aggregation(self):
         """Test OHLC values are computed correctly."""
         engine = TrendEngine()
-        base_time = time.time()
+        # Anchor to a known window boundary (multiple of 60)
+        base_time = 1704214800  # 2024-01-02 15:00:00 UTC (exact minute)
         
         engine.add_tick("XYZ", "XYZ", 100, timestamp=base_time)
         engine.add_tick("XYZ", "XYZ", 120, timestamp=base_time + 10)  # High

@@ -93,9 +93,10 @@ class MockTradingEngine:
         while self.running:
             try:
                 await self.tick()
-                self.tick_count += 1
             except Exception as e:
                 self.errors.append(str(e))
+            finally:
+                self.tick_count += 1
             await asyncio.sleep(self.tick_delay)
             
     async def tick(self):

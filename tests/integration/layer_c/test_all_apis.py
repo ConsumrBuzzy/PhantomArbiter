@@ -21,7 +21,7 @@ YELLOW = "\033[93m"
 RESET = "\033[0m"
 
 
-def test_result(name: str, success: bool, details: str = ""):
+def _print_result(name: str, success: bool, details: str = ""):
     """Print formatted test result."""
     status = f"{GREEN}✓ PASS{RESET}" if success else f"{RED}✗ FAIL{RESET}"
     print(f"  {status} {name}")
@@ -35,7 +35,7 @@ def test_quicknode():
 
     url = os.getenv("QUICKNODE_RPC_URL")
     if not url:
-        test_result(
+        _print_result(
             "QuickNode",
             False,
             "No QUICKNODE_RPC_URL in .env (DevNet endpoints won't work for mainnet)",
@@ -44,7 +44,7 @@ def test_quicknode():
 
     # Check if it's a devnet URL
     if "devnet" in url.lower():
-        test_result("QuickNode", False, "DevNet endpoint - need mainnet for trading")
+        _print_result("QuickNode", False, "DevNet endpoint - need mainnet for trading")
         return False
 
     try:
@@ -53,13 +53,13 @@ def test_quicknode():
         data = resp.json()
 
         if "result" in data and data["result"] == "ok":
-            test_result("QuickNode", True, f"Health: OK | Endpoint: ...{url[-30:]}")
+            _print_result("QuickNode", True, f"Health: OK | Endpoint: ...{url[-30:]}")
             return True
         else:
-            test_result("QuickNode", False, f"Response: {data}")
+            _print_result("QuickNode", False, f"Response: {data}")
             return False
     except Exception as e:
-        test_result("QuickNode", False, str(e))
+        _print_result("QuickNode", False, str(e))
         return False
 
 
@@ -76,12 +76,12 @@ def test_ankr():
             url = f"https://rpc.ankr.com/solana/{api_key}"
             print("         (Auto-constructed URL from ANKR_API_KEY)")
         else:
-            test_result("Ankr", False, "No ANKR_RPC_URL or ANKR_API_KEY in .env")
+            _print_result("Ankr", False, "No ANKR_RPC_URL or ANKR_API_KEY in .env")
             return False
 
     # Check if it's a devnet URL
     if "devnet" in url.lower():
-        test_result("Ankr", False, "DevNet endpoint - need mainnet for trading")
+        _print_result("Ankr", False, "DevNet endpoint - need mainnet for trading")
         return False
 
     try:
@@ -94,21 +94,21 @@ def test_ankr():
             error = data["error"]
             if isinstance(error, str):
                 if "not allowed" in error.lower():
-                    test_result("Ankr", False, "API key not enabled for Solana mainnet")
+                    _print_result("Ankr", False, "API key not enabled for Solana mainnet")
                 else:
-                    test_result("Ankr", False, error[:60])
+                    _print_result("Ankr", False, error[:60])
             else:
-                test_result("Ankr", False, error.get("message", "Unknown error")[:60])
+                _print_result("Ankr", False, error.get("message", "Unknown error")[:60])
             return False
 
         if isinstance(data, dict) and "result" in data:
-            test_result("Ankr", True, f"Health: {data.get('result', 'ok')}")
+            _print_result("Ankr", True, f"Health: {data.get('result', 'ok')}")
             return True
 
-        test_result("Ankr", False, "Unexpected response")
+        _print_result("Ankr", False, "Unexpected response")
         return False
     except Exception as e:
-        test_result("Ankr", False, str(e)[:60])
+        _print_result("Ankr", False, str(e)[:60])
         return False
 
 
@@ -118,7 +118,7 @@ def test_helius():
 
     api_key = os.getenv("HELIUS_API_KEY")
     if not api_key:
-        test_result("Helius", False, "No HELIUS_API_KEY in .env")
+        _print_result("Helius", False, "No HELIUS_API_KEY in .env")
         return False
 
     url = f"https://mainnet.helius-rpc.com/?api-key={api_key}"
@@ -129,13 +129,13 @@ def test_helius():
         data = resp.json()
 
         if "result" in data:
-            test_result("Helius", True, f"Health: {data.get('result', 'ok')}")
+            _print_result("Helius", True, f"Health: {data.get('result', 'ok')}")
             return True
         else:
-            test_result("Helius", False, f"Response: {data}")
+            _print_result("Helius", False, f"Response: {data}")
             return False
     except Exception as e:
-        test_result("Helius", False, str(e))
+        _print_result("Helius", False, str(e))
         return False
 
 
@@ -145,7 +145,7 @@ def test_moralis():
 
     api_key = os.getenv("MORALIS_API_KEY")
     if not api_key:
-        test_result("Moralis", False, "No MORALIS_API_KEY in .env")
+        _print_result("Moralis", False, "No MORALIS_API_KEY in .env")
         return False
 
     try:
@@ -156,16 +156,16 @@ def test_moralis():
 
         if resp.status_code == 200:
             data = resp.json()
-            test_result("Moralis", True, "Balance endpoint working")
+            _print_result("Moralis", True, "Balance endpoint working")
             return True
         elif resp.status_code == 401:
-            test_result("Moralis", False, "Invalid API key (401 Unauthorized)")
+            _print_result("Moralis", False, "Invalid API key (401 Unauthorized)")
             return False
         else:
-            test_result("Moralis", False, f"Status: {resp.status_code}")
+            _print_result("Moralis", False, f"Status: {resp.status_code}")
             return False
     except Exception as e:
-        test_result("Moralis", False, str(e))
+        _print_result("Moralis", False, str(e))
         return False
 
 
@@ -187,13 +187,13 @@ def test_jupiter():
             data = resp.json()
             if "outAmount" in data:
                 out_usdc = int(data["outAmount"]) / 1e6
-                test_result("Jupiter", True, f"1 SOL = ${out_usdc:.2f} USDC")
+                _print_result("Jupiter", True, f"1 SOL = ${out_usdc:.2f} USDC")
                 return True
 
-        test_result("Jupiter", False, f"Status: {resp.status_code}")
+        _print_result("Jupiter", False, f"Status: {resp.status_code}")
         return False
     except Exception as e:
-        test_result("Jupiter", False, str(e))
+        _print_result("Jupiter", False, str(e))
         return False
 
 
@@ -211,13 +211,13 @@ def test_dexscreener():
             pairs = data.get("pairs", [])
             if pairs:
                 price = float(pairs[0].get("priceUsd", 0))
-                test_result("DexScreener", True, f"SOL = ${price:.2f}")
+                _print_result("DexScreener", True, f"SOL = ${price:.2f}")
                 return True
 
-        test_result("DexScreener", False, f"Status: {resp.status_code}")
+        _print_result("DexScreener", False, f"Status: {resp.status_code}")
         return False
     except Exception as e:
-        test_result("DexScreener", False, str(e))
+        _print_result("DexScreener", False, str(e))
         return False
 
 
@@ -239,13 +239,13 @@ def test_pyth():
                 raw_price = int(price_data.get("price", 0))
                 expo = int(price_data.get("expo", 0))
                 price = raw_price * (10**expo)
-                test_result("Pyth", True, f"SOL = ${price:.2f}")
+                _print_result("Pyth", True, f"SOL = ${price:.2f}")
                 return True
 
-        test_result("Pyth", False, f"Status: {resp.status_code}")
+        _print_result("Pyth", False, f"Status: {resp.status_code}")
         return False
     except Exception as e:
-        test_result("Pyth", False, str(e))
+        _print_result("Pyth", False, str(e))
         return False
 
 
@@ -268,16 +268,16 @@ def test_coingecko():
             data = resp.json()
             sol_price = data.get("solana", {}).get("usd", 0)
             auth_status = "with API key" if api_key else "public (rate limited)"
-            test_result("CoinGecko", True, f"SOL = ${sol_price:.2f} ({auth_status})")
+            _print_result("CoinGecko", True, f"SOL = ${sol_price:.2f} ({auth_status})")
             return True
         elif resp.status_code == 429:
-            test_result("CoinGecko", False, "Rate limited (429)")
+            _print_result("CoinGecko", False, "Rate limited (429)")
             return False
 
-        test_result("CoinGecko", False, f"Status: {resp.status_code}")
+        _print_result("CoinGecko", False, f"Status: {resp.status_code}")
         return False
     except Exception as e:
-        test_result("CoinGecko", False, str(e))
+        _print_result("CoinGecko", False, str(e))
         return False
 
 
@@ -287,11 +287,11 @@ def test_bigquery():
 
     creds_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if not creds_file:
-        test_result("BigQuery", False, "No GOOGLE_APPLICATION_CREDENTIALS in .env")
+        _print_result("BigQuery", False, "No GOOGLE_APPLICATION_CREDENTIALS in .env")
         return False
 
     if not os.path.exists(creds_file):
-        test_result("BigQuery", False, f"Credentials file not found: {creds_file}")
+        _print_result("BigQuery", False, f"Credentials file not found: {creds_file}")
         return False
 
     try:
@@ -303,16 +303,16 @@ def test_bigquery():
 
         for row in result:
             if row.test == 1:
-                test_result("BigQuery", True, "Query executed successfully")
+                _print_result("BigQuery", True, "Query executed successfully")
                 return True
 
-        test_result("BigQuery", False, "Unexpected result")
+        _print_result("BigQuery", False, "Unexpected result")
         return False
     except ImportError:
-        test_result("BigQuery", False, "google-cloud-bigquery not installed")
+        _print_result("BigQuery", False, "google-cloud-bigquery not installed")
         return False
     except Exception as e:
-        test_result("BigQuery", False, str(e))
+        _print_result("BigQuery", False, str(e))
         return False
 
 

@@ -69,6 +69,9 @@ class TestFundingThresholds:
             
         monkeypatch.setattr(watchdog, "get_funding_rate", mock_get_rate)
         
+        # Configure watchdog to trigger immediately on first bad reading
+        watchdog.max_negative_funding_streak = 1
+        
         result = await watchdog.check_health(simulate=True)
         
         # Should trigger unwind
