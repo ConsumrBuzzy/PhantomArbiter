@@ -1,0 +1,324 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DETAIL VIEW STYLES
+   Full control room layout for engine drill-down
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.detail-view {
+    padding: 24px;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+}
+
+/* Header */
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #94a3b8;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+}
+
+.detail-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+    flex: 1;
+}
+
+.engine-status-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.engine-status-badge.running {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.engine-status-badge.stopped {
+    background: rgba(107, 114, 128, 0.2);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.4);
+}
+
+/* Main Grid */
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sections */
+.path-section,
+.controls-section,
+.opportunity-log {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.path-section h2,
+.controls-section h2,
+.opportunity-log h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 16px 0;
+}
+
+/* Path Canvas */
+.path-canvas {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+#path-svg {
+    width: 100%;
+    height: 280px;
+}
+
+.path-info {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+}
+
+.path-stat .label {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.path-stat .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #a855f7;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Controls */
+.control-group {
+    margin-bottom: 20px;
+}
+
+.control-group label {
+    display: block;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.control-group input[type="range"] {
+    width: calc(100% - 60px);
+    accent-color: #a855f7;
+}
+
+.control-group span {
+    display: inline-block;
+    width: 50px;
+    text-align: right;
+    font-size: 13px;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.control-group input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Vault Summary */
+.vault-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.vault-balance {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.vault-pnl {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.vault-pnl.positive {
+    color: #22c55e;
+}
+
+.vault-pnl.negative {
+    color: #ef4444;
+}
+
+/* Buttons */
+.vault-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-primary,
+.btn-secondary {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+}
+
+/* Opportunity Log Table */
+.opp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.opp-table th {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.opp-table td {
+    font-size: 13px;
+    color: #e2e8f0;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.opp-table .profit {
+    color: #22c55e;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.opp-table .empty-row td {
+    text-align: center;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.executed {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.status-badge.pending {
+    background: rgba(234, 179, 8, 0.2);
+    color: #eab308;
+}
+
+.status-badge.skipped {
+    background: rgba(107, 114, 128, 0.2);
+    color: #6b7280;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ARB-SPECIFIC STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.arb-detail .path-section {
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+/* Animated glow for active path */
+.arb-detail.active .path-canvas {
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.2);
+    animation: pathGlow 2s ease-in-out infinite;
+}
+
+@keyframes pathGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 40px rgba(168, 85, 247, 0.4);
+    }
+}
