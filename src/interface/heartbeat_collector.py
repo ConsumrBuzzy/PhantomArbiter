@@ -186,6 +186,7 @@ class SystemSnapshot:
     
     # Market data
     sol_price: float = 0.0
+    major_prices: Dict[str, float] = field(default_factory=dict)  # BTC, ETH, SOL, etc.
     watchlist: List[WatchlistEntry] = field(default_factory=list)
     
     # Delta neutrality (hedge status)
@@ -218,6 +219,7 @@ class SystemSnapshot:
                 for name, e in self.engines.items()
             },
             "sol_price": self.sol_price,
+            "major_prices": self.major_prices,
             "watchlist": [
                 {
                     "symbol": w.symbol,
@@ -308,6 +310,7 @@ class HeartbeatDataCollector:
         # These are synchronous/fast
         metrics = self._collect_system_metrics()
         watchlist = await self._collect_watchlist()
+        major_prices = await self._get_major_prices(sol_price)
         
         latency_ms = (time.time() - start_time) * 1000
         
@@ -368,6 +371,7 @@ class HeartbeatDataCollector:
             unified_balance=unified_balance,
             engines=engines,
             sol_price=sol_price,
+            major_prices=major_prices,
             watchlist=watchlist,
             delta_state=delta_state,
             metrics=metrics,
@@ -604,6 +608,62 @@ class HeartbeatDataCollector:
         except Exception as e:
             Logger.debug(f"Metrics collection error: {e}")
             return SystemMetrics()
+    
+    async def _get_major_prices(self, sol_price: float) -> Dict[str, float]:
+        """
+        Fetch major crypto prices (BTC, ETH) for the header tapes.
+        
+        Uses CoinGecko free API (no key required, but rate limited).
+        Falls back to hardcoded values if API fails.
+        """
+        major_prices = {"SOL": sol_price}
+        
+        # CoinGecko fallback prices (updated periodically)
+        FALLBACK_MAJORS = {
+            "BTC": 95000.0,
+            "ETH": 3300.0,
+            "AVAX": 35.0,
+            "SUI": 4.5,
+            "JUP": 0.85,
+        }
+        
+        try:
+            import httpx
+            
+            # CoinGecko simple/price API (free, no key needed)
+            url = "https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": "bitcoin,ethereum,avalanche-2,sui",
+                "vs_currencies": "usd"
+            }
+            
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    major_prices["BTC"] = data.get("bitcoin", {}).get("usd", FALLBACK_MAJORS["BTC"])
+                    major_prices["ETH"] = data.get("ethereum", {}).get("usd", FALLBACK_MAJORS["ETH"])
+                    major_prices["AVAX"] = data.get("avalanche-2", {}).get("usd", FALLBACK_MAJORS["AVAX"])
+                    major_prices["SUI"] = data.get("sui", {}).get("usd", FALLBACK_MAJORS["SUI"])
+                else:
+                    # API error, use fallbacks
+                    major_prices.update(FALLBACK_MAJORS)
+                    
+        except Exception as e:
+            Logger.debug(f"Major prices fetch error: {e}")
+            major_prices.update(FALLBACK_MAJORS)
+        
+        # Always include JUP from Jupiter feed (Solana native)
+        try:
+            jup_price = await self._get_asset_price("JUP")
+            if jup_price > 0:
+                major_prices["JUP"] = jup_price
+            else:
+                major_prices["JUP"] = FALLBACK_MAJORS["JUP"]
+        except Exception:
+            major_prices["JUP"] = FALLBACK_MAJORS["JUP"]
+        
+        return major_prices
     
     async def _get_sol_price(self) -> float:
         """Get current SOL price."""

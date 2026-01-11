@@ -25,6 +25,7 @@ import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
+import { MajorsTape } from './components/majors-tape.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
@@ -48,6 +49,7 @@ class TradingOS {
 
         // NEW: Design System Components
         this.unifiedVault = new UnifiedVaultController('unified-vault-container');
+        this.majorsTape = new MajorsTape('majors-tape-container');
         this.whaleTicker = TickerTape.createWhaleTape('whale-tape-mount', 'paper');
 
         // Wire bridge button
@@ -482,7 +484,16 @@ class TradingOS {
 
             case 'MARKET_DATA':
                 this.marketData.update(data);
-                if (data.sol_price) this.solTape.update(data.sol_price);
+                if (data.sol_price) {
+                    this.solTape.update(data.sol_price);
+                    // Feed majors tape with available prices
+                    this.majorsTape.update({
+                        SOL: data.sol_price,
+                        BTC: data.btc_price || 0,
+                        ETH: data.eth_price || 0,
+                        ...data.prices  // Additional prices if available
+                    });
+                }
                 break;
 
             case 'TOKEN_WATCHLIST':
