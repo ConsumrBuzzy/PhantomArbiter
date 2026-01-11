@@ -44,6 +44,14 @@ class Signal:
     data: Dict[str, Any]
     timestamp: float = field(default_factory=time.time)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.type.value if isinstance(self.type, SignalType) else str(self.type),
+            "source": self.source,
+            "data": self.data,
+            "timestamp": self.timestamp,
+        }
+
 
 class SignalBus:
     """
