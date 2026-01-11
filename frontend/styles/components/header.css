@@ -51,6 +51,28 @@
     box-shadow: 0 0 5px rgba(255, 0, 50, 0.2);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   LIVE ENGINE DANGER PULSE
+   Biological Alert: Slow breathing effect signals real capital at risk.
+   ═══════════════════════════════════════════════════════════════ */
+.wallet-status-indicator.live.active {
+    animation: live-danger-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes live-danger-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(255, 0, 50, 0.3);
+        border-color: var(--neon-red);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(255, 0, 50, 0.8), 0 0 40px rgba(255, 0, 50, 0.4);
+        border-color: #ff6666;
+    }
+}
+
 .wallet-status-indicator.paper {
     color: var(--neon-blue);
     border: 1px solid var(--neon-blue);

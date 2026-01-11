@@ -1,0 +1,96 @@
+/**
+ * Toast Notification Styles
+ * =========================
+ * Glassmorphism design with severity-based color coding.
+ */
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    min-width: 280px;
+    max-width: 420px;
+
+    /* Glassmorphism Base */
+    background: rgba(20, 20, 30, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+    /* Animation States */
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast-visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-exit {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+/* Severity Variants */
+.toast-info {
+    border-left: 3px solid var(--neon-blue, #00d4ff);
+}
+
+.toast-success {
+    border-left: 3px solid var(--neon-green, #00ff88);
+}
+
+.toast-warning {
+    border-left: 3px solid var(--neon-gold, #ffd700);
+}
+
+.toast-error {
+    border-left: 3px solid var(--neon-red, #ff0032);
+    background: rgba(40, 10, 15, 0.9);
+    box-shadow: 0 8px 32px rgba(255, 0, 50, 0.2);
+}
+
+/* Toast Elements */
+.toast-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 0.8rem;
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.toast-close:hover {
+    color: rgba(255, 255, 255, 0.9);
+}

@@ -51,10 +51,13 @@ export class HeaderStats {
     updateLiveWallet(liveEngine, walletData) {
         if (!this.liveContainer) return;
 
+        const indicator = this.liveContainer.querySelector('.wallet-status-indicator');
+
         if (liveEngine) {
-            // Active Live Engine
+            // Active Live Engine - Trigger Danger Pulse
             this.liveContainer.style.opacity = '1';
-            this.liveContainer.querySelector('.wallet-status-indicator').textContent = `LIVE: ${liveEngine.name.toUpperCase()}`;
+            indicator.textContent = `LIVE: ${liveEngine.name.toUpperCase()}`;
+            indicator.classList.add('active'); // Triggers CSS pulse animation
 
             // For MVP, if we don't have separate live wallet data, we show "Connected" or 0.00
             // Or if the backend sends live wallet data in a different field.
@@ -64,9 +67,10 @@ export class HeaderStats {
             if (this.liveBalance) this.liveBalance.textContent = "CONNECTED";
             this.liveBalance.style.color = "var(--neon-red)";
         } else {
-            // No Live Engine
+            // No Live Engine - Disable Pulse
             this.liveContainer.style.opacity = '0.3';
-            this.liveContainer.querySelector('.wallet-status-indicator').textContent = "NO LIVE ENGINE";
+            indicator.textContent = "NO LIVE ENGINE";
+            indicator.classList.remove('active'); // Stop pulse animation
             if (this.liveBalance) this.liveBalance.textContent = "--";
             this.liveBalance.style.color = "var(--text-dim)";
         }

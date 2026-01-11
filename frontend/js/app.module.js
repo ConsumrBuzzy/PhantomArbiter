@@ -25,6 +25,7 @@ import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
+import { Toast } from './components/toast.js';
 
 class TradingOS {
     constructor() {
@@ -39,6 +40,7 @@ class TradingOS {
         this.modal = new ModalManager();
         this.systemMetrics = new SystemMetrics('chart-metrics');
         this.solTape = new SolTape('sol-tape-container');
+        this.toast = new Toast();
 
         // Engine cards
         this.engines = {
@@ -224,6 +226,10 @@ class TradingOS {
 
             case 'ENGINE_RESPONSE':
                 this.handleEngineResponse(packet);
+                // Safety Gate Toast Feedback
+                if (!packet.result?.success) {
+                    this.toast.show(packet.result?.message || 'Engine command failed', 'error');
+                }
                 break;
 
             case 'SOS_RESPONSE':
