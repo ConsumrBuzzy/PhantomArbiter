@@ -480,6 +480,23 @@ class DashboardServer:
                 "data": engine_status
             }))
         
+        elif action == "GET_API_HEALTH":
+            # V23.0: API Health Check
+            try:
+                from src.interface.api_health import get_api_health_checker
+                checker = get_api_health_checker()
+                results = await checker.check_all()
+                await websocket.send(json.dumps({
+                    "type": "API_HEALTH",
+                    "data": results
+                }))
+            except Exception as e:
+                Logger.error(f"API Health check failed: {e}")
+                await websocket.send(json.dumps({
+                    "type": "API_HEALTH",
+                    "data": [{"name": "Error", "status": "error", "message": str(e)[:50]}]
+                }))
+        
         elif action == "SOS":
             Logger.warning("   🆘 SOS COMMAND RECEIVED!")
             result = await engine_manager.emergency_stop_all()

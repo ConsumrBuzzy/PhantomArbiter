@@ -26,6 +26,7 @@ import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
 import { Toast } from './components/toast.js';
+import { APIHealth } from './components/api-health.js';
 
 class TradingOS {
     constructor() {
@@ -41,6 +42,7 @@ class TradingOS {
         this.systemMetrics = new SystemMetrics('chart-metrics');
         this.solTape = new SolTape('sol-tape-container');
         this.toast = new Toast();
+        this.apiHealth = new APIHealth('api-health-container');
 
         // Engine cards
         this.engines = {
@@ -249,6 +251,10 @@ class TradingOS {
                 this.tokenWatchlist.update(data);
                 break;
 
+            case 'API_HEALTH':
+                if (this.apiHealth) this.apiHealth.update(data);
+                break;
+
             case 'ARB_OPP':
                 this.updateIntelTable('ARB', data);
                 if (this.marketComponents.arb) this.marketComponents.arb.update(data);
@@ -356,6 +362,11 @@ class TradingOS {
         document.querySelectorAll('.view-panel').forEach(panel => {
             panel.classList.toggle('active', panel.id === `view-${viewName}`);
         });
+
+        // V23.0: Request API health when entering Config view
+        if (viewName === 'config' && this.ws) {
+            this.ws.send('GET_API_HEALTH', {});
+        }
     }
 
     /**
