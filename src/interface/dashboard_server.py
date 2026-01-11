@@ -110,12 +110,12 @@ class DashboardServer:
 
     async def _heartbeat_loop(self):
         """1Hz System Pulse with engine status."""
-        Logger.info("[HEARTBEAT] Loop starting...")
+        # Logger.info("[HEARTBEAT] Loop starting...")
         while self.running:
             try:
-                Logger.info("[HEARTBEAT] Pulse...") # Debug pulse
+                # Logger.info("[HEARTBEAT] Pulse...") 
                 if self.clients:
-                    Logger.info(f"[HEARTBEAT] Broadcasting to {len(self.clients)} clients")
+                    # Logger.info(f"[HEARTBEAT] Broadcasting to {len(self.clients)} clients")
                     from src.shared.state.app_state import state
                     
                     # Get engine statuses
@@ -134,7 +134,7 @@ class DashboardServer:
                         # Initialize feed on demand (singleton)
                         if not hasattr(self, '_val_feed'):
                             try:
-                                from src.data.feed.jupiter_feed import JupiterFeed
+                                from src.shared.feeds.jupiter_feed import JupiterFeed
                                 self._val_feed = JupiterFeed()
                                 Logger.info("JupiterFeed initialized in Heartbeat")
                             except Exception as e:
