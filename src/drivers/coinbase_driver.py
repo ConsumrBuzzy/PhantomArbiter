@@ -122,8 +122,8 @@ class CoinbaseExchangeDriver:
             api_key_name: CDP API key name (format: "organizations/.../apiKeys/...")
             api_private_key: EC private key PEM string
         """
-        # CDP Credentials
-        self._api_key_name = api_key_name or os.getenv("COINBASE_API_KEY_NAME", "")
+        # CDP Credentials (using existing env var names)
+        self._api_key_name = api_key_name or os.getenv("COINBASE_CLIENT_API_KEY", "")
         self._api_private_key = api_private_key or os.getenv("COINBASE_API_PRIVATE_KEY", "")
         
         # Handle escaped newlines in private key from .env
@@ -152,7 +152,7 @@ class CoinbaseExchangeDriver:
             if not self._api_key_name or not self._api_private_key:
                 raise ValueError(
                     "Coinbase CDP credentials not configured. "
-                    "Set COINBASE_API_KEY_NAME and COINBASE_API_PRIVATE_KEY in .env"
+                    "Set COINBASE_CLIENT_API_KEY and COINBASE_API_PRIVATE_KEY in .env"
                 )
             
             self._exchange = ccxt.coinbase({

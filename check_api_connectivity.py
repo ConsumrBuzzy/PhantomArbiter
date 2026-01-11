@@ -39,7 +39,7 @@ async def main():
         if not driver.is_configured:
             print("\n❌ Coinbase CDP credentials not configured!")
             print("\nPlease set in .env:")
-            print("  COINBASE_API_KEY_NAME='organizations/.../apiKeys/...'")
+            print("  COINBASE_CLIENT_API_KEY='organizations/.../apiKeys/...'")
             print("  COINBASE_API_PRIVATE_KEY='-----BEGIN EC PRIVATE KEY-----\\n...\\n-----END EC PRIVATE KEY-----'")
             return
         

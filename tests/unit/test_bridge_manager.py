@@ -26,7 +26,7 @@ from dataclasses import dataclass
 def mock_env():
     """Mock environment variables for all tests."""
     with patch.dict(os.environ, {
-        'COINBASE_API_KEY_NAME': 'organizations/test-org/apiKeys/test-key',
+        'COINBASE_CLIENT_API_KEY': 'organizations/test-org/apiKeys/test-key',
         'COINBASE_API_PRIVATE_KEY': '-----BEGIN EC PRIVATE KEY-----\ntest_key_data\n-----END EC PRIVATE KEY-----',
         'PHANTOM_SOLANA_ADDRESS': 'PhantomTestAddress123456789',
         'MIN_BRIDGE_AMOUNT_USD': '5.00',
