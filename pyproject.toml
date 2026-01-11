@@ -35,7 +35,6 @@ module-name = "phantom_core"
 manifest-path = "src_rust/Cargo.toml"
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --tb=short -p pytest_asyncio"
