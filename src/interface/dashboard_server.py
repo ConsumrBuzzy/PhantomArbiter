@@ -209,10 +209,14 @@ class DashboardServer:
 
                     # Gather System Metrics
                     import psutil
+                    try:
+                        disk_pct = psutil.disk_usage('C:').percent
+                    except Exception:
+                        disk_pct = 0.0
                     metrics = {
                         "cpu_percent": psutil.cpu_percent(interval=None),
                         "memory_percent": psutil.virtual_memory().percent,
-                        "disk_percent": psutil.disk_usage('/').percent
+                        "disk_percent": disk_pct
                     }
 
                     # Send BOTH wallets in payload
@@ -232,7 +236,9 @@ class DashboardServer:
                     message = json.dumps(stats_payload)
                     await self._broadcast(message)
             except Exception as e:
-                Logger.debug(f"Heartbeat error: {e}")
+                Logger.warning(f"Heartbeat error: {e}")
+                import traceback
+                traceback.print_exc()
             await asyncio.sleep(1.0)
 
     async def _handler(self, websocket):
