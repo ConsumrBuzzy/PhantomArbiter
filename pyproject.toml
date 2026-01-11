@@ -34,5 +34,27 @@ features = ["pyo3/extension-module"]
 module-name = "phantom_core"
 manifest-path = "src_rust/Cargo.toml"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short -p pytest_asyncio"
+markers = [
+    "asyncio: mark test as async",
+    "unit: unit tests",
+    "integration: integration tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::pytest.PytestUnknownMarkWarning",
+]
+norecursedirs = [
+    ".git",
+    "__pycache__",
+    "legacy",
+    "node_modules",
+    ".venv",
+]
+
 
 

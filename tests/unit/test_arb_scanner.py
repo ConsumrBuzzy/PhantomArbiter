@@ -40,7 +40,8 @@ class TestSpreadOpportunity:
             gross_profit = trade_size * (spread_pct / 100)
             fees_usd = trade_size * (fee_pct / 100)
             slippage_cost = trade_size * (slippage_pct / 100)
-            net_profit_usd = gross_profit - fees_usd - slippage_cost
+            # Round to avoid floating point precision issues (e.g. 2.77e-17 instead of 0)
+            net_profit_usd = round(gross_profit - fees_usd - slippage_cost, 6)
             net_profit_pct = (net_profit_usd / trade_size) * 100 if trade_size > 0 else 0.0
 
             return SpreadOpportunity(

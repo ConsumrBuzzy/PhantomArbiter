@@ -1,0 +1,42 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-7.4.4, pluggy-1.6.0 -- C:\Github\PhantomArbiter\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Github\PhantomArbiter
+configfile: pytest.ini
+collecting ... collected 17 items
+
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_net_profit_calculation PASSED [  5%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_is_profitable_when_positive PASSED [ 11%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_is_not_profitable_when_negative PASSED [ 17%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_is_not_profitable_at_zero FAILED [ 23%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_optimal_size_calculation PASSED [ 29%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_optimal_size_clamps_to_max PASSED [ 35%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_optimal_size_clamps_to_min PASSED [ 41%]
+tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_liquidity_constraint PASSED [ 47%]
+tests/unit/test_arb_scanner.py::TestSpreadDetector::test_scan_pair_finds_spread SKIPPED [ 52%]
+tests/unit/test_arb_scanner.py::TestSpreadDetector::test_scan_pair_returns_none_when_no_spread SKIPPED [ 58%]
+tests/unit/test_arb_scanner.py::TestSpreadDetector::test_scan_all_pairs_parallel SKIPPED [ 64%]
+tests/unit/test_arb_scanner.py::TestSpreadDetector::test_get_price_matrix PASSED [ 70%]
+tests/unit/test_arb_scanner.py::TestSpreadMath::test_spread_percentage_formula PASSED [ 76%]
+tests/unit/test_arb_scanner.py::TestSpreadMath::test_net_profit_after_fees PASSED [ 82%]
+tests/unit/test_arb_scanner.py::TestSpreadMath::test_optimal_size_calculus_derivation PASSED [ 88%]
+tests/unit/test_arb_scanner.py::TestSpreadMath::test_profit_at_optimal_vs_suboptimal PASSED [ 94%]
+tests/unit/test_arb_scanner.py::TestSpreadMath::test_slippage_model_quadratic PASSED [100%]
+
+================================== FAILURES ===================================
+____________ TestSpreadOpportunity.test_is_not_profitable_at_zero _____________
+tests\unit\test_arb_scanner.py:97: in test_is_not_profitable_at_zero
+    assert not opp.is_profitable, "Break-even should not be considered profitable"
+E   AssertionError: Break-even should not be considered profitable
+E   assert not True
+E    +  where True = SpreadOpportunity(pair='SOL/USDC', base_mint='SOL_MINT', quote_mint='USDC_MINT', buy_dex='RAYDIUM', sell_dex='ORCA', buy_price=150.0, sell_price=151.5, spread_pct=0.4, gross_profit_usd=0.4, estimated_fees_usd=0.3, net_profit_usd=2.7755575615628914e-17, max_size_usd=100.0, confidence=0.9, timestamp=1768152627.1994905, verification_status=None, trigger_wallet=None, buy_quote=None, sell_quote=None, net_profit_pct=2.7755575615628914e-17).is_profitable
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\config\__init__.py:1373
+  C:\Github\PhantomArbiter\.venv\Lib\site-packages\_pytest\config\__init__.py:1373: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_arb_scanner.py::TestSpreadOpportunity::test_is_not_profitable_at_zero
+============= 1 failed, 13 passed, 3 skipped, 1 warning in 0.49s ==============
