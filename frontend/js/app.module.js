@@ -22,7 +22,6 @@ import { Inventory } from './components/inventory.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 import { HeaderStats } from './components/header-stats.js';
-import { LayoutEngine } from './components/layout-engine.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
@@ -37,7 +36,6 @@ class TradingOS {
     constructor() {
         // Initialize components
         this.layoutManager = new LayoutManager();
-        this.layout = new LayoutEngine('dashboard-grid'); // New Drag-and-Drop Engine
         this.terminal = new Terminal('log-stream');
         this.marketData = new MarketData();
         this.tokenWatchlist = new TokenWatchlist('watchlist-panel');

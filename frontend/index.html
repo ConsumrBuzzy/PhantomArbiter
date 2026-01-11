@@ -15,7 +15,6 @@
     <link rel="stylesheet" href="styles/components/tables.css">
     <link rel="stylesheet" href="styles/components/modals.css">
     <link rel="stylesheet" href="styles/components/toast.css">
-    <link rel="stylesheet" href="styles/components/layout-engine.css">
     <link rel="stylesheet" href="styles/animations.css">
     <link rel="stylesheet" href="styles/components/api-health.css">
     <link rel="stylesheet" href="styles/components/metrics.css">
@@ -29,16 +28,29 @@
 </head>
 
 <body class="os-mode">
-    <!-- ═══════════════════════════════════════════════════════════════
-         SIDEBAR NAVIGATION
-         ═══════════════════════════════════════════════════════════════ -->
-    <nav class="sidebar">
-        <div class="nav-item active" data-view="dashboard" data-tooltip="Dashboard">🏠</div>
-        <div class="nav-item" data-view="scanner" data-tooltip="Scanner">📡</div>
-        <div class="nav-item" data-view="engines" data-tooltip="Engines">⚡</div>
-        <div class="nav-item" data-view="config" data-tooltip="Settings">⚙️</div>
-        <div class="sos-button" id="sos-btn" title="EMERGENCY STOP">🆘</div>
-    </nav>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-top">
+            <div class="nav-item active" data-tooltip="Dashboard">
+                <i class="fa-solid fa-grid-2"></i>
+            </div>
+            <div class="nav-item" data-tooltip="Analytics">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="nav-item" data-tooltip="Wallet">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div class="nav-item" data-tooltip="Settings">
+                <i class="fa-solid fa-gear"></i>
+            </div>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="connection-status connected" id="connection-indicator" data-tooltip="Connected"></div>
+            <div class="nav-item" onclick="document.body.classList.toggle('neon-mode')" data-tooltip="Styles">
+                <i class="fa-solid fa-palette"></i>
+            </div>
+        </div>
+    </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
          MAIN CONTENT AREA
@@ -84,125 +96,107 @@
                      TICKER TAPES (Mode-Aware Marquees)
                      ═══════════════════════════════════════════════════════════════ -->
 
-                <!-- DASHBOARD GRID (Layout Engine) -->
-                <div id="dashboard-grid" class="dashboard-grid">
+                <!-- LEFT COLUMN: Vault & Inventory -->
+                <div class="left-column">
+                    <!-- UNIFIED VAULT (CFO Component) -->
+                    <section id="unified-vault-container" class="unified-vault-mount">
+                        <!-- UnifiedVaultController mounts here -->
+                    </section>
 
-                    <!-- WIDGET 1: UNIVERSAL VAULT + INVENTORY (Left Default) -->
-                    <div class="dashboard-widget" id="widget-vault" draggable="true">
-                        <div class="widget-header">
-                            <span class="widget-drag-handle">::::</span>
-                        </div>
-                        <!-- UNIFIED VAULT (CFO Component) -->
-                        <section id="unified-vault-container" class="unified-vault-mount">
-                            <!-- UnifiedVaultController mounts here -->
-                        </section>
-
-                        <section class="glass-panel" id="inventory-panel">
-                            <div class="panel-title">Inventory</div>
-                            <div class="inventory-split">
-                                <!-- LIVE INVENTORY -->
-                                <div class="inventory-half live">
-                                    <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
-                                    <table id="live-inventory-table">
-                                        <thead>
-                                            <tr>
-                                                <th>ASSET</th>
-                                                <th>AMOUNT</th>
-                                                <th>VALUE</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td colspan="3" style="text-align: center; color: var(--text-dim);">
-                                                    Loading...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <!-- PAPER INVENTORY -->
-                                <div class="inventory-half paper">
-                                    <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
-                                    <table id="paper-inventory-table">
-                                        <thead>
-                                            <tr>
-                                                <th>ASSET</th>
-                                                <th>AMOUNT</th>
-                                                <th>VALUE</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td colspan="3" style="text-align: center; color: var(--text-dim);">
-                                                    Loading...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                    <section class="glass-panel" id="inventory-panel">
+                        <div class="panel-title">Inventory</div>
+                        <div class="inventory-split">
+                            <!-- LIVE INVENTORY -->
+                            <div class="inventory-half live">
+                                <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
+                                <table id="live-inventory-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ASSET</th>
+                                            <th>AMOUNT</th>
+                                            <th>VALUE</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="3" style="text-align: center; color: var(--text-dim);">
+                                                Loading...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
-                        </section>
-                    </div>
-
-                    <!-- WIDGET 2: MEME SNIPER (Right Top Default) -->
-                    <div class="dashboard-widget" id="widget-sniper" draggable="true">
-                        <div class="widget-header">
-                            <span class="widget-drag-handle">::::</span>
-                        </div>
-                        <div id="meme-sniper-mount" class="glass-panel"
-                            style="height: 300px; padding: 0; overflow: hidden; margin-bottom: 20px;">
-                            <div class="sniper-loading">🚀 Scraper View Initializing...</div>
-                        </div>
-                    </div>
-
-                    <!-- WIDGET 3: DRIFT PROTOCOL (Right Mid Default) -->
-                    <div class="dashboard-widget" id="widget-drift" draggable="true">
-                        <div class="widget-header">
-                            <span class="widget-drag-handle">::::</span>
-                        </div>
-                        <section class="drift-vault-card" id="drift-panel">
-                            <div class="drift-header">
-                                <div class="drift-logo">
-                                    <span>🌊 DRIFT PROTOCOL</span>
-                                </div>
-                                <div class="drift-status-badge">MAINNET</div>
+                            <!-- PAPER INVENTORY -->
+                            <div class="inventory-half paper">
+                                <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
+                                <table id="paper-inventory-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ASSET</th>
+                                            <th>AMOUNT</th>
+                                            <th>VALUE</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="3" style="text-align: center; color: var(--text-dim);">
+                                                Loading...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
-                            <div class="drift-stats-grid">
-                                <div class="drift-stat">
-                                    <span class="drift-label">EQUITY</span>
-                                    <span class="drift-value" id="drift-equity">$0.00</span>
-                                </div>
-                                <div class="drift-stat">
-                                    <span class="drift-label">Unrealized PnL</span>
-                                    <span class="drift-value" id="drift-pnl">--</span>
-                                </div>
-                                <div class="drift-stat">
-                                    <span class="drift-label">LEVERAGE</span>
-                                    <span class="drift-value" id="drift-leverage">0x</span>
-                                </div>
-                            </div>
-                            <div class="drift-actions">
-                                <button class="drift-btn" title="Coming Soon">Deposit</button>
-                                <button class="drift-btn" title="Coming Soon">Manage</button>
-                            </div>
-                            <div id="drift-ticker"
-                                style="margin-top: 10px; font-size: 0.8rem; color: var(--neon-purple); text-align: center; height: 20px;">
-                                Scanning for opportunities...
-                            </div>
-                        </section>
-                    </div>
-
-                    <!-- WIDGET 4: METRICS (Right Bottom Default) -->
-                    <div class="dashboard-widget" id="widget-metrics" draggable="true">
-                        <div class="widget-header">
-                            <span class="widget-drag-handle">::::</span>
                         </div>
-                        <section class="glass-panel" id="metrics-panel">
-                            <div class="panel-title">System Metrics</div>
-                            <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
-                        </section>
-                    </div>
+                    </section>
 
+                    <section class="glass-panel" id="watchlist-panel">
+                        <div class="panel-loading">Initializing Watchlist...</div>
+                    </section>
                 </div>
 
+                <!-- RIGHT COLUMN: Active Trading -->
+                <div class="right-column">
+                    <!-- 1. Meme Sniper (Scalper View) -->
+                    <div id="meme-sniper-mount" class="glass-panel"
+                        style="height: 300px; padding: 0; overflow: hidden; margin-bottom: 20px;">
+                        <div class="sniper-loading">🚀 Scraper View Initializing...</div>
+                    </div>
+
+                    <!-- 2. DRIFT PROTOCOL VAULT -->
+                    <section class="drift-vault-card" id="drift-panel">
+                        <div class="drift-header">
+                            <div class="drift-logo">
+                                <span>🌊 DRIFT PROTOCOL</span>
+                            </div>
+                            <div class="drift-status-badge">MAINNET</div>
+                        </div>
+                        <div class="drift-stats-grid">
+                            <div class="drift-stat">
+                                <span class="drift-label">EQUITY</span>
+                                <span class="drift-value" id="drift-equity">$0.00</span>
+                            </div>
+                            <div class="drift-stat">
+                                <span class="drift-label">Unrealized PnL</span>
+                                <span class="drift-value" id="drift-pnl">--</span>
+                            </div>
+                            <div class="drift-stat">
+                                <span class="drift-label">LEVERAGE</span>
+                                <span class="drift-value" id="drift-leverage">0x</span>
+                            </div>
+                        </div>
+                        <div class="drift-actions">
+                            <button class="drift-btn" title="Coming Soon">Deposit</button>
+                            <button class="drift-btn" title="Coming Soon">Manage</button>
+                        </div>
+                        <div id="drift-ticker"
+                            style="margin-top: 10px; font-size: 0.8rem; color: var(--neon-purple); text-align: center; height: 20px;">
+                            Scanning for opportunities...
+                        </div>
+                    </section>
+
+                    <section class="glass-panel" id="metrics-panel">
+                        <div class="panel-title">System Metrics</div>
+                        <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
+                    </section>
+                </div>
                 <footer class="glass-panel">
                     <div class="panel-title">Terminal Logs</div>
                     <div class="log-container" id="log-stream">
