@@ -97,6 +97,30 @@ class RealityChecker:
                 return True
             else:
                 self._check("API Connection", False, f"Failed: {result.get('error', 'Unknown')}")
+                
+                # Debugging help for common key issues
+                key_name = os.getenv("COINBASE_CLIENT_API_KEY", "")
+                priv_key = os.getenv("COINBASE_API_PRIVATE_KEY", "")
+                
+                print("\n  🔎 DIAGNOSTIC INFO:")
+                
+                # Check Key Name format
+                if not key_name.startswith("organizations/"):
+                    print(f"     ⚠️  Key Name looks wrong. Expected 'organizations/...', got '{key_name[:15]}...'")
+                else:
+                    print(f"     ✓ Key Name format looks correct ({len(key_name)} chars)")
+                
+                # Check Private Key format
+                if "-----BEGIN EC PRIVATE KEY-----" not in priv_key:
+                    print(f"     ❌ Private Key missing PEM header. Got start: '{priv_key[:20]}...'")
+                elif "\\n" in priv_key and "\n" not in priv_key:
+                    print("     ❌ Private Key contains literal '\\n' characters but no actual newlines.")
+                    print("         Fix: In .env, use double quotes: \"-----BEGIN...\\n...END-----\"")
+                else:
+                    print(f"     ✓ Private Key format looks OK ({len(priv_key)} chars)")
+                
+                print("     💡 Required Permissions: 'View', 'Trade', 'Transfer' (for withdrawals)")
+                
                 return False
                 
         except ImportError as e:
