@@ -265,6 +265,144 @@ class CoinbaseExchangeDriver:
             }
     
     # ─────────────────────────────────────────────────────────────────────────
+    # MARKET DATA METHODS (Live Production)
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    async def fetch_ticker(self, symbol: str = "SOL/USDC") -> Dict[str, Any]:
+        """
+        Fetch current ticker data for a trading pair.
+        
+        Used by SolTape and engines for real-time price discovery.
+        
+        Args:
+            symbol: Trading pair (default: "SOL/USDC")
+            
+        Returns:
+            Dict with 'last', 'bid', 'ask', 'volume', etc.
+        """
+        try:
+            exchange = await self._ensure_exchange()
+            ticker = await exchange.fetch_ticker(symbol)
+            
+            Logger.debug(
+                f"📈 {symbol}: ${ticker['last']:.4f} "
+                f"(bid: ${ticker['bid']:.4f}, ask: ${ticker['ask']:.4f})"
+            )
+            
+            return {
+                "symbol": symbol,
+                "last": ticker.get("last", 0.0),
+                "bid": ticker.get("bid", 0.0),
+                "ask": ticker.get("ask", 0.0),
+                "high": ticker.get("high", 0.0),
+                "low": ticker.get("low", 0.0),
+                "volume": ticker.get("baseVolume", 0.0),
+                "timestamp": ticker.get("timestamp", time.time() * 1000),
+                "source": "coinbase",
+            }
+            
+        except ccxt.BadSymbol as e:
+            Logger.debug(f"Symbol {symbol} not found on Coinbase: {e}")
+            return {"symbol": symbol, "last": 0.0, "error": "symbol_not_found"}
+        except Exception as e:
+            Logger.error(f"❌ Ticker fetch error: {e}")
+            return {"symbol": symbol, "last": 0.0, "error": str(e)}
+    
+    async def fetch_ohlcv(
+        self,
+        symbol: str = "SOL/USDC",
+        timeframe: str = "1h",
+        limit: int = 24,
+    ) -> List[List]:
+        """
+        Fetch OHLCV (candlestick) data for charting.
+        
+        Used by dashboard for historical price visualization.
+        
+        Args:
+            symbol: Trading pair
+            timeframe: Candle interval ("1m", "5m", "15m", "1h", "1d")
+            limit: Number of candles to fetch
+            
+        Returns:
+            List of [timestamp, open, high, low, close, volume]
+        """
+        try:
+            exchange = await self._ensure_exchange()
+            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
+            Logger.debug(f"📊 Fetched {len(ohlcv)} {timeframe} candles for {symbol}")
+            return ohlcv
+            
+        except Exception as e:
+            Logger.error(f"❌ OHLCV fetch error: {e}")
+            return []
+    
+    async def get_sol_price(self) -> float:
+        """
+        Get current SOL price in USD.
+        
+        Convenience method for engines.
+        
+        Returns:
+            Current SOL/USDC price
+        """
+        ticker = await self.fetch_ticker("SOL/USDC")
+        return ticker.get("last", 0.0)
+    
+    async def sync_real_balances(self) -> Dict[str, Any]:
+        """
+        Sync and return all real balances from Coinbase.
+        
+        Used for "Reality Check" - populates CEXWalletSnapshot
+        with actual production data.
+        
+        Returns:
+            Dict with 'usdc', 'usd', 'sol', 'total_usd' and account details
+        """
+        try:
+            exchange = await self._ensure_exchange()
+            balance = await exchange.fetch_balance()
+            
+            # Extract key balances
+            usdc = float(balance.get('USDC', {}).get('free', 0.0))
+            usd = float(balance.get('USD', {}).get('free', 0.0))
+            sol = float(balance.get('SOL', {}).get('free', 0.0))
+            
+            # Calculate total in USD
+            sol_price = await self.get_sol_price()
+            sol_value = sol * sol_price if sol_price > 0 else 0.0
+            total_usd = usdc + usd + sol_value
+            
+            result = {
+                "usdc": usdc,
+                "usd": usd,
+                "sol": sol,
+                "sol_price": sol_price,
+                "sol_value_usd": sol_value,
+                "total_usd": total_usd,
+                "timestamp": time.time(),
+                "source": "coinbase_production",
+            }
+            
+            Logger.info(
+                f"💰 Real Balances: USDC=${usdc:.2f} | USD=${usd:.2f} | "
+                f"SOL={sol:.4f} (${sol_value:.2f}) | Total=${total_usd:.2f}"
+            )
+            
+            return result
+            
+        except Exception as e:
+            Logger.error(f"❌ Sync real balances error: {e}")
+            return {
+                "usdc": 0.0,
+                "usd": 0.0,
+                "sol": 0.0,
+                "total_usd": 0.0,
+                "error": str(e),
+            }
+    
+    # ─────────────────────────────────────────────────────────────────────────
     # SAFETY GATE VALIDATORS
     # ─────────────────────────────────────────────────────────────────────────
     
