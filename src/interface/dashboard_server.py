@@ -163,14 +163,25 @@ class DashboardServer:
                             "type": "LIVE ( disconnected )"
                         }
 
+                    # Gather System Metrics
+                    import psutil
+                    metrics = {
+                        "cpu_percent": psutil.cpu_percent(interval=None),
+                        "memory_percent": psutil.virtual_memory().percent,
+                        "disk_percent": psutil.disk_usage('/').percent
+                    }
+
                     stats_payload = {
                         "type": "SYSTEM_STATS",
                         "data": {
                             **(state.stats or {}),
                             "engines": engine_status,
                             "mode": self.global_mode,
-                            "wallet": wallet_data
+                            "wallet": wallet_data,
+                            "metrics": metrics
                         },
+                        "timestamp": asyncio.get_event_loop().time()
+                    }
                         "timestamp": asyncio.get_event_loop().time()
                     }
                     message = json.dumps(stats_payload)

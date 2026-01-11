@@ -23,6 +23,7 @@ import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
+import { SystemMetrics } from './components/system-metrics.js';
 
 class TradingOS {
     constructor() {
@@ -35,6 +36,7 @@ class TradingOS {
         this.headerStats = new HeaderStats();
         this.whaleTape = new WhaleTape('whale-tape-content');
         this.modal = new ModalManager();
+        this.systemMetrics = new SystemMetrics('chart-metrics');
 
         // Engine cards
         this.engines = {
@@ -201,6 +203,7 @@ class TradingOS {
                 this.headerStats.update(data);
                 if (data.wallet) this.inventory.update(data.wallet);
                 if (data.engines) this.updateEngineStates(data.engines);
+                if (data.metrics) this.systemMetrics.update(data.metrics);
                 break;
 
             case 'CONTEXT_UPDATE':

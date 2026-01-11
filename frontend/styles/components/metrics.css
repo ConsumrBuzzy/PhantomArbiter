@@ -1,0 +1,38 @@
+/* System Metrics Styles */
+.metric-item {
+    margin-bottom: 15px;
+}
+
+.metric-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.metric-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.metric-bar-fill {
+    height: 100%;
+    background: var(--neon-blue);
+    width: 0%;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.metric-bar-fill.warning {
+    background: var(--neon-gold);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.metric-bar-fill.danger {
+    background: var(--neon-red);
+    box-shadow: 0 0 10px rgba(255, 0, 50, 0.5);
+}

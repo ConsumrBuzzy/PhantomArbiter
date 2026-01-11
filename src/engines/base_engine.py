@@ -6,6 +6,7 @@ Standardizes interface for startup, shutdown, mode handling, and reporting.
 """
 
 import asyncio
+import time
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, Callable
 from src.shared.system.logging import Logger
