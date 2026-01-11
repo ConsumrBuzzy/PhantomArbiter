@@ -34,7 +34,7 @@ class SpreadOpportunity:
     gross_profit_usd: float  # Profit before fees
     estimated_fees_usd: float  # Trading + gas fees
     net_profit_usd: float  # Profit after all costs
-    net_profit_pct: float = 0.0  # ROI percentage
+    net_profit_pct: float  # ROI percentage
 
     max_size_usd: float  # Limited by liquidity depth
     confidence: float  # 0-1, based on price freshness
