@@ -29,11 +29,35 @@ def temp_db(tmp_path, monkeypatch):
     """
     test_db = tmp_path / "test_arbiter.db"
     
+    # Create a single instance for this test
+    _db_instance = None
+    
     def mock_get_db():
+        nonlocal _db_instance
         from src.shared.system.persistence import PersistenceDB
-        # Reset singleton for test isolation
-        PersistenceDB._instance = None
-        return PersistenceDB(str(test_db))
+        
+        if _db_instance is None:
+            # Create fresh instance on first call
+            PersistenceDB._instance = None
+            _db_instance = PersistenceDB(str(test_db))
+            
+            # Initialize schema immediately
+            with _db_instance._get_connection() as conn:
+                conn.executescript("""
+                    CREATE TABLE IF NOT EXISTS engine_vaults (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        engine TEXT NOT NULL,
+                        asset TEXT NOT NULL,
+                        balance REAL NOT NULL DEFAULT 0,
+                        initial_balance REAL NOT NULL DEFAULT 0,
+                        updated_at REAL NOT NULL,
+                        UNIQUE(engine, asset)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_engine_vaults_engine ON engine_vaults(engine);
+                """)
+                conn.commit()
+        
+        return _db_instance
     
     monkeypatch.setattr("src.shared.system.persistence.get_db", mock_get_db)
     
@@ -47,6 +71,7 @@ def temp_db(tmp_path, monkeypatch):
     yield test_db
     
     # Cleanup singletons
+    _db_instance = None
     try:
         from src.shared.system.persistence import PersistenceDB
         from src.shared.state.vault_manager import VaultRegistry

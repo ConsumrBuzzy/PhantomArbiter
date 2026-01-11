@@ -28,7 +28,7 @@ class TestJupiterQuoteFetching:
             "inAmount": "100000000",  # 100 USDC (6 decimals)
             "outputMint": "So11111111111111111111111111111111111111112",  # SOL
             "outAmount": "666666666",  # ~0.666 SOL (9 decimals)
-            "otherAmountThreshold": "660000000",  # After slippage
+            "otherAmountThreshold": "663333333",  # 50bps slippage (approx)
             "swapMode": "ExactIn",
             "slippageBps": 50,
             "priceImpactPct": "0.01",
@@ -161,8 +161,15 @@ class TestJupiterSwapExecution:
 class TestPaperModeExecution:
     """Test paper trading execution."""
 
+    @pytest.fixture(autouse=True)
+    def reset_registry(self):
+        from src.shared.state.vault_manager import VaultRegistry
+        VaultRegistry._instance = None
+        yield
+        VaultRegistry._instance = None
+
     @pytest.fixture
-    def paper_vault(self, temp_db):
+    def paper_vault(self, temp_db, reset_registry):
         """Get paper vault for testing."""
         from src.shared.state.vault_manager import get_engine_vault
         return get_engine_vault("jupiter_test")
@@ -170,11 +177,13 @@ class TestPaperModeExecution:
     def test_paper_buy_updates_vault(self, paper_vault):
         """Paper buy should credit SOL and debit USDC."""
         initial_usdc = paper_vault.usdc_balance
-        initial_sol = paper_vault.sol_balance
-        
         # Simulate buy: spend 100 USDC, get 0.666 SOL
         buy_amount_usd = 100.0
         sol_received = 0.666
+        
+        paper_vault.credit("USDC", 1000.0)
+        initial_usdc = paper_vault.usdc_balance
+        initial_sol = paper_vault.sol_balance
         
         paper_vault.debit("USDC", buy_amount_usd)
         paper_vault.credit("SOL", sol_received)
@@ -187,6 +196,7 @@ class TestPaperModeExecution:
         """Paper sell should credit USDC and debit SOL."""
         # Add some SOL first
         paper_vault.credit("SOL", 1.0)
+        paper_vault.credit("USDC", 1000.0) # Ensure base liquidity
         
         initial_usdc = paper_vault.usdc_balance
         initial_sol = paper_vault.sol_balance
@@ -212,6 +222,9 @@ class TestPaperModeExecution:
         
         sol_price = 150.0
         sol_received = (buy_amount_usd - fee_usd) / sol_price
+        
+        paper_vault.credit("USDC", 1000.0)
+        initial_usdc = paper_vault.usdc_balance
         
         paper_vault.debit("USDC", buy_amount_usd)
         paper_vault.credit("SOL", sol_received)

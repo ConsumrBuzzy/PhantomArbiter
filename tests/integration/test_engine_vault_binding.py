@@ -114,11 +114,14 @@ class TestPaperTradeExecution:
         initial_usdc = vault.usdc_balance
         initial_sol = vault.sol_balance
         
-        # Simulate buy: spend 100 USDC, get 0.66 SOL (at $150)
+        # Simulate buy: spend 100 USDC
+        vault.credit("USDC", 1000.0)  # Ensure sufficient funds
+        intermediate_usdc = vault.usdc_balance
+        
         vault.debit("USDC", 100.0)
         vault.credit("SOL", 0.66)
         
-        assert vault.usdc_balance == initial_usdc - 100.0
+        assert vault.usdc_balance == intermediate_usdc - 100.0
         assert vault.sol_balance == initial_sol + 0.66
 
     def test_sell_credits_quote_debits_base(self, mock_engine_with_vault):
@@ -154,8 +157,15 @@ class TestPaperTradeExecution:
 class TestCrossEngineOperations:
     """Test operations involving multiple engines."""
 
+    @pytest.fixture(autouse=True)
+    def reset_registry(self):
+        from src.shared.state.vault_manager import VaultRegistry
+        VaultRegistry._instance = None
+        yield
+        VaultRegistry._instance = None
+
     @pytest.fixture
-    def multi_engine_setup(self, temp_db):
+    def multi_engine_setup(self, temp_db, reset_registry):
         """Set up multiple engines with vaults."""
         from src.shared.state.vault_manager import get_vault_registry
         
