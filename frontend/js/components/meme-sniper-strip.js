@@ -8,8 +8,7 @@
 export class MemeSniperStrip {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
-        this.tokens = [];
-        this.history = new Map(); // Stores { symbol: { lastPrice, trend, trendStartTime } }
+        this.tokenMap = new Map(); // Stores full token state: symbol -> tokenObj
     }
 
     /**
@@ -17,45 +16,60 @@ export class MemeSniperStrip {
      * @param {Object} data - Contains 'tokens' array (from TOKEN_WATCHLIST packet)
      */
     update(data) {
-        if (!this.container || !data.tokens) return;
+        if (!this.container) return;
 
-        // 1. Process Data & Update History
-        const processedTokens = data.tokens.map(token => {
+        // Handle empty updates gracefully
+        const incomingTokens = data.tokens || [];
+
+        // 1. Process Data & Update Persistence Map
+        incomingTokens.forEach(token => {
             const symbol = token.symbol;
             const currentPrice = this._getBestPrice(token);
 
-            let record = this.history.get(symbol) || {
+            // Get existing or init new record
+            let existing = this.tokenMap.get(symbol) || {
+                ...token,
                 lastPrice: currentPrice,
                 trend: 'FLAT',
                 trendStartTime: Date.now()
             };
 
             // Detect Trend Change
-            if (currentPrice > record.lastPrice) {
-                if (record.trend !== 'UP') {
-                    record.trend = 'UP';
-                    record.trendStartTime = Date.now();
+            if (currentPrice > existing.lastPrice) {
+                if (existing.trend !== 'UP') {
+                    existing.trend = 'UP';
+                    existing.trendStartTime = Date.now();
                 }
-            } else if (currentPrice < record.lastPrice) {
-                if (record.trend !== 'DOWN') {
-                    record.trend = 'DOWN';
-                    record.trendStartTime = Date.now();
+            } else if (currentPrice < existing.lastPrice) {
+                if (existing.trend !== 'DOWN') {
+                    existing.trend = 'DOWN';
+                    existing.trendStartTime = Date.now();
                 }
             }
 
-            record.lastPrice = currentPrice;
-            this.history.set(symbol, record);
+            // Update the record with latest data (prices, volume, etc)
+            // But preserve our calculated trend/lastPrice state
+            const updatedRecord = {
+                ...existing,       // Keep prev state
+                ...token,          // Overwrite with new API data
+                lastPrice: currentPrice,
+                trend: existing.trend,
+                trendStartTime: existing.trendStartTime,
+                currentPrice: currentPrice // Add currentPrice for rendering
+            };
 
-            return { ...token, ...record, currentPrice };
+            this.tokenMap.set(symbol, updatedRecord);
         });
 
-        // 2. Filter & Sort (Hot Tokens)
-        // Sort by spread descending
-        const hotTokens = processedTokens
-            .sort((a, b) => (b.spread_pct || 0) - (a.spread_pct || 0))
-            .slice(0, 50); // Show top 50
+        // 2. Render from Persistent Map (not just incoming)
+        const allTokens = Array.from(this.tokenMap.values());
 
-        // If no tokens yet, keep loading or show empty state
+        // Sort by spread descending
+        const hotTokens = allTokens
+            .sort((a, b) => (b.spread_pct || 0) - (a.spread_pct || 0))
+            .slice(0, 50); // Show top 50 "Active" tokens
+
+        // Only show loading if we TRULY have no data ever
         if (hotTokens.length === 0) {
             if (!this.container.querySelector('.sniper-loading')) {
                 this.container.innerHTML = '<div class="sniper-loading">Scanning Mempool...</div>';
