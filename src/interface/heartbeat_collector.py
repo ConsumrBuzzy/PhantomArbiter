@@ -119,6 +119,9 @@ class SystemSnapshot:
     sol_price: float = 0.0
     watchlist: List[WatchlistEntry] = field(default_factory=list)
     
+    # Delta neutrality (hedge status)
+    delta_state: Optional[Any] = None  # DeltaState from monitoring module
+    
     # System
     metrics: SystemMetrics = field(default_factory=SystemMetrics)
     global_mode: str = "paper"
@@ -129,7 +132,7 @@ class SystemSnapshot:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dashboard-friendly dict for SYSTEM_STATS packet."""
-        return {
+        result = {
             "paper_wallet": self.paper_wallet.to_dict(),
             "live_wallet": self.live_wallet.to_dict(),
             "wallet": self.paper_wallet.to_dict(),  # Legacy compat
@@ -159,6 +162,12 @@ class SystemSnapshot:
             "metrics": self.metrics.to_dict(),
             "mode": self.global_mode,
         }
+        
+        # Add delta state if available
+        if self.delta_state and hasattr(self.delta_state, 'to_dict'):
+            result["delta_state"] = self.delta_state.to_dict()
+        
+        return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -199,6 +208,7 @@ class HeartbeatDataCollector:
         self._wallet_mgr = None
         self._drift_adapter = None
         self._price_feed = None
+        self._delta_calculator = None
         self._last_snapshot: Optional[SystemSnapshot] = None
         self._collection_count = 0
         
@@ -215,11 +225,12 @@ class HeartbeatDataCollector:
         start_time = time.time()
         
         # Collect in parallel where possible
-        paper_wallet, live_wallet, engines, sol_price = await asyncio.gather(
+        paper_wallet, live_wallet, engines, sol_price, delta_state = await asyncio.gather(
             self._collect_paper_wallet(),
             self._collect_live_wallet(),
             self._collect_engine_status(),
             self._get_sol_price(),
+            self._collect_delta_state(),
         )
         
         # These are synchronous/fast
@@ -234,6 +245,7 @@ class HeartbeatDataCollector:
             engines=engines,
             sol_price=sol_price,
             watchlist=watchlist,
+            delta_state=delta_state,
             metrics=metrics,
             global_mode=global_mode,
             collector_latency_ms=latency_ms,
@@ -341,6 +353,24 @@ class HeartbeatDataCollector:
         except Exception as e:
             Logger.debug(f"Drift equity collection error: {e}")
             return 0.0
+    
+    async def _collect_delta_state(self) -> Optional[Any]:
+        """Collect delta neutrality state."""
+        try:
+            from src.monitoring.neutrality import DeltaCalculator
+            
+            if not self._delta_calculator:
+                self._delta_calculator = DeltaCalculator(
+                    wallet=self._wallet_mgr,
+                    drift_adapter=self._drift_adapter,
+                    price_feed=self._price_feed,
+                )
+            
+            return await self._delta_calculator.calculate()
+            
+        except Exception as e:
+            Logger.debug(f"Delta state collection error: {e}")
+            return None
     
     async def _collect_engine_status(self) -> Dict[str, EngineSnapshot]:
         """Collect status from all engines."""
