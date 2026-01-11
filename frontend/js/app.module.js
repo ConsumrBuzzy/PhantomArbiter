@@ -411,7 +411,10 @@ class TradingOS {
                 if (data.metrics) this.systemMetrics.update(data.metrics);
 
                 // Watchlist
-                if (data.watchlist) this.updateScalperWatch(data.watchlist);
+                if (data.watchlist) {
+                    this.updateScalperWatch(data.watchlist);
+                    this.memeSniperStrip.update({ tokens: data.watchlist });
+                }
 
                 // ═══════════════════════════════════════════════════════════════
                 // UNIFIED BALANCE (Single Source of Truth)
