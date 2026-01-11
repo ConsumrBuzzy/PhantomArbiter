@@ -1,144 +1,87 @@
 /**
- * Inventory Component
- * Displays wallet assets with price history and change indicators.
- * 
- * Enhanced with: Current Price, 5m/1h/24h changes for storytelling.
+ * Split Inventory Component
+ * =========================
+ * Displays BOTH Live and Paper wallet assets side by side.
  */
 export class Inventory {
-    constructor(tableId) {
-        this.tableBody = document.querySelector(`#${tableId} tbody`);
-        this.tableHead = document.querySelector(`#${tableId} thead tr`);
-        this.context = 'GLOBAL'; // GLOBAL, ARB, SCALP, FUNDING, LST
+    constructor() {
+        // Get both table bodies
+        this.liveTableBody = document.querySelector('#live-inventory-table tbody');
+        this.paperTableBody = document.querySelector('#paper-inventory-table tbody');
 
-        // Define relevant assets per context (others hidden unless non-zero)
-        this.relevantAssets = {
-            'ARB': ['SOL', 'USDC'],
-            'FUNDING': ['USDC', 'SOL'],
-            'SCALP': ['SOL', 'USDC', 'WIF', 'BONK', 'POPCAT'],
-            'LST': ['SOL', 'mSOL', 'jitoSOL', 'bSOL']
-        };
-
-        // Update table headers on init
-        this.initHeaders();
-    }
-
-    initHeaders() {
-        if (!this.tableHead) return;
-        this.tableHead.innerHTML = `
-            <th>ASSET</th>
-            <th>AMOUNT</th>
-            <th>PRICE</th>
-            <th>VALUE</th>
-            <th style="text-align: center;">5m</th>
-            <th style="text-align: center;">1h</th>
-            <th style="text-align: center;">24h</th>
-        `;
-    }
-
-    setContext(context) {
-        this.context = context ? context.toUpperCase() : 'GLOBAL';
-        this.render(); // Re-render with existing data if available
-    }
-
-    update(walletData) {
-        if (!this.tableBody || !walletData) return;
-        this.lastData = walletData; // Store for re-rendering on context switch
-        this.render();
+        // Store last data for re-rendering
+        this.lastLiveData = null;
+        this.lastPaperData = null;
     }
 
     /**
-     * Format change as colored arrow indicator
+     * Update with wallet data from SYSTEM_STATS
+     * @param {Object} data - Contains live_wallet and paper_wallet
      */
-    formatChange(pct) {
-        if (pct === undefined || pct === null || isNaN(pct)) {
-            return `<span style="color: var(--text-dim);">--</span>`;
+    update(data) {
+        if (data.live_wallet) {
+            this.lastLiveData = data.live_wallet;
+            this.renderTable(this.liveTableBody, data.live_wallet, 'live');
         }
-
-        const absVal = Math.abs(pct);
-        let color, arrow;
-
-        if (pct > 0.5) {
-            color = 'var(--neon-green)';
-            arrow = absVal > 3 ? '▲▲' : '▲';
-        } else if (pct < -0.5) {
-            color = 'var(--neon-red)';
-            arrow = absVal > 3 ? '▼▼' : '▼';
-        } else {
-            color = 'var(--text-dim)';
-            arrow = '→';
+        if (data.paper_wallet || data.wallet) {
+            this.lastPaperData = data.paper_wallet || data.wallet;
+            this.renderTable(this.paperTableBody, this.lastPaperData, 'paper');
         }
-
-        return `<span style="color: ${color}; font-size: 0.75rem;" title="${pct.toFixed(2)}%">${arrow}</span>`;
     }
 
-    render() {
-        if (!this.lastData) return;
+    /**
+     * Render assets into a specific table
+     */
+    renderTable(tbody, walletData, type) {
+        if (!tbody || !walletData) return;
 
-        this.tableBody.innerHTML = '';
+        tbody.innerHTML = '';
 
-        const assets = this.lastData.assets || {
-            'SOL': this.lastData.sol_balance,
-            'USDC': this.lastData.usdc_balance
-        };
+        const assets = walletData.assets || {};
 
-        // Sort: USDC first, then SOL, then others
+        // Check if empty
+        if (Object.keys(assets).length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="3" style="text-align: center; color: var(--text-dim);">No assets</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+
+        // Sort: USDC first, then SOL, then others by value
         const sortedAssets = Object.entries(assets).sort((a, b) => {
             if (a[0] === 'USDC') return -1;
             if (b[0] === 'USDC') return 1;
             if (a[0] === 'SOL') return -1;
             if (b[0] === 'SOL') return 1;
-            return a[0].localeCompare(b[0]);
+            return (b[1].value_usd || 0) - (a[1].value_usd || 0);
         });
 
         sortedAssets.forEach(([asset, data]) => {
-            const amount = (typeof data === 'object' && data !== null) ? data.amount : data;
-            const valueUsd = (typeof data === 'object' && data !== null) ? data.value_usd : 0;
-            const price = (typeof data === 'object' && data !== null) ? data.price : null;
+            const amount = (typeof data === 'object') ? data.amount : data;
+            const valueUsd = (typeof data === 'object') ? data.value_usd : 0;
 
-            // Mock price changes for demo (will be replaced with real data)
-            const change5m = (typeof data === 'object' && data !== null) ? data.change_5m : null;
-            const change1h = (typeof data === 'object' && data !== null) ? data.change_1h : null;
-            const change24h = (typeof data === 'object' && data !== null) ? data.change_24h : null;
-
-            // ADAPTIVE FILTERING
-            const isDust = valueUsd < 1.0 && amount < 0.01;
-            const isRelevant = this.context === 'GLOBAL' ||
-                (this.relevantAssets[this.context] && this.relevantAssets[this.context].includes(asset));
-
-            if (isDust && !isRelevant) return;
+            // Skip dust
+            if (valueUsd < 0.01 && amount < 0.0001) return;
 
             const tr = document.createElement('tr');
 
-            // Value Display
-            let valDisplay = '--';
-            if (valueUsd > 0) {
-                valDisplay = `$${valueUsd.toFixed(2)}`;
-            } else if (asset === 'USDC') {
-                valDisplay = `$${amount.toFixed(2)}`;
-            }
+            // Format value
+            let valDisplay = valueUsd > 0 ? `$${valueUsd.toFixed(2)}` : '--';
 
-            // Price Display
-            let priceDisplay = '--';
-            if (asset === 'USDC') {
-                priceDisplay = '$1.00';
-            } else if (price && price > 0) {
-                priceDisplay = price > 1 ? `$${price.toFixed(2)}` : `$${price.toFixed(4)}`;
-            }
-
-            // Highlight relevant assets in context
-            const highlightClass = (this.context !== 'GLOBAL' && isRelevant) ? 'text-neon-blue' : '';
-            if (highlightClass) tr.style.background = 'rgba(0, 212, 255, 0.05)';
+            // Format amount based on size
+            let amtDisplay = amount >= 1 ? amount.toFixed(2) : amount.toFixed(4);
 
             tr.innerHTML = `
-                <td class="${highlightClass}"><span class="token-icon ${asset.toLowerCase()}"></span> ${asset}</td>
-                <td class="mono ${highlightClass}">${amount.toFixed(4)}</td>
-                <td class="mono">${priceDisplay}</td>
+                <td><span class="token-symbol">${asset}</span></td>
+                <td class="mono">${amtDisplay}</td>
                 <td class="mono">${valDisplay}</td>
-                <td style="text-align: center;">${this.formatChange(change5m)}</td>
-                <td style="text-align: center;">${this.formatChange(change1h)}</td>
-                <td style="text-align: center;">${this.formatChange(change24h)}</td>
             `;
-            this.tableBody.appendChild(tr);
+            tbody.appendChild(tr);
         });
+    }
+
+    // Legacy method for backward compatibility
+    setContext(context) {
+        // No-op in split view
     }
 }

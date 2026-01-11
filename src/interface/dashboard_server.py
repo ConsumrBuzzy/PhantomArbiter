@@ -164,6 +164,7 @@ class DashboardServer:
                     
                     # 2. LIVE WALLET (Real Solana On-Chain)
                     enriched_live = {}  # Initialize before try
+                    drift_equity = 0.0  # Drift account balance
                     try:
                         from src.drivers.wallet_manager import WalletManager
                         if not hasattr(self, '_wallet_mgr'):
@@ -189,10 +190,33 @@ class DashboardServer:
                         if "USDC" in breakdown:
                             enriched_live["USDC"] = {"amount": breakdown["USDC"], "value_usd": breakdown["USDC"], "price": 1.0}
                         
+                        # 3. DRIFT BALANCE (Perp Account Equity)
+                        try:
+                            from src.delta_neutral.drift_order_builder import DriftAdapter
+                            if not hasattr(self, '_drift'):
+                                self._drift = DriftAdapter("mainnet")
+                                self._drift.set_wallet(self._wallet_mgr)
+                            
+                            # Try to get Drift account equity (USDC collateral + unrealized PnL)
+                            # For now use a simplified check - actual implementation needs DriftPy
+                            drift_equity = self._wallet_mgr.get_drift_balance() if hasattr(self._wallet_mgr, 'get_drift_balance') else 0.0
+                            
+                            if drift_equity > 0:
+                                enriched_live["DRIFT"] = {
+                                    "amount": drift_equity,  # Show as equity amount
+                                    "value_usd": drift_equity,
+                                    "price": 1.0  # USDC-denominated
+                                }
+                        except Exception as drift_err:
+                            Logger.debug(f"Drift balance fetch: {drift_err}")
+                        
+                        total_live_equity = live_data.get("total_usd", 0.0) + drift_equity
+                        
                         live_wallet_data = {
                             "assets": enriched_live,
-                            "equity": live_data.get("total_usd", 0.0),
+                            "equity": total_live_equity,
                             "sol_balance": breakdown.get("SOL", 0.0),
+                            "drift_equity": drift_equity,
                             "type": "LIVE"
                         }
                     except Exception as live_err:

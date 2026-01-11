@@ -213,7 +213,7 @@ class TradingOS {
         switch (type) {
             case 'SYSTEM_STATS':
                 this.headerStats.update(data);
-                if (data.wallet) this.inventory.update(data.wallet);
+                if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
                 if (data.engines) this.updateEngineStates(data.engines);
                 if (data.metrics) this.systemMetrics.update(data.metrics);
                 break;
