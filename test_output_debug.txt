@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-7.4.4, pluggy-1.6.0 -- C:\Github\PhantomArbiter\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Github\PhantomArbiter
+configfile: pytest.ini
+collecting ... collected 3 items
+
+tests/test_foundation.py::test_asyncio_foundation SKIPPED (async def
+function and no async plugin installed (see warnings))                   [ 33%]
+tests/test_foundation.py::test_event_loop_type SKIPPED (async def
+function and no async plugin installed (see warnings))                   [ 66%]
+tests/test_foundation.py::test_concurrent_tasks SKIPPED (async def
+function and no async plugin installed (see warnings))                   [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\config\__init__.py:1373
+  C:\Github\PhantomArbiter\.venv\Lib\site-packages\_pytest\config\__init__.py:1373: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 3 skipped, 1 warning in 0.01s ========================

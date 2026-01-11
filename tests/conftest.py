@@ -311,13 +311,8 @@ def mock_signal_bus(monkeypatch):
 # ═══════════════════════════════════════════════════════════════════════════════
 # ASYNC FIXTURES
 # ═══════════════════════════════════════════════════════════════════════════════
-
-@pytest.fixture
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+# NOTE: The session-scoped event_loop fixture is defined at the top of this file
+# (lines 22-28) to ensure Windows SelectorEventLoopPolicy is used consistently.
 
 
 @pytest.fixture
