@@ -24,18 +24,22 @@ body {
         radial-gradient(circle at 80% 70%, rgba(0, 255, 170, 0.05) 0%, transparent 40%);
 }
 
-.dashboard-container {
+/* Main Dashboard Grid (Inside View Panel) */
+.dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
-    grid-template-rows: 150px auto 1fr 200px;
     gap: 20px;
     height: 100%;
-    grid-template-areas:
-        "header header"
-        "tape tape"
-        "left right"
-        "footer footer";
+    grid-template-areas: "left right";
 }
+
+/* Legacy container support if needed */
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
 
 /* Glassmorphism Panel */
 .glass-panel {
