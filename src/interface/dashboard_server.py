@@ -182,8 +182,6 @@ class DashboardServer:
                         },
                         "timestamp": asyncio.get_event_loop().time()
                     }
-                        "timestamp": asyncio.get_event_loop().time()
-                    }
                     message = json.dumps(stats_payload)
                     await self._broadcast(message)
             except Exception as e:
