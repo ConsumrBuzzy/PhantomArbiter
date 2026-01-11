@@ -46,17 +46,30 @@
         <div id="view-dashboard" class="view-panel active">
             <div class="dashboard-container">
                 <header class="glass-panel header-streamlined">
-                    <!-- Streamlined Header: Branding + Full-Width Sol Tape -->
+                    <!-- Branding -->
                     <div class="header-brand">
                         <span class="logo-icon">🏛️</span>
                         <div class="logo-text">
                             <span class="brand">PHANTOM ARBITER</span>
-                            <span class="version">OS V22.1</span>
+                            <span class="version">OS V23.0</span>
                         </div>
                     </div>
-                    <!-- Sol Tape (Full Width Marquee) -->
-                    <div class="sol-tape-wrapper sol-tape-expanded" id="sol-tape-container">
-                        <div class="sol-tape-loading">Loading Markets...</div>
+                    <!-- Stacked Ticker Tapes -->
+                    <div class="header-tapes">
+                        <!-- Sol Cross-Venue Price Tape -->
+                        <div class="tape-row">
+                            <span class="tape-label">SOL</span>
+                            <div class="sol-tape-wrapper sol-tape-expanded" id="sol-tape-container">
+                                <div class="sol-tape-loading">Loading Markets...</div>
+                            </div>
+                        </div>
+                        <!-- Majors Price Tape (BTC, ETH, SOL global) -->
+                        <div class="tape-row">
+                            <span class="tape-label">MAJORS</span>
+                            <div class="sol-tape-wrapper sol-tape-expanded" id="majors-tape-container">
+                                <div class="sol-tape-loading">Loading Majors...</div>
+                            </div>
+                        </div>
                     </div>
                 </header>
 
