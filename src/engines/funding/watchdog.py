@@ -140,7 +140,7 @@ class FundingWatchdog:
             if current_rate < NEGATIVE_THRESHOLD:
                 self.consecutive_negative_checks += 1
                 self.consecutive_positive_checks = 0 # Reset positive streak
-                Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED ({current_rate:.6f} < {NEGATIVE_THRESHOLD})! Streak: {self.consecutive_negative_checks}/4")
+                Logger.warning(f"⚠️ NEGATIVE FUNDING DETECTED ({current_rate:.6f} < {NEGATIVE_THRESHOLD})! Streak: {self.consecutive_negative_checks}/{MAX_NEGATIVE_STREAK}")
             else:
                 if self.consecutive_negative_checks > 0:
                     Logger.success("✅ Funding ok (above threshold). Resetting negative counter.")
@@ -155,7 +155,7 @@ class FundingWatchdog:
             self._save_state()
             
             # TRIGGER UNWIND?
-            if self.consecutive_negative_checks >= 4:
+            if self.consecutive_negative_checks >= MAX_NEGATIVE_STREAK:
                 Logger.critical("🚨 CRITICAL: NEGATIVE FUNDING PERSISTED FOR 1 HOUR. TRIGGERING UNWIND!")
                 await self.unwind_position(client, simulate=simulate)
                 self.consecutive_negative_checks = 0 
