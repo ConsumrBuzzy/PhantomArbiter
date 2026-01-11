@@ -78,7 +78,7 @@ class TestSpreadOpportunity:
         """Opportunity is profitable when net_profit > 0."""
         opp = create_opportunity(spread_pct=1.0, fee_pct=0.3, slippage_pct=0.1)
         
-        assert opp.is_profitable(), (
+        assert opp.is_profitable, (
             f"Should be profitable with {opp.net_profit_pct}% net profit"
         )
 
@@ -86,7 +86,7 @@ class TestSpreadOpportunity:
         """Opportunity is NOT profitable when fees exceed spread."""
         opp = create_opportunity(spread_pct=0.2, fee_pct=0.3, slippage_pct=0.1)
         
-        assert not opp.is_profitable(), (
+        assert not opp.is_profitable, (
             f"Should NOT be profitable with {opp.net_profit_pct}% net profit"
         )
 
@@ -94,7 +94,7 @@ class TestSpreadOpportunity:
         """Edge case: exactly break-even is NOT profitable."""
         opp = create_opportunity(spread_pct=0.4, fee_pct=0.3, slippage_pct=0.1)
         
-        assert not opp.is_profitable(), "Break-even should not be considered profitable"
+        assert not opp.is_profitable, "Break-even should not be considered profitable"
 
     def test_optimal_size_calculation(self, create_opportunity):
         """
@@ -163,15 +163,14 @@ class TestSpreadOpportunity:
         # The optimal should be constrained by min(buy_liq, sell_liq)
         min_liquidity = min(opp.buy_liquidity, opp.sell_liquidity)
         
+        # Correct usage: Pass liquidity constraint as max_size
         optimal = opp.calculate_optimal_size(
             impact_factor=0.0001,
             min_size=10.0,
-            max_size=1000.0,
+            max_size=min_liquidity,  # Pass liquidity constraint here
         )
         
-        # Implementation should consider liquidity
-        # This tests that we don't trade more than available
-        assert optimal <= max(min_liquidity, 10.0), (
+        assert optimal <= min_liquidity, (
             f"Optimal {optimal} should respect liquidity {min_liquidity}"
         )
 
