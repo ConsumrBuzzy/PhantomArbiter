@@ -58,3 +58,6 @@ python-multipart>=0.0.6
 # Testing (pinned for Windows 3.12 stability)
 pytest==7.4.4
 pytest-asyncio==0.23.8
+
+# V200: CEX-DEX Liquidity Bridge (Coinbase Advanced Trade via CCXT)
+ccxt>=4.1.0
