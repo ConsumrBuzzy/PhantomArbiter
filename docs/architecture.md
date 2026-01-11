@@ -63,13 +63,18 @@ graph TD
 | **Data Broker** | `src/core/data_broker.py` | Central nervous system. Aggregates data from WSS, REST, and Bridges. |
 | **Arbiter Engine** | `src/arbiter/` | The trading brain. Performs graph traversal (Bellman-Ford/DFS) to find arbitrage loops. |
 | **Tactical Strategy** | `src/strategies/tactical.py` | Scalping and trend-following strategies. |
+| **Trend Engine** | `src/data_storage/trend_engine.py` | Aggregates ticks into OHLCV candles (Bellows Compression). |
+| **Funding Watchdog** | `src/engines/funding/watchdog.py` | Monitors funding rates to protect against negative carry. |
 
 ### 2. The Services (`apps/`)
 | Service | Status | Port | Description |
 |---------|--------|------|-------------|
-| **Galaxy** | ✅ Active | `8001` | Visualization Dashboard (FastAPI + Three.js). |
+| **Galaxy (Dashboard)** | ✅ Active | `8001` | Visualization UI. **Decoupled** from Core trading loop. |
 | **DataFeed** | 🚧 Incubating | `9000` | High-throughput market data ingestion (gRPC). |
 | **Execution** | 🚧 Incubating | `9001` | Transaction signing and broadcasting (gRPC). |
+
+> [!NOTE]
+> **UI Direction**: We are moving towards a strict separation of concerns where the Core (SyncExecution) has NO dependencies on the UI. The Galaxy Dashboard consumes data via shared memory/IPC or lightweight HTTP, preventing UI latency from impacting trade execution.
 
 ### 3. The Bridges (`bridges/`)
 Node.js processes wrapped by Python classes (`src/shared/execution/*_bridge.py`). They communicate via Standard IO (stdin/stdout) using JSON-RPC style messages.

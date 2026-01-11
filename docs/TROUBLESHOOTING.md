@@ -362,3 +362,27 @@ Check `diagnostic_output.txt` for startup diagnostics.
    - Error message
    - Steps to reproduce
    - Relevant config (sans secrets)
+
+---
+
+## 🧪 Test Suite & Environment
+
+### "Async tests skipping (Zombie Mode)"
+
+**Cause:** `pytest-asyncio` plugin conflict with Windows event loop on Python 3.12, or corrupted `site-packages`.
+
+**Solution: The Nuclear Reset**
+If tests show "Unknown config option: asyncio_mode" or skip all async tests:
+```powershell
+deactivate
+Remove-Item -Recurse -Force .venv
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pytest tests/test_foundation.py -v
+```
+
+### "AssertionError: assert 2 == 1" (TrendEngine)
+**Cause:** Duplicate data aggregation bug (Fixed in `src/data_storage/trend_engine.py`).
+**Status:** ✅ Fixed (Logic removed redundant append in `flush_all`).
+

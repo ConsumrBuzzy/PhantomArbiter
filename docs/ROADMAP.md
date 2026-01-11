@@ -5,6 +5,14 @@
 
 ## 🏛️ Functional Pillars
 
+### 0. Core Stability
+*Focus: Removing technical debt, decomposing monoliths, and ensuring test reliability.*
+
+*   **P0: Architecture Clean-up**
+    *   [x] **Test Environment**: Stabilize Pytest/Asyncio on Windows 3.12 (Phase 4).
+    *   [ ] **God Object Decomposition**: Split `SyncExecution` and `DashboardServer` into separate processes (Decouple UI).
+    *   [ ] **Strict Typing**: Enforce MyPy compliance across `src/core`.
+
 ### 1. Ingestion (Data Pipeline)
 *Focus: market data reliability, WSS latency, and scraper robustness.*
 
