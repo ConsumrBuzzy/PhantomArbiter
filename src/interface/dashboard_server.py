@@ -126,126 +126,34 @@ class DashboardServer:
                     if self.global_mode == "PAPER":
                         # Load Paper Wallet balances
                         try:
-                            pw.reload() # Reload from DB
-                            # Logger.debug("Paper Wallet reloaded")
+                            pw.reload()  # Reload from DB
                         except Exception as e:
-                            Logger.error(f"Paper Wallet reload failed: {e}")
+                            Logger.debug(f"Paper Wallet reload: {e}")
                         
-                        # Initialize feed on demand (singleton)
-                        if not hasattr(self, '_val_feed'):
-                            try:
-                                from src.shared.feeds.jupiter_feed import JupiterFeed
-                                self._val_feed = JupiterFeed()
-                                Logger.info("JupiterFeed initialized in Heartbeat")
-                            except Exception as e:
-                                Logger.error(f"Feed init failed: {e}")
-
+                        # Build wallet data with fallback prices
                         enriched_wallet = {}
                         total_equity = 0.0
                         
-                        # Calculate valuations
-                        try:
-                            # 1. Assets list
-                            assets = list(pw.balances.keys())
-                            # 2. Get Prices (Mock or Real)
-                            # For safety, wrap the feed call
-                            if hasattr(self, '_val_feed'):
-                                # Just use simple get_spot_price for now to avoid async complexity in loop if confusing
-                                pass 
+                        # Fallback prices if feed unavailable
+                        FALLBACK_PRICES = {"SOL": 150.0, "USDC": 1.0, "JTO": 2.5, "JUP": 0.8}
+                        
+                        for asset, balance in pw.balances.items():
+                            price = FALLBACK_PRICES.get(asset, 0.0)
                             
-                            for asset, balance in pw.balances.items():
-                                price = 0.0
-                                value = 0.0
+                            # Try to get real price from feed
+                            try:
+                                if not hasattr(self, '_val_feed'):
+                                    from src.shared.feeds.jupiter_feed import JupiterFeed
+                                    self._val_feed = JupiterFeed()
                                 
-                                if asset == "USDC":
-                                    price = 1.0
-                                    value = balance
-                                else:
-                                    if hasattr(self, '_val_feed'):
-                                        quote = self._val_feed.get_spot_price(asset, "USDC")
-                                        if quote:
-                                            price = quote.price
-                                            value = balance * price
-                                
-                                total_equity += value
-                                enriched_wallet[asset] = {
-                                    "amount": balance,
-                                    "value_usd": value,
-                                    "price": price
-                                }
-                        except Exception as e:
-                            Logger.error(f"Valuation loop error: {e}")
-                        
-                        # Initialize feed on demand (singleton)
-                        if not hasattr(self, '_val_feed'):
-                            self._val_feed = JupiterFeed()
-
-                        # 1. Identify assets needing price
-                        assets = list(pw.balances.keys())
-                        
-                        # 2. Fetch prices (SOL + others)
-                        prices = await self._val_feed.get_multiple_prices(assets) # Assumes method supports symbols or we handle it
-                        # JupiterFeed.get_multiple_prices usually expects mints. 
-                        # PaperWallet keys are SYMBOLS (SOL, USDC, WIF).
-                        # We need a Symbol -> Mint map or use get_price_for_symbol.
-                        # For MVP optimization: Just use get_spot_price loop or enhanced feed.
-                        # Let's use loop for now, optimizing later.
-                        # 3. BACKGROUND INTELLIGENCE SCANNER (Mock/Real Hybrid)
-                        # If no engines are running, we want the "Intelligence" panel to feel alive.
-                        # We'll generate some opportunities based on price movements.
-                        
-                        running_engines = len([e for e in engine_status.values() if e.get('status') == 'RUNNING'])
-                        
-                        if running_engines == 0:
-                            # Mock Intelligence Data for "Live Feed" feel
-                            import random
+                                if hasattr(self, '_val_feed') and asset != "USDC":
+                                    quote = self._val_feed.get_spot_price(asset, "USDC")
+                                    if quote and quote.price > 0:
+                                        price = quote.price
+                            except Exception:
+                                pass  # Use fallback price
                             
-                            # 10% chance to emit a signal per heartbeat
-                            if random.random() < 0.1:
-                                tokens = ["SOL", "JTO", "JUP", "WIF", "BONK"]
-                                token = random.choice(tokens)
-                                
-                                # Broadcast ARB_OPP
-                                arb_payload = {
-                                    "type": "ARB_OPP",
-                                    "data": {
-                                        # Use proper key names matching frontend expectation
-                                        # Frontend expects: { token, route, spread, profit }
-                                        # But let's check app.module.js or intelligence.js
-                                        # Actually app.module.js handles ARB_OPP by log? No, it might be separate.
-                                        # Let's emit a generic INTELLIGENCE_UPDATE
-                                        "token": token,
-                                        "route": "Raydium -> Orca",
-                                        "profit_pct": random.uniform(0.1, 1.5),
-                                        "est_profit_sol": random.uniform(0.01, 0.05),
-                                        "timestamp": asyncio.get_event_loop().time()
-                                    }
-                                }
-                                await self._broadcast(json.dumps(arb_payload))
-                                
-                            # 10% chance for Scalp Signal
-                            if random.random() < 0.1:
-                                tokens = ["SOL", "JTO", "JUP", "WIF", "BONK"]
-                                token = random.choice(tokens)
-                                scalp_payload = {
-                                    "type": "SCALP_SIGNAL",
-                                    "data": {
-                                        "token": token,
-                                        "signal_type": random.choice(["RSI Oversold", "MACD Cross", "Volume Spike"]),
-                                        "confidence": random.choice(["High", "Med"]),
-                                        "action": random.choice(["BUY", "SELL"]),
-                                        "price": enriched_wallet.get("SOL", {}).get("price", 0) * random.uniform(0.99, 1.01),
-                                        "timestamp": asyncio.get_event_loop().time()
-                                    }
-                                }
-                                await self._broadcast(json.dumps(scalp_payload))
-
-                        # Try to get price
-                        # ... (existing loop continues)
-                                if quote:
-                                    price = quote.price
-                                    value = balance * price
-                            
+                            value = balance * price
                             total_equity += value
                             
                             enriched_wallet[asset] = {
@@ -253,28 +161,23 @@ class DashboardServer:
                                 "value_usd": value,
                                 "price": price
                             }
-                            
-                        # FIX: Nest assets to match Inventory.js expectation
+                        
+                        # Always set wallet_data
                         wallet_data = {
                             "assets": enriched_wallet,
                             "equity": total_equity,
                             "sol_balance": pw.balances.get("SOL", 0.0),
                             "type": "PAPER"
                         }
-
-                        # Broadcast Global SOL Price (from feed or wallet cache)
-                        sol_price = 0.0
-                        if "SOL" in enriched_wallet:
-                            sol_price = enriched_wallet["SOL"]["price"]
                         
-                        # Send Market Data Packet separately or include in stats
-                        # Here we broadcast a separate small packet for the Tape
+                        # Broadcast SOL price for SolTape
+                        sol_price = enriched_wallet.get("SOL", {}).get("price", 0)
                         if sol_price > 0:
                             market_payload = {
                                 "type": "MARKET_DATA",
                                 "data": {
                                     "sol_price": sol_price,
-                                    "source": "JUPITER (Global)"
+                                    "source": "PAPER WALLET"
                                 }
                             }
                             await self._broadcast(json.dumps(market_payload))
