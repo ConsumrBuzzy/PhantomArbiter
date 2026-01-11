@@ -110,6 +110,18 @@ def mock_jupiter_feed(monkeypatch):
     return mock_feed
 
 
+# Force load pytest-asyncio
+pytest_plugins = ["pytest_asyncio"]
+
+@pytest.fixture
+def mock_feed(mock_settings):
+    """
+    Default price dictionary for testing.
+    
+    Provides a consistent market state for deterministic tests.
+    """
+    return mock_settings
+
 
 @pytest.fixture
 def mock_settings():
