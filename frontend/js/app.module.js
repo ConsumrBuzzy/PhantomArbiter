@@ -28,8 +28,14 @@ import { MajorsTape } from './components/majors-tape.js';
 import { MemeSniperStrip } from './components/meme-sniper-strip.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
+import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
 import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
+
+// Router & Pages
+import { Router } from './core/router.js';
+import { DashboardPage } from './pages/dashboard-page.js';
+import { EnginePage } from './pages/engine-page.js';
 
 class TradingOS {
     constructor() {
@@ -37,9 +43,29 @@ class TradingOS {
         this.layoutManager = new LayoutManager();
         this.terminal = new Terminal('log-stream');
         this.marketData = new MarketData();
-        this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
-        this.inventory = new Inventory('inventory-table');
+
+        // Initialize Router
+        this.router = new Router('app-root');
+
+        // Register Routes
+        this.router.register('/dashboard', new DashboardPage('dashboard'));
+        this.router.register('/engine/arb', new EnginePage('arb'));
+        this.router.register('/engine/funding', new EnginePage('funding'));
+        this.router.register('/engine/scalp', new EnginePage('scalp'));
+        this.router.register('/engine/drift', new EnginePage('drift')); // Future dedicated page
+        // Default route is handled by Router._handleHashChange
+
+        this.tokenWatchlist = new TokenWatchlist('watchlist-panel'); // Note: Watchlist panel ID might only exist in DashboardPage now?
+        // Watchlist panel is inside DashboardPage, so this initialization might fail if it runs before mount.
+        // However, TokenWatchlist likely binds on init. If element missing, it might error.
+        // We will defer legacy component init if possible, or accept warning. 
+        // For V1, the dashboard mounts immediately on load, so it might race.
+        // Ideally, TokenWatchlist should be part of DashboardPage init().
+
+        // Global Services
+        this.inventory = new Inventory('inventory-table'); // Same issue: ID in sub-page.
         this.headerStats = new HeaderStats();
+        this.modal = new ModalManager();
         // Remove legacy WhaleTape (replaced by TickerTape in header)
 
         this.modal = new ModalManager();
@@ -57,6 +83,11 @@ class TradingOS {
         this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
 
         // Wire bridge button
+        // this.wireBridgeButton(); // Legacy
+
+        // Component Registry for Router
+        this.activeComponents = {};
+        this.activeComponents = {};
         this.unifiedVault.setBridgeCallback((amount) => {
             this.ws.send('BRIDGE_TRIGGER', { amount });
             this.terminal.addLog('BRIDGE', 'INFO', `Bridge initiated: $${amount.toFixed(2)} USDC → Phantom`);
@@ -128,13 +159,47 @@ class TradingOS {
         this.terminal.addLog('SYSTEM', 'INFO', `Connecting to Command Center: ${url}...`);
     }
 
+    registerDashboardComponents(components) {
+        this.activeComponents = components;
+        // Trigger immediate update if cache exists
+        if (this.lastData) {
+            this.handlePacket(this.lastData);
+        }
+    }
+
+    unregisterDashboardComponents() {
+        this.activeComponents = {};
+    }
+
     /**
      * Bind global UI events (navigation, SOS)
      */
     bindGlobalEvents() {
         // Navigation
         document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => this.switchView(item.dataset.view));
+            // Update valid sidebar links to use hash
+            // The HTML still uses data-view="dashboard", etc.
+            // We will interpret click -> hash
+            item.addEventListener('click', () => {
+                const view = item.dataset.view || item.dataset.tooltip?.toLowerCase(); // Fallback to tooltip if data-view missing
+                if (view) {
+                    // Map legacy view names to routes
+                    const routeMap = {
+                        'dashboard': '/dashboard',
+                        'scanner': '/engine/arb', // Example mapping
+                        'engines': '/engine/funding',
+                        'settings': '/config'
+                    };
+
+                    // Fallback for font-awesome icons that might not have data-view matches from the revert
+                    let target = routeMap[view] || '/dashboard';
+                    // Specific checks for sidebar structure (user reverted sidebar uses icons)
+                    if (view.includes('Dashboard')) target = '/dashboard';
+                    if (view.includes('Analytics')) target = '/engine/arb'; // Placeholder
+
+                    window.location.hash = target;
+                }
+            });
         });
 
         // Listen for navigation events from existing cards
@@ -417,15 +482,23 @@ class TradingOS {
 
                 // Watchlist
                 if (data.watchlist) {
-                    this.memeSniper.update({ tokens: data.watchlist });
+                    if (this.activeComponents.sniper) {
+                        this.activeComponents.sniper.update({ tokens: data.watchlist });
+                    } else if (this.memeSniper) {
+                        this.memeSniper.update({ tokens: data.watchlist });
+                    }
                 }
 
                 // ═══════════════════════════════════════════════════════════════
                 // UNIFIED BALANCE (Single Source of Truth)
                 // ═══════════════════════════════════════════════════════════════
                 if (data.unified_balance) {
-                    // Update the UnifiedVaultController
-                    this.unifiedVault.update(data.unified_balance);
+                    // Update the UnifiedVaultController (Global or Page-Specific)
+                    if (this.activeComponents.vault) {
+                        this.activeComponents.vault.update(data.unified_balance);
+                    } else if (this.unifiedVault) {
+                        this.unifiedVault.update(data.unified_balance);
+                    }
 
                     // Update Drift Panel (legacy support)
                     const driftEquity = data.unified_balance.drift?.equity || 0;

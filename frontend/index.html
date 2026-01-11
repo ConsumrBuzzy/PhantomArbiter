@@ -59,418 +59,55 @@
     <!-- ═══════════════════════════════════════════════════════════════
          MAIN CONTENT AREA
          ═══════════════════════════════════════════════════════════════ -->
-    <div class="main-content">
+    <!-- ═══════════════════════════════════════════════════════════════
+         MAIN CONTENT AREA (SPA Shell)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div class="main-content" style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
 
-        <!-- DASHBOARD VIEW (Default) -->
-        <div id="view-dashboard" class="view-panel active">
-            <div class="dashboard-container">
-                <header class="glass-panel header-streamlined">
-                    <!-- Stacked Ticker Tapes (Maximized) -->
-                    <div class="header-tapes">
-                        <!-- Sol Cross-Venue Price Tape -->
-                        <div class="tape-row">
-                            <span class="tape-label">SOL-DEFI</span>
-                            <div class="sol-tape-wrapper sol-tape-expanded" id="sol-tape-container">
-                                <div class="sol-tape-loading">Loading Markets...</div>
-                            </div>
-                        </div>
-                        <!-- Majors Price Tape (BTC, ETH, SOL global) -->
-                        <div class="tape-row">
-                            <span class="tape-label">MAJORS</span>
-                            <div class="sol-tape-wrapper sol-tape-expanded" id="majors-tape-container">
-                                <div class="sol-tape-loading">Loading Majors...</div>
-                            </div>
-                        </div>
-                        <!-- Whale Watcher Tape -->
-                        <div class="tape-row">
-                            <span class="tape-label">WHALES</span>
-                            <div class="sol-tape-wrapper sol-tape-expanded" id="whale-tape-header-mount">
-                                <div class="sol-tape-loading">Listening for Whales...</div>
-                            </div>
-                        </div>
+        <!-- GLOBAL HEADER (Always Visible) -->
+        <header class="glass-panel header-streamlined" style="flex-shrink: 0; margin-bottom: 20px;">
+            <!-- Stacked Ticker Tapes (Maximized) -->
+            <div class="header-tapes">
+                <!-- Sol Cross-Venue Price Tape -->
+                <div class="tape-row">
+                    <span class="tape-label">SOL-DEFI</span>
+                    <div class="sol-tape-wrapper sol-tape-expanded" id="sol-tape-container">
+                        <div class="sol-tape-loading">Loading Markets...</div>
                     </div>
-                </header>
-
-                <!-- ═══════════════════════════════════════════════════════════════
-                     UNIFIED VAULT (CFO Component)
-                     ═══════════════════════════════════════════════════════════════ -->
-
-
-                <!-- ═══════════════════════════════════════════════════════════════
-                     TICKER TAPES (Mode-Aware Marquees)
-                     ═══════════════════════════════════════════════════════════════ -->
-
-                <!-- LEFT COLUMN: Vault & Inventory -->
-                <div class="left-column">
-                    <!-- UNIFIED VAULT (CFO Component) -->
-                    <section id="unified-vault-container" class="unified-vault-mount">
-                        <!-- UnifiedVaultController mounts here -->
-                    </section>
-
-                    <section class="glass-panel" id="inventory-panel">
-                        <div class="panel-title">Inventory</div>
-                        <div class="inventory-split">
-                            <!-- LIVE INVENTORY -->
-                            <div class="inventory-half live">
-                                <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
-                                <table id="live-inventory-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ASSET</th>
-                                            <th>AMOUNT</th>
-                                            <th>VALUE</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="3" style="text-align: center; color: var(--text-dim);">
-                                                Loading...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <!-- PAPER INVENTORY -->
-                            <div class="inventory-half paper">
-                                <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
-                                <table id="paper-inventory-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ASSET</th>
-                                            <th>AMOUNT</th>
-                                            <th>VALUE</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="3" style="text-align: center; color: var(--text-dim);">
-                                                Loading...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="glass-panel" id="watchlist-panel">
-                        <div class="panel-loading">Initializing Watchlist...</div>
-                    </section>
                 </div>
-
-                <!-- RIGHT COLUMN: Active Trading -->
-                <div class="right-column">
-                    <!-- 1. Meme Sniper (Scalper View) -->
-                    <div id="meme-sniper-mount" class="glass-panel"
-                        style="height: 300px; padding: 0; overflow: hidden; margin-bottom: 20px;">
-                        <div class="sniper-loading">🚀 Scraper View Initializing...</div>
+                <!-- Majors Price Tape (BTC, ETH, SOL global) -->
+                <div class="tape-row">
+                    <span class="tape-label">MAJORS</span>
+                    <div class="sol-tape-wrapper sol-tape-expanded" id="majors-tape-container">
+                        <div class="sol-tape-loading">Loading Majors...</div>
                     </div>
-
-                    <!-- 2. DRIFT PROTOCOL VAULT -->
-                    <section class="drift-vault-card" id="drift-panel">
-                        <div class="drift-header">
-                            <div class="drift-logo">
-                                <span>🌊 DRIFT PROTOCOL</span>
-                            </div>
-                            <div class="drift-status-badge">MAINNET</div>
-                        </div>
-                        <div class="drift-stats-grid">
-                            <div class="drift-stat">
-                                <span class="drift-label">EQUITY</span>
-                                <span class="drift-value" id="drift-equity">$0.00</span>
-                            </div>
-                            <div class="drift-stat">
-                                <span class="drift-label">Unrealized PnL</span>
-                                <span class="drift-value" id="drift-pnl">--</span>
-                            </div>
-                            <div class="drift-stat">
-                                <span class="drift-label">LEVERAGE</span>
-                                <span class="drift-value" id="drift-leverage">0x</span>
-                            </div>
-                        </div>
-                        <div class="drift-actions">
-                            <button class="drift-btn" title="Coming Soon">Deposit</button>
-                            <button class="drift-btn" title="Coming Soon">Manage</button>
-                        </div>
-                        <div id="drift-ticker"
-                            style="margin-top: 10px; font-size: 0.8rem; color: var(--neon-purple); text-align: center; height: 20px;">
-                            Scanning for opportunities...
-                        </div>
-                    </section>
-
-                    <section class="glass-panel" id="metrics-panel">
-                        <div class="panel-title">System Metrics</div>
-                        <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
-                    </section>
                 </div>
-                <footer class="glass-panel">
-                    <div class="panel-title">Terminal Logs</div>
-                    <div class="log-container" id="log-stream">
-                        <div class="log-entry INFO">System Initialized. Awaiting link...</div>
+                <!-- Whale Watcher Tape -->
+                <div class="tape-row">
+                    <span class="tape-label">WHALES</span>
+                    <div class="sol-tape-wrapper sol-tape-expanded" id="whale-tape-header-mount">
+                        <div class="sol-tape-loading">Listening for Whales...</div>
                     </div>
-                </footer>
+                </div>
+            </div>
+        </header>
+
+        <!-- DYNAMIC APP ROOT (Router Target) -->
+        <div id="app-root" style="flex: 1; overflow-y: auto; position: relative;">
+            <div class="router-loading"
+                style="display: flex; justify-content: center; align-items: center; height: 100%; color: var(--neon-blue);">
+                INITIALIZING HUB...
             </div>
         </div>
 
-        <!-- ENGINES VIEW -->
-        <div id="view-engines" class="view-panel">
-            <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
-                <div class="logo">
-                    <span style="color: var(--neon-blue); font-weight: bold; font-size: 1.1rem;">⚡ ENGINE CONTROL</span>
-                </div>
-            </header>
-
-            <div class="engine-stack">
-                <!-- Arbitrage Engine -->
-                <div class="engine-card" data-engine="arb" data-status="stopped">
-                    <div class="engine-card-header">
-                        <div class="engine-card-title">
-                            <div class="engine-icon"
-                                style="background: linear-gradient(135deg, #00ffaa 0%, #00cc88 100%);">📊</div>
-                            <div>
-                                <div class="engine-name">Arbitrage Engine</div>
-                                <div class="engine-subtitle">Spatial Arbitrage Scanner</div>
-                            </div>
-                        </div>
-                        <div class="engine-controls">
-                            <!-- Helper Text -->
-                            <span style="font-size: 0.7rem; color: var(--text-dim); margin-right: 10px;">Click for
-                                Details</span>
-                            <button class="settings-btn" data-engine="arb" title="Configure">⚙️</button>
-                            <button class="power-toggle" data-engine="arb" title="Toggle">⏻</button>
-                        </div>
-                    </div>
-                    <!-- Simplified Summary for List View -->
-                    <div class="engine-status">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Stopped</span>
-                        <span class="status-uptime" style="margin-left: auto; color: var(--text-dim);"></span>
-                    </div>
-                </div>
-
-                <!-- Funding Rate Engine -->
-                <div class="engine-card" data-engine="funding" data-status="stopped">
-                    <div class="engine-card-header">
-                        <div class="engine-card-title">
-                            <div class="engine-icon"
-                                style="background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);">💰</div>
-                            <div>
-                                <div class="engine-name">Funding Rate Engine</div>
-                                <div class="engine-subtitle">Delta-Neutral Yield Farming</div>
-                            </div>
-                        </div>
-                        <div class="engine-controls">
-                            <button class="settings-btn" data-engine="funding" title="Configure">⚙️</button>
-                            <button class="power-toggle" data-engine="funding" title="Toggle">⏻</button>
-                        </div>
-                    </div>
-                    <div class="engine-status">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Stopped</span>
-                        <span class="status-uptime" style="margin-left: auto; color: var(--text-dim);"></span>
-                    </div>
-                </div>
-
-                <!-- Scalp Engine -->
-                <div class="engine-card" data-engine="scalp" data-status="stopped">
-                    <div class="engine-card-header">
-                        <div class="engine-card-title">
-                            <div class="engine-icon"
-                                style="background: linear-gradient(135deg, #ffd700 0%, #cc9900 100%);">🎯</div>
-                            <div>
-                                <div class="engine-name">Scalp Sniper Engine</div>
-                                <div class="engine-subtitle">Sentiment-Based Trading</div>
-                            </div>
-                        </div>
-                        <div class="engine-controls">
-                            <button class="settings-btn" data-engine="scalp" title="Configure">⚙️</button>
-                            <button class="power-toggle" data-engine="scalp" title="Toggle">⏻</button>
-                        </div>
-                    </div>
-                    <div class="engine-status">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Stopped</span>
-                        <span class="status-uptime" style="margin-left: auto; color: var(--text-dim);"></span>
-                    </div>
-                </div>
-
-                <!-- LST De-Pegger Engine -->
-                <div class="engine-card" data-engine="lst" data-status="stopped">
-                    <div class="engine-card-header">
-                        <div class="engine-card-title">
-                            <div class="engine-icon"
-                                style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);">💧</div>
-                            <div>
-                                <div class="engine-name">LST De-Pegger</div>
-                                <div class="engine-subtitle">Fair Value Protector</div>
-                            </div>
-                        </div>
-                        <div class="engine-controls">
-                            <button class="settings-btn" data-engine="lst" title="Configure">⚙️</button>
-                            <button class="power-toggle" data-engine="lst" title="Toggle">⏻</button>
-                        </div>
-                    </div>
-                    <div class="engine-status">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Stopped</span>
-                        <span class="status-uptime" style="margin-left: auto; color: var(--text-dim);"></span>
-                    </div>
-                </div>
-            </div> <!-- Close .engine-stack -->
-
-            <!-- Engine Detail Panel (Full-screen Control Room, slides in from right) -->
-            <div id="view-engine-detail" class="engine-detail-view">
-                <!-- Header Bar -->
-                <div class="detail-header">
-                    <div class="detail-header-left">
-                        <button class="back-btn" title="Back to Engine List">←</button>
-                        <div class="detail-title">
-                            <span id="detail-engine-name">Engine Control Room</span>
-                            <span class="engine-badge" id="detail-engine-status">STOPPED</span>
-                        </div>
-                    </div>
-                    <div class="detail-header-right">
-                        <div class="mode-selector detail-mode">
-                            <button class="mode-btn active" data-mode="paper">PAPER</button>
-                            <button class="mode-btn" data-mode="live">LIVE</button>
-                        </div>
-                        <button class="power-toggle detail-power" title="Toggle Engine">⏻</button>
-                    </div>
-                </div>
-
-                <!-- Content Grid -->
-                <div class="detail-content">
-                    <!-- Vault Panel (The Bank) -->
-                    <div class="vault-panel">
-                        <div class="vault-panel-header">
-                            <span class="vault-panel-title">Engine Vault</span>
-                            <div class="vault-controls">
-                                <button class="vault-btn reset" data-action="reset-sim">Reset Sim</button>
-                                <button class="vault-btn sync" data-action="live-sync">Live Sync</button>
-                            </div>
-                        </div>
-                        <div class="vault-equity" id="detail-vault-equity">$0.00</div>
-                        <div class="vault-assets" id="detail-vault-assets">
-                            <!-- Populated by JS -->
-                            <div class="vault-asset-row">
-                                <span class="vault-asset-symbol">Loading...</span>
-                            </div>
-                        </div>
-                    </div>
-
-
-
-                    <!-- Config Panel (The Brain) -->
-                    <div class="config-panel">
-                        <div class="config-panel-title">Strategy Knobs</div>
-                        <div class="config-grid" id="detail-config-grid">
-                            <!-- Populated by JS based on engine type -->
-                            <div class="config-item">
-                                <div class="config-label">Loading...</div>
-                                <div class="config-value">--</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Log Panel (The Tape) -->
-                    <div class="log-panel">
-                        <div class="log-panel-header">
-                            <span class="log-panel-title">Engine Logs</span>
-                            <span class="log-filter-badge" id="detail-log-filter">ALL</span>
-                        </div>
-                        <div class="engine-log-stream" id="detail-log-stream">
-                            <!-- Populated by JS with filtered logs -->
-                            <div class="log-entry info">Waiting for engine activity...</div>
-                        </div>
-                    </div>
-                </div>
+        <!-- GLOBAL FOOTER (Terminal Logs) -->
+        <footer class="glass-panel" style="flex-shrink: 0; margin-top: 20px; height: 200px;">
+            <div class="panel-title">Terminal Logs</div>
+            <div class="log-container" id="log-stream">
+                <div class="log-entry INFO">System Initialized. Awaiting link...</div>
             </div>
-        </div> <!-- Close #view-engines -->
+        </footer>
 
-        <!-- SCANNER VIEW (Moved from Engines) -->
-        <div id="view-scanner" class="view-panel">
-            <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
-                <div class="logo">
-                    <span style="color: var(--neon-blue); font-weight: bold; font-size: 1.1rem;">📡 MARKET
-                        SCANNER</span>
-                </div>
-            </header>
-            <!-- Critical Alerts Banner -->
-            <div id="critical-alerts" class="glass-panel"
-                style="display: none; margin-bottom: 20px; border-left: 3px solid var(--neon-red);">
-                <div class="panel-title" style="color: var(--neon-red);">🚨 Critical Alerts</div>
-                <div id="critical-alerts-list"></div>
-            </div>
-
-            <!-- Top Opportunities Heatmap -->
-            <div class="glass-panel" style="margin-bottom: 20px;">
-                <div class="panel-title">🔥 Top Opportunities</div>
-                <div id="opportunities-heatmap" class="opportunities-grid">
-                    <div class="opportunity-placeholder">Scanning for opportunities...</div>
-                </div>
-            </div>
-
-            <!-- Source Breakdown Cards -->
-            <div class="scanner-sources">
-                <!-- ARB Signals -->
-                <div class="glass-panel source-card" data-source="arb">
-                    <div class="panel-title" style="color: var(--neon-green);">📊 Arbitrage</div>
-                    <div class="source-stats">
-                        <span class="stat-value" id="arb-count">0</span>
-                        <span class="stat-label">signals</span>
-                    </div>
-                    <div class="source-signals" id="arb-signals">
-                        <div class="signal-placeholder">No arb opportunities</div>
-                    </div>
-                </div>
-
-                <!-- FUNDING Signals -->
-                <div class="glass-panel source-card" data-source="funding">
-                    <div class="panel-title" style="color: var(--neon-blue);">💰 Funding Rates</div>
-                    <div class="source-stats">
-                        <span class="stat-value" id="funding-count">0</span>
-                        <span class="stat-label">signals</span>
-                    </div>
-                    <div class="source-signals" id="funding-signals">
-                        <div class="signal-placeholder">No funding alerts</div>
-                    </div>
-                </div>
-
-                <!-- SCALP Signals -->
-                <div class="glass-panel source-card" data-source="scalp">
-                    <div class="panel-title" style="color: var(--neon-gold);">🎯 Scalp Signals</div>
-                    <div class="source-stats">
-                        <span class="stat-value" id="scalp-count">0</span>
-                        <span class="stat-label">signals</span>
-                    </div>
-                    <div class="source-signals" id="scalp-signals">
-                        <div class="signal-placeholder">No scalp signals</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- CONFIG VIEW -->
-        <div id="view-config" class="view-panel">
-            <header class="glass-panel" style="margin-bottom: 20px; padding: 15px 20px;">
-                <div class="logo">
-                    <span style="color: var(--neon-gold); font-weight: bold; font-size: 1.1rem;">⚙️ SYSTEM
-                        PREFERENCES</span>
-                </div>
-            </header>
-            <div class="glass-panel">
-                <div class="panel-title">🔌 API & RPC Status</div>
-                <div id="api-health-container">
-                    <!-- API Health grid rendered by JS -->
-                    <div class="api-health-loading">
-                        <span>Initializing health checks...</span>
-                    </div>
-                </div>
-            </div>
-            <div class="glass-panel" style="margin-top: 15px;">
-                <div class="panel-title">⚙️ Global Settings</div>
-                <p style="color: var(--text-dim); font-size: 0.85rem;">Additional configuration options coming soon...
-                </p>
-            </div>
-        </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
