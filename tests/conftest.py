@@ -18,6 +18,20 @@ pytest_plugins = ["pytest_asyncio"]
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+
+def pytest_configure(config):
+    """
+    Pre-Flight Injection: Manually register pytest-asyncio if the
+    standard metadata loader failed (common on Windows 3.12).
+    """
+    try:
+        import pytest_asyncio.plugin
+        if not config.pluginmanager.has_plugin("asyncio"):
+            config.pluginmanager.register(pytest_asyncio.plugin, "asyncio")
+    except ImportError:
+        pass  # pytest-asyncio not installed
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()

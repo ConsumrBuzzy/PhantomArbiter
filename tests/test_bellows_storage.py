@@ -40,7 +40,8 @@ class TestTrendEngine:
     def test_window_close(self):
         """Test that new window closes previous."""
         engine = TrendEngine()
-        base_time = time.time()
+        # Anchor to a known window boundary (multiple of 60)
+        base_time = 1704214800  # 2024-01-02 15:00:00 UTC (exact minute)
         
         # Window 1
         engine.add_tick("SOL", "SOL", 100, timestamp=base_time)
