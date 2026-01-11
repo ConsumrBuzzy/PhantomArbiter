@@ -245,9 +245,7 @@ class TrendEngine:
         deltas = []
         
         for window in self._windows.values():
-            delta = self._close_window(window)
-            if delta:
-                deltas.append(delta)
+            self._close_window(window)
         
         # Also return any pending
         deltas.extend(self._pending_deltas)

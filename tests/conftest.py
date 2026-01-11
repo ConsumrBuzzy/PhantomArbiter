@@ -11,6 +11,9 @@ import asyncio
 import sys
 import pytest
 
+# Manually force plugin load (bypass entry point issues)
+pytest_plugins = ["pytest_asyncio"]
+
 # Force Windows Selector Loop before any tests run
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
