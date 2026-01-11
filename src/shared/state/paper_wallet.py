@@ -11,7 +11,7 @@ Features:
 
 import logging
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from src.shared.system.persistence import get_db
 
 logger = logging.getLogger("phantom.paper_wallet")

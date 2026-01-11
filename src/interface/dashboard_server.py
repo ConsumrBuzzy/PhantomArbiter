@@ -18,7 +18,7 @@ from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 from src.interface.dashboard_transformer import DashboardTransformer
 from src.interface.engine_registry import engine_registry
 from src.interface.engine_manager import engine_manager
-from src.shared.state.paper_wallet import pw
+from src.shared.state.paper_wallet import PaperWallet
 from src.shared.system.logging import Logger
 
 
