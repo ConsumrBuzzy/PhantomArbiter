@@ -52,6 +52,7 @@ LAST_24H_AVG_FUNDING_RATE_OFFSET = 504
 FUNDING_RATE_PRECISION = 1_000_000_000  # 1e9
 NEGATIVE_THRESHOLD = -0.0005 # Stricter tolerance
 POSITIVE_THRESHOLD = 0.0005  # Re-Entry requirement
+MAX_NEGATIVE_STREAK = 4      # Consecutive checks before unwind
 
 WATCHDOG_STATE_FILE = Path("data/watchdog_state.json")
 
