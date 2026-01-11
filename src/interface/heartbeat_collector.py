@@ -60,6 +60,30 @@ class WalletSnapshot:
 
 
 @dataclass
+class CEXWalletSnapshot:
+    """Snapshot of CEX (Coinbase) wallet balance."""
+    
+    exchange: str = "coinbase"
+    withdrawable_usdc: float = 0.0
+    total_value_usd: float = 0.0
+    pending_withdrawals: int = 0
+    bridge_state: str = "IDLE"
+    is_configured: bool = False
+    last_update: float = 0.0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "exchange": self.exchange,
+            "withdrawable_usdc": self.withdrawable_usdc,
+            "total_value_usd": self.total_value_usd,
+            "pending_withdrawals": self.pending_withdrawals,
+            "bridge_state": self.bridge_state,
+            "is_configured": self.is_configured,
+            "last_update": self.last_update,
+        }
+
+
+@dataclass
 class EngineSnapshot:
     """Status snapshot for a single engine."""
     name: str
@@ -111,6 +135,7 @@ class SystemSnapshot:
     # Wallets
     paper_wallet: WalletSnapshot
     live_wallet: WalletSnapshot
+    cex_wallet: CEXWalletSnapshot = field(default_factory=CEXWalletSnapshot)
     
     # Engines
     engines: Dict[str, EngineSnapshot] = field(default_factory=dict)
@@ -135,6 +160,7 @@ class SystemSnapshot:
         result = {
             "paper_wallet": self.paper_wallet.to_dict(),
             "live_wallet": self.live_wallet.to_dict(),
+            "cex_wallet": self.cex_wallet.to_dict(),
             "wallet": self.paper_wallet.to_dict(),  # Legacy compat
             "engines": {
                 name: {
@@ -225,9 +251,10 @@ class HeartbeatDataCollector:
         start_time = time.time()
         
         # Collect in parallel where possible
-        paper_wallet, live_wallet, engines, sol_price, delta_state = await asyncio.gather(
+        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state = await asyncio.gather(
             self._collect_paper_wallet(),
             self._collect_live_wallet(),
+            self._collect_cex_wallet(),
             self._collect_engine_status(),
             self._get_sol_price(),
             self._collect_delta_state(),
@@ -242,6 +269,7 @@ class HeartbeatDataCollector:
         snapshot = SystemSnapshot(
             paper_wallet=paper_wallet,
             live_wallet=live_wallet,
+            cex_wallet=cex_wallet,
             engines=engines,
             sol_price=sol_price,
             watchlist=watchlist,
@@ -338,6 +366,40 @@ class HeartbeatDataCollector:
         except Exception as e:
             Logger.debug(f"Live wallet collection error: {e}")
             return WalletSnapshot(wallet_type="LIVE (error)")
+    
+    async def _collect_cex_wallet(self) -> CEXWalletSnapshot:
+        """Collect Coinbase CEX wallet balance."""
+        try:
+            from src.drivers.coinbase_driver import get_coinbase_driver
+            from src.drivers.bridge_manager import get_bridge_manager
+            
+            driver = get_coinbase_driver()
+            
+            if not driver.is_configured:
+                return CEXWalletSnapshot(is_configured=False)
+            
+            # Get balance
+            balance = await driver.get_withdrawable_usdc()
+            
+            # Get bridge state
+            try:
+                manager = get_bridge_manager()
+                bridge_state = manager.state.value
+            except Exception:
+                bridge_state = "UNKNOWN"
+            
+            return CEXWalletSnapshot(
+                exchange="coinbase",
+                withdrawable_usdc=balance,
+                total_value_usd=balance,  # USDC = USD
+                bridge_state=bridge_state,
+                is_configured=True,
+                last_update=time.time(),
+            )
+            
+        except Exception as e:
+            Logger.debug(f"CEX wallet collection error: {e}")
+            return CEXWalletSnapshot(is_configured=False)
     
     async def _collect_drift_equity(self) -> float:
         """Collect Drift perp account equity."""
