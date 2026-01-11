@@ -21,7 +21,6 @@ import { ArbScanner, FundingMonitor, ScalpPods, LstMonitor } from './components/
 import { Inventory } from './components/inventory.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
-import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
 import { SolTape } from './components/sol-tape.js';
