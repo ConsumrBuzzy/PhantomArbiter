@@ -9,6 +9,7 @@ export class MemeSniperStrip {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.tokens = [];
+        this.history = new Map(); // Stores { symbol: { lastPrice, trend, trendStartTime } }
     }
 
     /**
@@ -18,11 +19,41 @@ export class MemeSniperStrip {
     update(data) {
         if (!this.container || !data.tokens) return;
 
-        // Filter and sort for "hot" tokens
+        // 1. Process Data & Update History
+        const processedTokens = data.tokens.map(token => {
+            const symbol = token.symbol;
+            const currentPrice = this._getBestPrice(token);
+
+            let record = this.history.get(symbol) || {
+                lastPrice: currentPrice,
+                trend: 'FLAT',
+                trendStartTime: Date.now()
+            };
+
+            // Detect Trend Change
+            if (currentPrice > record.lastPrice) {
+                if (record.trend !== 'UP') {
+                    record.trend = 'UP';
+                    record.trendStartTime = Date.now();
+                }
+            } else if (currentPrice < record.lastPrice) {
+                if (record.trend !== 'DOWN') {
+                    record.trend = 'DOWN';
+                    record.trendStartTime = Date.now();
+                }
+            }
+
+            record.lastPrice = currentPrice;
+            this.history.set(symbol, record);
+
+            return { ...token, ...record, currentPrice };
+        });
+
+        // 2. Filter & Sort (Hot Tokens)
         // Sort by spread descending
-        const hotTokens = [...data.tokens]
+        const hotTokens = processedTokens
             .sort((a, b) => (b.spread_pct || 0) - (a.spread_pct || 0))
-            .slice(0, 50); // Show top 50 (Main View)
+            .slice(0, 50); // Show top 50
 
         // If no tokens yet, keep loading or show empty state
         if (hotTokens.length === 0) {
@@ -35,37 +66,52 @@ export class MemeSniperStrip {
         this.render(hotTokens);
     }
 
-    render(tokens) {
-        const checkIcon = '✓';
+    _getBestPrice(token) {
+        const prices = token.prices || {};
+        const entries = Object.entries(prices).filter(([_, p]) => p > 0);
+        if (entries.length === 0) return 0;
+        // Max price (Sell side proxy)
+        return entries.reduce((a, b) => a[1] > b[1] ? a : b)[1];
+    }
 
+    render(tokens) {
         const cardsHtml = tokens.map(token => {
             const spread = token.spread_pct || 0;
             const isHot = spread > 1.0;
             const hotClass = isHot ? 'hot' : '';
 
-            // Determine best buy/sell venues
+            // Trend Visuals
+            const isUp = token.trend === 'UP';
+            const isDown = token.trend === 'DOWN';
+            const trendIcon = isUp ? '▲' : (isDown ? '▼' : '•');
+            const trendClass = isUp ? 'trend-up' : (isDown ? 'trend-down' : 'trend-flat');
+
+            // Duration
+            const durationSec = Math.floor((Date.now() - token.trendStartTime) / 1000);
+            const durationStr = durationSec > 60 ? `${Math.floor(durationSec / 60)}m` : `${durationSec}s`;
+
+            // Venue Logic
             const prices = token.prices || {};
             const entries = Object.entries(prices).filter(([_, p]) => p > 0);
-
             let bestBuyVenue = '---';
-            let bestBuyPrice = 0;
 
             if (entries.length > 0) {
-                // Simplification for card: just show best price and a venue
-                const best = entries.reduce((a, b) => a[1] > b[1] ? a : b); // Max price (Sell)
+                const best = entries.reduce((a, b) => a[1] > b[1] ? a : b);
                 bestBuyVenue = best[0].substring(0, 3);
-                bestBuyPrice = best[1];
             }
 
             return `
                 <div class="meme-card ${hotClass}" onclick="window.tradingOS.terminal.addLog('SNIPER', 'INFO', 'Selected ${token.symbol}')">
                     <div class="meme-card-top">
                         <span class="meme-symbol">$${token.symbol}</span>
-                        <span class="meme-spread">+${spread.toFixed(2)}%</span>
+                        <div class="meme-trend-badge ${trendClass}">
+                            <span class="trend-icon">${trendIcon}</span>
+                            <span class="trend-duration">${durationStr}</span>
+                        </div>
                     </div>
                     <div class="meme-card-bottom">
-                        <span class="meme-price">$${bestBuyPrice.toFixed(4)}</span>
-                        <span class="meme-venue">${bestBuyVenue}</span>
+                        <span class="meme-price">$${token.currentPrice.toFixed(4)}</span>
+                        <span class="meme-spread ${spread > 0 ? 'positive' : ''}">+${spread.toFixed(2)}%</span>
                     </div>
                 </div>
             `;

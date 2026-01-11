@@ -495,3 +495,31 @@
     border-radius: 2px;
     background: rgba(255, 255, 255, 0.05);
 }
+
+/* Trend Indicators */
+.meme-trend-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.trend-up {
+    color: var(--neon-green);
+}
+
+.trend-down {
+    color: var(--neon-red);
+}
+
+.trend-flat {
+    color: var(--text-dim);
+}
+
+.trend-duration {
+    font-size: 0.7rem;
+    font-weight: normal;
+    color: var(--text-dim);
+    opacity: 0.8;
+}
