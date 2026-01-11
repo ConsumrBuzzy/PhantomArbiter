@@ -22,7 +22,7 @@ export class MemeSniperStrip {
         // Sort by spread descending
         const hotTokens = [...data.tokens]
             .sort((a, b) => (b.spread_pct || 0) - (a.spread_pct || 0))
-            .slice(0, 10); // Show top 10
+            .slice(0, 50); // Show top 50 (Main View)
 
         // If no tokens yet, keep loading or show empty state
         if (hotTokens.length === 0) {
