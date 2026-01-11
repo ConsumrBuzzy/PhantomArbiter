@@ -1,0 +1,114 @@
+/* Drift Protocol Component */
+.drift-vault-card {
+    background: linear-gradient(135deg, rgba(30, 30, 40, 0.9) 0%, rgba(10, 10, 15, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.drift-vault-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #875BF7, #5936B2);
+    /* Drift Purple */
+    box-shadow: 0 0 10px rgba(135, 91, 247, 0.6);
+}
+
+.drift-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.drift-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: bold;
+    color: #AB8BFF;
+    /* Lighter Purple */
+    text-shadow: 0 0 8px rgba(135, 91, 247, 0.4);
+}
+
+.drift-status-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(135, 91, 247, 0.15);
+    border: 1px solid rgba(135, 91, 247, 0.3);
+    color: #D4C4FF;
+}
+
+.drift-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    text-align: center;
+}
+
+.drift-stat {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.drift-stat:hover {
+    background: rgba(135, 91, 247, 0.08);
+}
+
+.drift-label {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.drift-value {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.drift-value.positive {
+    color: var(--neon-green);
+}
+
+.drift-value.negative {
+    color: var(--neon-red);
+}
+
+.drift-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.drift-btn {
+    flex: 1;
+    padding: 6px;
+    font-size: 0.8rem;
+    background: rgba(135, 91, 247, 0.2);
+    border: 1px solid rgba(135, 91, 247, 0.4);
+    color: #D4C4FF;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.drift-btn:hover {
+    background: rgba(135, 91, 247, 0.4);
+    box-shadow: 0 0 10px rgba(135, 91, 247, 0.2);
+}

@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="styles/components/toast.css">
     <link rel="stylesheet" href="styles/components/api-health.css">
     <link rel="stylesheet" href="styles/components/metrics.css">
+    <link rel="stylesheet" href="styles/components/drift.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap"
         rel="stylesheet">
 </head>
@@ -144,7 +145,37 @@
                     </section>
                 </div>
 
+
+                <!-- ... -->
                 <div class="right-column">
+                    <!-- DRIFT PROTOCOL VAULT -->
+                    <section class="drift-vault-card" id="drift-panel">
+                        <div class="drift-header">
+                            <div class="drift-logo">
+                                <span>🌊 DRIFT PROTOCOL</span>
+                            </div>
+                            <div class="drift-status-badge">MAINNET</div>
+                        </div>
+                        <div class="drift-stats-grid">
+                            <div class="drift-stat">
+                                <span class="drift-label">EQUITY</span>
+                                <span class="drift-value" id="drift-equity">$0.00</span>
+                            </div>
+                            <div class="drift-stat">
+                                <span class="drift-label">Unrealized PnL</span>
+                                <span class="drift-value" id="drift-pnl">--</span>
+                            </div>
+                            <div class="drift-stat">
+                                <span class="drift-label">LEVERAGE</span>
+                                <span class="drift-value" id="drift-leverage">0x</span>
+                            </div>
+                        </div>
+                        <div class="drift-actions">
+                            <button class="drift-btn" title="Coming Soon">Deposit</button>
+                            <button class="drift-btn" title="Coming Soon">Manage</button>
+                        </div>
+                    </section>
+
                     <section class="glass-panel" id="intel-panel">
                         <div class="panel-title" id="intel-title">Token Scalper Watch</div>
                         <div id="intel-content" style="overflow-y: auto;">

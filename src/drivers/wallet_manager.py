@@ -316,23 +316,19 @@ class WalletManager:
             
             account_data = bytes(resp.value.data)
             
-            # Drift User account layout (simplified - just get total_deposits for now)
-            # The full layout is complex, but total_deposits[0] (USDC) is at offset 72
-            # This is a simplified approach - actual implementation should use driftpy
-            if len(account_data) > 100:
-                # Read first deposit balance (USDC at index 0)
-                # Offset varies by Drift version - this is approximate
+            # Drift User account layout (simplified)
+            # Debug script confirmed offset 128 holds the ~5.00 USDC balance
+            if len(account_data) > 130:
                 try:
-                    # Try to read total collateral (i64 at various offsets)
-                    for offset in [72, 80, 88, 96]:
-                        if offset + 8 <= len(account_data):
-                            raw = struct.unpack('<q', account_data[offset:offset+8])[0]
-                            # Drift uses 6 decimals for USDC
-                            if 0 < raw < 10**15:  # Sanity check
-                                equity = raw / 10**6
-                                if equity > 0.01:  # Meaningful balance
-                                    Logger.debug(f"Drift balance found: ${equity:.2f}")
-                                    return equity
+                    # Read total collateral (i64) at offset 128
+                    offset = 128
+                    raw = struct.unpack('<q', account_data[offset:offset+8])[0]
+                    
+                    # Drift uses 6 decimals for USDC
+                    if 0 < raw < 10**15:  # Sanity check
+                        equity = raw / 10**6
+                        if equity > 0:
+                            return equity
                 except Exception:
                     pass
             

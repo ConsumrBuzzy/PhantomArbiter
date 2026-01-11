@@ -26,14 +26,37 @@ async def debug_drift():
     )
     print(f"🧾 Derived User Account: {user_account}")
     
-    rpc = get_rpc_pool()
-    resp = rpc.client.get_account_info(user_account)
+    rpc_pool = get_rpc_pool()
+    endpoint = rpc_pool.get_next_endpoint()
+    print(f"📡 Using RPC: {endpoint}")
     
-    if not resp or not resp.value:
+    from solders.rpc.requests import GetAccountInfo
+    from solders.rpc.config import RpcAccountInfoConfig
+    from solders.rpc.responses import GetAccountInfoResp
+    import requests
+    import json
+    
+    # Custom get_account_info using requests to avoid client mismatch
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getAccountInfo",
+        "params": [
+            str(user_account),
+            {"encoding": "base64"}
+        ]
+    }
+    
+    resp_raw = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
+    resp = resp_raw.json()
+    
+    if "result" not in resp or not resp["result"]["value"]:
         print("❌ Account not found on-chain!")
         return
 
-    data = bytes(resp.value.data)
+    data_b64 = resp["result"]["value"]["data"][0]
+    data = base64.b64decode(data_b64)
+    resp = None # Clear for flow match
     print(f"📦 Data Length: {len(data)} bytes")
     
     # Dump first 200 bytes in hex

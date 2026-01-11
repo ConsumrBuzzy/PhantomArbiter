@@ -216,6 +216,24 @@ class TradingOS {
                 if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
                 if (data.engines) this.updateEngineStates(data.engines);
                 if (data.metrics) this.systemMetrics.update(data.metrics);
+
+                // DRIFT UI UPDATE
+                if (data.live_wallet && data.live_wallet.drift_equity !== undefined) {
+                    const equity = data.live_wallet.drift_equity;
+                    const equityEl = document.getElementById('drift-equity');
+                    const pnlEl = document.getElementById('drift-pnl');
+                    const levEl = document.getElementById('drift-leverage');
+
+                    if (equityEl) equityEl.textContent = '$' + equity.toFixed(2);
+
+                    // Logic for PnL and Leverage would go here (need backend support)
+                    // For now, simulate small PnL if equity > 0
+                    if (equity > 0 && pnlEl) {
+                        // Placeholder: Access proper PnL from backend in future
+                        pnlEl.textContent = '+$0.00';
+                        pnlEl.className = 'drift-value positive';
+                    }
+                }
                 break;
 
             case 'CONTEXT_UPDATE':
