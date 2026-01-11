@@ -30,6 +30,11 @@ class SignalType(Enum):
     TX_FAILED = "TX_FAILED"                # Transaction failure detected
     SYSTEM_STATS = "SYSTEM_STATS"          # V140: Unified System Metrics
     SCAN_UPDATE = "SCAN_UPDATE"            # V140: Real-time top spreads for UI
+    
+    # V200: CEX-DEX Liquidity Bridge
+    FUNDING_OPPORTUNITY = "FUNDING_OPPORTUNITY"  # High-yield funding detected
+    BRIDGE_TRIGGER = "BRIDGE_TRIGGER"            # Initiating CEX→DEX transfer
+    BRIDGE_COMPLETE = "BRIDGE_COMPLETE"          # Transfer confirmed on-chain
 
 
 @dataclass
