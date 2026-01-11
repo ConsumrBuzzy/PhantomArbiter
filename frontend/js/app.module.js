@@ -29,7 +29,7 @@ import { MemeSniperStrip } from './components/meme-sniper-strip.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
-import { TickerTape } from './components/ticker-tape.js';
+import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
 
 class TradingOS {
     constructor() {
@@ -661,6 +661,20 @@ class TradingOS {
                 ticker.style.animation = 'none';
                 ticker.offsetHeight; /* trigger reflow */
                 ticker.style.animation = 'pulse-text 2s infinite';
+            }
+        }
+
+        // WHALE TAPE Integration
+        if (payload.type === 'WHALE_ACTIVITY' || payload.source === 'WHALE') {
+            const data = payload.data || {};
+            const symbol = data.mint || data.symbol || 'UNK';
+            // Default to $50k if missing, just to show something, or 0
+            const value = data.amount_usd || data.value || 50000;
+            const direction = (data.direction || 'buy').toLowerCase();
+
+            const item = createWhaleItem(symbol, value, direction);
+            if (this.whaleTicker) {
+                this.whaleTicker.addItem(item);
             }
         }
     }
