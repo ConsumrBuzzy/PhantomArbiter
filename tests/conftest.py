@@ -18,6 +18,15 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import pytest
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Force the event loop to use the Selector policy for the whole session."""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
+
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
