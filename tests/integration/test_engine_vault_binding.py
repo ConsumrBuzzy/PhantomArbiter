@@ -16,8 +16,16 @@ import asyncio
 class TestVaultIsolation:
     """Test vault isolation between engines."""
 
+    @pytest.fixture(autouse=True)
+    def reset_registry(self):
+        """Reset VaultRegistry singleton before and after each test."""
+        from src.shared.state.vault_manager import VaultRegistry
+        VaultRegistry._instance = None
+        yield
+        VaultRegistry._instance = None
+
     @pytest.fixture
-    def vault_registry(self, temp_db):
+    def vault_registry(self, temp_db, reset_registry):
         """Get clean vault registry."""
         from src.shared.state.vault_manager import get_vault_registry
         return get_vault_registry()
