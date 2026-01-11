@@ -431,6 +431,137 @@ class DashboardServer:
             }))
             await self._broadcast_engine_status()
         
+        # ═══════════════════════════════════════════════════════════════
+        # MULTI-VAULT OPERATIONS
+        # ═══════════════════════════════════════════════════════════════
+        
+        elif action == "GET_ENGINE_VAULT":
+            # Fetch specific engine's paper vault for detail view
+            engine_name = data.get("engine")
+            try:
+                from src.shared.state.vault_manager import get_engine_vault
+                vault = get_engine_vault(engine_name)
+                
+                # Get current SOL price for equity calculation
+                sol_price = 150.0  # Fallback
+                try:
+                    if hasattr(self, '_val_feed'):
+                        quote = self._val_feed.get_spot_price("SOL", "USDC")
+                        if quote and quote.price > 0:
+                            sol_price = quote.price
+                except Exception:
+                    pass
+                
+                vault_data = vault.get_balances(sol_price)
+                await websocket.send(json.dumps({
+                    "type": "ENGINE_VAULT",
+                    "engine": engine_name,
+                    "data": vault_data
+                }))
+            except Exception as e:
+                Logger.error(f"Vault fetch error [{engine_name}]: {e}")
+                await websocket.send(json.dumps({
+                    "type": "ENGINE_VAULT",
+                    "engine": engine_name,
+                    "data": {"error": str(e)}
+                }))
+        
+        elif action == "VAULT_RESET":
+            # Reset engine's paper vault to initial state
+            engine_name = data.get("engine")
+            try:
+                from src.shared.state.vault_manager import get_vault_registry
+                get_vault_registry().reset_vault(engine_name)
+                Logger.info(f"   🔄 Vault Reset: {engine_name}")
+                await websocket.send(json.dumps({
+                    "type": "VAULT_RESPONSE",
+                    "action": "RESET",
+                    "engine": engine_name,
+                    "success": True,
+                    "message": f"Vault reset for {engine_name}"
+                }))
+            except Exception as e:
+                Logger.error(f"Vault reset error [{engine_name}]: {e}")
+                await websocket.send(json.dumps({
+                    "type": "VAULT_RESPONSE",
+                    "action": "RESET",
+                    "engine": engine_name,
+                    "success": False,
+                    "message": str(e)
+                }))
+        
+        elif action == "VAULT_SYNC":
+            # Mirror live wallet into engine's paper vault
+            engine_name = data.get("engine")
+            try:
+                from src.shared.state.vault_manager import get_vault_registry
+                from src.drivers.wallet_manager import WalletManager
+                
+                if not hasattr(self, '_wallet_mgr'):
+                    self._wallet_mgr = WalletManager()
+                
+                live_data = self._wallet_mgr.get_current_live_usd_balance()
+                live_balances = {}
+                
+                # Extract raw balances from live wallet
+                for asset_info in live_data.get("assets", []):
+                    sym = asset_info.get("symbol", "UNKNOWN")
+                    amt = asset_info.get("amount", 0)
+                    if amt > 0:
+                        live_balances[sym] = amt
+                
+                # Add breakdown assets
+                breakdown = live_data.get("breakdown", {})
+                for asset, amt in breakdown.items():
+                    if amt > 0:
+                        live_balances[asset] = amt
+                
+                get_vault_registry().sync_from_live(engine_name, live_balances)
+                Logger.info(f"   🔗 Vault Sync: {engine_name} <- LIVE ({len(live_balances)} assets)")
+                
+                await websocket.send(json.dumps({
+                    "type": "VAULT_RESPONSE",
+                    "action": "SYNC",
+                    "engine": engine_name,
+                    "success": True,
+                    "message": f"Synced {len(live_balances)} assets from live wallet"
+                }))
+            except Exception as e:
+                Logger.error(f"Vault sync error [{engine_name}]: {e}")
+                await websocket.send(json.dumps({
+                    "type": "VAULT_RESPONSE",
+                    "action": "SYNC",
+                    "engine": engine_name,
+                    "success": False,
+                    "message": str(e)
+                }))
+        
+        elif action == "GET_ALL_VAULTS":
+            # Global vault snapshot for portfolio reporting
+            try:
+                from src.shared.state.vault_manager import get_vault_registry
+                
+                sol_price = 150.0
+                try:
+                    if hasattr(self, '_val_feed'):
+                        quote = self._val_feed.get_spot_price("SOL", "USDC")
+                        if quote and quote.price > 0:
+                            sol_price = quote.price
+                except Exception:
+                    pass
+                
+                snapshot = get_vault_registry().get_global_snapshot(sol_price)
+                await websocket.send(json.dumps({
+                    "type": "VAULT_SNAPSHOT",
+                    "data": snapshot
+                }))
+            except Exception as e:
+                Logger.error(f"Vault snapshot error: {e}")
+                await websocket.send(json.dumps({
+                    "type": "VAULT_SNAPSHOT",
+                    "data": {"error": str(e)}
+                }))
+        
         else:
             await websocket.send(json.dumps({
                 "type": "ERROR",

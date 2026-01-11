@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="styles/components/api-health.css">
     <link rel="stylesheet" href="styles/components/metrics.css">
     <link rel="stylesheet" href="styles/components/drift.css">
+    <link rel="stylesheet" href="styles/components/engine-details.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono&display=swap"
         rel="stylesheet">
 </head>
@@ -322,17 +323,68 @@
                 </div>
             </div> <!-- Close .engine-stack -->
 
-            <!-- Engine Detail Panel (Hidden by default, shown on card click) -->
-            <div id="view-engine-detail" class="engine-detail-panel glass-panel"
-                style="display: none; margin-top: 20px;">
+            <!-- Engine Detail Panel (Full-screen Control Room, slides in from right) -->
+            <div id="view-engine-detail" class="engine-detail-view">
+                <!-- Header Bar -->
                 <div class="detail-header">
-                    <button class="back-btn">← Back</button>
-                    <span class="detail-title" id="detail-engine-name">Engine Details</span>
+                    <div class="detail-header-left">
+                        <button class="back-btn" title="Back to Engine List">←</button>
+                        <div class="detail-title">
+                            <span id="detail-engine-name">Engine Control Room</span>
+                            <span class="engine-badge" id="detail-engine-status">STOPPED</span>
+                        </div>
+                    </div>
+                    <div class="detail-header-right">
+                        <div class="mode-selector detail-mode">
+                            <button class="mode-btn active" data-mode="paper">PAPER</button>
+                            <button class="mode-btn" data-mode="live">LIVE</button>
+                        </div>
+                        <button class="power-toggle detail-power" title="Toggle Engine">⏻</button>
+                    </div>
                 </div>
-                <div id="market-component-slot" class="market-component-container">
-                    <div class="panel-title" id="market-component-title">Market Component</div>
-                    <div id="market-component-content">
-                        <p style="color: var(--text-dim);">Select an engine and start it to see live data.</p>
+                
+                <!-- Content Grid -->
+                <div class="detail-content">
+                    <!-- Vault Panel (The Bank) -->
+                    <div class="vault-panel">
+                        <div class="vault-panel-header">
+                            <span class="vault-panel-title">Engine Vault</span>
+                            <div class="vault-controls">
+                                <button class="vault-btn reset" data-action="reset-sim">Reset Sim</button>
+                                <button class="vault-btn sync" data-action="live-sync">Live Sync</button>
+                            </div>
+                        </div>
+                        <div class="vault-equity" id="detail-vault-equity">$0.00</div>
+                        <div class="vault-assets" id="detail-vault-assets">
+                            <!-- Populated by JS -->
+                            <div class="vault-asset-row">
+                                <span class="vault-asset-symbol">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Config Panel (The Brain) -->
+                    <div class="config-panel">
+                        <div class="config-panel-title">Strategy Knobs</div>
+                        <div class="config-grid" id="detail-config-grid">
+                            <!-- Populated by JS based on engine type -->
+                            <div class="config-item">
+                                <div class="config-label">Loading...</div>
+                                <div class="config-value">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Log Panel (The Tape) -->
+                    <div class="log-panel">
+                        <div class="log-panel-header">
+                            <span class="log-panel-title">Engine Logs</span>
+                            <span class="log-filter-badge" id="detail-log-filter">ALL</span>
+                        </div>
+                        <div class="engine-log-stream" id="detail-log-stream">
+                            <!-- Populated by JS with filtered logs -->
+                            <div class="log-entry info">Waiting for engine activity...</div>
+                        </div>
                     </div>
                 </div>
             </div>

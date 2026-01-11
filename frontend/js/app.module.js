@@ -136,37 +136,217 @@ class TradingOS {
     }
 
     showEngineDetail(engineId) {
-        console.log(`Navigating to details: ${engineId}`);
+        console.log(`Navigating to Control Room: ${engineId}`);
+        this.currentDetailEngine = engineId;
+
         // 1. Hide List
         document.querySelector('.engine-stack').style.display = 'none';
 
-        // 2. Show Detail Container
+        // 2. Show Detail Container (CSS handles slide-in)
         const detailView = document.getElementById('view-engine-detail');
         detailView.classList.add('active');
 
-        // Update Inventory Context
-        if (this.inventory) this.inventory.setContext(engineId);
+        // 3. Update Header
+        const engineNames = {
+            'arb': 'Arbitrage Engine',
+            'funding': 'Funding Rate Engine',
+            'scalp': 'Scalp Sniper Engine',
+            'lst': 'LST De-Pegger'
+        };
+        document.getElementById('detail-engine-name').textContent = engineNames[engineId] || engineId.toUpperCase();
 
-        // 3. Populate Content (Mock for now, will pull from card later)
-        const contentArea = document.getElementById('detail-content-area');
-        contentArea.innerHTML = `
-            <div>
-                <h3>Refined Controls for ${engineId.toUpperCase()}</h3>
-                <p>Detailed statistics and deep-dive configuration would go here.</p>
-                <div class="glass-panel" style="margin-top:20px; padding:20px;">
-                     <h4>Active Configuration</h4>
-                     <pre style="color:var(--neon-green)">${JSON.stringify(this.engineCards[engineId].config, null, 2)}</pre>
-                </div>
-            </div>
-            <div>
-                 <div class="glass-panel">
-                    <h4>Performance History</h4>
-                    <div style="height: 200px; display:flex; align-items:center; justify-content:center; color:var(--text-dim);">
-                        [Chart Placeholder]
+        // Update status badge
+        const engineState = this.engines[engineId]?.state || {};
+        const statusBadge = document.getElementById('detail-engine-status');
+        if (statusBadge) {
+            statusBadge.textContent = (engineState.status || 'stopped').toUpperCase();
+            statusBadge.className = 'engine-badge ' + (engineState.status || 'stopped');
+        }
+
+        // 4. Request Engine Vault Data
+        this.ws.send('GET_ENGINE_VAULT', { engine: engineId });
+
+        // 5. Populate Config Panel
+        this.populateConfigPanel(engineId);
+
+        // 6. Bind Vault Control Buttons
+        this.bindDetailViewEvents(engineId);
+
+        // 7. Update Log Filter
+        const logFilter = document.getElementById('detail-log-filter');
+        if (logFilter) {
+            logFilter.textContent = engineId.toUpperCase();
+        }
+
+        // 8. Update Inventory Context
+        if (this.inventory) this.inventory.setContext(engineId);
+    }
+
+    /**
+     * Populate config panel based on engine type
+     */
+    populateConfigPanel(engineId) {
+        const configGrid = document.getElementById('detail-config-grid');
+        if (!configGrid) return;
+
+        const engine = this.engines[engineId];
+        const config = engine?.state?.config || {};
+
+        const configFormatters = {
+            'arb': {
+                'min_spread': { label: 'Min Spread', format: v => `${v}%` },
+                'max_trade_usd': { label: 'Max Trade', format: v => `$${v}` },
+                'scan_interval': { label: 'Scan Interval', format: v => `${v}s` },
+                'risk_tier': { label: 'Risk Tier', format: v => v.toUpperCase() }
+            },
+            'funding': {
+                'leverage': { label: 'Leverage', format: v => `${v}x` },
+                'watchdog_threshold': { label: 'Watchdog', format: v => `${(v * 100).toFixed(2)}%` },
+                'rebalance_enabled': { label: 'Rebalance', format: v => v ? 'ON' : 'OFF' },
+                'max_position_usd': { label: 'Max Position', format: v => `$${v}` }
+            },
+            'scalp': {
+                'take_profit_pct': { label: 'Take Profit', format: v => `+${v}%` },
+                'stop_loss_pct': { label: 'Stop Loss', format: v => `-${v}%` },
+                'max_pods': { label: 'Max Pods', format: v => v },
+                'sentiment_threshold': { label: 'Sentiment', format: v => `${(v * 100).toFixed(0)}%` }
+            },
+            'lst': {
+                'peg_threshold': { label: 'Peg Threshold', format: v => `${v}%` },
+                'exit_liquidity': { label: 'Exit Check', format: v => v ? 'ON' : 'OFF' }
+            }
+        };
+
+        const formatters = configFormatters[engineId] || {};
+        let html = '';
+
+        Object.entries(config).forEach(([key, value]) => {
+            const formatter = formatters[key];
+            if (formatter) {
+                html += `
+                    <div class="config-item">
+                        <div class="config-label">${formatter.label}</div>
+                        <div class="config-value">${formatter.format(value)}</div>
                     </div>
-                 </div>
-            </div>
-        `;
+                `;
+            }
+        });
+
+        // Fallback if no config
+        if (!html) {
+            html = '<div class="config-item"><div class="config-label">No Config</div><div class="config-value">--</div></div>';
+        }
+
+        configGrid.innerHTML = html;
+    }
+
+    /**
+     * Bind vault control button events
+     */
+    bindDetailViewEvents(engineId) {
+        // Reset Sim Button
+        const resetBtn = document.querySelector('.vault-btn.reset');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                this.ws.send('VAULT_RESET', { engine: engineId });
+                this.terminal.addLog('VAULT', 'WARNING', `Resetting ${engineId} vault...`);
+            };
+        }
+
+        // Live Sync Button
+        const syncBtn = document.querySelector('.vault-btn.sync');
+        if (syncBtn) {
+            syncBtn.onclick = () => {
+                this.ws.send('VAULT_SYNC', { engine: engineId });
+                this.terminal.addLog('VAULT', 'INFO', `Syncing ${engineId} vault from live wallet...`);
+            };
+        }
+
+        // Power Toggle in Detail View
+        const powerBtn = document.querySelector('.detail-power');
+        if (powerBtn) {
+            powerBtn.onclick = () => {
+                const engine = this.engines[engineId];
+                const mode = engine?.mode || 'paper';
+                const status = engine?.state?.status || 'stopped';
+                this.toggleEngine(engineId, status, mode);
+            };
+        }
+
+        // Mode Selector in Detail View
+        const modeSelector = document.querySelector('.detail-mode');
+        if (modeSelector) {
+            modeSelector.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.onclick = () => {
+                    modeSelector.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    if (this.engines[engineId]) {
+                        this.engines[engineId].setMode(btn.dataset.mode);
+                    }
+                };
+            });
+        }
+    }
+
+    /**
+     * Update vault panel with data from WebSocket
+     */
+    updateVaultPanel(engineId, vaultData) {
+        if (this.currentDetailEngine !== engineId) return;
+
+        // Update equity
+        const equityEl = document.getElementById('detail-vault-equity');
+        if (equityEl) {
+            equityEl.textContent = `$${(vaultData.equity || 0).toFixed(2)}`;
+        }
+
+        // Update asset rows
+        const assetsContainer = document.getElementById('detail-vault-assets');
+        if (assetsContainer && vaultData.assets) {
+            let html = '';
+            Object.entries(vaultData.assets).sort((a, b) => {
+                // USDC first, then SOL, then others
+                if (a[0] === 'USDC') return -1;
+                if (b[0] === 'USDC') return 1;
+                if (a[0] === 'SOL') return -1;
+                if (b[0] === 'SOL') return 1;
+                return 0;
+            }).forEach(([asset, balance]) => {
+                const displayBal = balance >= 1 ? balance.toFixed(2) : balance.toFixed(4);
+                html += `
+                    <div class="vault-asset-row">
+                        <span class="vault-asset-symbol">${asset}</span>
+                        <span class="vault-asset-balance">${displayBal}</span>
+                    </div>
+                `;
+            });
+            assetsContainer.innerHTML = html || '<div class="vault-asset-row"><span>No assets</span></div>';
+        }
+    }
+
+    /**
+     * Add log entry to engine-specific log stream
+     */
+    addEngineLog(engineId, level, message) {
+        if (this.currentDetailEngine !== engineId) return;
+
+        const logStream = document.getElementById('detail-log-stream');
+        if (!logStream) return;
+
+        // Clear placeholder if first real log
+        if (logStream.querySelector('.log-entry.info')?.textContent.includes('Waiting')) {
+            logStream.innerHTML = '';
+        }
+
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${level.toLowerCase()}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logStream.insertBefore(entry, logStream.firstChild);
+
+        // Keep max 50 entries
+        while (logStream.children.length > 50) {
+            logStream.removeChild(logStream.lastChild);
+        }
     }
 
     showEngineList() {
@@ -299,6 +479,35 @@ class TradingOS {
                 if (this.marketComponents.scalp && data.payload?.type === 'SIGNAL') {
                     this.marketComponents.scalp.update(data.payload.data);
                 }
+                break;
+
+            // ═══════════════════════════════════════════════════════════════
+            // MULTI-VAULT MESSAGES
+            // ═══════════════════════════════════════════════════════════════
+
+            case 'ENGINE_VAULT':
+                // Vault data response for detail view
+                if (packet.engine && packet.data) {
+                    this.updateVaultPanel(packet.engine, packet.data);
+                }
+                break;
+
+            case 'VAULT_RESPONSE':
+                // Vault reset/sync confirmation
+                if (packet.success) {
+                    this.toast.show(packet.message || 'Vault operation complete', 'success');
+                    // Refresh vault data
+                    if (packet.engine && this.currentDetailEngine === packet.engine) {
+                        this.ws.send('GET_ENGINE_VAULT', { engine: packet.engine });
+                    }
+                } else {
+                    this.toast.show(packet.message || 'Vault operation failed', 'error');
+                }
+                break;
+
+            case 'VAULT_SNAPSHOT':
+                // Global vault aggregation (for future portfolio view)
+                console.log('Vault Snapshot:', packet.data);
                 break;
 
             default:

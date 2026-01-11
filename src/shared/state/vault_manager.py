@@ -1,0 +1,299 @@
+"""
+Vault Manager
+=============
+Per-engine virtual capital management for the Multi-Vault Architecture.
+
+Each trading engine maintains isolated paper balances, preventing "noisy neighbor"
+cross-contamination during simulations.
+
+Features:
+- Composite (engine, asset) primary key for isolation
+- Lazy vault instantiation on first access
+- Thread-safe operations via PersistenceDB transactions
+- Global aggregation for portfolio reporting
+"""
+
+import logging
+import time
+from typing import Dict, Any, Optional
+from dataclasses import dataclass, field
+
+logger = logging.getLogger("phantom.vault_manager")
+
+
+@dataclass
+class EngineVault:
+    """
+    Isolated paper wallet for a single engine.
+    
+    Provides the same interface as the legacy PaperWallet but scoped
+    to a specific engine's simulation context.
+    """
+    engine_name: str
+    balances: Dict[str, float] = field(default_factory=dict)
+    initial_equity: float = 50.0
+    initial_sol: float = 0.25
+    _db: Any = field(default=None, repr=False)
+    
+    def __post_init__(self):
+        from src.shared.system.persistence import get_db
+        self._db = get_db()
+        self._load_state()
+    
+    @property
+    def sol_balance(self) -> float:
+        return self.balances.get('SOL', 0.0)
+    
+    @property
+    def usdc_balance(self) -> float:
+        return self.balances.get('USDC', 0.0)
+    
+    def _load_state(self):
+        """Load balances from DB or initialize defaults."""
+        try:
+            conn = self._db._get_connection()
+            rows = conn.execute(
+                "SELECT asset, balance FROM engine_vaults WHERE engine = ?",
+                (self.engine_name,)
+            ).fetchall()
+            
+            self.balances = {}
+            if rows:
+                for row in rows:
+                    self.balances[row['asset']] = row['balance']
+                logger.debug(
+                    f"Loaded vault [{self.engine_name}]: {len(self.balances)} assets "
+                    f"(USDC: {self.usdc_balance:.2f}, SOL: {self.sol_balance:.4f})"
+                )
+            else:
+                self._initialize_defaults()
+                
+        except Exception as e:
+            logger.error(f"Failed to load vault [{self.engine_name}]: {e}")
+    
+    def _initialize_defaults(self):
+        """Set default balances for new vault."""
+        self.balances = {
+            'SOL': self.initial_sol,
+            'USDC': self.initial_equity - (self.initial_sol * 150.0)  # Approx SOL value
+        }
+        self._save_state()
+        logger.info(f"Initialized vault [{self.engine_name}] with defaults")
+    
+    def _save_state(self):
+        """Persist current balances to DB."""
+        try:
+            with self._db._transaction() as conn:
+                timestamp = time.time()
+                for asset, balance in self.balances.items():
+                    conn.execute("""
+                        INSERT INTO engine_vaults (engine, asset, balance, initial_balance, updated_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(engine, asset) DO UPDATE SET
+                            balance = excluded.balance,
+                            updated_at = excluded.updated_at
+                    """, (self.engine_name, asset, balance, 0.0, timestamp))
+        except Exception as e:
+            logger.error(f"Failed to save vault [{self.engine_name}]: {e}")
+    
+    def get_balances(self, sol_price: float = 0.0) -> Dict[str, Any]:
+        """Get current virtual balances with equity calculation."""
+        equity = self.balances.get('USDC', 0.0)
+        
+        total_sol_val = 0.0
+        for asset, bal in self.balances.items():
+            if asset == 'SOL':
+                total_sol_val += bal
+            elif asset != 'USDC':
+                # Assume parity with SOL for LST/staked assets
+                total_sol_val += bal
+        
+        equity += total_sol_val * sol_price
+        
+        return {
+            'engine': self.engine_name,
+            'equity': equity,
+            'sol_balance': self.sol_balance,
+            'usdc_balance': self.usdc_balance,
+            'assets': self.balances
+        }
+    
+    def credit(self, asset: str, amount: float):
+        """Add funds (e.g., trade profit)."""
+        self.balances[asset] = self.balances.get(asset, 0.0) + amount
+        self._save_state()
+        logger.debug(f"[{self.engine_name}] Credit {amount:.4f} {asset}")
+    
+    def debit(self, asset: str, amount: float) -> bool:
+        """Remove funds (e.g., trade entry). Returns False if insufficient."""
+        current = self.balances.get(asset, 0.0)
+        if current >= amount:
+            self.balances[asset] = current - amount
+            self._save_state()
+            logger.debug(f"[{self.engine_name}] Debit {amount:.4f} {asset}")
+            return True
+        logger.warning(f"[{self.engine_name}] Insufficient {asset}: {current:.4f} < {amount:.4f}")
+        return False
+    
+    def reset(self):
+        """Reset to initial state."""
+        self._clear_vault()
+        self._initialize_defaults()
+        logger.info(f"[{self.engine_name}] Vault reset to initial state")
+    
+    def _clear_vault(self):
+        """Remove all vault entries for this engine."""
+        try:
+            with self._db._transaction() as conn:
+                conn.execute(
+                    "DELETE FROM engine_vaults WHERE engine = ?",
+                    (self.engine_name,)
+                )
+        except Exception as e:
+            logger.error(f"Failed to clear vault [{self.engine_name}]: {e}")
+    
+    def sync_from_live(self, live_balances: Dict[str, float]):
+        """Mirror live wallet balances into paper vault for realistic testing."""
+        self._clear_vault()
+        self.balances = dict(live_balances)
+        self._save_state()
+        logger.info(f"[{self.engine_name}] Synced from live wallet: {len(live_balances)} assets")
+    
+    def reload(self):
+        """Reload balances from DB."""
+        self._load_state()
+
+
+class VaultRegistry:
+    """
+    Singleton registry managing per-engine paper vaults.
+    
+    Provides lazy instantiation and global aggregation capabilities.
+    """
+    _instance: Optional["VaultRegistry"] = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        
+        self._vaults: Dict[str, EngineVault] = {}
+        self._ensure_schema()
+        self._initialized = True
+    
+    def _ensure_schema(self):
+        """Ensure engine_vaults table exists."""
+        from src.shared.system.persistence import get_db
+        db = get_db()
+        conn = db._get_connection()
+        
+        conn.executescript("""
+            -- Engine Vaults: Per-engine virtual balance tracking
+            CREATE TABLE IF NOT EXISTS engine_vaults (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                engine TEXT NOT NULL,
+                asset TEXT NOT NULL,
+                balance REAL NOT NULL DEFAULT 0,
+                initial_balance REAL NOT NULL DEFAULT 0,
+                updated_at REAL NOT NULL,
+                UNIQUE(engine, asset)
+            );
+            CREATE INDEX IF NOT EXISTS idx_engine_vaults_engine ON engine_vaults(engine);
+        """)
+        conn.commit()
+        logger.debug("Engine vaults schema verified")
+    
+    def get_vault(self, engine_name: str) -> EngineVault:
+        """
+        Get or create an isolated vault for the specified engine.
+        
+        Lazy instantiation ensures no database bloat for unused engines.
+        """
+        if engine_name not in self._vaults:
+            self._vaults[engine_name] = EngineVault(engine_name=engine_name)
+            logger.info(f"Created vault for engine: {engine_name}")
+        return self._vaults[engine_name]
+    
+    def reset_vault(self, engine_name: str):
+        """Reset a specific engine's vault to initial state."""
+        vault = self.get_vault(engine_name)
+        vault.reset()
+    
+    def sync_from_live(self, engine_name: str, live_balances: Dict[str, float]):
+        """Mirror live wallet into specific engine's paper vault."""
+        vault = self.get_vault(engine_name)
+        vault.sync_from_live(live_balances)
+    
+    def get_global_snapshot(self, sol_price: float = 0.0) -> Dict[str, Any]:
+        """
+        Aggregate all vaults for global portfolio reporting.
+        
+        Returns:
+            {
+                'total_equity': float,
+                'assets': {asset: total_balance},
+                'vaults': {engine_name: vault_summary}
+            }
+        """
+        from src.shared.system.persistence import get_db
+        db = get_db()
+        conn = db._get_connection()
+        
+        # Efficient single-query aggregation
+        rows = conn.execute("""
+            SELECT asset, SUM(balance) as total
+            FROM engine_vaults
+            GROUP BY asset
+        """).fetchall()
+        
+        aggregated = {row['asset']: row['total'] for row in rows}
+        
+        # Calculate total equity
+        usdc = aggregated.get('USDC', 0.0)
+        sol_assets = sum(v for k, v in aggregated.items() if k != 'USDC')
+        total_equity = usdc + (sol_assets * sol_price)
+        
+        # Per-vault breakdown
+        vault_summaries = {}
+        for engine, vault in self._vaults.items():
+            vault_summaries[engine] = vault.get_balances(sol_price)
+        
+        return {
+            'total_equity': total_equity,
+            'assets': aggregated,
+            'vaults': vault_summaries
+        }
+    
+    def get_all_vault_names(self) -> list:
+        """Get list of all engines with active vaults."""
+        from src.shared.system.persistence import get_db
+        db = get_db()
+        conn = db._get_connection()
+        
+        rows = conn.execute(
+            "SELECT DISTINCT engine FROM engine_vaults"
+        ).fetchall()
+        
+        return [row['engine'] for row in rows]
+
+
+# Global singleton accessor
+_vault_registry: Optional[VaultRegistry] = None
+
+def get_vault_registry() -> VaultRegistry:
+    """Get the global vault registry instance."""
+    global _vault_registry
+    if _vault_registry is None:
+        _vault_registry = VaultRegistry()
+    return _vault_registry
+
+
+# Convenience function for engine-scoped access
+def get_engine_vault(engine_name: str) -> EngineVault:
+    """Shorthand for getting a specific engine's vault."""
+    return get_vault_registry().get_vault(engine_name)

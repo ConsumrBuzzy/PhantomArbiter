@@ -23,6 +23,7 @@ class BaseEngine(ABC):
         self.driver = None
         self.wallet = None
         self.swapper = None
+        self.paper_wallet = None  # Engine-specific paper vault
         self.feed = JupiterFeed()
         
         # Initialize Drivers
@@ -33,7 +34,10 @@ class BaseEngine(ABC):
             self.swapper = JupiterSwapper(self.wallet)
         else:
             from src.shared.drivers.virtual_driver import VirtualDriver
+            from src.shared.state.paper_wallet import get_engine_wallet
             self.driver = VirtualDriver(self.name)
+            # Multi-Vault: Each engine gets isolated paper wallet
+            self.paper_wallet = get_engine_wallet(self.name)
             
         Logger.info(f"[{self.name.upper()}] Engine Initialized ({self.mode.upper()})")
 

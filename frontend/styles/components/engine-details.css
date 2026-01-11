@@ -1,0 +1,399 @@
+/**
+ * Engine Detail View (Control Room)
+ * ==================================
+ * Full-screen overlay for dedicated engine management.
+ * Slides in from right with glassmorphism styling.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* OVERLAY CONTAINER                                                            */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.engine-detail-view {
+    position: fixed;
+    top: 60px;              /* Below header */
+    left: 80px;             /* Beside sidebar */
+    width: calc(100% - 80px);
+    height: calc(100% - 60px);
+    background: var(--glass-bg, rgba(15, 23, 42, 0.95));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 100;
+    
+    /* Slide-in transition */
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.engine-detail-view.active {
+    transform: translateX(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* HEADER BAR                                                                   */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+    flex-shrink: 0;
+}
+
+.detail-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--surface-elevated, rgba(30, 41, 59, 0.8));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    color: var(--text-primary, #e2e8f0);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--surface-hover, rgba(51, 65, 85, 0.8));
+    border-color: var(--neon-blue, #38bdf8);
+}
+
+.detail-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.detail-title .engine-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--neon-green-dim, rgba(74, 222, 128, 0.15));
+    color: var(--neon-green, #4ade80);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.detail-title .engine-badge.running {
+    background: var(--neon-green-dim, rgba(74, 222, 128, 0.15));
+    color: var(--neon-green, #4ade80);
+}
+
+.detail-title .engine-badge.stopped {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-dim, #94a3b8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* CONTENT GRID                                                                 */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.detail-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 20px;
+    padding: 20px 24px;
+    overflow-y: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* VAULT PANEL (The Bank)                                                       */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.vault-panel {
+    grid-column: 1;
+    grid-row: 1;
+    background: var(--surface-elevated, rgba(30, 41, 59, 0.6));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.vault-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.vault-panel-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-dim, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vault-panel-title::before {
+    content: "🏦";
+}
+
+.vault-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.vault-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.vault-btn.reset {
+    background: rgba(251, 146, 60, 0.15);
+    color: var(--warning, #fb923c);
+    border-color: rgba(251, 146, 60, 0.3);
+}
+
+.vault-btn.reset:hover {
+    background: rgba(251, 146, 60, 0.25);
+    border-color: var(--warning, #fb923c);
+}
+
+.vault-btn.sync {
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--neon-blue, #38bdf8);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.vault-btn.sync:hover {
+    background: rgba(56, 189, 248, 0.25);
+    border-color: var(--neon-blue, #38bdf8);
+}
+
+.vault-equity {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary, #e2e8f0);
+    margin-bottom: 16px;
+}
+
+.vault-assets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vault-asset-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface-base, rgba(15, 23, 42, 0.5));
+    border-radius: 6px;
+}
+
+.vault-asset-symbol {
+    font-weight: 500;
+    color: var(--text-primary, #e2e8f0);
+}
+
+.vault-asset-balance {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim, #94a3b8);
+}
+
+.vault-asset-value {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--neon-green, #4ade80);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* CONFIG PANEL (The Brain)                                                     */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.config-panel {
+    grid-column: 2;
+    grid-row: 1;
+    background: var(--surface-elevated, rgba(30, 41, 59, 0.6));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.config-panel-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-dim, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-panel-title::before {
+    content: "🧠";
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.config-item {
+    background: var(--surface-base, rgba(15, 23, 42, 0.5));
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.config-label {
+    font-size: 0.75rem;
+    color: var(--text-dim, #94a3b8);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.config-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary, #e2e8f0);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* LOG STREAM (The Tape)                                                        */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.log-panel {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    background: var(--surface-elevated, rgba(30, 41, 59, 0.6));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+}
+
+.log-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.log-panel-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-dim, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.log-panel-title::before {
+    content: "📜";
+}
+
+.log-filter-badge {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    background: var(--neon-blue-dim, rgba(56, 189, 248, 0.15));
+    color: var(--neon-blue, #38bdf8);
+    border-radius: 4px;
+}
+
+.engine-log-stream {
+    flex: 1;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text-dim, #94a3b8);
+    background: var(--surface-base, rgba(15, 23, 42, 0.5));
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.engine-log-stream .log-entry {
+    padding: 2px 0;
+}
+
+.engine-log-stream .log-entry.info {
+    color: var(--text-dim, #94a3b8);
+}
+
+.engine-log-stream .log-entry.success {
+    color: var(--neon-green, #4ade80);
+}
+
+.engine-log-stream .log-entry.warning {
+    color: var(--warning, #fb923c);
+}
+
+.engine-log-stream .log-entry.error {
+    color: var(--danger, #f87171);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* RESPONSIVE                                                                   */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+    .detail-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+    }
+    
+    .vault-panel {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    
+    .config-panel {
+        grid-column: 1;
+        grid-row: 2;
+    }
+    
+    .log-panel {
+        grid-column: 1;
+        grid-row: 3;
+    }
+}
+
+@media (max-width: 600px) {
+    .engine-detail-view {
+        left: 0;
+        width: 100%;
+    }
+    
+    .config-grid {
+        grid-template-columns: 1fr;
+    }
+}

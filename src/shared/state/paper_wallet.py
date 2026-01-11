@@ -132,14 +132,41 @@ class PaperWallet:
         """Reset to initial state."""
         self._initialize_defaults()
 
-# Singleton
-_paper_wallet = None
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEPRECATED: Singleton pattern replaced by Multi-Vault Architecture
+# ═══════════════════════════════════════════════════════════════════════════════
+# The VaultRegistry now manages per-engine isolation.
+# Legacy code using get_paper_wallet() will use the 'global' vault for backward 
+# compatibility. New code should use get_engine_wallet(engine_name) directly.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-def get_paper_wallet() -> PaperWallet:
-    global _paper_wallet
-    if _paper_wallet is None:
-        _paper_wallet = PaperWallet()
-    return _paper_wallet
+from src.shared.state.vault_manager import get_vault_registry, get_engine_vault, EngineVault
 
-# Export default singleton instance
-pw = get_paper_wallet()
+def get_engine_wallet(engine_name: str) -> EngineVault:
+    """
+    Get isolated paper wallet for a specific engine.
+    
+    This is the preferred method for Multi-Vault Architecture.
+    Each engine maintains independent virtual balances.
+    
+    Args:
+        engine_name: Engine identifier (e.g., 'arb', 'funding', 'scalp')
+        
+    Returns:
+        EngineVault instance with isolated balances
+    """
+    return get_engine_vault(engine_name)
+
+
+def get_paper_wallet() -> EngineVault:
+    """
+    DEPRECATED: Use get_engine_wallet(engine_name) for per-engine isolation.
+    
+    Returns the 'global' vault for backward compatibility with legacy code.
+    """
+    return get_engine_wallet("global")
+
+
+# Legacy alias for backward compatibility
+PaperWallet = EngineVault
+
