@@ -19,12 +19,10 @@ import { MarketData } from './components/market-data.js';
 import { TokenWatchlist } from './components/token-watchlist.js';
 import { ArbScanner, FundingMonitor, ScalpPods, LstMonitor } from './components/market-component.js';
 import { Inventory } from './components/inventory.js';
-import { WhaleTape } from './components/whale-tape.js';
 import { ModalManager } from './components/modal.js';
 import { HeaderStats } from './components/header-stats.js';
 import { LayoutManager } from './components/layout-manager.js';
 import { SystemMetrics } from './components/system-metrics.js';
-import { SolTape } from './components/sol-tape.js';
 import { SolTape } from './components/sol-tape.js';
 import { MajorsTape } from './components/majors-tape.js';
 import { MemeSniperStrip } from './components/meme-sniper-strip.js';
@@ -42,7 +40,8 @@ class TradingOS {
         this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
         this.inventory = new Inventory('inventory-table');
         this.headerStats = new HeaderStats();
-        this.whaleTape = new WhaleTape('whale-tape-content');
+        // Remove legacy WhaleTape (replaced by TickerTape in header)
+
         this.modal = new ModalManager();
         this.systemMetrics = new SystemMetrics('chart-metrics');
         this.solTape = new SolTape('sol-tape-container');
