@@ -251,6 +251,15 @@ class CoinbaseExchangeDriver:
         """
         try:
             balance = await self.get_withdrawable_usdc()
+            
+            # Use the status set by get_withdrawable_usdc (which catches specific errors)
+            if self._connection_status != "connected":
+                return {
+                    "status": "error",
+                    "error": f"Connection failed: {self._connection_status}",
+                    "timestamp": time.time(),
+                }
+            
             return {
                 "status": "connected",
                 "auth_method": "CDP/JWT",
