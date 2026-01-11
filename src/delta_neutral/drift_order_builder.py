@@ -536,7 +536,63 @@ class DriftOrderBuilder:
         Logger.debug(f"[DRIFT] Fetching position for {market}")
         return None
     
+    def get_user_equity(self) -> float:
+        """
+        Fetch user equity (USDC collateral) from on-chain account.
+        Uses cached valid endpoints via get_rpc_pool().
+        """
+        try:
+            import struct
+            from src.shared.system.rpc_pool import get_rpc_pool
+            
+            # Derive user account if not set
+            if not self.user_account:
+                self._derive_user_account()
+            
+            if not self.user_account:
+                 return 0.0
+
+            rpc = get_rpc_pool()
+            endpoint = rpc.get_next_endpoint()
+            
+            # Manual request
+            import requests
+            import base64
+            
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1, 
+                "method": "getAccountInfo",
+                "params": [
+                    str(self.user_account),
+                    {"encoding": "base64"}
+                ]
+            }
+            
+            try:
+                # Short timeout to avoid blocking heartbeat
+                resp = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"}, timeout=3).json()
+            except:
+                return 0.0
+            
+            if "result" in resp and resp["result"] and "value" in resp["result"] and resp["result"]["value"]:
+                data_b64 = resp["result"]["value"]["data"][0]
+                data = base64.b64decode(data_b64)
+                
+                # Metric confirmed offset 128 for USDC balance (i64)
+                if len(data) > 130:
+                    offset = 128
+                    raw = struct.unpack('<q', data[offset:offset+8])[0]
+                    if 0 < raw < 10**15:
+                        return raw / 10**6
+            
+            return 0.0
+            
+        except Exception:
+            return 0.0
+
     def calculate_required_collateral(
+
         self,
         size: float,
         price: float,
@@ -633,3 +689,9 @@ class DriftAdapter:
         if not self._builder:
             return None
         return await self._builder.get_position(market)
+
+    def get_user_equity(self) -> float:
+        """Get total account equity (USDC)."""
+        if not self._builder:
+            return 0.0
+        return self._builder.get_user_equity()

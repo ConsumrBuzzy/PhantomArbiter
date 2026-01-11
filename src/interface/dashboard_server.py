@@ -198,8 +198,11 @@ class DashboardServer:
                                 self._drift.set_wallet(self._wallet_mgr)
                             
                             # Try to get Drift account equity (USDC collateral + unrealized PnL)
-                            # For now use a simplified check - actual implementation needs DriftPy
-                            drift_equity = self._wallet_mgr.get_drift_balance() if hasattr(self._wallet_mgr, 'get_drift_balance') else 0.0
+                            # Using DriftAdapter's integrated balance fetch
+                            drift_equity = self._drift.get_user_equity()
+                            
+                            # Add to payload for dedicated UI
+                            live_data['drift_equity'] = drift_equity
                             
                             if drift_equity > 0:
                                 enriched_live["DRIFT"] = {
@@ -208,6 +211,7 @@ class DashboardServer:
                                     "price": 1.0  # USDC-denominated
                                 }
                         except Exception as drift_err:
+                            Logger.debug(f"Drift balance fetch: {drift_err}")
                             Logger.debug(f"Drift balance fetch: {drift_err}")
                         
                         total_live_equity = live_data.get("total_usd", 0.0) + drift_equity
