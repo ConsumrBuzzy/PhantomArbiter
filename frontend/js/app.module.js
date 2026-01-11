@@ -417,7 +417,6 @@ class TradingOS {
 
                 // Watchlist
                 if (data.watchlist) {
-                    this.updateScalperWatch(data.watchlist);
                     this.memeSniper.update({ tokens: data.watchlist });
                 }
 

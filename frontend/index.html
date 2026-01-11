@@ -138,7 +138,13 @@
 
                 <!-- ... -->
                 <div class="right-column">
-                    <!-- DRIFT PROTOCOL VAULT -->
+                    <!-- 1. Meme Sniper (Scalper View) -->
+                    <div id="meme-sniper-mount" class="glass-panel"
+                        style="height: 300px; padding: 0; overflow: hidden; margin-bottom: 20px;">
+                        <div class="sniper-loading">🚀 Scraper View Initializing...</div>
+                    </div>
+
+                    <!-- 2. DRIFT PROTOCOL VAULT -->
                     <section class="drift-vault-card" id="drift-panel">
                         <div class="drift-header">
                             <div class="drift-logo">
@@ -170,28 +176,6 @@
                         </div>
                     </section>
 
-                    <section class="glass-panel" id="intel-panel">
-                        <div class="panel-title" id="intel-title">Token Scalper Watch</div>
-                        <div id="intel-content" style="overflow-y: auto;">
-                            <table id="intel-table">
-                                <thead>
-                                    <tr id="intel-header">
-                                        <th>TOKEN</th>
-                                        <th>PRICE</th>
-                                        <th>5M FLUX</th>
-                                        <th>VOL (24H)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="4" style="text-align: center; color: var(--text-dim);">
-                                            Listening
-                                            for signals...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
                     <section class="glass-panel" id="metrics-panel">
                         <div class="panel-title">System Metrics</div>
                         <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
@@ -353,13 +337,7 @@
                         </div>
                     </div>
 
-                    <!-- Right Column: Meme Sniper (Scalper View) -->
-                    <div class="grid-col-right">
-                        <div id="meme-sniper-mount" class="glass-panel"
-                            style="height: 100%; min-height: 200px; padding: 0; overflow: hidden;">
-                            <div class="sniper-loading">🚀 Scraper View Initializing...</div>
-                        </div>
-                    </div>
+
 
                     <!-- Config Panel (The Brain) -->
                     <div class="config-panel">
