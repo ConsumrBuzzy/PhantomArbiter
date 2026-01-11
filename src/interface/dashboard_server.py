@@ -163,6 +163,7 @@ class DashboardServer:
                     }
                     
                     # 2. LIVE WALLET (Real Solana On-Chain)
+                    enriched_live = {}  # Initialize before try
                     try:
                         from src.drivers.wallet_manager import WalletManager
                         if not hasattr(self, '_wallet_mgr'):
@@ -170,7 +171,6 @@ class DashboardServer:
                         
                         live_data = self._wallet_mgr.get_current_live_usd_balance()
                         
-                        enriched_live = {}
                         for asset_info in live_data.get("assets", []):
                             sym = asset_info.get("symbol", "UNKNOWN")
                             amt = asset_info.get("amount", 0)
@@ -199,8 +199,8 @@ class DashboardServer:
                         Logger.debug(f"Live wallet fetch: {live_err}")
                         live_wallet_data = {"assets": {}, "equity": 0.0, "sol_balance": 0.0, "type": "LIVE (error)"}
                     
-                    # Broadcast SOL price for SolTape (from whichever wallet has it)
-                    sol_price = enriched_paper.get("SOL", {}).get("price", 0) or enriched_live.get("SOL", {}).get("price", 0)
+                    # Broadcast SOL price for SolTape
+                    sol_price = enriched_paper.get("SOL", {}).get("price", 0) or enriched_live.get("SOL", {}).get("price", 0) or 150.0
                     if sol_price > 0:
                         await self._broadcast(json.dumps({
                             "type": "MARKET_DATA",
