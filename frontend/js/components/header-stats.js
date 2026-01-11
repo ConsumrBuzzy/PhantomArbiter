@@ -26,17 +26,16 @@ export class HeaderStats {
      * Update system stats
      */
     update(stats) {
-        // Update Paper Wallet (Right)
-        if (stats.wallet) {
-            this.updatePaperWallet(stats.wallet);
+        // Update Paper Wallet (Right) - use paper_wallet or fallback to wallet
+        const paperData = stats.paper_wallet || stats.wallet;
+        if (paperData) {
+            this.updatePaperWallet(paperData);
         }
 
-        // Update Live Wallet (Left)
-        // Check if any engine is running in LIVE mode to populate this
-        if (stats.engines) {
-            const liveEngine = Object.values(stats.engines).find(e => e.live_mode && e.status === 'RUNNING');
-            this.updateLiveWallet(liveEngine, stats.wallet); // passing global wallet for now, ideally needs live wallet data
-        }
+        // Update Live Wallet (Left) - use dedicated live_wallet data
+        const liveData = stats.live_wallet;
+        const liveEngine = stats.engines ? Object.values(stats.engines).find(e => e.live_mode && e.status === 'RUNNING') : null;
+        this.updateLiveWallet(liveEngine, liveData);
     }
 
     updatePaperWallet(data) {
@@ -48,41 +47,47 @@ export class HeaderStats {
         }
     }
 
-    updateLiveWallet(liveEngine, walletData) {
+    updateLiveWallet(liveEngine, liveData) {
         if (!this.liveContainer) return;
 
         const indicator = this.liveContainer.querySelector('.wallet-status-indicator');
-        const isLiveWallet = walletData && walletData.type && walletData.type.startsWith('LIVE');
+        const hasLiveData = liveData && liveData.equity > 0;
+        const isError = liveData && liveData.type && liveData.type.includes('error');
 
-        if (isLiveWallet || liveEngine) {
-            // Active Live Wallet or Live Engine Running
+        if (hasLiveData) {
+            // Display real Solana wallet balance
             this.liveContainer.style.opacity = '1';
+            indicator.textContent = 'LIVE WALLET';
 
-            if (isLiveWallet) {
-                // Display actual live wallet balance
-                indicator.textContent = 'LIVE WALLET';
-                if (this.liveBalance) {
-                    const equity = walletData.equity || 0;
-                    this.liveBalance.textContent = `$${equity.toFixed(2)}`;
-                    this.liveBalance.style.color = equity > 0 ? 'var(--neon-green)' : 'var(--text-dim)';
-                }
-            } else if (liveEngine) {
-                // Live engine running but wallet not in LIVE mode
-                indicator.textContent = `LIVE: ${liveEngine.name.toUpperCase()}`;
-                indicator.classList.add('active');
-                if (this.liveBalance) this.liveBalance.textContent = "ACTIVE";
-                this.liveBalance.style.color = "var(--neon-red)";
+            if (this.liveBalance) {
+                const equity = liveData.equity || 0;
+                this.liveBalance.textContent = `$${equity.toFixed(2)}`;
+                this.liveBalance.style.color = 'var(--neon-green)';
             }
 
-            // Trigger pulse if live engine is running
+            // Pulse if live engine running
             if (liveEngine) {
                 indicator.classList.add('active');
             } else {
                 indicator.classList.remove('active');
             }
+        } else if (liveEngine) {
+            // Live engine running but no wallet data yet
+            this.liveContainer.style.opacity = '1';
+            indicator.textContent = `LIVE: ${liveEngine.name.toUpperCase()}`;
+            indicator.classList.add('active');
+            if (this.liveBalance) this.liveBalance.textContent = "ACTIVE";
+            this.liveBalance.style.color = "var(--neon-red)";
+        } else if (isError) {
+            // Error fetching live wallet
+            this.liveContainer.style.opacity = '0.6';
+            indicator.textContent = "LIVE WALLET";
+            indicator.classList.remove('active');
+            if (this.liveBalance) this.liveBalance.textContent = "ERROR";
+            this.liveBalance.style.color = "var(--neon-red)";
         } else {
-            // No Live Data - Show dimmed state
-            this.liveContainer.style.opacity = '0.5';
+            // No live data or wallet not configured
+            this.liveContainer.style.opacity = '0.6';
             indicator.textContent = "LIVE WALLET";
             indicator.classList.remove('active');
             if (this.liveBalance) this.liveBalance.textContent = "$0.00";

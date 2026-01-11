@@ -121,128 +121,91 @@ class DashboardServer:
                     # Get engine statuses
                     engine_status = await engine_manager.get_status()
                     
-                    # Get wallet state (Paper vs Live)
-                    wallet_data = {}
-                    if self.global_mode == "PAPER":
-                        # Load Paper Wallet balances
+                    # V23.1: Always fetch BOTH wallets
+                    # LIVE = Real Solana on-chain balance
+                    # PAPER = Simulation wallet for paper trading
+                    
+                    paper_wallet_data = {}
+                    live_wallet_data = {}
+                    
+                    # 1. PAPER WALLET (Simulation)
+                    try:
+                        pw.reload()
+                    except Exception:
+                        pass
+                    
+                    enriched_paper = {}
+                    paper_equity = 0.0
+                    FALLBACK_PRICES = {"SOL": 150.0, "USDC": 1.0, "JTO": 2.5, "JUP": 0.8}
+                    
+                    for asset, balance in pw.balances.items():
+                        price = FALLBACK_PRICES.get(asset, 0.0)
                         try:
-                            pw.reload()  # Reload from DB
-                        except Exception as e:
-                            Logger.debug(f"Paper Wallet reload: {e}")
+                            if not hasattr(self, '_val_feed'):
+                                from src.shared.feeds.jupiter_feed import JupiterFeed
+                                self._val_feed = JupiterFeed()
+                            if hasattr(self, '_val_feed') and asset != "USDC":
+                                quote = self._val_feed.get_spot_price(asset, "USDC")
+                                if quote and quote.price > 0:
+                                    price = quote.price
+                        except Exception:
+                            pass
                         
-                        # Build wallet data with fallback prices
-                        enriched_wallet = {}
-                        total_equity = 0.0
+                        value = balance * price
+                        paper_equity += value
+                        enriched_paper[asset] = {"amount": balance, "value_usd": value, "price": price}
+                    
+                    paper_wallet_data = {
+                        "assets": enriched_paper,
+                        "equity": paper_equity,
+                        "sol_balance": pw.balances.get("SOL", 0.0),
+                        "type": "PAPER"
+                    }
+                    
+                    # 2. LIVE WALLET (Real Solana On-Chain)
+                    try:
+                        from src.drivers.wallet_manager import WalletManager
+                        if not hasattr(self, '_wallet_mgr'):
+                            self._wallet_mgr = WalletManager()
                         
-                        # Fallback prices if feed unavailable
-                        FALLBACK_PRICES = {"SOL": 150.0, "USDC": 1.0, "JTO": 2.5, "JUP": 0.8}
+                        live_data = self._wallet_mgr.get_current_live_usd_balance()
                         
-                        for asset, balance in pw.balances.items():
-                            price = FALLBACK_PRICES.get(asset, 0.0)
-                            
-                            # Try to get real price from feed
-                            try:
-                                if not hasattr(self, '_val_feed'):
-                                    from src.shared.feeds.jupiter_feed import JupiterFeed
-                                    self._val_feed = JupiterFeed()
-                                
-                                if hasattr(self, '_val_feed') and asset != "USDC":
-                                    quote = self._val_feed.get_spot_price(asset, "USDC")
-                                    if quote and quote.price > 0:
-                                        price = quote.price
-                            except Exception:
-                                pass  # Use fallback price
-                            
-                            value = balance * price
-                            total_equity += value
-                            
-                            enriched_wallet[asset] = {
-                                "amount": balance,
-                                "value_usd": value,
-                                "price": price
+                        enriched_live = {}
+                        for asset_info in live_data.get("assets", []):
+                            sym = asset_info.get("symbol", "UNKNOWN")
+                            amt = asset_info.get("amount", 0)
+                            val = asset_info.get("usd_value", 0)
+                            enriched_live[sym] = {
+                                "amount": amt,
+                                "value_usd": val,
+                                "price": val / max(amt, 0.0001) if amt else 0
                             }
                         
-                        # Always set wallet_data
-                        wallet_data = {
-                            "assets": enriched_wallet,
-                            "equity": total_equity,
-                            "sol_balance": pw.balances.get("SOL", 0.0),
-                            "type": "PAPER"
+                        breakdown = live_data.get("breakdown", {})
+                        if "SOL" in breakdown:
+                            sol_bal = breakdown["SOL"]
+                            sol_price = enriched_live.get("SOL", {}).get("price", 150.0)
+                            enriched_live["SOL"] = {"amount": sol_bal, "value_usd": sol_bal * sol_price, "price": sol_price}
+                        if "USDC" in breakdown:
+                            enriched_live["USDC"] = {"amount": breakdown["USDC"], "value_usd": breakdown["USDC"], "price": 1.0}
+                        
+                        live_wallet_data = {
+                            "assets": enriched_live,
+                            "equity": live_data.get("total_usd", 0.0),
+                            "sol_balance": breakdown.get("SOL", 0.0),
+                            "type": "LIVE"
                         }
-                        
-                        # Broadcast SOL price for SolTape
-                        sol_price = enriched_wallet.get("SOL", {}).get("price", 0)
-                        if sol_price > 0:
-                            market_payload = {
-                                "type": "MARKET_DATA",
-                                "data": {
-                                    "sol_price": sol_price,
-                                    "source": "PAPER WALLET"
-                                }
-                            }
-                            await self._broadcast(json.dumps(market_payload))
-
-                    else:
-                        # V23.0: Live Wallet - Fetch real on-chain balance
-                        try:
-                            from src.drivers.wallet_manager import WalletManager
-                            wallet_mgr = WalletManager()
-                            live_data = wallet_mgr.get_current_live_usd_balance()
-                            
-                            # Format assets for frontend
-                            enriched_live = {}
-                            for asset_info in live_data.get("assets", []):
-                                sym = asset_info.get("symbol", "UNKNOWN")
-                                enriched_live[sym] = {
-                                    "amount": asset_info.get("amount", 0),
-                                    "value_usd": asset_info.get("usd_value", 0),
-                                    "price": asset_info.get("usd_value", 0) / max(asset_info.get("amount", 1), 0.0001)
-                                }
-                            
-                            # Add SOL and USDC from breakdown
-                            breakdown = live_data.get("breakdown", {})
-                            if "SOL" in breakdown:
-                                sol_bal = breakdown["SOL"]
-                                sol_price = enriched_live.get("SOL", {}).get("price", 0) or 150.0
-                                enriched_live["SOL"] = {
-                                    "amount": sol_bal,
-                                    "value_usd": sol_bal * sol_price,
-                                    "price": sol_price
-                                }
-                            if "USDC" in breakdown:
-                                enriched_live["USDC"] = {
-                                    "amount": breakdown["USDC"],
-                                    "value_usd": breakdown["USDC"],
-                                    "price": 1.0
-                                }
-                            
-                            wallet_data = {
-                                "assets": enriched_live,
-                                "equity": live_data.get("total_usd", 0.0),
-                                "sol_balance": breakdown.get("SOL", 0.0),
-                                "type": "LIVE"
-                            }
-                            
-                            # Broadcast SOL price for SolTape
-                            sol_price_live = enriched_live.get("SOL", {}).get("price", 0)
-                            if sol_price_live > 0:
-                                market_payload = {
-                                    "type": "MARKET_DATA",
-                                    "data": {
-                                        "sol_price": sol_price_live,
-                                        "source": "LIVE WALLET"
-                                    }
-                                }
-                                await self._broadcast(json.dumps(market_payload))
-                                
-                        except Exception as live_err:
-                            Logger.debug(f"Live wallet fetch error: {live_err}")
-                            wallet_data = {
-                                "assets": {},
-                                "equity": 0.0,
-                                "sol_balance": 0.0,
-                                "type": "LIVE (error)"
-                            }
+                    except Exception as live_err:
+                        Logger.debug(f"Live wallet fetch: {live_err}")
+                        live_wallet_data = {"assets": {}, "equity": 0.0, "sol_balance": 0.0, "type": "LIVE (error)"}
+                    
+                    # Broadcast SOL price for SolTape (from whichever wallet has it)
+                    sol_price = enriched_paper.get("SOL", {}).get("price", 0) or enriched_live.get("SOL", {}).get("price", 0)
+                    if sol_price > 0:
+                        await self._broadcast(json.dumps({
+                            "type": "MARKET_DATA",
+                            "data": {"sol_price": sol_price, "source": "JUPITER"}
+                        }))
 
                     # Gather System Metrics
                     import psutil
@@ -252,13 +215,16 @@ class DashboardServer:
                         "disk_percent": psutil.disk_usage('/').percent
                     }
 
+                    # Send BOTH wallets in payload
                     stats_payload = {
                         "type": "SYSTEM_STATS",
                         "data": {
                             **(state.stats or {}),
                             "engines": engine_status,
                             "mode": self.global_mode,
-                            "wallet": wallet_data,
+                            "wallet": paper_wallet_data,  # For Inventory (based on mode)
+                            "paper_wallet": paper_wallet_data,
+                            "live_wallet": live_wallet_data,
                             "metrics": metrics
                         },
                         "timestamp": asyncio.get_event_loop().time()
