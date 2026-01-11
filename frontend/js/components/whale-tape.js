@@ -34,6 +34,7 @@ export class WhaleTape {
 
         const item = document.createElement('span');
         item.className = `tape-item item-${trade.side}`;
+        item.title = `Whale Alert: Large ${trade.side.toUpperCase()} order detected on ${trade.pair}`;
 
         // Format size: $100k
         const sizeStr = `$${(trade.size / 1000).toFixed(0)}k`;

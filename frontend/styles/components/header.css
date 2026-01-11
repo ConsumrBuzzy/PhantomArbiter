@@ -134,6 +134,12 @@
     /* Start offscreen */
 }
 
+/* Pause SolTape animation on hover */
+#sol-tape-container:hover .sol-tape-ticker {
+    animation-play-state: paused;
+    cursor: default;
+}
+
 .sol-price-item {
     margin-right: 30px;
     font-size: 0.8rem;
