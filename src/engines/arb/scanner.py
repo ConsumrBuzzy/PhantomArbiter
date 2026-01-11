@@ -34,7 +34,6 @@ class SpreadOpportunity:
     gross_profit_usd: float  # Profit before fees
     estimated_fees_usd: float  # Trading + gas fees
     net_profit_usd: float  # Profit after all costs
-    net_profit_pct: float  # ROI percentage
 
     max_size_usd: float  # Limited by liquidity depth
     confidence: float  # 0-1, based on price freshness
@@ -48,6 +47,9 @@ class SpreadOpportunity:
     # V128.7: Standardized Quote Storage (Prevents AttributeError)
     buy_quote: Optional[Dict] = None
     sell_quote: Optional[Dict] = None
+    
+    # Validation
+    net_profit_pct: float = 0.0
 
     def calculate_optimal_size(
         self, impact_factor: float, min_size: float = 10.0, max_size: float = 1000.0
