@@ -1210,6 +1210,30 @@ input:checked+.slider:before {
 .pulse-value {
     font-size: 0.85rem;
     font-weight: bold;
+    color: var(--text-primary);
+    font-family: 'Roboto Mono';
+}
+
+/* Whale Tape Ticker */
+.whale-tape-container {
+    grid-area: tape;
+    margin-bottom: 0px;
+    height: 100%;
+    /* Will fill the 45px row */
+    display: flex;
+    align-items: center;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+}
+
+.tape-label {
+    background: var(--panel-bg);
+    color: var(--neon-blue);
+    font-size: 0.7rem;
     font-weight: bold;
     padding: 0 10px;
     height: 100%;
