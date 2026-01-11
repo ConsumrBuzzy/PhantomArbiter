@@ -28,15 +28,8 @@ import { MajorsTape } from './components/majors-tape.js';
 import { MemeSniperStrip } from './components/meme-sniper-strip.js';
 import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
-import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
 import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
-
-// Router & Pages
-import { Router } from './core/router.js';
-import { DashboardPage } from './pages/dashboard-page.js';
-import { EnginePage } from './pages/engine-page.js';
-import { PacketHandler } from './core/packet-handler.js';
 
 class TradingOS {
     constructor() {
@@ -44,31 +37,9 @@ class TradingOS {
         this.layoutManager = new LayoutManager();
         this.terminal = new Terminal('log-stream');
         this.marketData = new MarketData();
-
-        // Initialize Router
-        this.router = new Router('app-root');
-
-        // Register Routes
-        this.router.register('/dashboard', new DashboardPage('dashboard'));
-        this.router.register('/engine/arb', new EnginePage('arb'));
-        this.router.register('/engine/funding', new EnginePage('funding'));
-        this.router.register('/engine/scalp', new EnginePage('scalp'));
-        this.router.register('/engine/drift', new EnginePage('drift')); // Future dedicated page
-        // Default route is handled by Router._handleHashChange
-
-        this.tokenWatchlist = new TokenWatchlist('watchlist-panel'); // Note: Watchlist panel ID might only exist in DashboardPage now?
-        // Watchlist panel is inside DashboardPage, so this initialization might fail if it runs before mount.
-        // However, TokenWatchlist likely binds on init. If element missing, it might error.
-        // We will defer legacy component init if possible, or accept warning. 
-        // For V1, the dashboard mounts immediately on load, so it might race.
-        // Ideally, TokenWatchlist should be part of DashboardPage init().
-
-        // Global Services
-        this.inventory = new Inventory('inventory-table'); // Same issue: ID in sub-page.
+        this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
+        this.inventory = new Inventory('inventory-table');
         this.headerStats = new HeaderStats();
-        this.modal = new ModalManager();
-        // Remove legacy WhaleTape (replaced by TickerTape in header)
-
         this.modal = new ModalManager();
         this.systemMetrics = new SystemMetrics('chart-metrics');
         this.solTape = new SolTape('sol-tape-container');
@@ -83,11 +54,7 @@ class TradingOS {
         // Meme Sniper in Main View (replacing old Whale location)
         this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
 
-        // Wire bridge button
-        // this.wireBridgeButton(); // Legacy
-
-        // Component Registry for Router
-        this.activeComponents = {};
+        // Component Registry
         this.activeComponents = {};
         this.unifiedVault.setBridgeCallback((amount) => {
             this.ws.send('BRIDGE_TRIGGER', { amount });
@@ -135,12 +102,9 @@ class TradingOS {
             port: 8765,
             onConnect: () => this.onConnect(),
             onDisconnect: () => this.onDisconnect(),
-            onMessage: (packet) => this.packetHandler.handle(packet),
+            onMessage: (packet) => this.handlePacket(packet),
             onError: (err) => this.terminal.addLog('SYSTEM', 'ERROR', 'WebSocket Error')
         });
-
-        // Initialize PacketHandler
-        this.packetHandler = new PacketHandler(this);
 
         // Modal callbacks
         this.modal.onSaveConfig = (engine, config) => this.saveConfig(engine, config);
@@ -181,29 +145,7 @@ class TradingOS {
     bindGlobalEvents() {
         // Navigation
         document.querySelectorAll('.nav-item').forEach(item => {
-            // Update valid sidebar links to use hash
-            // The HTML still uses data-view="dashboard", etc.
-            // We will interpret click -> hash
-            item.addEventListener('click', () => {
-                const view = item.dataset.view || item.dataset.tooltip?.toLowerCase(); // Fallback to tooltip if data-view missing
-                if (view) {
-                    // Map legacy view names to routes
-                    const routeMap = {
-                        'dashboard': '/dashboard',
-                        'scanner': '/engine/arb', // Example mapping
-                        'engines': '/engine/funding',
-                        'settings': '/config'
-                    };
-
-                    // Fallback for font-awesome icons that might not have data-view matches from the revert
-                    let target = routeMap[view] || '/dashboard';
-                    // Specific checks for sidebar structure (user reverted sidebar uses icons)
-                    if (view.includes('Dashboard')) target = '/dashboard';
-                    if (view.includes('Analytics')) target = '/engine/arb'; // Placeholder
-
-                    window.location.hash = target;
-                }
-            });
+            item.addEventListener('click', () => this.switchView(item.dataset.view));
         });
 
         // Listen for navigation events from existing cards
@@ -378,7 +320,38 @@ class TradingOS {
     /**
      * Update vault panel with data from WebSocket
      */
+    updateVaultPanel(engineId, vaultData) {
+        if (this.currentDetailEngine !== engineId) return;
 
+        // Update equity
+        const equityEl = document.getElementById('detail-vault-equity');
+        if (equityEl) {
+            equityEl.textContent = `$${(vaultData.equity || 0).toFixed(2)}`;
+        }
+
+        // Update asset rows
+        const assetsContainer = document.getElementById('detail-vault-assets');
+        if (assetsContainer && vaultData.assets) {
+            let html = '';
+            Object.entries(vaultData.assets).sort((a, b) => {
+                // USDC first, then SOL, then others
+                if (a[0] === 'USDC') return -1;
+                if (b[0] === 'USDC') return 1;
+                if (a[0] === 'SOL') return -1;
+                if (b[0] === 'SOL') return 1;
+                return 0;
+            }).forEach(([asset, balance]) => {
+                const displayBal = balance >= 1 ? balance.toFixed(2) : balance.toFixed(4);
+                html += `
+                    <div class="vault-asset-row">
+                        <span class="vault-asset-symbol">${asset}</span>
+                        <span class="vault-asset-balance">${displayBal}</span>
+                    </div>
+                `;
+            });
+            assetsContainer.innerHTML = html || '<div class="vault-asset-row"><span>No assets</span></div>';
+        }
+    }
 
     /**
      * Add log entry to engine-specific log stream
@@ -444,7 +417,188 @@ class TradingOS {
      * Handle incoming packets
      */
     handlePacket(packet) {
-        this.packetHandler.handle(packet);
+        const { type, data } = packet;
+
+        switch (type) {
+            case 'SYSTEM_STATS':
+                this.headerStats.update(data);
+                if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
+                if (data.engines) this.updateEngineStates(data.engines);
+                if (data.metrics) this.systemMetrics.update(data.metrics);
+
+                // Watchlist
+                if (data.watchlist) {
+                    if (this.activeComponents.sniper) {
+                        this.activeComponents.sniper.update({ tokens: data.watchlist });
+                    } else if (this.memeSniper) {
+                        this.memeSniper.update({ tokens: data.watchlist });
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════════
+                // UNIFIED BALANCE (Single Source of Truth)
+                // ═══════════════════════════════════════════════════════════════
+                if (data.unified_balance) {
+                    // Update the UnifiedVaultController (Global or Page-Specific)
+                    if (this.activeComponents.vault) {
+                        this.activeComponents.vault.update(data.unified_balance);
+                    } else if (this.unifiedVault) {
+                        this.unifiedVault.update(data.unified_balance);
+                    }
+
+                    // Update Drift Panel (legacy support)
+                    const driftEquity = data.unified_balance.drift?.equity || 0;
+                    const equityEl = document.getElementById('drift-equity');
+                    const pnlEl = document.getElementById('drift-pnl');
+
+                    if (equityEl) equityEl.textContent = '$' + driftEquity.toFixed(2);
+                    if (driftEquity > 0 && pnlEl) {
+                        const pnl = data.unified_balance.drift?.pnl || 0;
+                        pnlEl.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
+                        pnlEl.className = 'drift-value ' + (pnl >= 0 ? 'positive' : 'negative');
+                    }
+
+                    // Update ticker mode based on global mode
+                    if (data.mode && this.whaleTicker) {
+                        this.whaleTicker.setMode(data.mode);
+                    }
+                }
+
+                // Legacy CEX UI UPDATE (for backward compat)
+                if (data.cex_wallet && !data.unified_balance) {
+                    const cexBalEl = document.getElementById('cex-wallet-balance');
+                    const cexUsdcEl = document.getElementById('cex-usdc');
+
+                    if (cexBalEl) {
+                        cexBalEl.textContent = '$' + (data.cex_wallet.total_value_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                    if (cexUsdcEl) {
+                        cexUsdcEl.textContent = (data.cex_wallet.withdrawable_usdc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                }
+                break;
+
+            case 'SIGNAL':
+                // Handle generic signals (including Drift)
+                this.handleSignal(data);
+                break;
+
+            case 'CONTEXT_UPDATE':
+                this.headerStats.updateContext(data);
+                break;
+
+            case 'ENGINE_STATUS':
+                this.updateEngineStates(data);
+                break;
+
+            case 'ENGINE_RESPONSE':
+                this.handleEngineResponse(packet);
+                // Safety Gate Toast Feedback
+                if (!packet.result?.success) {
+                    this.toast.show(packet.result?.message || 'Engine command failed', 'error');
+                }
+                break;
+
+            case 'SOS_RESPONSE':
+                this.handleSOSResponse(packet);
+                break;
+
+            case 'LOG_ENTRY':
+                this.terminal.addLog(data.source, data.level, data.message, data.timestamp);
+                break;
+
+            case 'MARKET_DATA':
+                this.marketData.update(data);
+                if (data.sol_price) {
+                    this.solTape.update(data.sol_price);
+                    // Feed majors tape with available prices
+                    this.majorsTape.update({
+                        SOL: data.sol_price,
+                        BTC: data.btc_price || 0,
+                        ETH: data.eth_price || 0,
+                        ...data.prices  // Additional prices if available
+                    });
+                }
+                break;
+
+            case 'TOKEN_WATCHLIST':
+                this.tokenWatchlist.update(data);
+                this.memeSniper.update(data);
+                break;
+
+            case 'API_HEALTH':
+                if (this.apiHealth) this.apiHealth.update(data);
+                break;
+
+            case 'ARB_OPP':
+                this.updateIntelTable('ARB', data);
+                if (this.marketComponents.arb) this.marketComponents.arb.update(data);
+                break;
+
+            case 'SCALP_SIGNAL':
+                this.updateIntelTable('SCALP', data);
+                if (this.marketComponents.scalp) this.marketComponents.scalp.update(data);
+                break;
+
+            case 'LST_UPDATE':
+                if (this.marketComponents.lst) this.marketComponents.lst.update(data.data);
+                break;
+
+            case 'SCALP_UPDATE':
+                if (this.marketComponents.scalp && data.payload?.type === 'SIGNAL') {
+                    this.marketComponents.scalp.update(data.payload.data);
+                }
+                break;
+
+            // ═══════════════════════════════════════════════════════════════
+            // MULTI-VAULT MESSAGES
+            // ═══════════════════════════════════════════════════════════════
+
+            case 'ENGINE_VAULT':
+                // Vault data response for detail view
+                if (packet.engine && packet.data) {
+                    this.updateVaultPanel(packet.engine, packet.data);
+                }
+                break;
+
+            case 'VAULT_RESPONSE':
+                // Vault reset/sync confirmation
+                if (packet.success) {
+                    this.toast.show(packet.message || 'Vault operation complete', 'success');
+                    // Refresh vault data
+                    if (packet.engine && this.currentDetailEngine === packet.engine) {
+                        this.ws.send('GET_ENGINE_VAULT', { engine: packet.engine });
+                    }
+                } else {
+                    this.toast.show(packet.message || 'Vault operation failed', 'error');
+                }
+                break;
+
+            case 'VAULT_SNAPSHOT':
+                // Global vault aggregation (for future portfolio view)
+                console.log('Vault Snapshot:', packet.data);
+                break;
+
+            default:
+                // Unhandled packet type
+                break;
+        }
+    }
+
+    /**
+     * Update all engine states
+     */
+    updateEngineStates(states) {
+        let runningCount = 0;
+
+        Object.entries(states).forEach(([name, state]) => {
+            if (this.engines[name]) {
+                this.engines[name].setState(state);
+                if (state.status === 'running') runningCount++;
+            }
+        });
+
+        this.headerStats.setEngineCount(runningCount, Object.keys(this.engines).length);
     }
 
     /**
@@ -510,7 +664,39 @@ class TradingOS {
     /**
      * Handle generic signals (e.g. for Drift Ticker)
      */
+    handleSignal(payload) {
+        // Update Drift Ticker
+        const ticker = document.getElementById('drift-ticker');
+        if (ticker && payload) {
+            let msg = '';
+            if (payload.type === 'funding') {
+                msg = `💰 Funding Opp: ${payload.symbol} ${payload.apr}% APR`;
+            } else if (payload.type === 'arb') {
+                msg = `⚡ Arb Signal: ${payload.symbol} -> ${payload.profit_pct}%`;
+            }
 
+            if (msg) {
+                ticker.textContent = msg;
+                ticker.style.animation = 'none';
+                ticker.offsetHeight; /* trigger reflow */
+                ticker.style.animation = 'pulse-text 2s infinite';
+            }
+        }
+
+        // WHALE TAPE Integration
+        if (payload.type === 'WHALE_ACTIVITY' || payload.source === 'WHALE') {
+            const data = payload.data || {};
+            const symbol = data.mint || data.symbol || 'UNK';
+            // Default to $50k if missing, just to show something, or 0
+            const value = data.amount_usd || data.value || 50000;
+            const direction = (data.direction || 'buy').toLowerCase();
+
+            const item = createWhaleItem(symbol, value, direction);
+            if (this.whaleTicker) {
+                this.whaleTicker.addItem(item);
+            }
+        }
+    }
 
     /**
      * Execute emergency stop
@@ -523,7 +709,24 @@ class TradingOS {
     /**
      * Handle engine response
      */
+    handleEngineResponse(packet) {
+        const { engine, result } = packet;
+        const level = result.success ? 'SUCCESS' : 'ERROR';
+        this.terminal.addLog('ENGINE', level, `${engine}: ${result.message}`);
+    }
 
+    /**
+     * Handle SOS response
+     */
+    handleSOSResponse(packet) {
+        const { result } = packet;
+        if (result.success) {
+            this.terminal.addLog('SYSTEM', 'WARNING',
+                `SOS Complete: ${result.engines_stopped} engines stopped`);
+        } else {
+            this.terminal.addLog('SYSTEM', 'ERROR', `SOS Failed: ${result.message}`);
+        }
+    }
 
     /**
      * Switch between views
