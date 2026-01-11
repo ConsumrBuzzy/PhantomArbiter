@@ -9,6 +9,38 @@ export class MemeSniperStrip {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.tokenMap = new Map(); // Stores full token state: symbol -> tokenObj
+        this.STORAGE_KEY = 'meme_sniper_data_v1';
+        this._loadFromStorage();
+    }
+
+    _loadFromStorage() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(item => {
+                        if (item && item.symbol) {
+                            this.tokenMap.set(item.symbol, item);
+                        }
+                    });
+                    // Initial render from cache
+                    console.log(`[MemeSniper] Loaded ${this.tokenMap.size} tokens from cache`);
+                    this._renderMap();
+                }
+            }
+        } catch (e) {
+            console.warn('[MemeSniper] Failed to load cache', e);
+        }
+    }
+
+    _saveToStorage() {
+        try {
+            const data = Array.from(this.tokenMap.values());
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            // Ignore quota errors
+        }
     }
 
     /**
@@ -61,7 +93,22 @@ export class MemeSniperStrip {
             this.tokenMap.set(symbol, updatedRecord);
         });
 
-        // 2. Render from Persistent Map (not just incoming)
+        this._saveToStorage();
+        this._renderMap();
+    }
+
+    _getBestPrice(token) {
+        const prices = token.prices || {};
+        const entries = Object.entries(prices).filter(([_, p]) => p > 0);
+        if (entries.length === 0) return 0;
+        // Max price (Sell side proxy)
+        return entries.reduce((a, b) => a[1] > b[1] ? a : b)[1];
+    }
+
+    /**
+     * Internal render logic using persistent map
+     */
+    _renderMap() {
         const allTokens = Array.from(this.tokenMap.values());
 
         // Sort by spread descending
@@ -77,19 +124,7 @@ export class MemeSniperStrip {
             return;
         }
 
-        this.render(hotTokens);
-    }
-
-    _getBestPrice(token) {
-        const prices = token.prices || {};
-        const entries = Object.entries(prices).filter(([_, p]) => p > 0);
-        if (entries.length === 0) return 0;
-        // Max price (Sell side proxy)
-        return entries.reduce((a, b) => a[1] > b[1] ? a : b)[1];
-    }
-
-    render(tokens) {
-        const cardsHtml = tokens.map(token => {
+        const cardsHtml = hotTokens.map(token => {
             const spread = token.spread_pct || 0;
             const isHot = spread > 1.0;
             const hotClass = isHot ? 'hot' : '';
@@ -124,7 +159,7 @@ export class MemeSniperStrip {
                         </div>
                     </div>
                     <div class="meme-card-bottom">
-                        <span class="meme-price">$${token.currentPrice.toFixed(4)}</span>
+                        <span class="meme-price">$${(token.currentPrice || 0).toFixed(4)}</span>
                         <span class="meme-spread ${spread > 0 ? 'positive' : ''}">+${spread.toFixed(2)}%</span>
                     </div>
                 </div>
@@ -132,5 +167,11 @@ export class MemeSniperStrip {
         }).join('');
 
         this.container.innerHTML = cardsHtml;
+    }
+
+    // Retain public render for compatibility if needed, but alias to _renderMap
+    render(tokens) {
+        // Legacy call - ignore tokens argument and use internal map to be safe
+        this._renderMap();
     }
 }
