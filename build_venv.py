@@ -77,23 +77,34 @@ def setup_venv():
     subprocess.run(cmd, check=True)
 
     # Install dependencies
+    # Install dependencies
     pip_path = (
         venv_path / "Scripts" / "pip"
         if sys.platform == "win32"
         else venv_path / "bin" / "pip"
     )
+    
+    python_path = (
+        venv_path / "Scripts" / "python"
+        if sys.platform == "win32"
+        else venv_path / "bin" / "python"
+    )
 
     try:
-        # Added timeout to handle slow connections
-        subprocess.run([str(pip_path), "install", "."], check=True)
+        # Upgrade pip first to avoid build issues
+        print("⬆️  Upgrading pip...")
+        subprocess.run([str(python_path), "-m", "pip", "install", "--upgrade", "pip"], check=True)
+
+        # Force install from requirements.txt to respect pinned versions (pytest 7.4.4)
+        print("📜 Installing pinned dependencies from requirements.txt...")
+        subprocess.run([str(pip_path), "install", "-r", "requirements.txt"], check=True)
+
+        # Install project in editable mode (without overwriting pinned deps)
+        print("🛠️  Installing project in editable mode...")
+        subprocess.run([str(pip_path), "install", "--no-deps", "-e", "."], check=True)
 
         # V133: Verify Python version and install Maturin
         print("🔍 Verifying Python version...")
-        python_path = (
-            venv_path / "Scripts" / "python"
-            if sys.platform == "win32"
-            else venv_path / "bin" / "python"
-        )
         result = subprocess.run(
             [str(python_path), "--version"], capture_output=True, text=True
         )
