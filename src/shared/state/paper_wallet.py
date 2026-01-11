@@ -170,3 +170,6 @@ def get_paper_wallet() -> EngineVault:
 # Legacy alias for backward compatibility
 PaperWallet = EngineVault
 
+# Global singleton for legacy import compatibility
+pw = get_paper_wallet()
+
