@@ -18,6 +18,7 @@ from src.shared.system.signal_bus import signal_bus, SignalType, Signal
 from src.interface.dashboard_transformer import DashboardTransformer
 from src.interface.engine_registry import engine_registry
 from src.interface.engine_manager import engine_manager
+from src.shared.state.paper_wallet import pw
 from src.shared.system.logging import Logger
 
 
@@ -152,12 +153,35 @@ class DashboardServer:
                                 "price": price
                             }
                             
-                        wallet_data = enriched_wallet
-                        wallet_data['equity'] = total_equity
-                        wallet_data['type'] = 'PAPER'
+                        # FIX: Nest assets to match Inventory.js expectation
+                        wallet_data = {
+                            "assets": enriched_wallet,
+                            "equity": total_equity,
+                            "sol_balance": pw.balances.get("SOL", 0.0),
+                            "type": "PAPER"
+                        }
+
+                        # Broadcast Global SOL Price (from feed or wallet cache)
+                        sol_price = 0.0
+                        if "SOL" in enriched_wallet:
+                            sol_price = enriched_wallet["SOL"]["price"]
+                        
+                        # Send Market Data Packet separately or include in stats
+                        # Here we broadcast a separate small packet for the Tape
+                        if sol_price > 0:
+                            market_payload = {
+                                "type": "MARKET_DATA",
+                                "data": {
+                                    "sol_price": sol_price,
+                                    "source": "JUPITER (Global)"
+                                }
+                            }
+                            await self._broadcast(json.dumps(market_payload))
+
                     else:
                         # Live wallet stub
                         wallet_data = {
+                            "assets": {},
                             "equity": 0.0,
                             "sol_balance": 0.0,
                             "type": "LIVE ( disconnected )"
