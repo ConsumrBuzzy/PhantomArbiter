@@ -34,7 +34,15 @@ class TestSpreadOpportunity:
             slippage_pct: float = 0.1,
             buy_price: float = 150.0,
             sell_price: float = 151.5,
+            trade_size: float = 100.0,
         ):
+            # Calculate derived USD values
+            gross_profit = trade_size * (spread_pct / 100)
+            fees_usd = trade_size * (fee_pct / 100)
+            slippage_cost = trade_size * (slippage_pct / 100)
+            net_profit_usd = gross_profit - fees_usd - slippage_cost
+            net_profit_pct = (net_profit_usd / trade_size) * 100 if trade_size > 0 else 0.0
+
             return SpreadOpportunity(
                 pair="SOL/USDC",
                 base_mint="SOL_MINT",
@@ -44,11 +52,12 @@ class TestSpreadOpportunity:
                 buy_price=buy_price,
                 sell_price=sell_price,
                 spread_pct=spread_pct,
-                net_profit_pct=spread_pct - fee_pct - slippage_pct,
-                fee_pct=fee_pct,
-                slippage_pct=slippage_pct,
-                buy_liquidity=100000.0,
-                sell_liquidity=80000.0,
+                gross_profit_usd=gross_profit,
+                estimated_fees_usd=fees_usd,
+                net_profit_usd=net_profit_usd,
+                net_profit_pct=net_profit_pct,
+                max_size_usd=trade_size,
+                confidence=0.9,
             )
         return _create
 
