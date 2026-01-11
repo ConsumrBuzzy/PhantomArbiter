@@ -57,4 +57,4 @@ grpcio-tools>=1.59.0
 
 # Testing (pinned for Windows 3.12 stability)
 pytest==7.4.4
-pytest-asyncio==0.21.1
+pytest-asyncio==0.23.8
