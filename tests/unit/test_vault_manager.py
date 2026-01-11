@@ -110,6 +110,10 @@ class TestVaultRegistry:
         from src.shared.state.vault_manager import get_vault_registry
         
         registry = get_vault_registry()
+        # Ensure fresh start
+        from src.shared.state.vault_manager import VaultRegistry
+        VaultRegistry._instance = None
+        registry = get_vault_registry()
         
         # Registry starts empty
         assert len(registry._vaults) == 0
