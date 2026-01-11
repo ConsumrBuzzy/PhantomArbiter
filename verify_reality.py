@@ -301,7 +301,7 @@ class RealityChecker:
     
     def print_summary(self):
         """Print final summary."""
-        print("\n" + "═" * 65)
+        print("\n" + "=" * 65)
         
         if self.failed == 0:
             print("  ✅ REALITY CHECK PASSED")
@@ -310,10 +310,10 @@ class RealityChecker:
             print("  ❌ REALITY CHECK FAILED")
             status = "NOT READY"
         
-        print("═" * 65)
+        print("=" * 65)
         print(f"  Status: {status}")
         print(f"  Passed: {self.passed} | Failed: {self.failed} | Warnings: {self.warnings}")
-        print("═" * 65)
+        print("=" * 65)
         
         if self.failed > 0:
             print("\n⚠️  Fix the failed checks before enabling live trading.")
