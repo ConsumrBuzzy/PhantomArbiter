@@ -1,8 +1,8 @@
-# PhantomTrader Documentation
+# PhantomArbiter Documentation
 
-> **V10.5 SRP Architecture** — Solana Memecoin Swing Trading Bot
+> **Version 0.1.0** — Autonomous Solana DeFi Arbitrage & Trading Engine
 
-Welcome to the comprehensive documentation for PhantomTrader, a sophisticated automated trading system for Solana memecoins.
+Welcome to the comprehensive documentation for PhantomArbiter, a sophisticated multi-strategy trading system for the Solana blockchain ecosystem.
 
 ---
 
@@ -26,30 +26,31 @@ Welcome to the comprehensive documentation for PhantomTrader, a sophisticated au
 
 ## 🏗️ Architecture Overview
 
-PhantomTrader uses a **Single Responsibility Principle (SRP)** architecture organized into three priority tiers:
+PhantomArbiter uses a **Hybrid Architecture** combining Python (core logic), Rust (performance-critical paths), and TypeScript (DEX integrations):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  P0: EXECUTION CORE                                                 │
-│  ├── TradingCore (src/engine/trading_core.py)                      │
-│  │   └── High-frequency tick loop, trade lifecycle                 │
-│  └── Constraint: <10ms cycle, NO blocking I/O                      │
+│  FAST TIER (Rust - phantom_core)                    <1ms latency    │
+│  ├── WSS Aggregator: Multi-RPC deduplication                       │
+│  ├── SignalScorer: Go/No-Go decision logic                         │
+│  ├── CycleFinder: Bellman-Ford arbitrage detection                 │
+│  └── Multiverse: Multi-hop path scanning                           │
 ├─────────────────────────────────────────────────────────────────────┤
-│  P1: LOGIC & DATA                                                   │
-│  ├── DecisionEngine (src/engine/decision_engine.py)                │
-│  │   └── Pure logic: RSI analysis, TSL management                  │
-│  ├── DataFeedManager (src/engine/data_feed_manager.py)             │
-│  │   └── Batch price injection                                     │
-│  └── Watcher (src/strategy/watcher.py)                             │
-│      └── Per-asset state container                                 │
+│  MID TIER (Python Async)                           10-50ms latency  │
+│  ├── Director (src/director.py): System orchestration              │
+│  ├── TacticalStrategy: Trading logic & execution                   │
+│  ├── PhantomArbiter: Arbitrage engine                              │
+│  └── ExecutionBackend: Paper/Live trade execution                  │
 ├─────────────────────────────────────────────────────────────────────┤
-│  P2: INFRASTRUCTURE                                                 │
-│  ├── DataBroker (data_broker.py)                                   │
-│  │   └── Independent process for price feeds                       │
-│  ├── DataSourceManager (src/system/data_source_manager.py)         │
-│  │   └── Tiered fallback (Jupiter → DexScreener)                   │
-│  └── PriorityQueue (src/system/priority_queue.py)                  │
-│      └── Async logging and alerts                                  │
+│  SLOW TIER (Background Tasks)                      Minutes-Hours    │
+│  ├── Scout Agents: Smart money tracking                            │
+│  ├── Landlord: Gas management & rent optimization                  │
+│  └── DeepScout: ML-based analysis                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  BRIDGE LAYER (TypeScript/Node.js)                                 │
+│  ├── Orca Daemon: Whirlpools integration                           │
+│  ├── Raydium Daemon: CLMM/AMM integration                          │
+│  └── Meteora Bridge: DLMM integration                              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -73,44 +74,41 @@ graph LR
 ## 📁 Project Structure
 
 ```
-PhantomTrader/
-├── main.py                 # Entry point (V7.0 Dual-Engine)
-├── data_broker.py          # Centralized price fetcher
+PhantomArbiter/
+├── main.py                 # Entry point & CLI
 ├── config/
 │   ├── settings.py         # Global configuration
 │   ├── thresholds.py       # Trading thresholds
-│   └── rpc_pool.json       # RPC endpoints
-├── data/
-│   ├── watchlist.json      # Asset definitions
-│   ├── trading_journal.db  # SQLite persistence
-│   └── price_cache.json    # Cross-process cache
+│   └── rpc_pool.json       # RPC endpoint pool
 ├── src/
-│   ├── engine/             # P0/P1 Core Components
-│   │   ├── trading_core.py
-│   │   ├── decision_engine.py
-│   │   └── data_feed_manager.py
-│   ├── strategy/           # Trading Logic
-│   │   ├── portfolio.py
-│   │   ├── watcher.py
-│   │   ├── risk.py
-│   │   └── signals.py
-│   ├── execution/          # Blockchain Interaction
-│   │   ├── wallet.py
-│   │   ├── swapper.py
-│   │   └── paper_wallet.py
-│   ├── system/             # Infrastructure
-│   │   ├── db_manager.py
-│   │   ├── data_source_manager.py
-│   │   ├── rpc_pool.py
-│   │   └── telegram_listener.py
-│   ├── core/               # Shared Utilities
-│   │   ├── capital_manager.py
-│   │   ├── shared_cache.py
-│   │   └── validator.py
-│   └── tools/              # Utilities
-│       ├── grader.py
-│       ├── scout.py
-│       └── discovery.py
+│   ├── director.py         # System orchestrator
+│   ├── arbiter/            # Arbitrage engine
+│   ├── core/               # System kernels & utilities
+│   ├── shared/             # Common libraries
+│   │   ├── execution/      # Trade execution (paper/live)
+│   │   ├── infrastructure/ # RPC, WebSocket, caching
+│   │   └── system/         # Capital, signals, routing
+│   ├── engines/            # Trading strategies
+│   ├── dashboard/          # Rich TUI
+│   └── tools/              # Scout, discovery utilities
+├── src_rust/               # Rust extension (phantom_core)
+│   └── src/
+│       ├── multiverse.rs   # Multi-hop path scanner
+│       ├── cycle_finder.rs # Arbitrage detection
+│       ├── scorer.rs       # Signal scoring
+│       └── wss_aggregator.rs # RPC deduplication
+├── bridges/                # TypeScript DEX integrations
+│   ├── orca_daemon.ts
+│   ├── raydium_daemon.ts
+│   └── meteora_dlmm.ts
+├── apps/                   # Micro-services
+│   ├── galaxy/             # 3D visualization dashboard
+│   ├── datafeed/           # Market data service (incubating)
+│   └── execution/          # Transaction service (incubating)
+├── tests/                  # Test suite
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
 └── docs/                   # Documentation
 ```
 
@@ -120,19 +118,25 @@ PhantomTrader/
 
 ```bash
 # 1. Clone & Install
-git clone https://github.com/ConsumrBuzzy/PhantomTrader.git
-cd PhantomTrader
+git clone https://github.com/ConsumrBuzzy/PhantomArbiter.git
+cd PhantomArbiter
 pip install -r requirements.txt
+
+# Install TypeScript bridges
+cd bridges && npm install && cd ..
 
 # 2. Configure
 cp .env.example .env
-# Edit .env with your SOLANA_PRIVATE_KEY
+# Edit .env with your wallet and API keys
 
-# 3. Run Monitor Mode (Safe - No Real Trades)
-python main.py --monitor
+# 3. Run Monitor Mode (TUI Dashboard)
+python main.py pulse
 
-# 4. Run Live Mode (Real Money)
-python main.py --live --scalper
+# 4. Run Paper Trading
+python main.py --paper
+
+# 5. Run Live Trading (Real Money - Requires explicit config)
+python main.py --live
 ```
 
 See [Quickstart Guide](./QUICKSTART.md) for detailed setup instructions.
@@ -156,9 +160,8 @@ See [Quickstart Guide](./QUICKSTART.md) for detailed setup instructions.
 
 ## 📖 Version History
 
-- **V10.5** - SQLite persistence, DBManager singleton
-- **V10.2** - SRP architecture refactor
-- **V9.7** - Autonomous gas management
-- **V8.2** - Trailing Stop Loss (TSL)
-- **V7.0** - Dual-engine architecture
-- **V5.7** - Token safety validator
+- **0.1.0** (Current) - Hybrid Architecture (Python + Rust + TypeScript)
+  - Phase 4: Institutional Realism milestone
+  - Rust acceleration for hot paths
+  - TypeScript DEX bridges
+  - Galaxy 3D dashboard
