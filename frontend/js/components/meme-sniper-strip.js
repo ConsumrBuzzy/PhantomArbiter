@@ -115,6 +115,8 @@ export class MemeSniperStrip {
         }
         if (!this.container) return;
 
+        const previousScroll = this.container.scrollTop; // Save scroll position
+
         const allTokens = Array.from(this.tokenMap.values());
 
         // Sort by spread descending
@@ -173,6 +175,7 @@ export class MemeSniperStrip {
         }).join('');
 
         this.container.innerHTML = cardsHtml;
+        if (previousScroll > 0) this.container.scrollTop = previousScroll; // Restore scroll position
     }
 
     // Retain public render for compatibility if needed, but alias to _renderMap
