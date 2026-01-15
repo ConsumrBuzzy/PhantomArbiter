@@ -1078,6 +1078,27 @@ class TradingOS {
         // Update dashboard panel too (if visible)
         const dashLeverage = document.getElementById('drift-leverage');
         if (dashLeverage) dashLeverage.textContent = `${leverage.toFixed(1)}x`;
+
+        // Dashboard mini health badge
+        const healthMini = document.getElementById('drift-health-mini');
+        if (healthMini) {
+            healthMini.textContent = `${healthPercent}%`;
+            healthMini.style.background = health < 0.2 ? 'rgba(255,68,68,0.3)' :
+                health < 0.5 ? 'rgba(255,170,0,0.3)' :
+                    'rgba(0,255,136,0.15)';
+            healthMini.style.borderColor = health < 0.2 ? 'rgba(255,68,68,0.5)' :
+                health < 0.5 ? 'rgba(255,170,0,0.5)' :
+                    'rgba(0,255,136,0.3)';
+        }
+
+        // Bind quick start button (on first load)
+        const quickStartBtn = document.getElementById('drift-quick-start-btn');
+        if (quickStartBtn && !quickStartBtn._bound) {
+            quickStartBtn._bound = true;
+            quickStartBtn.onclick = () => {
+                this.toggleEngine('drift', 'stopped', 'paper');
+            };
+        }
     }
 }
 
