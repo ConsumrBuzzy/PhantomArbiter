@@ -17,6 +17,9 @@ import logging
 import time
 from typing import Dict, Any, Optional
 from enum import Enum
+from dataclasses import dataclass, field
+
+logger = logging.getLogger("phantom.vault_manager")
 
 class VaultType(Enum):
     VIRTUAL = "VIRTUAL"      # Paper / Simulation
