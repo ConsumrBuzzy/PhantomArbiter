@@ -151,7 +151,8 @@ class TradingOS {
             'arb': 'Arbitrage Engine',
             'funding': 'Funding Rate Engine',
             'scalp': 'Scalp Sniper Engine',
-            'lst': 'LST De-Pegger'
+            'lst': 'LST De-Pegger',
+            'drift': 'Delta Neutral Engine'
         };
         document.getElementById('detail-engine-name').textContent = engineNames[engineId] || engineId.toUpperCase();
 
@@ -214,6 +215,12 @@ class TradingOS {
             'lst': {
                 'peg_threshold': { label: 'Peg Threshold', format: v => `${v}%` },
                 'exit_liquidity': { label: 'Exit Check', format: v => v ? 'ON' : 'OFF' }
+            },
+            'drift': {
+                'initial_balance': { label: 'Initial Balance', format: v => `$${v}` },
+                'leverage': { label: 'Leverage', format: v => `${v}x` },
+                'drift_threshold_pct': { label: 'Drift Threshold', format: v => `${v}%` },
+                'jito_tip_lamports': { label: 'Jito Tip', format: v => `${(v / 1000).toFixed(0)}k` }
             }
         };
 
@@ -424,6 +431,13 @@ class TradingOS {
                     if (data.mode && this.whaleTicker) {
                         this.whaleTicker.setMode(data.mode);
                     }
+                }
+
+                // ═══════════════════════════════════════════════════════════════
+                // DRIFT MARGIN METRICS (Risk-First UI)
+                // ═══════════════════════════════════════════════════════════════
+                if (data.drift_margin) {
+                    this.updateDriftHealthGauge(data.drift_margin);
                 }
 
                 // Legacy CEX UI UPDATE (for backward compat)
@@ -831,7 +845,10 @@ class TradingOS {
 
         if (viewName.startsWith('engine-')) {
             const engineId = viewName.replace('engine-', '');
-            // Engine specific init logic can go here
+            // Engine specific init logic
+            if (engineId === 'drift') {
+                this.initDriftEnginePage();
+            }
         }
 
         if (viewName === 'settings') {
@@ -937,6 +954,130 @@ class TradingOS {
         if (payload.wallet) {
             this.inventory.updateScalp(payload.wallet);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DRIFT ENGINE PAGE METHODS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Initialize Drift Engine page components
+     */
+    initDriftEnginePage() {
+        console.log('[TradingOS] Initializing Drift Engine page');
+
+        // Bind engine control buttons
+        const controlMount = document.getElementById('drift-control-card-mount');
+        if (controlMount && !this.engines['drift']) {
+            // Import EngineCard for drift
+            this.engines['drift'] = new EngineCard('drift', {
+                onToggle: (n, s, m) => this.toggleEngine(n, s, m),
+                onSettings: (n, c) => this.openSettings(n, c),
+                onModeChange: (n, m) => { if (this.engines[n]) this.engines[n].setMode(m); }
+            });
+        }
+
+        // Settle PnL button
+        const settlePnlBtn = document.getElementById('drift-settle-pnl-btn');
+        if (settlePnlBtn) {
+            settlePnlBtn.onclick = () => {
+                this.ws.send('DRIFT_SETTLE_PNL', {});
+                this.terminal.addLog('DRIFT', 'INFO', 'Settling PnL...');
+            };
+        }
+
+        // Close All button
+        const closeAllBtn = document.getElementById('drift-close-all-btn');
+        if (closeAllBtn) {
+            closeAllBtn.onclick = () => {
+                if (confirm('Close ALL Drift positions?')) {
+                    this.ws.send('DRIFT_CLOSE_ALL', {});
+                    this.terminal.addLog('DRIFT', 'WARNING', 'Closing all positions...');
+                }
+            };
+        }
+
+        // Request initial state
+        if (this.ws && this.ws.connected) {
+            this.ws.send('GET_SYSTEM_STATS', {});
+        }
+    }
+
+    /**
+     * Update Drift Health Gauge and metrics from backend data
+     */
+    updateDriftHealthGauge(margin) {
+        // Health percentage and needle
+        const healthPct = document.getElementById('drift-health-pct');
+        const healthValue = document.querySelector('.health-value');
+        const healthLabel = document.querySelector('.health-label');
+        const needle = document.getElementById('health-needle');
+        const gauge = document.getElementById('drift-health-gauge');
+
+        const health = margin.health_score || 1.0;
+        const healthPercent = Math.round(health * 100);
+
+        if (healthPct) healthPct.textContent = `${healthPercent}%`;
+
+        // Update state classes
+        if (healthValue) {
+            healthValue.classList.remove('danger', 'warning', 'safe');
+            if (health < 0.2) {
+                healthValue.classList.add('danger');
+                if (healthLabel) healthLabel.textContent = 'DANGER';
+            } else if (health < 0.5) {
+                healthValue.classList.add('warning');
+                if (healthLabel) healthLabel.textContent = 'CAUTION';
+            } else {
+                healthValue.classList.add('safe');
+                if (healthLabel) healthLabel.textContent = 'HEALTHY';
+            }
+        }
+
+        // Gauge pulsing for danger
+        if (gauge) {
+            gauge.classList.toggle('danger', health < 0.2);
+        }
+
+        // Needle rotation: 0-180 degrees mapped to 0-1 health
+        // At health=0 (danger), needle at left (-90 deg from center)
+        // At health=1 (safe), needle at right (+90 deg from center)
+        if (needle) {
+            const rotation = -90 + (health * 180);
+            needle.setAttribute('transform', `rotate(${rotation}, 100, 100)`);
+        }
+
+        // Margin metrics
+        const totalCollateral = document.getElementById('drift-total-collateral');
+        const freeCollateral = document.getElementById('drift-free-collateral');
+        const maintMargin = document.getElementById('drift-maint-margin');
+
+        if (totalCollateral) totalCollateral.textContent = '$' + (margin.total_collateral || 0).toFixed(2);
+        if (freeCollateral) freeCollateral.textContent = '$' + (margin.free_collateral || 0).toFixed(2);
+        if (maintMargin) maintMargin.textContent = '$' + (margin.maintenance_margin || 0).toFixed(2);
+
+        // Leverage meter
+        const leverageFill = document.getElementById('drift-leverage-fill');
+        const leverageValue = document.getElementById('drift-current-leverage');
+        const leverage = margin.leverage || 0;
+
+        if (leverageFill) {
+            const maxLeverage = 20;
+            const fillPct = Math.min(100, (leverage / maxLeverage) * 100);
+            leverageFill.style.width = `${fillPct}%`;
+        }
+        if (leverageValue) leverageValue.textContent = `${leverage.toFixed(1)}x`;
+
+        // Enable buttons if positions exist
+        const settlePnlBtn = document.getElementById('drift-settle-pnl-btn');
+        const closeAllBtn = document.getElementById('drift-close-all-btn');
+
+        if (settlePnlBtn) settlePnlBtn.disabled = !margin.has_positions;
+        if (closeAllBtn) closeAllBtn.disabled = !margin.has_positions;
+
+        // Update dashboard panel too (if visible)
+        const dashLeverage = document.getElementById('drift-leverage');
+        if (dashLeverage) dashLeverage.textContent = `${leverage.toFixed(1)}x`;
     }
 }
 

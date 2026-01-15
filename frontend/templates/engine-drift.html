@@ -1,0 +1,167 @@
+<div class="engine-layout drift-theme">
+    <div class="engine-header-row">
+        <div class="engine-title">
+            <i class="fa-solid fa-water"></i>
+            <h2>Delta Neutral Engine</h2>
+        </div>
+        <div class="engine-status-bar" id="drift-status-bar">
+            <span class="status-indicator stopped">STOPPED</span>
+            <span class="mode-indicator paper">PAPER</span>
+        </div>
+    </div>
+
+    <!-- Risk-First Layout: Health Gauge is PRIMARY -->
+    <div class="engine-grid-layout">
+        <!-- Left Column: Health + Positions -->
+        <div class="grid-col-main">
+            <!-- Health Gauge (Focal Point) -->
+            <section class="glass-panel health-gauge-panel">
+                <div class="panel-title">🛡️ Account Health</div>
+                <div class="health-gauge-container">
+                    <div class="health-gauge" id="drift-health-gauge">
+                        <svg viewBox="0 0 200 120" class="gauge-svg">
+                            <!-- Background arc (gray) -->
+                            <path d="M 20 100 A 80 80 0 0 1 180 100" 
+                                  fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" 
+                                  stroke-linecap="round"/>
+                            <!-- Danger zone (red) -->
+                            <path d="M 20 100 A 80 80 0 0 1 56 36" 
+                                  fill="none" stroke="rgba(255,60,60,0.6)" stroke-width="12" 
+                                  stroke-linecap="round"/>
+                            <!-- Warning zone (yellow) -->
+                            <path d="M 56 36 A 80 80 0 0 1 100 20" 
+                                  fill="none" stroke="rgba(255,200,60,0.6)" stroke-width="12" 
+                                  stroke-linecap="round"/>
+                            <!-- Safe zone (green) -->
+                            <path d="M 100 20 A 80 80 0 0 1 180 100" 
+                                  fill="none" stroke="rgba(60,255,120,0.6)" stroke-width="12" 
+                                  stroke-linecap="round"/>
+                            <!-- Needle -->
+                            <line id="health-needle" x1="100" y1="100" x2="100" y2="30" 
+                                  stroke="#ffffff" stroke-width="3" stroke-linecap="round"
+                                  transform="rotate(0, 100, 100)"/>
+                            <!-- Center dot -->
+                            <circle cx="100" cy="100" r="6" fill="#875BF7"/>
+                        </svg>
+                        <div class="health-value">
+                            <span id="drift-health-pct">100%</span>
+                            <span class="health-label">HEALTHY</span>
+                        </div>
+                    </div>
+                    <div class="health-metrics-row">
+                        <div class="metric-box">
+                            <span class="metric-label">Total Collateral</span>
+                            <span class="metric-value" id="drift-total-collateral">$0.00</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Free Collateral</span>
+                            <span class="metric-value" id="drift-free-collateral">$0.00</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Maint. Margin</span>
+                            <span class="metric-value" id="drift-maint-margin">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Position Management Table (Combat Zone) -->
+            <section class="glass-panel">
+                <div class="panel-header">
+                    <div class="panel-title">⚔️ Combat Zone</div>
+                    <div class="panel-controls">
+                        <button class="btn-xs btn-danger" id="drift-close-all-btn" disabled>Close All</button>
+                    </div>
+                </div>
+                <div class="position-table-container">
+                    <table class="data-table" id="drift-positions-table">
+                        <thead>
+                            <tr>
+                                <th>Market</th>
+                                <th>Side</th>
+                                <th>Size</th>
+                                <th>Entry</th>
+                                <th>Mark</th>
+                                <th>uPnL</th>
+                                <th>Liq. Price</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="drift-positions-body">
+                            <tr class="empty-row">
+                                <td colspan="8" class="empty-state">No open positions</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right Column: Controls + Leverage + Actions -->
+        <div class="grid-col-side">
+            <!-- Engine Control -->
+            <section class="glass-panel">
+                <div class="panel-title">Engine Control</div>
+                <div id="drift-control-card-mount"></div>
+            </section>
+
+            <!-- Leverage Meter -->
+            <section class="glass-panel">
+                <div class="panel-title">📊 Leverage</div>
+                <div class="leverage-meter">
+                    <div class="leverage-bar">
+                        <div class="leverage-fill" id="drift-leverage-fill" style="width: 0%"></div>
+                        <div class="leverage-markers">
+                            <span>0x</span>
+                            <span>5x</span>
+                            <span>10x</span>
+                            <span>20x</span>
+                        </div>
+                    </div>
+                    <div class="leverage-value">
+                        <span id="drift-current-leverage">0.0x</span>
+                        <span class="leverage-max">/ 20x max</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sub-Account Selector -->
+            <section class="glass-panel">
+                <div class="panel-title">👤 Sub-Account</div>
+                <div class="subaccount-selector">
+                    <select id="drift-subaccount-select" class="form-select">
+                        <option value="0" selected>Main Account (0)</option>
+                        <option value="1">Sub-Account 1</option>
+                        <option value="2">Sub-Account 2</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="glass-panel">
+                <div class="panel-title">⚡ Quick Actions</div>
+                <div class="action-buttons">
+                    <button class="btn-action drift-btn" id="drift-settle-pnl-btn" disabled>
+                        <i class="fa-solid fa-coins"></i> Settle PnL
+                    </button>
+                    <button class="btn-action drift-btn" id="drift-deposit-btn">
+                        <i class="fa-solid fa-arrow-down"></i> Deposit
+                    </button>
+                    <button class="btn-action drift-btn" id="drift-withdraw-btn">
+                        <i class="fa-solid fa-arrow-up"></i> Withdraw
+                    </button>
+                </div>
+            </section>
+
+            <!-- Delta State -->
+            <section class="glass-panel">
+                <div class="panel-title">⚖️ Delta Neutrality</div>
+                <div class="delta-display">
+                    <div class="delta-value" id="drift-delta-value">0.00</div>
+                    <div class="delta-label">Net Delta (SOL)</div>
+                    <div class="delta-status neutral" id="drift-delta-status">NEUTRAL</div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>

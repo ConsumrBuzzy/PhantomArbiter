@@ -112,3 +112,327 @@
     background: rgba(135, 91, 247, 0.4);
     box-shadow: 0 0 10px rgba(135, 91, 247, 0.2);
 }
+
+/* ==========================================================================
+   DRIFT ENGINE PAGE - Risk-First Components
+   ========================================================================== */
+
+/* Theme */
+.drift-theme {
+    --drift-purple: #875BF7;
+    --drift-purple-light: #AB8BFF;
+    --drift-purple-dark: #5936B2;
+}
+
+.drift-theme .engine-title i {
+    color: var(--drift-purple);
+}
+
+.drift-theme .glass-panel {
+    border-top: 2px solid var(--drift-purple);
+}
+
+/* ==========================================================================
+   HEALTH GAUGE (Risk-First Focal Point)
+   ========================================================================== */
+
+.health-gauge-panel {
+    text-align: center;
+}
+
+.health-gauge-container {
+    padding: 20px;
+}
+
+.health-gauge {
+    position: relative;
+    width: 200px;
+    margin: 0 auto 20px;
+}
+
+.gauge-svg {
+    width: 100%;
+    height: auto;
+}
+
+#health-needle {
+    transform-origin: 100px 100px;
+    transition: transform 0.5s ease-out;
+}
+
+.health-value {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.health-value span:first-child {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    font-family: 'Roboto Mono', monospace;
+    color: #00ff88;
+}
+
+.health-value .health-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+}
+
+/* Health state colors */
+.health-value.danger span:first-child,
+.health-value.danger .health-label { color: #ff4444; }
+
+.health-value.warning span:first-child,
+.health-value.warning .health-label { color: #ffaa00; }
+
+.health-value.safe span:first-child,
+.health-value.safe .health-label { color: #00ff88; }
+
+/* Pulsing animation for danger state */
+@keyframes pulse-danger {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.health-gauge.danger .gauge-svg {
+    animation: pulse-danger 1s infinite;
+}
+
+.health-metrics-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.metric-box {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.metric-label {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   LEVERAGE METER
+   ========================================================================== */
+
+.leverage-meter {
+    padding: 15px;
+}
+
+.leverage-bar {
+    position: relative;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.leverage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88, #ffaa00, #ff4444);
+    border-radius: 12px;
+    transition: width 0.3s ease;
+}
+
+.leverage-markers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+
+.leverage-value {
+    text-align: center;
+}
+
+.leverage-value span:first-child {
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-family: 'Roboto Mono', monospace;
+    color: #ffffff;
+}
+
+.leverage-max {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+/* ==========================================================================
+   POSITION TABLE (Combat Zone)
+   ========================================================================== */
+
+.position-table-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#drift-positions-table {
+    width: 100%;
+}
+
+#drift-positions-table th {
+    position: sticky;
+    top: 0;
+    background: rgba(20, 20, 30, 0.95);
+    z-index: 1;
+}
+
+#drift-positions-table .side-long {
+    color: #00ff88;
+}
+
+#drift-positions-table .side-short {
+    color: #ff6b6b;
+}
+
+#drift-positions-table .pnl-positive {
+    color: #00ff88;
+}
+
+#drift-positions-table .pnl-negative {
+    color: #ff4444;
+}
+
+.btn-close-position {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    background: rgba(255, 100, 100, 0.2);
+    border: 1px solid rgba(255, 100, 100, 0.4);
+    color: #ff8888;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-close-position:hover {
+    background: rgba(255, 100, 100, 0.4);
+}
+
+/* ==========================================================================
+   SUB-ACCOUNT SELECTOR
+   ========================================================================== */
+
+.subaccount-selector {
+    padding: 10px;
+}
+
+.subaccount-selector .form-select {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(135, 91, 247, 0.3);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.subaccount-selector .form-select:focus {
+    outline: none;
+    border-color: var(--drift-purple);
+    box-shadow: 0 0 8px rgba(135, 91, 247, 0.3);
+}
+
+/* ==========================================================================
+   QUICK ACTIONS
+   ========================================================================== */
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   DELTA DISPLAY
+   ========================================================================== */
+
+.delta-display {
+    text-align: center;
+    padding: 15px;
+}
+
+.delta-value {
+    font-size: 2rem;
+    font-weight: bold;
+    font-family: 'Roboto Mono', monospace;
+    color: #ffffff;
+}
+
+.delta-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin: 5px 0;
+}
+
+.delta-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.delta-status.neutral {
+    background: rgba(0, 255, 136, 0.15);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.delta-status.drifting {
+    background: rgba(255, 170, 0, 0.15);
+    color: #ffaa00;
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.delta-status.critical {
+    background: rgba(255, 68, 68, 0.15);
+    color: #ff4444;
+    border: 1px solid rgba(255, 68, 68, 0.3);
+}
