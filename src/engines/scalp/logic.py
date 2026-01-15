@@ -74,7 +74,11 @@ class ScalpEngine(BaseEngine):
             await self.scan_pods()
             
             # Broadcast Status (Active Pod Count)
-            # if self._callback: ...
+            if self._callback:
+                await self._callback({
+                    "active_pods": len(self.tracker.positions),
+                    "pnl": 0.0 # Placeholder or calc PnL
+                })
             
             return {"state": "ACTIVE"}
         except Exception as e:

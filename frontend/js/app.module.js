@@ -396,6 +396,18 @@ class TradingOS {
                 if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
                 if (data.engines) this.updateEngineStates(data.engines);
                 if (data.metrics) this.systemMetrics.update(data.metrics);
+                break;
+
+            case 'SCALP_SIGNAL':
+                // Real Engine Signal -> Dashboard Widget "Top Opportunity"
+                this.updateScalpTarget(data);
+                break;
+
+            case 'SCALP_UPDATE':
+                // Real Engine State -> Dashboard Widget Stats
+                // Payload might be nested
+                if (data.payload) this.updateScalpStats(data.payload);
+                break;
 
                 // Watchlist
                 if (data.watchlist) {
@@ -407,6 +419,10 @@ class TradingOS {
                     }
 
                     // Update Scalp Engine Widget "Top Target"
+                    // (Fallback: If no active signal, show top scanner result?)
+                    // User requested "Fully Wired", so we prefer Engine Signals.
+                    // Leaving this commented out or removed to avoid overriding real signals.
+                    /*
                     if (data.watchlist && data.watchlist.length > 0) {
                         const topToken = data.watchlist.reduce((prev, current) =>
                             (prev.dp_24h || 0) > (current.dp_24h || 0) ? prev : current
@@ -422,6 +438,7 @@ class TradingOS {
                             spreadEl.textContent = `+${val.toFixed(2)}%`;
                         }
                     }
+                    */
                 }
 
                 // ═══════════════════════════════════════════════════════════════
@@ -873,6 +890,49 @@ class TradingOS {
         while (tbody.children.length > 20) {
             tbody.removeChild(tbody.lastChild);
         }
+    }
+
+    /**
+     * Update Scalp Target Display (from real engine signals)
+     */
+    updateScalpTarget(signalData) {
+        // data: { token, sentiment, confidence, action, price }
+        const symbolEl = document.getElementById('scalp-target-symbol');
+        const spreadEl = document.getElementById('scalp-target-spread'); // Reusing spread ID for Confidence
+        const sparklineEl = document.getElementById('scalp-target-sparkline');
+        const durationEl = document.getElementById('scalp-target-duration'); // If exists
+
+        if (symbolEl) {
+            symbolEl.textContent = signalData.token;
+            symbolEl.style.color = signalData.action === 'BUY' ? 'var(--neon-green)' : 'var(--neon-red)';
+        }
+        if (spreadEl) {
+            const conf = (signalData.confidence * 100).toFixed(0);
+            spreadEl.textContent = `${conf}% Confidence`;
+            spreadEl.style.color = signalData.confidence > 0.8 ? 'var(--neon-green)' : 'var(--neon-gold)';
+        }
+
+        // Simulating sparkline update for activity
+        if (sparklineEl) {
+            sparklineEl.textContent = "Activity Detected";
+        }
+
+        // Add log
+        if (this.terminal) {
+            this.terminal.addLog('SCALP', 'SIGNAL', `${signalData.action} ${signalData.token} (${(signalData.confidence * 100).toFixed(0)}%) - SENTIMENT: ${signalData.sentiment}`);
+        }
+    }
+
+    /**
+     * Update Scalp Engine Stats (from engine updates)
+     */
+    updateScalpStats(payload) {
+        // payload: { active_pods: [], ... }
+        if (payload.active_pods !== undefined) {
+            const podsEl = document.querySelector('[data-config="active_pods"]');
+            if (podsEl) podsEl.textContent = payload.active_pods.length || payload.active_pods;
+        }
+        // Handle PnL if available
     }
 }
 
