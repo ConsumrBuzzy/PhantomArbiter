@@ -62,10 +62,10 @@
     <!-- ═══════════════════════════════════════════════════════════════
          MAIN CONTENT AREA (SPA Shell)
          ═══════════════════════════════════════════════════════════════ -->
-    <div class="main-content" style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
+    <div class="main-content" style="display: flex; flex-direction: column; min-height: 100vh; overflow-y: auto;">
 
-        <!-- GLOBAL HEADER (Always Visible) -->
-        <header class="glass-panel header-streamlined" style="flex-shrink: 0; margin-bottom: 20px;">
+        <!-- GLOBAL HEADER -->
+        <header class="glass-panel header-streamlined" style="margin-bottom: 20px;">
             <!-- Stacked Ticker Tapes (Maximized) -->
             <div class="header-tapes">
                 <!-- Sol Cross-Venue Price Tape -->
@@ -95,7 +95,7 @@
         <!-- ═══════════════════════════════════════════════════════════════
              VIEWPANELS stack
              ═══════════════════════════════════════════════════════════════ -->
-        <div class="view-stack" style="flex: 1; overflow-y: auto; padding-right: 5px; position: relative;">
+        <div class="view-stack" style="padding-right: 5px; position: relative;">
 
             <!-- 1. DASHBOARD VIEW -->
             <div class="view-panel active" id="view-dashboard">
@@ -307,7 +307,7 @@
         </div>
 
         <!-- GLOBAL FOOTER (Terminal Logs) -->
-        <footer class="glass-panel" style="flex-shrink: 0; margin-top: 20px; height: 200px;">
+        <footer class="glass-panel" style="margin-top: 20px; min-height: 200px; max-height: 400px;">
             <div class="panel-title">Terminal Logs</div>
             <div class="log-container" id="log-stream">
                 <div class="log-entry INFO">System Initialized. Awaiting link...</div>
