@@ -762,7 +762,7 @@ class TradingOS {
             try {
                 // Initialize Dashboard Components
                 this.unifiedVault = new UnifiedVaultController('unified-vault-container');
-                this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
+                // this.tokenWatchlist = new TokenWatchlist('watchlist-panel'); // Legacy - Replaced by MemeSniper
                 this.inventory = new Inventory();
                 this.systemMetrics = new SystemMetrics('chart-metrics');
                 this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
