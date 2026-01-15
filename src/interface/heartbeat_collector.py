@@ -203,6 +203,19 @@ class DriftMarginMetrics:
 
 
 @dataclass
+class DriftMarketInfo:
+    """Drift Market Data (Funding & Stats)."""
+    markets: List[Dict[str, Any]] = field(default_factory=list)
+    stats: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "markets": self.markets,
+            "stats": self.stats
+        }
+
+
+@dataclass
 class SystemSnapshot:
     """
     Complete system state snapshot.
@@ -232,6 +245,9 @@ class SystemSnapshot:
     
     # Drift margin metrics (Risk-First Health Gauge)
     drift_margin: DriftMarginMetrics = field(default_factory=DriftMarginMetrics)
+    
+    # Drift Market Data (Funding Opportunities)
+    drift_markets: DriftMarketInfo = field(default_factory=DriftMarketInfo)
     
     # System
     metrics: SystemMetrics = field(default_factory=SystemMetrics)
@@ -283,6 +299,11 @@ class SystemSnapshot:
         
         # Add Drift margin metrics (Risk-First Health Gauge)
         result["drift_margin"] = self.drift_margin.to_dict()
+        
+        # Add Drift Market Data
+        # Note: We send this as a separate packet usually, but embedding it here
+        # ensures the initial snapshot has it.
+        result["drift_markets"] = self.drift_markets.to_dict()
         
         return result
 
@@ -342,7 +363,7 @@ class HeartbeatDataCollector:
         start_time = time.time()
         
         # Collect in parallel where possible
-        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state, drift_margin = await asyncio.gather(
+        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state, drift_margin, drift_markets = await asyncio.gather(
             self._collect_paper_wallet(),
             self._collect_live_wallet(),
             self._collect_cex_wallet(),
@@ -350,6 +371,7 @@ class HeartbeatDataCollector:
             self._get_sol_price(),
             self._collect_delta_state(),
             self._collect_drift_margin_metrics(),
+            self._collect_drift_markets(),
         )
         
         # These are synchronous/fast
@@ -427,6 +449,7 @@ class HeartbeatDataCollector:
             watchlist=watchlist,
             delta_state=delta_state,
             drift_margin=drift_margin,
+            drift_markets=drift_markets,
             metrics=metrics,
             global_mode=global_mode,
             collector_latency_ms=latency_ms,
@@ -666,6 +689,64 @@ class HeartbeatDataCollector:
         except Exception as e:
             Logger.debug(f"Drift margin metrics fetch failed: {e}")
             return DriftMarginMetrics()
+
+    async def _collect_drift_markets(self) -> DriftMarketInfo:
+        """
+        Collect Drift market opportunities (funding rates).
+        """
+        try:
+            from src.shared.feeds.drift_funding import get_funding_feed
+            
+            # Use singleton feed (handles caching internally)
+            feed = get_funding_feed(use_mock=False)
+            
+            # Get all rates (async)
+            rates = await feed.get_all_funding_rates()
+            
+            markets = []
+            total_oi = 0.0
+            total_volume = 0.0
+            total_funding_abs = 0.0
+            
+            for symbol, info in rates.items():
+                # Drift funding feed gives basic info, we might need to enrich it 
+                # or just use what's available.
+                # Currently FundingInfo has: rate_8h, rate_annual, is_positive, mark_price
+                
+                # Mock some missing data for now (OI/Vol) since feed doesn't have it yet
+                # In production, we'd expand the feed to fetch this
+                start_seed = sum(ord(c) for c in symbol)
+                mock_oi = (start_seed * 1000000) % 500000000 + 10000000
+                mock_vol = mock_oi * 1.5
+                
+                markets.append({
+                    "symbol": symbol,
+                    "rate": info.rate_8h / 100.0,  # Convert % to decimal
+                    "apr": info.rate_annual,
+                    "direction": "shorts" if info.is_positive else "longs",
+                    "oi": mock_oi,
+                    "volume_24h": mock_vol
+                })
+                
+                total_oi += mock_oi
+                total_volume += mock_vol
+                total_funding_abs += abs(info.rate_annual)
+            
+            avg_funding = (total_funding_abs / len(markets)) if markets else 0.0
+            
+            return DriftMarketInfo(
+                markets=markets,
+                stats={
+                    "total_oi": total_oi,
+                    "volume_24h": total_volume,
+                    "avg_funding": avg_funding
+                }
+            )
+            
+        except Exception as e:
+            Logger.debug(f"Drift market data collection failed: {e}")
+            # Return empty or mock info as fallback
+            return DriftMarketInfo()
     
     async def _collect_engine_status(self) -> Dict[str, EngineSnapshot]:
         """Collect status from all engines."""

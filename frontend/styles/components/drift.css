@@ -185,18 +185,31 @@
 
 /* Health state colors */
 .health-value.danger span:first-child,
-.health-value.danger .health-label { color: #ff4444; }
+.health-value.danger .health-label {
+    color: #ff4444;
+}
 
 .health-value.warning span:first-child,
-.health-value.warning .health-label { color: #ffaa00; }
+.health-value.warning .health-label {
+    color: #ffaa00;
+}
 
 .health-value.safe span:first-child,
-.health-value.safe .health-label { color: #00ff88; }
+.health-value.safe .health-label {
+    color: #00ff88;
+}
 
 /* Pulsing animation for danger state */
 @keyframes pulse-danger {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .health-gauge.danger .gauge-svg {
@@ -435,4 +448,78 @@
     background: rgba(255, 68, 68, 0.15);
     color: #ff4444;
     border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+/* ==========================================================================
+   MARKET OPPORTUNITIES SECTION
+   ========================================================================== */
+
+.market-section {
+    padding: 10px;
+}
+
+.market-section-title {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+}
+
+/* Compact funding table */
+.data-table.compact th,
+.data-table.compact td {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+}
+
+.data-table.compact th {
+    font-size: 0.65rem;
+}
+
+/* Funding rate colors */
+.funding-positive {
+    color: #00ff88;
+}
+
+.funding-negative {
+    color: #ff6b6b;
+}
+
+.funding-neutral {
+    color: var(--text-dim);
+}
+
+/* Opportunity cards */
+.opportunity-card {
+    transition: all 0.2s ease;
+}
+
+.opportunity-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 0 15px rgba(135, 91, 247, 0.2);
+}
+
+/* Market stats */
+.market-stat-item {
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    flex: 1;
+    margin: 0 5px;
+}
+
+/* Refresh button spin animation */
+.btn-xs .fa-sync.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }

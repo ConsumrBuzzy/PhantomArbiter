@@ -21,27 +21,22 @@
                     <div class="health-gauge" id="drift-health-gauge">
                         <svg viewBox="0 0 200 120" class="gauge-svg">
                             <!-- Background arc (gray) -->
-                            <path d="M 20 100 A 80 80 0 0 1 180 100" 
-                                  fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" 
-                                  stroke-linecap="round"/>
+                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)"
+                                stroke-width="12" stroke-linecap="round" />
                             <!-- Danger zone (red) -->
-                            <path d="M 20 100 A 80 80 0 0 1 56 36" 
-                                  fill="none" stroke="rgba(255,60,60,0.6)" stroke-width="12" 
-                                  stroke-linecap="round"/>
+                            <path d="M 20 100 A 80 80 0 0 1 56 36" fill="none" stroke="rgba(255,60,60,0.6)"
+                                stroke-width="12" stroke-linecap="round" />
                             <!-- Warning zone (yellow) -->
-                            <path d="M 56 36 A 80 80 0 0 1 100 20" 
-                                  fill="none" stroke="rgba(255,200,60,0.6)" stroke-width="12" 
-                                  stroke-linecap="round"/>
+                            <path d="M 56 36 A 80 80 0 0 1 100 20" fill="none" stroke="rgba(255,200,60,0.6)"
+                                stroke-width="12" stroke-linecap="round" />
                             <!-- Safe zone (green) -->
-                            <path d="M 100 20 A 80 80 0 0 1 180 100" 
-                                  fill="none" stroke="rgba(60,255,120,0.6)" stroke-width="12" 
-                                  stroke-linecap="round"/>
+                            <path d="M 100 20 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(60,255,120,0.6)"
+                                stroke-width="12" stroke-linecap="round" />
                             <!-- Needle -->
-                            <line id="health-needle" x1="100" y1="100" x2="100" y2="30" 
-                                  stroke="#ffffff" stroke-width="3" stroke-linecap="round"
-                                  transform="rotate(0, 100, 100)"/>
+                            <line id="health-needle" x1="100" y1="100" x2="100" y2="30" stroke="#ffffff"
+                                stroke-width="3" stroke-linecap="round" transform="rotate(0, 100, 100)" />
                             <!-- Center dot -->
-                            <circle cx="100" cy="100" r="6" fill="#875BF7"/>
+                            <circle cx="100" cy="100" r="6" fill="#875BF7" />
                         </svg>
                         <div class="health-value">
                             <span id="drift-health-pct">100%</span>
@@ -61,6 +56,105 @@
                             <span class="metric-label">Maint. Margin</span>
                             <span class="metric-value" id="drift-maint-margin">$0.00</span>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Market Opportunities (Live Data) -->
+            <section class="glass-panel">
+                <div class="panel-header">
+                    <div class="panel-title">📈 Market Opportunities</div>
+                    <div class="panel-controls">
+                        <button class="btn-xs" id="drift-refresh-markets-btn">
+                            <i class="fa-solid fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Funding Rates Table -->
+                <div class="market-section">
+                    <div class="market-section-title">Funding Rates (8hr)</div>
+                    <div class="funding-table-container" style="max-height: 200px; overflow-y: auto;">
+                        <table class="data-table compact" id="drift-funding-table">
+                            <thead>
+                                <tr>
+                                    <th>Market</th>
+                                    <th>Rate</th>
+                                    <th>APR</th>
+                                    <th>Direction</th>
+                                    <th>OI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drift-funding-body">
+                                <tr>
+                                    <td colspan="5" class="empty-state">Loading markets...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Best Opportunities -->
+                <div class="market-section"
+                    style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <div class="market-section-title">🎯 Best Delta-Neutral Opportunities</div>
+                    <div class="opportunity-cards" id="drift-opportunities">
+                        <div class="opportunity-card"
+                            style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 8px; padding: 10px; margin: 5px 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span class="opp-symbol"
+                                        style="font-weight: bold; font-size: 1.1rem;">SOL-PERP</span>
+                                    <span class="opp-direction"
+                                        style="color: var(--neon-green); margin-left: 8px; font-size: 0.8rem;">SHORT</span>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div class="opp-apr" style="color: var(--neon-green); font-weight: bold;">+12.4% APR
+                                    </div>
+                                    <div style="font-size: 0.7rem; color: var(--text-dim);">Funding pays shorts</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="opportunity-card"
+                            style="background: rgba(135,91,247,0.05); border: 1px solid rgba(135,91,247,0.2); border-radius: 8px; padding: 10px; margin: 5px 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span class="opp-symbol"
+                                        style="font-weight: bold; font-size: 1.1rem;">BTC-PERP</span>
+                                    <span class="opp-direction"
+                                        style="color: var(--neon-green); margin-left: 8px; font-size: 0.8rem;">SHORT</span>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div class="opp-apr" style="color: var(--neon-green); font-weight: bold;">+8.2% APR
+                                    </div>
+                                    <div style="font-size: 0.7rem; color: var(--text-dim);">Funding pays shorts</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Stats Row -->
+                <div class="market-stats-row"
+                    style="display: flex; justify-content: space-around; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <div class="market-stat-item" style="text-align: center;">
+                        <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase;">Total OI
+                        </div>
+                        <div id="drift-total-oi"
+                            style="font-size: 1.1rem; font-weight: bold; font-family: 'Roboto Mono';">$0.00</div>
+                    </div>
+                    <div class="market-stat-item" style="text-align: center;">
+                        <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase;">24h Volume
+                        </div>
+                        <div id="drift-24h-volume"
+                            style="font-size: 1.1rem; font-weight: bold; font-family: 'Roboto Mono';">$0.00</div>
+                    </div>
+                    <div class="market-stat-item" style="text-align: center;">
+                        <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase;">Avg Funding
+                        </div>
+                        <div id="drift-avg-funding"
+                            style="font-size: 1.1rem; font-weight: bold; font-family: 'Roboto Mono'; color: var(--neon-green);">
+                            +0.00%</div>
                     </div>
                 </div>
             </section>

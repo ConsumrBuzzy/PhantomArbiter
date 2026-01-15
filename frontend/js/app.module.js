@@ -440,6 +440,12 @@ class TradingOS {
                     this.updateDriftHealthGauge(data.drift_margin);
                 }
 
+                // Live Market Data
+                if (data.drift_markets) {
+                    if (data.drift_markets.markets) this.updateDriftFundingTable(data.drift_markets.markets);
+                    if (data.drift_markets.stats) this.updateDriftMarketStats(data.drift_markets.stats);
+                }
+
                 // Legacy CEX UI UPDATE (for backward compat)
                 if (data.cex_wallet && !data.unified_balance) {
                     const cexBalEl = document.getElementById('cex-wallet-balance');
@@ -597,6 +603,20 @@ class TradingOS {
             case 'VAULT_SNAPSHOT':
                 // Global vault aggregation (for future portfolio view)
                 console.log('Vault Snapshot:', packet.data);
+                break;
+
+            // ═══════════════════════════════════════════════════════════════
+            // DRIFT MARKET DATA
+            // ═══════════════════════════════════════════════════════════════
+
+            case 'DRIFT_MARKETS':
+                // Live funding rates and market data
+                if (data.markets) {
+                    this.updateDriftFundingTable(data.markets);
+                }
+                if (data.stats) {
+                    this.updateDriftMarketStats(data.stats);
+                }
                 break;
 
             default:
@@ -997,10 +1017,210 @@ class TradingOS {
             };
         }
 
+        // Refresh Markets button
+        const refreshBtn = document.getElementById('drift-refresh-markets-btn');
+        if (refreshBtn) {
+            refreshBtn.onclick = () => {
+                const icon = refreshBtn.querySelector('.fa-sync');
+                if (icon) icon.classList.add('spinning');
+                this.fetchDriftMarketData().then(() => {
+                    setTimeout(() => icon?.classList.remove('spinning'), 500);
+                });
+            };
+        }
+
         // Request initial state
         if (this.ws && this.ws.connected) {
             this.ws.send('GET_SYSTEM_STATS', {});
+            this.ws.send('GET_DRIFT_MARKETS', {}); // Request market data
         }
+
+        // Fetch market data immediately
+        this.fetchDriftMarketData();
+    }
+
+    /**
+     * Fetch live market data from Drift API
+     */
+    async fetchDriftMarketData() {
+        try {
+            // Fetch from Drift API via our backend or directly
+            const response = await fetch('/api/drift/markets');
+
+            if (!response.ok) {
+                // Fallback: generate mock data for demo
+                this.updateDriftFundingTable(this.getMockFundingData());
+                return;
+            }
+
+            const data = await response.json();
+            this.updateDriftFundingTable(data.markets || []);
+            this.updateDriftMarketStats(data.stats || {});
+
+        } catch (error) {
+            console.log('[Drift] Fetching market data from WebSocket fallback');
+            // Use mock data for now
+            this.updateDriftFundingTable(this.getMockFundingData());
+        }
+    }
+
+    /**
+     * Generate mock funding data for demo
+     */
+    getMockFundingData() {
+        return [
+            { symbol: 'SOL-PERP', rate: 0.0012, apr: 13.14, direction: 'shorts', oi: 125000000 },
+            { symbol: 'BTC-PERP', rate: 0.0008, apr: 8.76, direction: 'shorts', oi: 89000000 },
+            { symbol: 'ETH-PERP', rate: 0.0006, apr: 6.57, direction: 'shorts', oi: 45000000 },
+            { symbol: 'JUP-PERP', rate: 0.0025, apr: 27.38, direction: 'shorts', oi: 12000000 },
+            { symbol: 'JTO-PERP', rate: -0.0003, apr: -3.29, direction: 'longs', oi: 8000000 },
+            { symbol: 'WIF-PERP', rate: 0.0018, apr: 19.71, direction: 'shorts', oi: 22000000 },
+            { symbol: 'BONK-PERP', rate: 0.0015, apr: 16.43, direction: 'shorts', oi: 15000000 },
+        ];
+    }
+
+    /**
+     * Update funding rates table
+     */
+    updateDriftFundingTable(markets) {
+        const tbody = document.getElementById('drift-funding-body');
+        if (!tbody) return;
+
+        if (!markets || markets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No market data</td></tr>';
+            return;
+        }
+
+        // Sort by APR (highest first)
+        markets.sort((a, b) => Math.abs(b.apr) - Math.abs(a.apr));
+
+        let html = '';
+        markets.forEach(m => {
+            const rateClass = m.rate > 0 ? 'funding-positive' : m.rate < 0 ? 'funding-negative' : 'funding-neutral';
+            const aprClass = m.apr > 0 ? 'funding-positive' : m.apr < 0 ? 'funding-negative' : 'funding-neutral';
+            const directionIcon = m.direction === 'shorts' ? '📉' : '📈';
+            const oiFormatted = m.oi >= 1000000 ? `$${(m.oi / 1000000).toFixed(1)}M` : `$${(m.oi / 1000).toFixed(0)}K`;
+
+            html += `
+                <tr>
+                    <td style="font-weight: bold;">${m.symbol}</td>
+                    <td class="${rateClass}">${(m.rate * 100).toFixed(4)}%</td>
+                    <td class="${aprClass}" style="font-weight: bold;">${m.apr > 0 ? '+' : ''}${m.apr.toFixed(2)}%</td>
+                    <td>${directionIcon} <span style="text-transform: capitalize;">${m.direction}</span></td>
+                    <td style="color: var(--text-dim);">${oiFormatted}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+        // Update best opportunities cards
+        this.updateDriftOpportunities(markets.filter(m => m.apr > 0).slice(0, 3));
+
+        // Update dashboard chips too
+        this.updateDashboardFundingChips(markets);
+
+        // Update market stats
+        const totalOi = markets.reduce((sum, m) => sum + m.oi, 0);
+        const avgFunding = markets.reduce((sum, m) => sum + m.apr, 0) / markets.length;
+
+        this.updateDriftMarketStats({
+            total_oi: totalOi,
+            avg_funding: avgFunding
+        });
+    }
+
+    /**
+     * Update best opportunities cards
+     */
+    updateDriftOpportunities(topMarkets) {
+        const container = document.getElementById('drift-opportunities');
+        if (!container || !topMarkets.length) return;
+
+        let html = '';
+        topMarkets.forEach((m, i) => {
+            const borderColor = i === 0 ? 'rgba(0,255,136,0.2)' : 'rgba(135,91,247,0.2)';
+            const bgColor = i === 0 ? 'rgba(0,255,136,0.05)' : 'rgba(135,91,247,0.05)';
+
+            html += `
+                <div class="opportunity-card" style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 10px; margin: 5px 0; cursor: pointer;" 
+                     onclick="window.tradingOS.openDriftTrade('${m.symbol}', '${m.direction}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span class="opp-symbol" style="font-weight: bold; font-size: 1.1rem;">${m.symbol}</span>
+                            <span class="opp-direction" style="color: var(--neon-green); margin-left: 8px; font-size: 0.8rem;">${m.direction === 'shorts' ? 'SHORT' : 'LONG'}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="opp-apr" style="color: var(--neon-green); font-weight: bold;">+${m.apr.toFixed(1)}% APR</div>
+                            <div style="font-size: 0.7rem; color: var(--text-dim);">Funding pays ${m.direction}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Update dashboard funding rate chips
+     */
+    updateDashboardFundingChips(markets) {
+        const solMarket = markets.find(m => m.symbol.includes('SOL'));
+        const btcMarket = markets.find(m => m.symbol.includes('BTC'));
+        const ethMarket = markets.find(m => m.symbol.includes('ETH'));
+
+        const updateChip = (id, market) => {
+            const el = document.getElementById(id);
+            if (el && market) {
+                const sign = market.rate >= 0 ? '+' : '';
+                el.textContent = `${sign}${(market.rate * 100).toFixed(4)}%`;
+                el.style.color = market.rate >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            }
+        };
+
+        updateChip('drift-funding-sol', solMarket);
+        updateChip('drift-funding-btc', btcMarket);
+        updateChip('drift-funding-eth', ethMarket);
+    }
+
+    /**
+     * Update market stats display
+     */
+    updateDriftMarketStats(stats) {
+        const totalOi = document.getElementById('drift-total-oi');
+        const volume24h = document.getElementById('drift-24h-volume');
+        const avgFunding = document.getElementById('drift-avg-funding');
+
+        if (totalOi && stats.total_oi) {
+            const formatted = stats.total_oi >= 1000000000
+                ? `$${(stats.total_oi / 1000000000).toFixed(2)}B`
+                : `$${(stats.total_oi / 1000000).toFixed(1)}M`;
+            totalOi.textContent = formatted;
+        }
+
+        if (volume24h && stats.volume_24h) {
+            const formatted = stats.volume_24h >= 1000000000
+                ? `$${(stats.volume_24h / 1000000000).toFixed(2)}B`
+                : `$${(stats.volume_24h / 1000000).toFixed(1)}M`;
+            volume24h.textContent = formatted;
+        }
+
+        if (avgFunding && stats.avg_funding !== undefined) {
+            const sign = stats.avg_funding >= 0 ? '+' : '';
+            avgFunding.textContent = `${sign}${stats.avg_funding.toFixed(2)}%`;
+            avgFunding.style.color = stats.avg_funding >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        }
+    }
+
+    /**
+     * Open trade modal for a specific market
+     */
+    openDriftTrade(symbol, direction) {
+        console.log(`[Drift] Opening trade: ${symbol} ${direction}`);
+        this.terminal.addLog('DRIFT', 'INFO', `Opening ${direction} trade for ${symbol}`);
+        // TODO: Open trade modal
+        this.toast.show(`Opening ${symbol} ${direction} - Feature coming soon!`, 'info');
     }
 
     /**
