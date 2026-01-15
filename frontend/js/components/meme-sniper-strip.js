@@ -119,8 +119,8 @@ export class MemeSniperStrip {
 
         // Sort by spread descending
         const hotTokens = allTokens
-            .sort((a, b) => (b.spread_pct || 0) - (a.spread_pct || 0))
-            .slice(0, 50); // Show top 50 "Active" tokens
+            .sort((a, b) => (b.spread_pct || 0) - (a.spread_pct || 0));
+        // .slice(0, 50); // LIMIT REMOVED per user request (Show ALL tokens)
 
         // Only show loading if we TRULY have no data ever
         if (hotTokens.length === 0) {
