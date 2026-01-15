@@ -161,7 +161,7 @@ class ScalpEngine(BaseEngine):
 
         # BaseEngine has self.feed (JupiterFeed)
         for mint, pos in list(self.tracker.positions.items()):
-            quote = self.feed.get_spot_price(mint)
+            quote = self.feed.get_spot_price(mint, self.feed.USDC_MINT)
             if not quote: continue
                 
             current_price = quote.price
