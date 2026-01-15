@@ -529,6 +529,18 @@ class HeartbeatDataCollector:
             Logger.debug(f"Drift equity collection error: {e}")
             return 0.0
     
+    async def _collect_drift_active_capital(self) -> float:
+        """Collect deployed capital (active margin) from Drift."""
+        try:
+            if not self._drift_adapter:
+                return 0.0
+            
+            return self._drift_adapter.get_active_capital()
+            
+        except Exception as e:
+            Logger.debug(f"Drift active capital collection error: {e}")
+            return 0.0
+    
     async def _collect_delta_state(self) -> Optional[Any]:
         """Collect delta neutrality state."""
         try:
