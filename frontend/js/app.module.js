@@ -194,108 +194,59 @@ class TradingOS {
 
 
 
-    // Bind engine control buttons (Generic Start/Stop)
-    const controlMount = document.getElementById('drift-control-card-mount');
-    if(controlMount && !this.engines['drift']) {
-    this.engines['drift'] = new EngineCard('drift', {
-        onToggle: (n, s, m) => this.toggleEngine(n, s, m),
-        onSettings: (n, c) => this.openSettings(n, c),
-        onModeChange: (n, m) => { if (this.engines[n]) this.engines[n].setMode(m); }
-    });
-}
 
-// Settle PnL button
-const settlePnlBtn = document.getElementById('drift-settle-pnl-btn');
-if (settlePnlBtn) {
-    settlePnlBtn.onclick = () => {
-        this.ws.send('DRIFT_SETTLE_PNL', {});
-        this.terminal.addLog('DRIFT', 'INFO', 'Settling PnL...');
-    };
-}
 
-// Close All button
-const closeAllBtn = document.getElementById('drift-close-all-btn');
-if (closeAllBtn) {
-    closeAllBtn.onclick = () => {
-        if (confirm('Close ALL Drift positions?')) {
-            this.ws.send('DRIFT_CLOSE_ALL', {});
-            this.terminal.addLog('DRIFT', 'WARNING', 'Closing all positions...');
+    // ... (rest of methods) ...
+
+    handlePacket(packet) {
+        const { type, data } = packet;
+
+        switch (type) {
+            case 'SYSTEM_STATS':
+                // ... (existing update logic) ...
+                this.headerStats.update(data);
+                if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
+                if (data.engines) this.updateEngineStates(data.engines);
+                if (data.metrics) this.systemMetrics.update(data.metrics);
+
+                // DRIFT CONTROLLER DELEGATION
+                if (this.driftController) {
+                    this.driftController.update(data);
+                }
+
+                // Drift Vault Update
+                if (this.driftVault && data.vaults && data.vaults.drift) {
+                    this.driftVault.update(data.vaults.drift);
+                }
+
+                // ... (Unified Balance logic) ...
+                if (data.unified_balance) {
+                    if (this.activeComponents.vault) {
+                        this.activeComponents.vault.update(data.unified_balance);
+                    } else if (this.unifiedVault) {
+                        this.unifiedVault.update(data.unified_balance);
+                    }
+                    if (data.mode && this.whaleTicker) {
+                        this.whaleTicker.setMode(data.mode);
+                    }
+                }
+
+                // Legacy inline updates removed/delegated
+                // if (data.drift_margin) this.updateDriftHealthGauge(data.drift_margin); // DELEGATED
+
+                if (data.drift_markets) {
+                    if (data.drift_markets.markets) this.updateDriftFundingTable(data.drift_markets.markets);
+                    if (data.drift_markets.stats) this.updateDriftMarketStats(data.drift_markets.stats);
+                }
+
+                if (data.cex_wallet && !data.unified_balance) {
+                    // ... legacy cex ...
+                }
+                break;
+
+            // ... (rest of cases) ...
         }
-    };
-}
-
-// Refresh Markets button
-const refreshBtn = document.getElementById('drift-refresh-markets-btn');
-if (refreshBtn) {
-    refreshBtn.onclick = () => {
-        const icon = refreshBtn.querySelector('.fa-sync');
-        if (icon) icon.classList.add('spinning');
-        this.fetchDriftMarketData().then(() => {
-            setTimeout(() => icon?.classList.remove('spinning'), 500);
-        });
-    };
-}
-
-// Request initial state
-if (this.ws && this.ws.connected) {
-    this.ws.send('GET_SYSTEM_STATS', {});
-    this.ws.send('GET_DRIFT_MARKETS', {});
-}
-
-this.fetchDriftMarketData();
     }
-
-// ... (rest of methods) ...
-
-handlePacket(packet) {
-    const { type, data } = packet;
-
-    switch (type) {
-        case 'SYSTEM_STATS':
-            // ... (existing update logic) ...
-            this.headerStats.update(data);
-            if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
-            if (data.engines) this.updateEngineStates(data.engines);
-            if (data.metrics) this.systemMetrics.update(data.metrics);
-
-            // DRIFT CONTROLLER DELEGATION
-            if (this.driftController) {
-                this.driftController.update(data);
-            }
-
-            // Drift Vault Update
-            if (this.driftVault && data.vaults && data.vaults.drift) {
-                this.driftVault.update(data.vaults.drift);
-            }
-
-            // ... (Unified Balance logic) ...
-            if (data.unified_balance) {
-                if (this.activeComponents.vault) {
-                    this.activeComponents.vault.update(data.unified_balance);
-                } else if (this.unifiedVault) {
-                    this.unifiedVault.update(data.unified_balance);
-                }
-                if (data.mode && this.whaleTicker) {
-                    this.whaleTicker.setMode(data.mode);
-                }
-            }
-
-            // Legacy inline updates removed/delegated
-            // if (data.drift_margin) this.updateDriftHealthGauge(data.drift_margin); // DELEGATED
-
-            if (data.drift_markets) {
-                if (data.drift_markets.markets) this.updateDriftFundingTable(data.drift_markets.markets);
-                if (data.drift_markets.stats) this.updateDriftMarketStats(data.drift_markets.stats);
-            }
-
-            if (data.cex_wallet && !data.unified_balance) {
-                // ... legacy cex ...
-            }
-            break;
-
-        // ... (rest of cases) ...
-    }
-}
 }
 // ...
 
