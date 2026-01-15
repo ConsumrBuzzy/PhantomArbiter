@@ -116,13 +116,15 @@ class ScalpEngine(BaseEngine):
                 ))
 
                 # Broadcast to Dashboard
+                conf_val = {"HIGH": 0.9, "MEDIUM": 0.7, "LOW": 0.5}.get(score.confidence, 0.5)
+                
                 if self._callback:
                     await self._callback({
                         "type": "SIGNAL", 
                         "data": {
                             "token": token_symbol,
                             "sentiment": 0.8 if score.signal == "STRONG_BUY" else 0.6,
-                            "confidence": score.confidence / 100.0,
+                            "confidence": conf_val,
                             "action": "BUY"
                         }
                     })
