@@ -131,7 +131,7 @@
         <section class="drift-vault-card" id="drift-panel">
             <div class="drift-header">
                 <div class="drift-logo"><span>🌊 DRIFT PROTOCOL</span></div>
-                <div class="drift-status-badge">MAINNET</div>
+                <div class="drift-status-badge" id="drift-health-mini">100%</div>
             </div>
             <div class="drift-stats-grid">
                 <div class="drift-stat"><span class="drift-label">EQUITY</span><span class="drift-value"
@@ -140,6 +140,41 @@
                         id="drift-pnl">--</span></div>
                 <div class="drift-stat"><span class="drift-label">LEVERAGE</span><span class="drift-value"
                         id="drift-leverage">0x</span></div>
+            </div>
+
+            <!-- Funding Opportunities -->
+            <div class="drift-opportunities"
+                style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div
+                    style="font-size: 0.65rem; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    📈 Top Funding Rates</div>
+                <div id="drift-funding-rates" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <div class="funding-chip"
+                        style="background: rgba(0,255,136,0.1); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">
+                        <span style="color: var(--text-dim);">SOL</span>
+                        <span id="drift-funding-sol" style="color: var(--neon-green); margin-left: 4px;">+0.00%</span>
+                    </div>
+                    <div class="funding-chip"
+                        style="background: rgba(0,255,136,0.1); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">
+                        <span style="color: var(--text-dim);">BTC</span>
+                        <span id="drift-funding-btc" style="color: var(--neon-green); margin-left: 4px;">+0.00%</span>
+                    </div>
+                    <div class="funding-chip"
+                        style="background: rgba(0,255,136,0.1); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">
+                        <span style="color: var(--text-dim);">ETH</span>
+                        <span id="drift-funding-eth" style="color: var(--neon-green); margin-left: 4px;">+0.00%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="drift-actions">
+                <button class="drift-btn" onclick="window.tradingOS.switchView('engine-drift')">
+                    <i class="fa-solid fa-expand"></i> Manage
+                </button>
+                <button class="drift-btn" id="drift-quick-start-btn">
+                    <i class="fa-solid fa-play"></i> Start
+                </button>
             </div>
         </section>
 
