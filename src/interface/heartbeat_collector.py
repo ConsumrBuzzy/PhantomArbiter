@@ -249,6 +249,9 @@ class SystemSnapshot:
     # Drift Market Data (Funding Opportunities)
     drift_markets: DriftMarketInfo = field(default_factory=DriftMarketInfo)
     
+    # Engine Vaults (Hybrid Allocations)
+    vaults: Optional[Dict[str, Any]] = None
+    
     # System
     metrics: SystemMetrics = field(default_factory=SystemMetrics)
     global_mode: str = "paper"
@@ -276,7 +279,9 @@ class SystemSnapshot:
                 for name, e in self.engines.items()
             },
             "sol_price": self.sol_price,
+            "sol_price": self.sol_price,
             "major_prices": self.major_prices,
+            "vaults": self.vaults,
             "watchlist": [
                 {
                     "symbol": w.symbol,
@@ -363,7 +368,7 @@ class HeartbeatDataCollector:
         start_time = time.time()
         
         # Collect in parallel where possible
-        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state, drift_margin, drift_markets = await asyncio.gather(
+        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state, drift_margin, drift_markets, _ = await asyncio.gather(
             self._collect_paper_wallet(),
             self._collect_live_wallet(),
             self._collect_cex_wallet(),
@@ -372,6 +377,7 @@ class HeartbeatDataCollector:
             self._collect_delta_state(),
             self._collect_drift_margin_metrics(),
             self._collect_drift_markets(),
+            self._sync_engine_vaults(),
         )
         
         # These are synchronous/fast
@@ -450,6 +456,7 @@ class HeartbeatDataCollector:
             delta_state=delta_state,
             drift_margin=drift_margin,
             drift_markets=drift_markets,
+            vaults=self._collect_engine_vaults(sol_price),
             metrics=metrics,
             global_mode=global_mode,
             collector_latency_ms=latency_ms,
@@ -690,6 +697,26 @@ class HeartbeatDataCollector:
             Logger.debug(f"Drift margin metrics fetch failed: {e}")
             return DriftMarginMetrics()
 
+    async def _sync_engine_vaults(self):
+        """Sync on-chain vaults with live data."""
+        try:
+            from src.shared.state.vault_manager import get_vault_registry, VaultType
+            registry = get_vault_registry()
+            
+            # Sync Drift Vault if adapter available
+            if self._drift_adapter:
+                drift_vault = registry.get_vault("drift")
+                if drift_vault.vault_type == VaultType.ON_CHAIN:
+                    await drift_vault.sync_from_drift(self._drift_adapter)
+                    
+        except Exception as e:
+            Logger.debug(f"Vault sync failed: {e}")
+
+    def _collect_engine_vaults(self, sol_price: float) -> Dict[str, Any]:
+        """Aggregate all engine vaults."""
+        from src.shared.state.vault_manager import get_vault_registry
+        return get_vault_registry().get_global_snapshot(sol_price)
+
     async def _collect_drift_markets(self) -> DriftMarketInfo:
         """
         Collect Drift market opportunities (funding rates).
@@ -745,8 +772,15 @@ class HeartbeatDataCollector:
             
         except Exception as e:
             Logger.debug(f"Drift market data collection failed: {e}")
-            # Return empty or mock info as fallback
-            return DriftMarketInfo()
+            # Return valid empty structure to prevent frontend errors
+            return DriftMarketInfo(
+                markets=[],
+                stats={
+                    "total_oi": 0.0,
+                    "volume_24h": 0.0,
+                    "avg_funding": 0.0
+                }
+            )
     
     async def _collect_engine_status(self) -> Dict[str, EngineSnapshot]:
         """Collect status from all engines."""

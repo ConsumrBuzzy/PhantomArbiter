@@ -5,37 +5,112 @@
  */
 export class Inventory {
     constructor() {
-        // Get both table bodies
+        // Get fixed table bodies
         this.liveTableBody = document.querySelector('#live-inventory-table tbody');
         this.paperTableBody = document.querySelector('#paper-inventory-table tbody');
-        this.scalpTableBody = document.querySelector('#scalp-inventory-table tbody');
 
-        // Store last data for re-rendering
-        this.lastLiveData = null;
-        this.lastPaperData = null;
+        // Container for dynamic strategy vaults
+        this.container = document.querySelector('#inventory-container');
+
+        // Track created vault elements
+        this.vaultElements = new Set();
     }
 
     /**
      * Update with wallet data from SYSTEM_STATS
-     * @param {Object} data - Contains live_wallet and paper_wallet
+     * @param {Object} data - SYSTEM_STATS packet
      */
     update(data) {
+        // 1. Update Fixed Tables
         if (data.live_wallet) {
-            this.lastLiveData = data.live_wallet;
             this.renderTable(this.liveTableBody, data.live_wallet, 'live');
         }
         if (data.paper_wallet || data.wallet) {
-            this.lastPaperData = data.paper_wallet || data.wallet;
-            this.renderTable(this.paperTableBody, this.lastPaperData, 'paper');
+            this.renderTable(this.paperTableBody, data.paper_wallet || data.wallet, 'paper');
+        }
+
+        // 2. Update Dynamic Strategy Vaults
+        if (data.vaults) {
+            Object.entries(data.vaults).forEach(([engineName, vaultData]) => {
+                this.updateStrategyVault(engineName, vaultData);
+            });
+        }
+
+        // 3. Update Active Engine Label on Live Inventory
+        this.updateLiveLabel(data.engines);
+    }
+
+    /**
+     * Update Live Inventory Label if an engine is actively using it
+     */
+    updateLiveLabel(engines) {
+        const liveLabel = document.querySelector('.inventory-half.live .inventory-label');
+        if (!liveLabel) return;
+
+        // Find active live engine (excluding Drift which has dedicated vault)
+        let activeEngine = null;
+        if (engines) {
+            for (const [name, info] of Object.entries(engines)) {
+                if (info.status === 'running' && info.mode === 'live' && name !== 'drift') {
+                    activeEngine = name;
+                    break;
+                }
+            }
+        }
+
+        if (activeEngine) {
+            liveLabel.innerHTML = `🔴 LIVE <span style="font-size: 0.7em; background: var(--neon-gold); color: black; padding: 2px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">⚡ ${activeEngine.toUpperCase()} ACTIVE</span>`;
+        } else {
+            liveLabel.innerHTML = `🔴 LIVE`;
         }
     }
 
     /**
-     * Update Scalp Vault
+     * Create or Update a Strategy Vault Table
      */
-    updateScalp(walletData) {
-        if (!walletData) return;
-        this.renderTable(this.scalpTableBody, walletData, 'scalp');
+    updateStrategyVault(engineName, vaultData) {
+        const vaultId = `vault-${engineName}`;
+        let tbody = document.querySelector(`#${vaultId} tbody`);
+
+        // Create if missing
+        if (!tbody) {
+            this.createVaultElement(engineName, vaultId, vaultData.type);
+            tbody = document.querySelector(`#${vaultId} tbody`);
+        }
+
+        this.renderTable(tbody, vaultData, engineName);
+    }
+
+    createVaultElement(engineName, vaultId, type) {
+        if (!this.container) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'inventory-half'; // Reuse style class
+        wrapper.style.borderLeft = '1px solid rgba(255,255,255,0.05)';
+        wrapper.style.paddingLeft = '10px';
+        wrapper.id = `wrapper-${vaultId}`;
+
+        // Determine Color/Label based on type
+        const color = type === 'ON_CHAIN' ? 'var(--neon-purple)' : 'var(--neon-gold)';
+        const label = type === 'ON_CHAIN' ? `🔗 ${engineName.toUpperCase()} (LINKED)` : `⚡ ${engineName.toUpperCase()} (PAPER)`;
+
+        wrapper.innerHTML = `
+            <div class="inventory-label" style="color: ${color};">${label}</div>
+            <table id="${vaultId}">
+                <thead>
+                    <tr>
+                        <th>ASSET</th>
+                        <th>AMOUNT</th>
+                        <th>VALUE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="3">Loading...</td></tr>
+                </tbody>
+            </table>
+        `;
+
+        this.container.appendChild(wrapper);
     }
 
     /**

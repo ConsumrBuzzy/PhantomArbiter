@@ -1088,6 +1088,13 @@ class TradingOS {
 
         if (!markets || markets.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No market data</td></tr>';
+            // Clear opportunities and stats too (Fixes stale data bug)
+            this.updateDriftOpportunities([]);
+            this.updateDriftMarketStats({
+                total_oi: 0,
+                volume_24h: 0,
+                avg_funding: 0
+            });
             return;
         }
 
@@ -1120,12 +1127,16 @@ class TradingOS {
         // Update dashboard chips too
         this.updateDashboardFundingChips(markets);
 
-        // Update market stats
-        const totalOi = markets.reduce((sum, m) => sum + m.oi, 0);
-        const avgFunding = markets.reduce((sum, m) => sum + m.apr, 0) / markets.length;
+        // Update market stats (Client-side aggregation ensures values exist)
+        const totalOi = markets.reduce((sum, m) => sum + (m.oi || 0), 0);
+        const avgFunding = markets.reduce((sum, m) => sum + (m.apr || 0), 0) / markets.length;
+
+        // Calculate volume if not provided (mock estimate: 1.5x OI)
+        const totalVol = markets.reduce((sum, m) => sum + (m.volume_24h || (m.oi * 1.5) || 0), 0);
 
         this.updateDriftMarketStats({
             total_oi: totalOi,
+            volume_24h: totalVol,
             avg_funding: avgFunding
         });
     }

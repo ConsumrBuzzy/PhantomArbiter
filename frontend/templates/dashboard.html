@@ -5,7 +5,7 @@
 
         <section class="glass-panel" id="inventory-panel">
             <div class="panel-title">Inventory</div>
-            <div class="inventory-split">
+            <div class="inventory-split" id="inventory-container">
                 <div class="inventory-half live">
                     <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
                     <table id="live-inventory-table">
@@ -40,24 +40,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="inventory-half scalp"
-                    style="border-left: 1px solid rgba(255,255,255,0.05); padding-left: 10px;">
-                    <div class="inventory-label" style="color: var(--neon-gold);">⚡ SCALP VAULT</div>
-                    <table id="scalp-inventory-table">
-                        <thead>
-                            <tr>
-                                <th>ASSET</th>
-                                <th>AMOUNT</th>
-                                <th>VALUE</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="3">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <!-- Dynamic Strategy Vaults injected here -->
             </div>
         </section>
     </div>

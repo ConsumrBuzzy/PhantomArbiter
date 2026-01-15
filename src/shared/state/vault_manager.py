@@ -16,9 +16,11 @@ Features:
 import logging
 import time
 from typing import Dict, Any, Optional
-from dataclasses import dataclass, field
+from enum import Enum
 
-logger = logging.getLogger("phantom.vault_manager")
+class VaultType(Enum):
+    VIRTUAL = "VIRTUAL"      # Paper / Simulation
+    ON_CHAIN = "ON_CHAIN"    # Real Wallet / Sub-Account
 
 
 @dataclass
@@ -33,6 +35,11 @@ class EngineVault:
     balances: Dict[str, float] = field(default_factory=dict)
     initial_equity: float = 50.0
     initial_sol: float = 0.25
+    
+    # Hybrid Vault Config
+    vault_type: VaultType = VaultType.VIRTUAL
+    sub_account_id: int = 0
+    
     _db: Any = field(default=None, repr=False)
     
     def __post_init__(self):
@@ -100,18 +107,26 @@ class EngineVault:
         """Get current virtual balances with equity calculation."""
         equity = self.balances.get('USDC', 0.0)
         
+        # Add Drift Position Value (already in USD)
+        equity += self.balances.get('DRIFT_POS', 0.0)
+        
         total_sol_val = 0.0
         for asset, bal in self.balances.items():
+            if asset in ['USDC', 'DRIFT_POS']:
+                continue
+                
             if asset == 'SOL':
                 total_sol_val += bal
-            elif asset != 'USDC':
-                # Assume parity with SOL for LST/staked assets
+            else:
+                # Assume parity with SOL for LST/staked assets (e.g. mSOL, jitoSOL)
                 total_sol_val += bal
         
         equity += total_sol_val * sol_price
         
         return {
             'engine': self.engine_name,
+            'type': self.vault_type.value,
+            'sub_account': self.sub_account_id,
             'equity': equity,
             'sol_balance': self.sol_balance,
             'usdc_balance': self.usdc_balance,
@@ -159,6 +174,60 @@ class EngineVault:
         self._save_state()
         logger.info(f"[{self.engine_name}] Synced from live wallet: {len(live_balances)} assets")
     
+    async def sync_from_drift(self, drift_adapter):
+        """
+        Sync balances from Drift Protocol Sub-Account.
+        
+        Args:
+           drift_adapter: Instance of DriftAdapter connected to the user.
+        """
+        if self.vault_type != VaultType.ON_CHAIN:
+            return
+
+        try:
+            # Check if adapter has builder (access to account)
+            if not drift_adapter or not drift_adapter._builder:
+                return
+                
+            # For now, we assume sub-account 0 (Main) until we add sub-account switching
+            # The drift_adapter uses the wallet's configured sub-account
+            
+            # Fetch user account data (collateral)
+            # The adapter should have a method for this, or we construct the URL
+            wallet = str(drift_adapter._builder.wallet)
+            
+            # We can reuse the logic from HeartbeatCollector for now, 
+            # or better: rely on the adapter to provide 'get_user_account()'
+            
+            # Temporary: direct fetch to avoid circular deps or complex adapter changes right now
+            import requests
+            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{wallet}"
+            resp = requests.get(url, timeout=2.0)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                
+                # Parse Collateral
+                # Drift "Total Collateral" is essentially the equity we care about
+                total_collateral = float(data.get("totalCollateralValue", 0)) / 1e6
+                free_collateral = float(data.get("freeCollateral", 0)) / 1e6
+                
+                # Update Vault State
+                # We map 'USDC' to Free Collateral (Tradeable)
+                # We add 'DRIFT_POS' (synthetic) to represent active positions so Equity is correct
+                # Equity = Free + Deployed
+                deployed = max(0, total_collateral - free_collateral)
+                
+                self.balances['USDC'] = free_collateral
+                self.balances['DRIFT_POS'] = deployed
+                self.balances['SOL'] = 0.0 
+                
+                self._save_state()
+                # logger.debug(f"[{self.engine_name}] Synced from Drift: ${total_collateral:.2f}")
+
+        except Exception as e:
+            logger.error(f"Failed to sync Drift vault [{self.engine_name}]: {e}")
+
     def reload(self):
         """Reload balances from DB."""
         self._load_state()
@@ -215,8 +284,20 @@ class VaultRegistry:
         Lazy instantiation ensures no database bloat for unused engines.
         """
         if engine_name not in self._vaults:
-            self._vaults[engine_name] = EngineVault(engine_name=engine_name)
-            logger.info(f"Created vault for engine: {engine_name}")
+            # Factory Logic (ADR-0008)
+            vault_type = VaultType.VIRTUAL
+            sub_id = 0
+            
+            if engine_name == 'drift':
+                vault_type = VaultType.VIRTUAL # Default to Paper for safety
+                sub_id = 0 # Main Sub-Account
+                
+            self._vaults[engine_name] = EngineVault(
+                engine_name=engine_name,
+                vault_type=vault_type,
+                sub_account_id=sub_id
+            )
+            logger.info(f"Created vault for engine: {engine_name} ({vault_type.name})")
         return self._vaults[engine_name]
     
     def reset_vault(self, engine_name: str):
