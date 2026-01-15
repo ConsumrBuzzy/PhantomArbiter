@@ -27,12 +27,12 @@
     flex-direction: column;
     justify-content: center;
     gap: 0;
-    padding: 0;
+    padding: 12px 15px;
     min-width: 0;
-    background: transparent;
-    /* Seamless look */
-    border: none;
-    box-shadow: none;
+    background: rgba(10, 15, 25, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 /* Stacked Ticker Tapes Container */
