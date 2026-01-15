@@ -63,10 +63,6 @@ class TradingOS {
         this.driftController = null;
         this.driftVault = null;
 
-        // Drift Components
-        this.driftController = null;
-        this.driftVault = null;
-
         // WebSocket connection
         this.ws = new WebSocketManager({
             port: 8765,
