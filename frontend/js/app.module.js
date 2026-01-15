@@ -399,13 +399,28 @@ class TradingOS {
 
                 // Watchlist
                 if (data.watchlist) {
-                    // Update bothHeader Ticker and Dashboard Cards
-                    if (this.memeSniperHeader) this.memeSniperHeader.update({ tokens: data.watchlist });
-
+                    // Update Dashboard Watchlist
                     if (this.activeComponents.sniper) {
                         this.activeComponents.sniper.update({ tokens: data.watchlist });
                     } else if (this.memeSniper) {
                         this.memeSniper.update({ tokens: data.watchlist });
+                    }
+
+                    // Update Scalp Engine Widget "Top Target"
+                    if (data.watchlist && data.watchlist.length > 0) {
+                        const topToken = data.watchlist.reduce((prev, current) =>
+                            (prev.dp_24h || 0) > (current.dp_24h || 0) ? prev : current
+                        );
+
+                        const symbolEl = document.getElementById('scalp-target-symbol');
+                        const spreadEl = document.getElementById('scalp-target-spread');
+
+                        if (symbolEl && topToken) {
+                            symbolEl.textContent = topToken.symbol;
+                            // Using daily change or score as placeholder "spread" value logic if spread not available
+                            const val = topToken.spread_pct || topToken.dp_24h || 0;
+                            spreadEl.textContent = `+${val.toFixed(2)}%`;
+                        }
                     }
                 }
 
