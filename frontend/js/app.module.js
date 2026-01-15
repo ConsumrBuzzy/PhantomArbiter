@@ -55,6 +55,7 @@ class TradingOS {
         this.memeSniper = null;
         this.engines = {};
         this.marketComponents = {};
+        this.activeComponents = {};
 
         // WebSocket connection
         this.ws = new WebSocketManager({
@@ -755,6 +756,7 @@ class TradingOS {
      */
     initializeDynamicComponents(viewName) {
         console.log(`Initializing components for ${viewName}`);
+        if (this.layoutManager) this.layoutManager.refresh();
 
         if (viewName === 'dashboard') {
             try {

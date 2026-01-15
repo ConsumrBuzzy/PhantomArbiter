@@ -65,13 +65,25 @@ export class LayoutManager {
             if (el) {
                 this.components[id] = el;
                 // Apply initial state
-                this.setVisibility(id, this.config[id] !== false); // Default to true if undefined
-            } else {
-                console.warn(`LayoutManager: Component ${id} not found in DOM`);
+                this.setVisibility(id, this.config[id] !== false);
             }
         });
 
         this.injectOptionsButton();
+    }
+
+    /**
+     * Refresh component references (call after dynamic view load)
+     */
+    refresh() {
+        this.registeredIds.forEach(id => {
+            const el = document.getElementById(id) || document.querySelector(`.${id}`);
+            if (el) {
+                this.components[id] = el;
+                // Re-apply state
+                this.setVisibility(id, this.config[id] !== false);
+            }
+        });
     }
 
     /**

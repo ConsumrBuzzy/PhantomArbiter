@@ -7,6 +7,7 @@
 
 export class MemeSniperStrip {
     constructor(containerId) {
+        this.containerId = containerId;
         this.container = document.getElementById(containerId);
         this.tokenMap = new Map(); // Stores full token state: symbol -> tokenObj
         this.STORAGE_KEY = 'meme_sniper_data_v1';
@@ -109,6 +110,11 @@ export class MemeSniperStrip {
      * Internal render logic using persistent map
      */
     _renderMap() {
+        if (!this.container && this.containerId) {
+            this.container = document.getElementById(this.containerId);
+        }
+        if (!this.container) return;
+
         const allTokens = Array.from(this.tokenMap.values());
 
         // Sort by spread descending
