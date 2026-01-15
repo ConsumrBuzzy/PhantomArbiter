@@ -165,6 +165,44 @@ class WatchlistEntry:
 
 
 @dataclass
+class DriftMarginMetrics:
+    """
+    Drift Protocol margin and health metrics for Risk-First UI.
+    
+    Health Score formula: 1 - (Maintenance Margin / Margin Collateral)
+    This matches Drift's on-chain liquidation algorithm.
+    """
+    
+    # Core Margin Values (USD)
+    total_collateral: float = 0.0          # Total account collateral
+    free_collateral: float = 0.0           # Available margin
+    maintenance_margin: float = 0.0        # Minimum required margin
+    initial_margin: float = 0.0            # Margin for new positions
+    
+    # Health Score (Risk-First Focal Point)
+    health_score: float = 1.0              # 0.0 (liquidation) to 1.0 (safe)
+    leverage: float = 0.0                  # Current effective leverage
+    max_leverage: float = 20.0             # Market max leverage
+    
+    # Derived Flags
+    is_healthy: bool = True                # health_score > 0.5
+    liquidation_risk: bool = False         # health_score < 0.2
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_collateral": self.total_collateral,
+            "free_collateral": self.free_collateral,
+            "maintenance_margin": self.maintenance_margin,
+            "initial_margin": self.initial_margin,
+            "health_score": self.health_score,
+            "leverage": self.leverage,
+            "max_leverage": self.max_leverage,
+            "is_healthy": self.is_healthy,
+            "liquidation_risk": self.liquidation_risk,
+        }
+
+
+@dataclass
 class SystemSnapshot:
     """
     Complete system state snapshot.
@@ -191,6 +229,9 @@ class SystemSnapshot:
     
     # Delta neutrality (hedge status)
     delta_state: Optional[Any] = None  # DeltaState from monitoring module
+    
+    # Drift margin metrics (Risk-First Health Gauge)
+    drift_margin: DriftMarginMetrics = field(default_factory=DriftMarginMetrics)
     
     # System
     metrics: SystemMetrics = field(default_factory=SystemMetrics)
@@ -239,6 +280,9 @@ class SystemSnapshot:
         # Add delta state if available
         if self.delta_state and hasattr(self.delta_state, 'to_dict'):
             result["delta_state"] = self.delta_state.to_dict()
+        
+        # Add Drift margin metrics (Risk-First Health Gauge)
+        result["drift_margin"] = self.drift_margin.to_dict()
         
         return result
 
@@ -298,13 +342,14 @@ class HeartbeatDataCollector:
         start_time = time.time()
         
         # Collect in parallel where possible
-        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state = await asyncio.gather(
+        paper_wallet, live_wallet, cex_wallet, engines, sol_price, delta_state, drift_margin = await asyncio.gather(
             self._collect_paper_wallet(),
             self._collect_live_wallet(),
             self._collect_cex_wallet(),
             self._collect_engine_status(),
             self._get_sol_price(),
             self._collect_delta_state(),
+            self._collect_drift_margin_metrics(),
         )
         
         # These are synchronous/fast
@@ -381,6 +426,7 @@ class HeartbeatDataCollector:
             major_prices=major_prices,
             watchlist=watchlist,
             delta_state=delta_state,
+            drift_margin=drift_margin,
             metrics=metrics,
             global_mode=global_mode,
             collector_latency_ms=latency_ms,
@@ -558,6 +604,68 @@ class HeartbeatDataCollector:
         except Exception as e:
             Logger.debug(f"Delta state collection error: {e}")
             return None
+    
+    async def _collect_drift_margin_metrics(self) -> DriftMarginMetrics:
+        """
+        Collect Drift margin and health metrics for Risk-First UI.
+        
+        Uses Drift Gateway API to fetch real-time margin state.
+        Health Score = 1 - (Maintenance Margin / Margin Collateral)
+        """
+        try:
+            import requests
+            
+            # Ensure drift adapter is initialized
+            if not self._drift_adapter:
+                from src.delta_neutral.drift_order_builder import DriftAdapter
+                self._drift_adapter = DriftAdapter("mainnet")
+                if self._wallet_mgr:
+                    self._drift_adapter.set_wallet(self._wallet_mgr)
+            
+            if not self._drift_adapter._builder:
+                return DriftMarginMetrics()
+            
+            wallet = str(self._drift_adapter._builder.wallet)
+            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{wallet}"
+            
+            # Short timeout (non-blocking for UI)
+            resp = requests.get(url, timeout=2.0)
+            if resp.status_code != 200:
+                return DriftMarginMetrics()
+            
+            data = resp.json()
+            
+            # Parse collateral values (6 decimals for USDC)
+            total_collateral = float(data.get("totalCollateralValue", 0)) / 1e6
+            free_collateral = float(data.get("freeCollateral", 0)) / 1e6
+            maint_margin = float(data.get("maintenanceMarginRequirement", 0)) / 1e6
+            init_margin = float(data.get("initialMarginRequirement", 0)) / 1e6
+            
+            # Health Score = 1 - (Maintenance Margin / Margin Collateral)
+            # Drift uses total collateral as the base for health calculation
+            margin_collateral = total_collateral
+            health_score = 1.0
+            if margin_collateral > 0 and maint_margin > 0:
+                health_score = max(0.0, min(1.0, 1.0 - (maint_margin / margin_collateral)))
+            
+            # Leverage = Deployed Capital / Total Collateral
+            deployed = max(0, total_collateral - free_collateral)
+            leverage = (deployed / total_collateral) if total_collateral > 0 else 0.0
+            
+            return DriftMarginMetrics(
+                total_collateral=total_collateral,
+                free_collateral=free_collateral,
+                maintenance_margin=maint_margin,
+                initial_margin=init_margin,
+                health_score=health_score,
+                leverage=leverage,
+                is_healthy=health_score > 0.5,
+                liquidation_risk=health_score < 0.2,
+            )
+            
+        except Exception as e:
+            Logger.debug(f"Drift margin metrics fetch failed: {e}")
+            return DriftMarginMetrics()
     
     async def _collect_engine_status(self) -> Dict[str, EngineSnapshot]:
         """Collect status from all engines."""

@@ -650,6 +650,60 @@ class DriftOrderBuilder:
             Logger.debug(f"[DRIFT] Active capital fetch failed: {e}")
             return 0.0
 
+    def get_all_positions(self) -> List[DriftPosition]:
+        """
+        Fetch all perp positions from Drift Gateway API.
+        
+        Returns list of DriftPosition objects for the Combat Zone table.
+        """
+        try:
+            import requests
+            
+            if not self.wallet:
+                return []
+            
+            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{self.wallet}/positions"
+            resp = requests.get(url, timeout=2.0)
+            
+            if resp.status_code != 200:
+                return []
+            
+            positions: List[DriftPosition] = []
+            data = resp.json()
+            
+            for perp in data.get("perpPositions", []):
+                # Skip empty positions
+                base_amount = perp.get("baseAssetAmount", 0)
+                if base_amount == 0:
+                    continue
+                
+                # Convert from precision (1e9 for base, 1e6 for USDC)
+                size = base_amount / 1e9
+                market_idx = perp.get("marketIndex", 0)
+                
+                # Map market index to name
+                market_name = next(
+                    (k for k, v in MARKET_INDICES.items() if v == market_idx),
+                    f"PERP-{market_idx}"
+                )
+                
+                # Parse PnL metrics
+                unrealized_pnl = perp.get("unsettledPnl", 0) / 1e6
+                
+                positions.append(DriftPosition(
+                    market=market_name,
+                    size=size,
+                    entry_price=0.0,  # Would need oracle lookup
+                    mark_price=0.0,   # Would need oracle lookup
+                    unrealized_pnl=unrealized_pnl,
+                ))
+            
+            return positions
+            
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Position fetch failed: {e}")
+            return []
+
 
 # =============================================================================
 # FACTORY
@@ -745,3 +799,9 @@ class DriftAdapter:
         if not self._builder:
             return 0.0
         return self._builder.get_active_capital()
+
+    def get_all_positions(self) -> List[DriftPosition]:
+        """Get all perp positions for Combat Zone table."""
+        if not self._builder:
+            return []
+        return self._builder.get_all_positions()

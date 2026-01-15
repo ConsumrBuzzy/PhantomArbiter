@@ -105,6 +105,16 @@ class EngineRegistry:
                     "max_pods": 5,
                     "sentiment_threshold": 0.7
                 }
+            },
+            {
+                "name": "drift",
+                "display_name": "Drift Engine",
+                "config": {
+                    "max_leverage": 5.0,
+                    "health_threshold": 0.5,
+                    "auto_rebalance": True,
+                    "settle_pnl_threshold": 10.0,
+                }
             }
         ]
         
