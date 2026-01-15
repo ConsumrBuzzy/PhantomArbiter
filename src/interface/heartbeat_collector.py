@@ -335,10 +335,16 @@ class HeartbeatDataCollector:
         bridge_available = cex_wallet.withdrawable_usdc >= 5.0
         bridge_max = max(0, cex_wallet.withdrawable_usdc - 1.0)  # Leave $1 dust floor
         
+        # Deployed vs Idle Logic
+        # Currently we don't track active margin usage, so if leverage is 0, consider it Idle.
+        # TODO: Connect to Drift active position size for true "Deployed" value.
+        deployed = 0.0 
+        idle = net_worth - deployed
+        
         unified_balance = UnifiedBalance(
             net_worth_usd=net_worth,
-            deployed_usd=drift_total,  # Drift = Deployed capital
-            idle_usd=cex_wallet.withdrawable_usdc + (phantom_total - drift_total),
+            deployed_usd=deployed,
+            idle_usd=idle,
             coinbase={
                 "usdc": cex_wallet.withdrawable_usdc,
                 "usd": 0.0,  # Could be enhanced to track USD separately
