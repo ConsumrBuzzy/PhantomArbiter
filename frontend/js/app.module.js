@@ -57,6 +57,9 @@ class TradingOS {
         this.marketComponents = {};
         this.activeComponents = {};
 
+        // Mempool Sniper (Global Header)
+        this.memeSniper = new MemeSniperStrip('meme-sniper-container');
+
         // WebSocket connection
         this.ws = new WebSocketManager({
             port: 8765,
@@ -762,10 +765,10 @@ class TradingOS {
             try {
                 // Initialize Dashboard Components
                 this.unifiedVault = new UnifiedVaultController('unified-vault-container');
-                // this.tokenWatchlist = new TokenWatchlist('watchlist-panel'); // Legacy - Replaced by MemeSniper
+                this.tokenWatchlist = new TokenWatchlist('watchlist-panel'); // Restored Matrix View
                 this.inventory = new Inventory();
                 this.systemMetrics = new SystemMetrics('chart-metrics');
-                this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
+                // this.memeSniper = new MemeSniperStrip('meme-sniper-mount'); // Moved to Global Header
 
                 // Re-bind Callbacks
                 if (this.unifiedVault) {
