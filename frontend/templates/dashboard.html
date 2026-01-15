@@ -53,6 +53,45 @@
             </div>
         </section>
 
+        <section class="glass-panel" id="scalp-active-panel">
+            <div class="panel-title">Active Engine</div>
+            <div class="engine-card" data-engine="scalp" data-status="stopped">
+                <div class="engine-card-header">
+                    <div class="engine-card-title">
+                        <div class="engine-icon"
+                            style="background: rgba(255, 215, 0, 0.1); color: var(--neon-gold); border: 1px solid rgba(255, 215, 0, 0.3);">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div>
+                            <div class="engine-name">SCALP SNIPER</div>
+                            <div class="status-text">STOPPED</div>
+                        </div>
+                    </div>
+                    <div class="engine-controls">
+                        <button class="power-toggle" title="Toggle Engine"><i
+                                class="fa-solid fa-power-off"></i></button>
+                        <button class="settings-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+                    </div>
+                </div>
+
+                <div class="engine-config" style="margin-top: 10px;">
+                    <div class="config-item">
+                        <div class="config-label">Active Pods</div>
+                        <div class="config-value" data-config="active_pods">0</div>
+                    </div>
+                    <div class="config-item">
+                        <div class="config-label">Session PnL</div>
+                        <div class="config-value profit-positive" data-config="pnl">--</div>
+                    </div>
+                </div>
+
+                <div class="mode-selector" style="margin-top: 15px;">
+                    <button class="mode-btn active" data-mode="paper">PAPER</button>
+                    <button class="mode-btn" data-mode="live">LIVE</button>
+                </div>
+            </div>
+        </section>
+
         <section class="drift-vault-card" id="drift-panel">
             <div class="drift-header">
                 <div class="drift-logo"><span>🌊 DRIFT PROTOCOL</span></div>

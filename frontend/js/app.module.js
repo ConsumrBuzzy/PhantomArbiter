@@ -773,7 +773,13 @@ class TradingOS {
                 this.systemMetrics = new SystemMetrics('chart-metrics');
                 this.memeSniper = new MemeSniperStrip('meme-sniper-mount'); // Dashboard Instance
 
-                // Re-bind Callbacks
+                // Active Scalp Engine Card (Dashboard Widget)
+                this.scalpEngineWidget = new EngineCard('scalp', {
+                    onToggle: (n, s, m) => this.toggleEngine(n, s, m),
+                    onSettings: (n, c) => this.openSettings(n, c),
+                    onModeChange: (n, m) => { if (this.engines[n]) this.engines[n].setMode(m); }
+                });
+                this.engines['scalp'] = this.scalpEngineWidget;
                 if (this.unifiedVault) {
                     this.unifiedVault.setBridgeCallback((amount) => {
                         this.ws.send('BRIDGE_TRIGGER', { amount });
