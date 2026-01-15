@@ -58,7 +58,7 @@ class TradingOS {
         this.activeComponents = {};
 
         // Mempool Sniper (Global Header)
-        this.memeSniperHeader = new MemeSniperStrip('meme-sniper-container');
+        // this.memeSniperHeader = new MemeSniperStrip('meme-sniper-container'); // Removed per user request
 
         // WebSocket connection
         this.ws = new WebSocketManager({
