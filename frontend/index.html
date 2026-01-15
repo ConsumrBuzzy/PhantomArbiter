@@ -31,22 +31,44 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-top">
-            <div class="nav-item active" data-tooltip="Dashboard">
+            <!-- Dashboard -->
+            <div class="nav-item active" data-view="dashboard" data-tooltip="Dashboard">
                 <i class="fa-solid fa-grid-2"></i>
             </div>
-            <div class="nav-item" data-tooltip="Analytics">
-                <i class="fa-solid fa-chart-line"></i>
+
+            <!-- ARB Engine -->
+            <div class="nav-item" data-view="engine-arb" data-tooltip="ARB Engine">
+                <i class="fa-solid fa-arrows-rotate"></i>
             </div>
-            <div class="nav-item" data-tooltip="Wallet">
-                <i class="fa-solid fa-wallet"></i>
+
+            <!-- Scalp Engine -->
+            <div class="nav-item" data-view="engine-scalp" data-tooltip="Scalp Engine">
+                <i class="fa-solid fa-bolt"></i>
             </div>
-            <div class="nav-item" data-tooltip="Settings">
+
+            <!-- Funding Engine -->
+            <div class="nav-item" data-view="engine-funding" data-tooltip="Funding Engine">
+                <i class="fa-solid fa-money-bill-trend-up"></i>
+            </div>
+
+            <!-- LST Engine -->
+            <div class="nav-item" data-view="engine-lst" data-tooltip="LST Engine">
+                <i class="fa-solid fa-water"></i>
+            </div>
+
+            <!-- Scanner -->
+            <div class="nav-item" data-view="scanner" data-tooltip="Market Scanner">
+                <i class="fa-solid fa-radar"></i>
+            </div>
+
+            <!-- Settings -->
+            <div class="nav-item" data-view="settings" data-tooltip="Settings">
                 <i class="fa-solid fa-gear"></i>
             </div>
         </div>
         <div class="sidebar-bottom">
             <div class="connection-status connected" id="connection-indicator" data-tooltip="Connected"></div>
-            <div class="nav-item" onclick="document.body.classList.toggle('neon-mode')" data-tooltip="Styles">
+            <div class="nav-item" onclick="document.body.classList.toggle('neon-mode')" data-tooltip="Theme">
                 <i class="fa-solid fa-palette"></i>
             </div>
             <div class="sos-button" id="sos-btn" data-tooltip="EMERGENCY STOP"
