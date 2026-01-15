@@ -108,12 +108,13 @@ class EngineRegistry:
             },
             {
                 "name": "drift",
-                "display_name": "Drift Engine",
+                "display_name": "Delta Neutral Engine",
                 "config": {
-                    "max_leverage": 5.0,
-                    "health_threshold": 0.5,
-                    "auto_rebalance": True,
-                    "settle_pnl_threshold": 10.0,
+                    # Matches DNEMConfig in src/delta_neutral/engine.py
+                    "initial_balance": 12.0,
+                    "leverage": 1.0,
+                    "drift_threshold_pct": 0.5,
+                    "jito_tip_lamports": 10_000,
                 }
             }
         ]
