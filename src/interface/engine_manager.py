@@ -82,6 +82,13 @@ class EngineManager:
                 "--tp", str(config.get("take_profit_pct", 10.0)),
                 "--sl", str(config.get("stop_loss_pct", 5.0)),
             ]
+        elif name == "drift":
+            return [
+                python, "-m", "src.engines.drift.engine",
+                mode_flag,
+                "--max-leverage", str(config.get("max_leverage", 5.0)),
+                "--health-threshold", str(config.get("health_threshold", 0.5)),
+            ]
         else:
             raise ValueError(f"Unknown engine: {name}")
     
