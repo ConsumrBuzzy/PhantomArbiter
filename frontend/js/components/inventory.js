@@ -36,6 +36,7 @@ export class Inventory {
             });
         }
 
+
         // 3. Update Active Engine Label on Live Inventory
         this.updateLiveLabel(data.engines);
     }
@@ -68,7 +69,7 @@ export class Inventory {
     /**
      * Create or Update a Strategy Vault Table
      */
-    updateStrategyVault(engineName, vaultData) {
+    updateStrategyVault(engineName, vaultData, engineInfo) {
         const vaultId = `vault-${engineName}`;
         let tbody = document.querySelector(`#${vaultId} tbody`);
 
@@ -78,7 +79,38 @@ export class Inventory {
             tbody = document.querySelector(`#${vaultId} tbody`);
         }
 
+        // Update Label with Active Badge if applicable
+        this.updateVaultLabel(engineName, vaultId, vaultData.type, engineInfo);
+
         this.renderTable(tbody, vaultData, engineName);
+    }
+
+    updateVaultLabel(engineName, vaultId, type, engineInfo) {
+        const wrapper = document.getElementById(`wrapper-${vaultId}`);
+        if (!wrapper) return;
+        const labelEl = wrapper.querySelector('.inventory-label');
+        if (!labelEl) return;
+
+        // Base Label
+        const color = type === 'ON_CHAIN' ? 'var(--neon-purple)' : 'var(--neon-gold)';
+        let labelText = type === 'ON_CHAIN' ? `🔗 ${engineName.toUpperCase()} (LINKED)` : `⚡ ${engineName.toUpperCase()} (PAPER)`;
+
+        // Check for Active Status
+        // Active if engine is running AND matches the vault type mode
+        // Virtual Vault is active if engine mode is 'paper'
+        // OnChain Vault is active if engine mode is 'live'
+        let isActive = false;
+        if (engineInfo && engineInfo.status === 'running') {
+            if (type === 'VIRTUAL' && engineInfo.mode === 'paper') isActive = true;
+            if (type === 'ON_CHAIN' && engineInfo.mode === 'live') isActive = true;
+        }
+
+        if (isActive) {
+            labelText += ` <span style="font-size: 0.7em; background: ${color}; color: black; padding: 2px 6px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">ACTIVE</span>`;
+        }
+
+        labelEl.innerHTML = labelText;
+        labelEl.style.color = color;
     }
 
     createVaultElement(engineName, vaultId, type) {
@@ -90,12 +122,9 @@ export class Inventory {
         wrapper.style.paddingLeft = '10px';
         wrapper.id = `wrapper-${vaultId}`;
 
-        // Determine Color/Label based on type
-        const color = type === 'ON_CHAIN' ? 'var(--neon-purple)' : 'var(--neon-gold)';
-        const label = type === 'ON_CHAIN' ? `🔗 ${engineName.toUpperCase()} (LINKED)` : `⚡ ${engineName.toUpperCase()} (PAPER)`;
-
+        // Initial Label (will be updated by updateStrategyVault)
         wrapper.innerHTML = `
-            <div class="inventory-label" style="color: ${color};">${label}</div>
+            <div class="inventory-label">Loading...</div>
             <table id="${vaultId}">
                 <thead>
                     <tr>
