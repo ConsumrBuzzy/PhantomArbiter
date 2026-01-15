@@ -791,8 +791,19 @@ class TradingOS {
         if (viewName === 'settings') {
             try {
                 this.apiHealth = new APIHealth('api-health-container');
+                // Request initial health data
+                if (this.ws && this.ws.connected) this.ws.send('GET_API_HEALTH', {});
             } catch (e) {
                 console.error("Error initializing settings components:", e);
+            }
+        }
+
+        if (viewName === 'scanner') {
+            try {
+                this.marketComponents['arb'] = new ArbScanner('arb', '#arb-scanner-mount');
+                this.marketComponents['funding'] = new FundingMonitor('funding', '#funding-scanner-mount');
+            } catch (e) {
+                console.error("Error initializing scanner components:", e);
             }
         }
     }
