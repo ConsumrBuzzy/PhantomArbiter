@@ -753,19 +753,39 @@ class TradingOS {
     /**
      * Initialize components appearing in dynamic views
      */
-    initializeDynamicComponents(viewName) {
+        initializeDynamicComponents(viewName) {
         console.log(`Initializing components for ${viewName}`);
-
+        
         if (viewName === 'dashboard') {
-            // Re-bind dashboard specific components if they were created dynamically
-            // (Note: Currently many are instantiated in constructor expecting DOM to exist. 
-            //  We might need to defer instantiation or re-attach them)
+            try {
+                // Initialize Dashboard Components
+                this.unifiedVault = new UnifiedVaultController('unified-vault-container');
+                this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
+                this.inventory = new Inventory();
+                this.systemMetrics = new SystemMetrics('chart-metrics');
+                this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
+                
+                // Re-bind Callbacks
+                if (this.unifiedVault) {
+                    this.unifiedVault.setBridgeCallback((amount) => {
+                        this.ws.send('BRIDGE_TRIGGER', { amount });
+                        this.terminal.addLog('BRIDGE', 'INFO', `Bridge initiated: $${amount.toFixed(2)} USDC -> Phantom`);
+                    });
+                }
+                
+                // Request Initial Data
+                if (this.ws && this.ws.connected) {
+                    this.ws.send('GET_SYSTEM_STATS', {});
+                    this.ws.send('GET_WATCHLIST', {});
+                }
+            } catch (e) {
+                console.error("Error initializing dashboard components:", e);
+            }
         }
 
         if (viewName.startsWith('engine-')) {
             const engineId = viewName.replace('engine-', '');
-            // Bind manual controls for this engine page
-            // e.g. bind start/stop buttons specific to the dedicated page
+            // Engine specific init logic can go here
         }
     }
 
