@@ -32,8 +32,6 @@ import { UnifiedVaultController } from './components/unified-vault.js';
 import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
 import { DriftController } from './components/drift-controller.js';
 import { EngineVaultCard } from './components/engine-vault-card.js';
-import { DriftController } from './components/drift-controller.js';
-import { EngineVaultCard } from './components/engine-vault-card.js';
 
 class TradingOS {
     constructor() {
