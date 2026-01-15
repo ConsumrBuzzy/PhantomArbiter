@@ -592,7 +592,6 @@ class DriftOrderBuilder:
             return 0.0
 
     def calculate_required_collateral(
-
         self,
         size: float,
         price: float,
@@ -605,6 +604,20 @@ class DriftOrderBuilder:
         """
         notional = size * price
         return notional / leverage
+
+    def get_active_capital(self) -> float:
+        """
+        Calculate total capital actively deployed in positions (Margin Used).
+        
+        Formula: Sum(Abs(Position Size) * Mark Price) / Leverage?
+        Or simply: Total Initial Margin Requirement.
+        
+        For now, returns 0.0 until PerpPosition parsing is implemented.
+        """
+        # TODO: Implement PerpPosition deserialization
+        # Offset for perp_positions is roughly 4376 bytes in V1, V2 differs.
+        # Once implemented, iterate positions -> sum(notional / leverage)
+        return 0.0
 
 
 # =============================================================================
@@ -695,3 +708,9 @@ class DriftAdapter:
         if not self._builder:
             return 0.0
         return self._builder.get_user_equity()
+
+    def get_active_capital(self) -> float:
+        """Get capital currently deployed in active positions."""
+        if not self._builder:
+            return 0.0
+        return self._builder.get_active_capital()
