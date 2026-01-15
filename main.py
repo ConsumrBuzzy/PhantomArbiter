@@ -219,19 +219,51 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # ═══════════════════════════════════════════════════════════════
-    # DASHBOARD SUBCOMMAND (The Cockpit)
+    # WEB UI SUBCOMMAND (Component-Based Dashboard)
+    # ═══════════════════════════════════════════════════════════════
+    web_parser = subparsers.add_parser(
+        "web", help="Component-Based Web UI (Modern Dashboard - Recommended)"
+    )
+    web_parser.add_argument(
+        "--live", action="store_true", help="Enable LIVE trading"
+    )
+    web_parser.add_argument(
+        "--no-browser", action="store_true", help="Don't auto-open browser"
+    )
+    web_parser.add_argument(
+        "--port", type=int, default=8000, help="Frontend port (default: 8000)"
+    )
+
+    # ═══════════════════════════════════════════════════════════════
+    # GALAXY SUBCOMMAND (3D Visualization Map)
+    # ═══════════════════════════════════════════════════════════════
+    galaxy_parser = subparsers.add_parser(
+        "galaxy", help="Galaxy 3D Visualization (Three.js Map)"
+    )
+    galaxy_parser.add_argument(
+        "--live", action="store_true", help="Enable LIVE trading in Galaxy"
+    )
+    galaxy_parser.add_argument(
+        "--no-browser", action="store_true", help="Don't auto-open browser"
+    )
+    galaxy_parser.add_argument(
+        "--standalone", action="store_true", help="Run Galaxy only (no backend engines)"
+    )
+
+    # ═══════════════════════════════════════════════════════════════
+    # DASHBOARD SUBCOMMAND (Legacy - Redirects to 'web')
     # ═══════════════════════════════════════════════════════════════
     dash_parser = subparsers.add_parser(
-        "dashboard", help="Run the TUI Cockpit (Default)"
+        "dashboard", help="[LEGACY] Redirects to 'web' command"
     )
     dash_parser.add_argument(
-        "--live", action="store_true", help="Enable LIVE trading in Dashboard"
+        "--live", action="store_true", help="Enable LIVE trading"
     )
     dash_parser.add_argument(
-        "--no-hud", action="store_true", help="Disable auto-launch of browser HUD"
+        "--no-hud", action="store_true", help="Don't auto-open browser"
     )
     dash_parser.add_argument(
-        "--no-galaxy", action="store_true", help="Skip Galaxy subprocess (run headless Core only)"
+        "--no-galaxy", action="store_true", help="[Ignored] Use 'web' instead of 'galaxy'"
     )
 
     # ═══════════════════════════════════════════════════════════════
@@ -394,36 +426,163 @@ async def cmd_dashboard(args: argparse.Namespace) -> None:
             api_task.cancel()
 
 
+async def cmd_web(args: argparse.Namespace) -> None:
+    """
+    Run Component-Based Web UI (Modern Dashboard).
+    
+    This is the modern, maintainable UI using LocalDashboardServer
+    with independent engines (like run_dashboard.py).
+    """
+    import sys
+    
+    # Simply delegate to run_dashboard.py
+    # This keeps the implementation in one place
+    print("🌐 Launching Component-Based Web UI...")
+    print("   (Running via run_dashboard.py)")
+    
+    # Import and run the dashboard
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("run_dashboard", "run_dashboard.py")
+    if spec and spec.loader:
+        dashboard_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(dashboard_module)
+        await dashboard_module.main()
+    else:
+        print("❌ Error: Could not load run_dashboard.py")
+        sys.exit(1)
+
+
+async def cmd_galaxy(args: argparse.Namespace) -> None:
+    """
+    Run Galaxy 3D Visualization Map.
+    
+    Launches the Three.js 3D visualization with optional backend engines.
+    """
+    import subprocess
+    import sys
+    import os
+    from src.core.logger import setup_logging
+    
+    Logger = setup_logging("INFO")
+    
+    print("\n" + "="*50)
+    print("  🌌 GALAXY 3D VISUALIZATION")
+    print("="*50 + "\n")
+    
+    galaxy_url = "http://localhost:8001"
+    
+    # Launch Galaxy subprocess
+    Logger.info("Starting Galaxy Server...")
+    try:
+        galaxy_dir = os.path.join(os.path.dirname(__file__), "apps", "galaxy")
+        
+        galaxy_process = subprocess.Popen(
+            [
+                sys.executable, "-m", "uvicorn",
+                "galaxy.server:app",
+                "--host", "0.0.0.0",
+                "--port", "8001",
+                "--log-level", "info",
+            ],
+            cwd=os.path.join(galaxy_dir, "src"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
+        )
+        
+        # Wait for Galaxy to start
+        await asyncio.sleep(2.0)
+        
+        if galaxy_process.poll() is not None:
+            stderr_output = galaxy_process.stderr.read().decode("utf-8", errors="ignore")
+            Logger.error(f"Galaxy failed to start: {stderr_output[:300]}")
+            sys.exit(1)
+        
+        Logger.info(f"✅ Galaxy Online: {galaxy_url}/dashboard.html")
+        
+        # Auto-open browser unless --no-browser
+        if not getattr(args, "no_browser", False):
+            import webbrowser
+            webbrowser.open(f"{galaxy_url}/dashboard.html")
+        
+        # If not standalone, start backend engines
+        if not getattr(args, "standalone", False):
+            from src.director import UnifiedDirector
+            
+            Logger.info("Starting backend engines...")
+            director = UnifiedDirector(live_mode=args.live, execution_enabled=False)
+            
+            try:
+                await director.start()
+            except KeyboardInterrupt:
+                Logger.info("Interrupt received, shutting down...")
+            finally:
+                await director.stop()
+        else:
+            Logger.info("Running Galaxy in standalone mode (visualization only)")
+            print("\n" + "="*50)
+            print(f"  🌌 Galaxy: {galaxy_url}/dashboard.html")
+            print("  Press Ctrl+C to stop")
+            print("="*50 + "\n")
+            
+            try:
+                while True:
+                    await asyncio.sleep(1)
+            except KeyboardInterrupt:
+                Logger.info("Shutting down...")
+        
+        # Cleanup
+        Logger.info("Stopping Galaxy subprocess...")
+        galaxy_process.terminate()
+        try:
+            galaxy_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            galaxy_process.kill()
+            
+    except Exception as e:
+        Logger.error(f"Galaxy launch failed: {e}")
+        sys.exit(1)
+
 
 async def main() -> None:
+
     """Main entry point."""
     
     # DEBUG: See what we are getting
     # print(f"DEBUG: sys.argv inside main: {sys.argv}")
 
-    # V33: Auto-launch Dashboard if no args provided
+
+    # V33: Auto-launch Modern Web UI if no args provided
     if len(sys.argv) == 1:
-        print("ℹ️  No command specified. Defaulting to Full Spectrum Dashboard...")
-        sys.argv.append("dashboard")
+        print("ℹ️  No command specified. Defaulting to Component-Based Web UI...")
+        sys.argv.append("web")
 
     parser = create_parser()
     # Explicitly allow no subcommand
     # But checking args.command is handled below
     args = parser.parse_args()
 
-    # SHORTCUT: 'live' -> dashboard + live=True
+    # SHORTCUT: 'live' -> web + live=True
     if args.command == "live":
         args.live = True
-        await cmd_dashboard(args)
+        await cmd_web(args)
         return
 
-    # DEFAULT TO DASHBOARD IF NO ARGS
+    # LEGACY REDIRECT: 'dashboard' -> 'web' (backward compatibility)
+    if args.command == "dashboard":
+        print("⚠️  'dashboard' command is deprecated. Redirecting to 'web'...")
+        # Map old flags to new
+        args.no_browser = getattr(args, "no_hud", False)
+        await cmd_web(args)
+        return
+
+    # DEFAULT TO WEB IF NO ARGS
     if args.command is None:
-        # V33: Auto-launch Dashboard (Full Spectrum Mode)
-        print("ℹ️  Auto-Launching Full Spectrum Dashboard...")
+        # V33: Auto-launch Modern Web UI
+        print("ℹ️  Auto-Launching Component-Based Web UI...")
         args.live = False 
-        args.no_hud = False # Ensure HUD launches
-        await cmd_dashboard(args)
+        args.no_browser = False
+        await cmd_web(args)
         return
 
     if args.live:

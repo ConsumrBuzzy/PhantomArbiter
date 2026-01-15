@@ -72,6 +72,16 @@
 - [ ] **Ghost Execution Test**: Validate JITO bundle construction
 - [ ] **Soak Test**: 24h paper trading run with >99% uptime
 
+#### Phase 2: Main.py Modernization (ADR-0004)
+- [ ] **Add Deprecation Warnings**: Mark legacy code (`src/arbiter/`, `src/strategies/`)
+- [ ] **Port cmd_scan**: Migrate to ArbEngine (1 hour)
+- [ ] **Port cmd_arbiter**: Migrate to ArbEngine with callbacks (2 hours)
+- [ ] **Port cmd_dashboard**: Align with LocalDashboardServer pattern (2 hours)
+- [ ] **Archive Legacy**: Move deprecated code to `archive/deprecated/` (30 min)
+
+**Timeline**: Weeks 2-6 (8 hours total, spread over 5 weeks)  
+**Reference**: [ADR-0004](./docs/adr/0004-main-py-modernization.md), [Migration Guide](./docs/MIGRATION_GUIDE.md)
+
 ### Mid-Term Goals (3-6 Months)
 
 #### Milestone 3: Rust Turbo
