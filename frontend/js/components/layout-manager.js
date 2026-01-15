@@ -19,7 +19,8 @@ export class LayoutManager {
             'intel-panel',
             'metrics-panel',
             'view-scanner', // Can toggle entire views too if we want
-            'engine-grid'
+            'engine-grid',
+            'drift-panel'
         ];
 
         this.init();
@@ -32,7 +33,11 @@ export class LayoutManager {
         const stored = localStorage.getItem(this.storageKey);
         if (stored) {
             try {
-                return JSON.parse(stored);
+                const config = JSON.parse(stored);
+                // Force critical panels to be visible (Recovery Mode)
+                config['watchlist-panel'] = true;
+                config['drift-panel'] = true;
+                return config;
             } catch (e) {
                 console.error("Failed to parse layout config", e);
             }
