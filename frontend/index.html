@@ -85,7 +85,7 @@
                 <!-- Whale Watcher Tape -->
                 <div class="tape-row">
                     <span class="tape-label">WHALES</span>
-                    <div class="sol-tape-wrapper sol-tape-expanded" id="whale-tape-header-mount">
+                    <div class="sol-tape-wrapper sol-tape-expanded" id="whale-tape-container">
                         <div class="sol-tape-loading">Listening for Whales...</div>
                     </div>
                 </div>
@@ -176,6 +176,22 @@
                             <div class="panel-title">System Metrics</div>
                             <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
                         </section>
+
+                        <!-- Watchlist Panel -->
+                        <section class="glass-panel" id="watchlist-panel">
+                            <div class="panel-title">Watchlist</div>
+                            <div id="watchlist-content" style="padding: 10px;">
+                                <div>Loading watchlist...</div>
+                            </div>
+                        </section>
+
+                        <!-- Intel Panel -->
+                        <section class="glass-panel" id="intel-panel">
+                            <div class="panel-title">Intel Feed</div>
+                            <div id="intel-content" style="padding: 10px; max-height: 300px; overflow-y: auto;">
+                                <div style="color: var(--text-dim);">Waiting for signals...</div>
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>
@@ -204,9 +220,11 @@
             <div class="view-panel" id="view-engines">
                 <div class="engine-stack" style="display: flex; flex-direction: column; gap: 20px;">
                     <!-- Engine Cards Container -->
-                    <div id="engine-cards-container"
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                        <!-- Injected by JS -->
+                    <div id="engine-grid" class="engine-grid">
+                        <div id="engine-cards-container"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            <!-- Injected by JS -->
+                        </div>
                     </div>
                 </div>
 
