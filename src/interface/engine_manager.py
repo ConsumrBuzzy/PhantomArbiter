@@ -84,10 +84,11 @@ class EngineManager:
             ]
         elif name == "drift":
             # Use existing DeltaNeutralEngine (ADR-0006 Phase 1)
+            # CLI: python -m src.delta_neutral.engine --mode paper|live --balance 12.0
             return [
                 python, "-m", "src.delta_neutral.engine",
-                f"--mode", mode,
-                "--leverage", str(config.get("max_leverage", 1.0)),
+                "--mode", mode,
+                "--balance", str(config.get("initial_balance", 12.0)),
             ]
         else:
             raise ValueError(f"Unknown engine: {name}")
