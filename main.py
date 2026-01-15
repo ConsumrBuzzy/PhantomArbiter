@@ -585,6 +585,67 @@ async def main() -> None:
         await cmd_web(args)
         return
 
+    # ═══════════════════════════════════════════════════════════════
+    # COMMAND DISPATCH
+    # ═══════════════════════════════════════════════════════════════
+    
+    # New commands (web, galaxy)
+    if args.command == "web":
+        await cmd_web(args)
+        return
+    
+    if args.command == "galaxy":
+        await cmd_galaxy(args)
+        return
+    
+    # Legacy/redirect commands
+    if args.command == "pulse":
+        await cmd_pulse(args)
+        return
+    
+    # Other commands (scan, discover, etc.)
+    if args.command == "scan":
+        await cmd_scan(args)
+        return
+    
+    if args.command == "discover":
+        await cmd_discover(args)
+        return
+    
+    if args.command == "watch":
+        await cmd_watch(args)
+        return
+    
+    if args.command == "scout":
+        await cmd_scout(args)
+        return
+    
+    if args.command == "monitor":
+        await cmd_monitor(args)
+        return
+    
+    if args.command == "clean":
+        await cmd_clean(args)
+        return
+    
+    if args.command == "graduation":
+        await cmd_graduation(args)
+        return
+    
+    # Arbiter command (has special setup logic below)
+    if args.command == "arbiter":
+        await cmd_arbiter(args)
+        return
+
+    # If we get here, show help
+    if args.command not in ["arbiter"]:
+        print(f"Unknown command: {args.command}")
+        return
+
+    # ═══════════════════════════════════════════════════════════════
+    # ARBITER COMMAND SETUP (Legacy - kept for compatibility)
+    # ═══════════════════════════════════════════════════════════════
+    
     if args.live:
         confirm = input("\n   ⚠️ LIVE MODE - Type 'I UNDERSTAND' to proceed: ")
         if confirm.strip() != "I UNDERSTAND":
