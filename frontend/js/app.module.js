@@ -734,20 +734,77 @@ class TradingOS {
     /**
      * Switch between views
      */
-    switchView(viewName) {
+    /**
+     * Switch between views (Async Template Loading)
+     */
+    async switchView(viewName) {
+        const viewId = `view-${viewName}`;
+        let viewPanel = document.getElementById(viewId);
+
+        // Nav State
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.view === viewName);
         });
 
+        // Dynamic Loading
+        if (!viewPanel) {
+            // Show loading state?
+            try {
+                console.log(`Loading template: templates/${viewName}.html`);
+                const response = await fetch(`templates/${viewName}.html`);
+
+                if (response.ok) {
+                    const html = await response.text();
+
+                    // Create view container
+                    viewPanel = document.createElement('div');
+                    viewPanel.className = 'view-panel';
+                    viewPanel.id = viewId;
+                    viewPanel.innerHTML = html;
+
+                    document.querySelector('.view-stack').appendChild(viewPanel);
+
+                    // Initialize newly loaded components
+                    this.initializeDynamicComponents(viewName);
+                } else {
+                    console.error(`Template ${viewName} not found`);
+                    // Fallback to dashboard?
+                }
+            } catch (e) {
+                console.error('View load error:', e);
+            }
+        }
+
+        // Toggle Visibility
         document.querySelectorAll('.view-panel').forEach(panel => {
-            panel.classList.toggle('active', panel.id === `view-${viewName}`);
+            panel.classList.toggle('active', panel.id === viewId);
         });
 
-        // V23.0: Request API health when entering Config view
-        if (viewName === 'config' && this.ws) {
+        // Request API health when entering Config view
+        if (viewName === 'settings' && this.ws) {
             this.ws.send('GET_API_HEALTH', {});
         }
     }
+
+    /**
+     * Initialize components appearing in dynamic views
+     */
+    initializeDynamicComponents(viewName) {
+        console.log(`Initializing components for ${viewName}`);
+
+        if (viewName === 'dashboard') {
+            // Re-bind dashboard specific components if they were created dynamically
+            // (Note: Currently many are instantiated in constructor expecting DOM to exist. 
+            //  We might need to defer instantiation or re-attach them)
+        }
+
+        if (viewName.startsWith('engine-')) {
+            const engineId = viewName.replace('engine-', '');
+            // Bind manual controls for this engine page
+            // e.g. bind start/stop buttons specific to the dedicated page
+        }
+    }
+
 
     /**
      * Update intelligence table

@@ -1,0 +1,45 @@
+<div class="engine-layout scalp-theme">
+    <div class="engine-header-row">
+        <div class="engine-title">
+            <i class="fa-solid fa-bolt"></i>
+            <h2>Scalp Sniper Engine</h2>
+        </div>
+        <div class="engine-status-bar" id="scalp-status-bar">
+            <span class="status-indicator stopped">STOPPED</span>
+            <span class="mode-indicator paper">PAPER</span>
+        </div>
+    </div>
+
+    <div class="engine-grid-layout">
+        <div class="grid-col-main">
+            <!-- Active Pods Grid -->
+            <section class="glass-panel">
+                <div class="panel-title">🎯 Active Snipe Pods</div>
+                <div id="scalp-pods-mount" class="pods-grid">
+                    <!-- Pods injected here -->
+                    <div class="empty-state">No active sniper pods</div>
+                </div>
+            </section>
+
+            <!-- Signal Feed -->
+            <section class="glass-panel" style="margin-top: 20px; flex: 1;">
+                <div class="panel-title">📡 Signal Feed</div>
+                <div id="scalp-feed-mount" class="feed-container"></div>
+            </section>
+        </div>
+
+        <div class="grid-col-side">
+            <section class="glass-panel">
+                <div class="panel-title">Engine Control</div>
+                <div id="scalp-control-card-mount"></div>
+            </section>
+
+            <section class="glass-panel">
+                <div class="panel-title">Risk Settings</div>
+                <div class="config-summary" id="scalp-config-display">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+        </div>
+    </div>
+</div>

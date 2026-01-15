@@ -1,0 +1,97 @@
+<div class="dashboard-grid">
+    <!-- Left Column: Vault & Inventory -->
+    <div class="left-column">
+        <section id="unified-vault-container"></section>
+
+        <section class="glass-panel" id="inventory-panel">
+            <div class="panel-title">Inventory</div>
+            <div class="inventory-split">
+                <div class="inventory-half live">
+                    <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
+                    <table id="live-inventory-table">
+                        <thead>
+                            <tr>
+                                <th>ASSET</th>
+                                <th>AMOUNT</th>
+                                <th>VALUE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="3">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="inventory-half paper">
+                    <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
+                    <table id="paper-inventory-table">
+                        <thead>
+                            <tr>
+                                <th>ASSET</th>
+                                <th>AMOUNT</th>
+                                <th>VALUE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="3">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Right Column: Sniper, Drift, Metrics -->
+    <div class="right-column">
+        <section class="glass-panel" id="watchlist-panel">
+            <div class="panel-title">Watchlist</div>
+            <div id="watchlist-content" style="padding: 10px;">
+                <div id="meme-sniper-mount" style="min-height: 100px;"></div>
+            </div>
+        </section>
+
+        <section class="drift-vault-card" id="drift-panel">
+            <div class="drift-header">
+                <div class="drift-logo"><span>🌊 DRIFT PROTOCOL</span></div>
+                <div class="drift-status-badge">MAINNET</div>
+            </div>
+            <div class="drift-stats-grid">
+                <div class="drift-stat"><span class="drift-label">EQUITY</span><span class="drift-value"
+                        id="drift-equity">$0.00</span></div>
+                <div class="drift-stat"><span class="drift-label">Unrealized PnL</span><span class="drift-value"
+                        id="drift-pnl">--</span></div>
+                <div class="drift-stat"><span class="drift-label">LEVERAGE</span><span class="drift-value"
+                        id="drift-leverage">0x</span></div>
+            </div>
+        </section>
+
+        <section class="glass-panel" id="metrics-panel">
+            <div class="panel-title">System Metrics</div>
+            <div id="chart-metrics" style="height: 100%; width: 100%;"></div>
+        </section>
+
+        <!-- Intel Panel -->
+        <section class="glass-panel" id="intel-panel">
+            <div class="panel-title">Intel Feed</div>
+            <div id="intel-content" style="padding: 10px; max-height: 300px; overflow-y: auto;">
+                <table id="intel-table">
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Signal</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="3" style="text-align:center; color: var(--text-dim);">Listening...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>

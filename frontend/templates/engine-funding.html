@@ -1,0 +1,50 @@
+<div class="engine-layout funding-theme">
+    <div class="engine-header-row">
+        <div class="engine-title">
+            <i class="fa-solid fa-money-bill-trend-up"></i>
+            <h2>Funding Rate Engine</h2>
+        </div>
+        <div class="engine-status-bar" id="funding-status-bar">
+            <span class="status-indicator stopped">STOPPED</span>
+            <span class="mode-indicator paper">PAPER</span>
+        </div>
+    </div>
+
+    <div class="engine-grid-layout">
+        <div class="grid-col-main">
+            <section class="glass-panel full-height">
+                <div class="panel-title">💰 Funding Opportunities</div>
+                <div id="funding-scanner-mount" class="scanner-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Market</th>
+                                <th>Long/Short</th>
+                                <th>Proj. APR</th>
+                                <th>Next Payment</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="funding-table-body">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="grid-col-side">
+            <section class="glass-panel">
+                <div class="panel-title">Engine Control</div>
+                <div id="funding-control-card-mount"></div>
+            </section>
+
+            <section class="glass-panel">
+                <div class="panel-title">Position Monitor</div>
+                <div id="funding-positions-mount">
+                    <div class="empty-state">No open positions</div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>

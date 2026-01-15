@@ -1,0 +1,58 @@
+<div class="engine-layout arb-theme">
+    <div class="engine-header-row">
+        <div class="engine-title">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            <h2>Spatial Arbitrage Engine</h2>
+        </div>
+        <div class="engine-status-bar" id="arb-status-bar">
+            <span class="status-indicator stopped">STOPPED</span>
+            <span class="mode-indicator paper">PAPER</span>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="engine-grid-layout">
+        <!-- Left: Scanner Output -->
+        <div class="grid-col-main">
+            <section class="glass-panel full-height">
+                <div class="panel-header">
+                    <div class="panel-title">⚡ Live Opportunities</div>
+                    <div class="panel-controls">
+                        <button class="btn-xs" id="arb-clear-btn">Clear</button>
+                    </div>
+                </div>
+                <div id="arb-scanner-mount" class="scanner-container">
+                    <div class="empty-state">Waiting for scanner data...</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right: Controls & Metrics -->
+        <div class="grid-col-side">
+            <!-- Control Card -->
+            <section class="glass-panel">
+                <div class="panel-title">Engine Control</div>
+                <div id="arb-control-card-mount"></div>
+            </section>
+
+            <!-- Quick Stats -->
+            <section class="glass-panel">
+                <div class="panel-title">Session Stats</div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <span class="label">Scanned</span>
+                        <span class="value" id="arb-stat-scanned">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Found</span>
+                        <span class="value" id="arb-stat-found">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Executed</span>
+                        <span class="value" id="arb-stat-executed">0</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
