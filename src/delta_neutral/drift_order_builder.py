@@ -605,19 +605,50 @@ class DriftOrderBuilder:
         notional = size * price
         return notional / leverage
 
+    
     def get_active_capital(self) -> float:
         """
-        Calculate total capital actively deployed in positions (Margin Used).
+        Calculate total capital actively deployed (Margin Used).
         
-        Formula: Sum(Abs(Position Size) * Mark Price) / Leverage?
-        Or simply: Total Initial Margin Requirement.
-        
-        For now, returns 0.0 until PerpPosition parsing is implemented.
+        Uses Drift Gateway API to get:
+        Total Collateral - Free Collateral = Margin Used (Deployed).
         """
-        # TODO: Implement PerpPosition deserialization
-        # Offset for perp_positions is roughly 4376 bytes in V1, V2 differs.
-        # Once implemented, iterate positions -> sum(notional / leverage)
-        return 0.0
+        try:
+            import requests
+            
+            # Derive user account if not set
+            if not self.user_account:
+                return 0.0
+
+            # Drift Gateway API (Mainnet)
+            # This is more robust than manual binary parsing for high-level stats
+            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{self.wallet}"
+            
+            # Short timeout (non-blocking for UI)
+            resp = requests.get(url, timeout=2.0)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                
+                # Parse Collateral Values (6 decimals for USDC)
+                total_collateral = float(data.get("totalCollateralValue", 0)) / 1e6
+                free_collateral = float(data.get("freeCollateral", 0)) / 1e6
+                
+                # Margin Used = Total - Free
+                # Ensure non-negative (API might have slight precision diffs)
+                margin_used = max(0.0, total_collateral - free_collateral)
+                
+                # Filter dust (< $0.05)
+                if margin_used < 0.05:
+                    return 0.0
+                    
+                return margin_used
+                
+            return 0.0
+            
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Active capital fetch failed: {e}")
+            return 0.0
 
 
 # =============================================================================
