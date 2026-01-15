@@ -33,69 +33,28 @@ import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
 
 class TradingOS {
     constructor() {
-        // Initialize components
+        // Initialize Global Components (Always in DOM)
         this.layoutManager = new LayoutManager();
         this.terminal = new Terminal('log-stream');
-        this.marketData = new MarketData();
-        this.tokenWatchlist = new TokenWatchlist('watchlist-panel');
-        this.inventory = new Inventory('inventory-table');
+        this.marketData = new MarketData(); // Doesn't require DOM immediately
         this.headerStats = new HeaderStats();
         this.modal = new ModalManager();
-        this.systemMetrics = new SystemMetrics('chart-metrics');
-        this.solTape = new SolTape('sol-tape-container');
         this.toast = new Toast();
-        this.apiHealth = new APIHealth('api-health-container');
+        this.apiHealth = new APIHealth('api-health-container'); // This might fail if view-settings not loaded... wait, api-health-container was in view-settings!
 
-        // NEW: Design System Components
-        this.unifiedVault = new UnifiedVaultController('unified-vault-container');
+        // Tapes (In Header - Always Present)
+        this.solTape = new SolTape('sol-tape-container');
         this.majorsTape = new MajorsTape('majors-tape-container');
-        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-header-mount', 'paper');
+        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-container', 'paper'); // ID was corrected in earlier steps
 
-        // Meme Sniper in Main View (replacing old Whale location)
-        this.memeSniper = new MemeSniperStrip('meme-sniper-mount');
-
-        // Component Registry
-        this.activeComponents = {};
-        this.unifiedVault.setBridgeCallback((amount) => {
-            this.ws.send('BRIDGE_TRIGGER', { amount });
-            this.terminal.addLog('BRIDGE', 'INFO', `Bridge initiated: $${amount.toFixed(2)} USDC → Phantom`);
-        });
-
-        // Engine cards
-        this.engines = {
-            arb: new EngineCard('arb', {
-                onToggle: (name, status, mode) => this.toggleEngine(name, status, mode),
-                onSettings: (name, config) => this.modal.openSettings(name, config),
-                onModeChange: (name, mode) => this.terminal.addLog('SYSTEM', 'INFO',
-                    `${name} mode set to ${mode.toUpperCase()}`)
-            }),
-            funding: new EngineCard('funding', {
-                onToggle: (name, status, mode) => this.toggleEngine(name, status, mode),
-                onSettings: (name, config) => this.modal.openSettings(name, config),
-                onModeChange: (name, mode) => this.terminal.addLog('SYSTEM', 'INFO',
-                    `${name} mode set to ${mode.toUpperCase()}`)
-            }),
-            scalp: new EngineCard('scalp', {
-                onToggle: (name, status, mode) => this.toggleEngine(name, status, mode),
-                onSettings: (name, config) => this.modal.openSettings(name, config),
-                onModeChange: (name, mode) => this.terminal.addLog('SYSTEM', 'INFO',
-                    `${name} mode set to ${mode.toUpperCase()}`)
-            }),
-            lst: new EngineCard('lst', {
-                onToggle: (name, status, mode) => this.toggleEngine(name, status, mode),
-                onSettings: (name, config) => this.modal.openSettings(name, config),
-                onModeChange: (name, mode) => this.terminal.addLog('SYSTEM', 'INFO',
-                    `${name} mode set to ${mode.toUpperCase()}`)
-            })
-        };
-
-        // Market Components (Specialized Views)
-        this.marketComponents = {
-            arb: new ArbScanner('arb'),
-            funding: new FundingMonitor('funding'),
-            scalp: new ScalpPods('scalp'),
-            lst: new LstMonitor('lst')
-        };
+        // Dynamic Components (Initialized when view loads)
+        this.tokenWatchlist = null;
+        this.inventory = null;
+        this.systemMetrics = null;
+        this.unifiedVault = null;
+        this.memeSniper = null;
+        this.engines = {};
+        this.marketComponents = {};
 
         // WebSocket connection
         this.ws = new WebSocketManager({
@@ -114,9 +73,10 @@ class TradingOS {
         this.headerStats.onModeToggle = (mode) => {
             this.ws.send('SET_GLOBAL_MODE', { mode: mode });
             this.terminal.addLog('SYSTEM', 'WARNING', `GLOBAL MODE SWITCHED TO: ${mode}`);
-
-            // Update all engine cards to match default if not manually overridden
-            Object.values(this.engines).forEach(card => card.setMode(mode.toLowerCase()));
+            // Update all engine cards if they exist
+            if (this.engines) {
+                Object.values(this.engines).forEach(card => card && card.setMode(mode.toLowerCase()));
+            }
         };
 
         // Bind navigation and SOS
@@ -125,7 +85,11 @@ class TradingOS {
         // Connect
         const url = this.ws.connect();
         this.terminal.addLog('SYSTEM', 'INFO', `Connecting to Command Center: ${url}...`);
+
+        // Load Default View
+        this.switchView('dashboard');
     }
+
 
     registerDashboardComponents(components) {
         this.activeComponents = components;
