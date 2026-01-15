@@ -396,6 +396,48 @@ class TradingOS {
                 if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
                 if (data.engines) this.updateEngineStates(data.engines);
                 if (data.metrics) this.systemMetrics.update(data.metrics);
+
+                // ═══════════════════════════════════════════════════════════════
+                // UNIFIED BALANCE (Single Source of Truth)
+                // ═══════════════════════════════════════════════════════════════
+                if (data.unified_balance) {
+                    // Update the UnifiedVaultController (Global or Page-Specific)
+                    if (this.activeComponents.vault) {
+                        this.activeComponents.vault.update(data.unified_balance);
+                    } else if (this.unifiedVault) {
+                        this.unifiedVault.update(data.unified_balance);
+                    }
+
+                    // Update Drift Panel (legacy support)
+                    const driftEquity = data.unified_balance.drift?.equity || 0;
+                    const equityEl = document.getElementById('drift-equity');
+                    const pnlEl = document.getElementById('drift-pnl');
+
+                    if (equityEl) equityEl.textContent = '$' + driftEquity.toFixed(2);
+                    if (driftEquity > 0 && pnlEl) {
+                        const pnl = data.unified_balance.drift?.pnl || 0;
+                        pnlEl.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
+                        pnlEl.className = 'drift-value ' + (pnl >= 0 ? 'positive' : 'negative');
+                    }
+
+                    // Update ticker mode based on global mode
+                    if (data.mode && this.whaleTicker) {
+                        this.whaleTicker.setMode(data.mode);
+                    }
+                }
+
+                // Legacy CEX UI UPDATE (for backward compat)
+                if (data.cex_wallet && !data.unified_balance) {
+                    const cexBalEl = document.getElementById('cex-wallet-balance');
+                    const cexUsdcEl = document.getElementById('cex-usdc');
+
+                    if (cexBalEl) {
+                        cexBalEl.textContent = '$' + (data.cex_wallet.total_value_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                    if (cexUsdcEl) {
+                        cexUsdcEl.textContent = (data.cex_wallet.withdrawable_usdc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                }
                 break;
 
             case 'SCALP_SIGNAL':
@@ -441,48 +483,6 @@ class TradingOS {
                     */
                 }
 
-                // ═══════════════════════════════════════════════════════════════
-                // UNIFIED BALANCE (Single Source of Truth)
-                // ═══════════════════════════════════════════════════════════════
-                if (data.unified_balance) {
-                    // Update the UnifiedVaultController (Global or Page-Specific)
-                    if (this.activeComponents.vault) {
-                        this.activeComponents.vault.update(data.unified_balance);
-                    } else if (this.unifiedVault) {
-                        this.unifiedVault.update(data.unified_balance);
-                    }
-
-                    // Update Drift Panel (legacy support)
-                    const driftEquity = data.unified_balance.drift?.equity || 0;
-                    const equityEl = document.getElementById('drift-equity');
-                    const pnlEl = document.getElementById('drift-pnl');
-
-                    if (equityEl) equityEl.textContent = '$' + driftEquity.toFixed(2);
-                    if (driftEquity > 0 && pnlEl) {
-                        const pnl = data.unified_balance.drift?.pnl || 0;
-                        pnlEl.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
-                        pnlEl.className = 'drift-value ' + (pnl >= 0 ? 'positive' : 'negative');
-                    }
-
-                    // Update ticker mode based on global mode
-                    if (data.mode && this.whaleTicker) {
-                        this.whaleTicker.setMode(data.mode);
-                    }
-                }
-
-                // Legacy CEX UI UPDATE (for backward compat)
-                if (data.cex_wallet && !data.unified_balance) {
-                    const cexBalEl = document.getElementById('cex-wallet-balance');
-                    const cexUsdcEl = document.getElementById('cex-usdc');
-
-                    if (cexBalEl) {
-                        cexBalEl.textContent = '$' + (data.cex_wallet.total_value_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    }
-                    if (cexUsdcEl) {
-                        cexUsdcEl.textContent = (data.cex_wallet.withdrawable_usdc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    }
-                }
-                break;
 
             case 'SIGNAL':
                 // Handle generic signals (including Drift)
