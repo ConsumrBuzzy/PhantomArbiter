@@ -8,6 +8,7 @@ export class Inventory {
         // Get both table bodies
         this.liveTableBody = document.querySelector('#live-inventory-table tbody');
         this.paperTableBody = document.querySelector('#paper-inventory-table tbody');
+        this.scalpTableBody = document.querySelector('#scalp-inventory-table tbody');
 
         // Store last data for re-rendering
         this.lastLiveData = null;
@@ -27,6 +28,14 @@ export class Inventory {
             this.lastPaperData = data.paper_wallet || data.wallet;
             this.renderTable(this.paperTableBody, this.lastPaperData, 'paper');
         }
+    }
+
+    /**
+     * Update Scalp Vault
+     */
+    updateScalp(walletData) {
+        if (!walletData) return;
+        this.renderTable(this.scalpTableBody, walletData, 'scalp');
     }
 
     /**

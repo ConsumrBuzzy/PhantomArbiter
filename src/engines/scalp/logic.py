@@ -73,11 +73,15 @@ class ScalpEngine(BaseEngine):
             # 2. Scan for New Entries
             await self.scan_pods()
             
-            # Broadcast Status (Active Pod Count)
+            # Broadcast Status (Active Pod Count + Wallet)
             if self._callback:
+                # Use paper wallet if in paper mode, else live wallet (not implemented here yet)
+                wallet_data = self.paper_wallet.get_balances() if self.paper_wallet else {}
+                
                 await self._callback({
                     "active_pods": len(self.tracker.positions),
-                    "pnl": 0.0 # Placeholder or calc PnL
+                    "wallet": wallet_data,
+                    "pnl": 0.0 
                 })
             
             return {"state": "ACTIVE"}

@@ -927,12 +927,16 @@ class TradingOS {
      * Update Scalp Engine Stats (from engine updates)
      */
     updateScalpStats(payload) {
-        // payload: { active_pods: [], ... }
+        // payload: { active_pods: [], wallet: {}, ... }
         if (payload.active_pods !== undefined) {
             const podsEl = document.querySelector('[data-config="active_pods"]');
             if (podsEl) podsEl.textContent = payload.active_pods.length || payload.active_pods;
         }
-        // Handle PnL if available
+
+        // Update Dedicated Scalp Vault
+        if (payload.wallet) {
+            this.inventory.updateScalp(payload.wallet);
+        }
     }
 }
 

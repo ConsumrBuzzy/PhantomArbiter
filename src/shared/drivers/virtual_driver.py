@@ -24,6 +24,7 @@ import uuid
 
 from src.shared.system.persistence import get_db
 from src.shared.system.logging import Logger
+from src.shared.state.vault_manager import get_engine_vault
 
 
 class ExecutionMode(Enum):
@@ -87,21 +88,14 @@ class VirtualDriver:
         self._current_prices: Dict[str, float] = {}
     
     def _init_paper_wallet(self, balances: Dict[str, float]):
-        """Initialize paper wallet with starting balances."""
-        now = time.time()
-        conn = self.db._get_connection()
-        
+        """Initialize paper wallet via EngineVault."""
+        vault = get_engine_vault(self.engine_name)
+        # Reset and init
+        vault.reset()
         for asset, balance in balances.items():
-            conn.execute("""
-                INSERT INTO paper_wallet (asset, balance, initial_balance, updated_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(asset) DO UPDATE SET
-                    balance = excluded.balance,
-                    updated_at = excluded.updated_at
-            """, (asset, balance, balance, now))
-        
-        conn.commit()
-        Logger.info(f"[PAPER] Initialized wallet: {balances}")
+            vault.credit(asset, balance)
+            
+        Logger.info(f"[PAPER] Initialized engine vault [{self.engine_name}]: {balances}")
     
     def set_price_feed(self, prices: Dict[str, float]):
         """Update current prices for execution."""
@@ -189,39 +183,28 @@ class VirtualDriver:
         return order
     
     async def _update_paper_wallet(self, order: VirtualOrder):
-        """Update paper wallet balances after fill."""
-        conn = self.db._get_connection()
-        now = time.time()
+        """Update engine vault balances after fill."""
+        vault = get_engine_vault(self.engine_name)
         
         # Parse symbol (e.g., "SOL-PERP" -> "SOL", "USDC")
         base_asset = order.symbol.split("-")[0]
         quote_asset = "USDC"
         
-        # Calculate balance changes
+        # Calculate totals
         notional = order.filled_size * order.filled_price
         
         if order.side == "buy":
             # Buying: spend USDC, receive base asset
-            conn.execute("""
-                UPDATE paper_wallet SET balance = balance - ?, updated_at = ?
-                WHERE asset = ?
-            """, (notional + order.fee, now, quote_asset))
-            conn.execute("""
-                UPDATE paper_wallet SET balance = balance + ?, updated_at = ?
-                WHERE asset = ?
-            """, (order.filled_size, now, base_asset))
+            debit_amt = notional + order.fee
+            vault.debit(quote_asset, debit_amt)
+            vault.credit(base_asset, order.filled_size)
         else:
             # Selling: spend base asset, receive USDC
-            conn.execute("""
-                UPDATE paper_wallet SET balance = balance - ?, updated_at = ?
-                WHERE asset = ?
-            """, (order.filled_size, now, base_asset))
-            conn.execute("""
-                UPDATE paper_wallet SET balance = balance + ?, updated_at = ?
-                WHERE asset = ?
-            """, (notional - order.fee, now, quote_asset))
-        
-        conn.commit()
+            vault.debit(base_asset, order.filled_size)
+            credit_amt = notional - order.fee
+            vault.credit(quote_asset, credit_amt)
+            
+        Logger.debug(f"[PAPER] Vault [{self.engine_name}] updated via VirtualDriver")
     
     async def _record_paper_trade(self, order: VirtualOrder):
         """Record trade to paper_trades table."""
