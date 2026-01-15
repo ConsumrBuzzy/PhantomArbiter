@@ -148,11 +148,14 @@ class TradingOS {
             item.addEventListener('click', () => this.switchView(item.dataset.view));
         });
 
+
         // Listen for navigation events from existing cards
         Object.values(this.engines).forEach(engine => {
-            engine.card.addEventListener('engine-selected', (e) => {
-                this.showEngineDetail(e.detail.engineId);
-            });
+            if (engine.card) {  // Only bind if card exists in DOM
+                engine.card.addEventListener('engine-selected', (e) => {
+                    this.showEngineDetail(e.detail.engineId);
+                });
+            }
         });
 
         // Initialize Detail View Back Button
