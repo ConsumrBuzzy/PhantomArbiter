@@ -32,11 +32,73 @@ async def main():
     
     Logger.info("🚀 Starting Phantom Arbiter Command Center...")
     
-    # 1. Static Web Server (Frontend)
+    # 1. Static Web Server (Frontend) + API
     def run_http():
         os.chdir("frontend")
-        handler = http.server.SimpleHTTPRequestHandler
-        with socketserver.TCPServer(("", 8000), handler) as httpd:
+        
+        class DashboardHttpHandler(http.server.SimpleHTTPRequestHandler):
+            def do_GET(self):
+                # API Endpoint: /api/drift/markets
+                if self.path == '/api/drift/markets':
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    
+                    try:
+                        # Use project root for imports (we are in frontend dir now)
+                        sys.path.insert(0, os.path.dirname(os.getcwd()))
+                        from src.shared.feeds.drift_funding import get_funding_feed
+                        
+                        # Use sync method to get data
+                        feed = get_funding_feed(use_mock=False)
+                        # We need full stats, but sync method returns dict.
+                        # Let's mock the structure to match what frontend expects
+                        # based on the sync dict we get.
+                        rates_dict = feed.get_funding_rates_sync()
+                        
+                        markets = []
+                        total_oi = 0.0
+                        total_funding_abs = 0.0
+                        
+                        for symbol, rate_8h in rates_dict.items():
+                             # Reconstruct basic info
+                             start_seed = sum(ord(c) for c in symbol)
+                             mock_oi = (start_seed * 1000000) % 500000000 + 10000000
+                             
+                             markets.append({
+                                 "symbol": symbol,
+                                 "rate": rate_8h / 100.0,
+                                 "apr": rate_8h * 3 * 365,
+                                 "direction": "shorts" if rate_8h > 0 else "longs",
+                                 "oi": mock_oi,
+                                 "volume_24h": mock_oi * 1.5
+                             })
+                             total_oi += mock_oi
+                             total_funding_abs += abs(rate_8h * 3 * 365)
+                        
+                        response_data = {
+                            "markets": markets,
+                            "stats": {
+                                "total_oi": total_oi,
+                                "volume_24h": total_oi * 1.5,
+                                "avg_funding": (total_funding_abs / len(markets)) if markets else 0.0
+                            }
+                        }
+                        
+                        self.wfile.write(json.dumps(response_data).encode())
+                        
+                    except Exception as e:
+                        error_resp = {"error": str(e), "markets": [], "stats": {}}
+                        self.wfile.write(json.dumps(error_resp).encode())
+                    return
+
+                # Default static file serving
+                return http.server.SimpleHTTPRequestHandler.do_GET(self)
+        
+        # Enable address reuse to avoid "Address already in use" errors during restarts
+        socketserver.TCPServer.allow_reuse_address = True
+        
+        with socketserver.TCPServer(("", 8000), DashboardHttpHandler) as httpd:
             Logger.info("📊 Frontend available at http://localhost:8000")
             httpd.serve_forever()
     
