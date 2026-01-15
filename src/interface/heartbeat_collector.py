@@ -319,10 +319,12 @@ class HeartbeatDataCollector:
         # ─────────────────────────────────────────────────────────────────────
         
         # Calculate net worth across all venues
+        # Calculate net worth across all venues
+        # Note: phantom_total (live_wallet.equity) ALREADY includes drift_equity
         coinbase_total = cex_wallet.total_value_usd
         phantom_total = live_wallet.equity
         drift_total = live_wallet.drift_equity
-        net_worth = coinbase_total + phantom_total + drift_total
+        net_worth = coinbase_total + phantom_total  # Do not add drift_total again
         
         # Determine connection statuses
         coinbase_status = "connected" if cex_wallet.is_configured else "disconnected"
@@ -347,7 +349,7 @@ class HeartbeatDataCollector:
             phantom={
                 "sol": live_wallet.sol_balance,
                 "usdc": live_wallet.assets.get("USDC", AssetBalance("USDC", 0)).amount,
-                "total": phantom_total,
+                "total": phantom_total - drift_total,  # Exclude Drift for non-overlapped display
                 "token_count": len(live_wallet.assets),
                 "status": phantom_status,
             },
