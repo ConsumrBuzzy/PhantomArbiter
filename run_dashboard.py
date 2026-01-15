@@ -233,13 +233,13 @@ async def main():
                  "timestamp": asyncio.get_event_loop().time()
              })
         
-        # 2. Update Component View
-        payload = {
+        # 2. Update Component View (Flattened)
+        msg = {
             "type": "SCALP_UPDATE",
-            "payload": data, # Nested
             "timestamp": asyncio.get_event_loop().time()
         }
-        await dashboard.broadcast(json.dumps(payload))
+        msg.update(data) # Merge active_pods, wallet, etc directly
+        await dashboard.broadcast(msg)
         
     scalp_engine.set_callback(on_scalp_update)
     # await scalp_engine.start() # Default OFF
