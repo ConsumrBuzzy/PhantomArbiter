@@ -528,8 +528,8 @@ class TradingOS {
                 break;
 
             case 'TOKEN_WATCHLIST':
-                this.tokenWatchlist.update(data);
-                this.memeSniper.update(data);
+                if (this.tokenWatchlist) this.tokenWatchlist.update(data);
+                if (this.memeSniper) this.memeSniper.update(data);
                 break;
 
             case 'API_HEALTH':
