@@ -30,12 +30,12 @@
 | **Hybrid Architecture** | ✅ Active | Python + Rust + TypeScript integrated |
 | **Rust Extension** | ✅ Built | 21 modules compiled via Maturin |
 | **TypeScript Bridges** | ✅ Active | Orca, Raydium, Meteora daemons operational |
-| **Galaxy Dashboard** | ✅ Active | Three.js 3D visualization at `apps/galaxy/` |
+| **Galaxy Dashboard** | ❌ Retired | Superseded by lightweight `frontend/` Web UI |
 | **Paper Trading** | ✅ Active | Realistic slippage simulation |
 | **ExecutionBackend** | ✅ Active | Unified Paper/Live interface |
 | **Capital Manager** | ✅ Active | Centralized PnL tracking |
 | **SignalBus** | ✅ Active | Event-driven pub/sub |
-| **Rich TUI** | ✅ Active | Terminal dashboard decoupled from core |
+| **Rich TUI** | ✅ Active | Primary Terminal Dashboard |
 
 ### What's Incubating 🚧
 
