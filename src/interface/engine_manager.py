@@ -83,11 +83,11 @@ class EngineManager:
                 "--sl", str(config.get("stop_loss_pct", 5.0)),
             ]
         elif name == "drift":
+            # Use existing DeltaNeutralEngine (ADR-0006 Phase 1)
             return [
-                python, "-m", "src.engines.drift.engine",
-                mode_flag,
-                "--max-leverage", str(config.get("max_leverage", 5.0)),
-                "--health-threshold", str(config.get("health_threshold", 0.5)),
+                python, "-m", "src.delta_neutral.engine",
+                f"--mode", mode,
+                "--leverage", str(config.get("max_leverage", 1.0)),
             ]
         else:
             raise ValueError(f"Unknown engine: {name}")
