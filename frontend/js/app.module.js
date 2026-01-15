@@ -203,6 +203,23 @@ class TradingOS {
         this.driftController = new DriftController();
         this.driftController.init();
 
+        // 2. Initialize Drift Vault Card
+        const sideCol = document.querySelector('.grid-col-side');
+        if (sideCol) {
+            let vaultContainer = document.getElementById('drift-vault-card-container');
+            if (!vaultContainer) {
+                vaultContainer = document.createElement('div');
+                vaultContainer.id = 'drift-vault-card-container';
+                const controlPanel = sideCol.querySelector('section:first-child');
+                if (controlPanel) controlPanel.after(vaultContainer);
+            }
+            this.driftVault = new EngineVaultCard('drift-vault-card-container', 'Drift');
+        }
+
+        // 1. Initialize Drift Controller
+        this.driftController = new DriftController();
+        this.driftController.init();
+
         // 2. Initialize Drift Vault Card (Mounts to Quick Actions area or dedicated)
         // We'll replace the existing generic "Quick Actions" content or append to right col
         // For now, let's keep it simple: Just init it.
@@ -674,7 +691,17 @@ handlePacket(packet) {
             // DRIFT MARGIN METRICS (Risk-First UI)
             // ═══════════════════════════════════════════════════════════════
             if (data.drift_margin) {
-                this.updateDriftHealthGauge(data.drift_margin);
+                if (this.driftController) {
+                    this.driftController.update({ drift_state: data.drift_margin });
+                }
+            }
+
+            if (this.driftController && (data.vaults || data.engines)) {
+                this.driftController.update(data);
+            }
+
+            if (this.driftVault && data.vaults && data.vaults.drift) {
+                this.driftVault.update(data.vaults.drift);
             }
 
             // Live Market Data
