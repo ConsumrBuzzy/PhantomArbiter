@@ -54,7 +54,7 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Add error handling for RPC failures
   - _Requirements: 2.1, 2.2_
 
-- [-] 1.6 Write unit tests for DriftFundingFeed
+- [x] 1.6 Write unit tests for DriftFundingFeed
   - Test market data parsing
   - Test APR calculation
   - Test stats aggregation
