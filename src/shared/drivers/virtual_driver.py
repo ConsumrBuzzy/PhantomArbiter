@@ -345,19 +345,14 @@ class VirtualDriver:
     # ═══════════════════════════════════════════════════════════════
     
     def get_paper_balance(self, asset: str) -> float:
-        """Get current paper balance for an asset."""
-        conn = self.db._get_connection()
-        row = conn.execute(
-            "SELECT balance FROM paper_wallet WHERE asset = ?",
-            (asset,)
-        ).fetchone()
-        return row["balance"] if row else 0.0
+        """Get current paper balance for an asset via EngineVault."""
+        vault = get_engine_vault(self.engine_name)
+        return vault.balances.get(asset, 0.0)
     
     def get_all_paper_balances(self) -> Dict[str, float]:
-        """Get all paper wallet balances."""
-        conn = self.db._get_connection()
-        rows = conn.execute("SELECT asset, balance FROM paper_wallet").fetchall()
-        return {row["asset"]: row["balance"] for row in rows}
+        """Get all paper wallet balances via EngineVault."""
+        vault = get_engine_vault(self.engine_name)
+        return vault.balances.copy()
     
     def get_paper_positions(self) -> list:
         """Get all open paper positions for this engine."""
@@ -369,11 +364,11 @@ class VirtualDriver:
         return [dict(row) for row in rows]
     
     def get_paper_pnl(self, since: float = None) -> Dict[str, float]:
-        """Get paper trading P&L statistics."""
+        """Get paper trading P&L statistics for this engine."""
         conn = self.db._get_connection()
         
-        query = "SELECT SUM(realized_pnl) as total FROM paper_trades WHERE status = 'closed'"
-        params = []
+        query = "SELECT SUM(realized_pnl) as total FROM paper_trades WHERE engine = ? AND status = 'closed'"
+        params = [self.engine_name]
         
         if since:
             query += " AND closed_at >= ?"
@@ -399,8 +394,9 @@ class VirtualDriver:
         # Clear positions and trades
         conn.execute("DELETE FROM paper_positions WHERE engine = ?", (self.engine_name,))
         conn.execute("DELETE FROM paper_trades WHERE engine = ?", (self.engine_name,))
+        conn.commit()
         
-        # Reset wallet
+        # Reset wallet via Vault
         self._init_paper_wallet(balances)
         
         Logger.info(f"[PAPER] Wallet reset: {balances}")
