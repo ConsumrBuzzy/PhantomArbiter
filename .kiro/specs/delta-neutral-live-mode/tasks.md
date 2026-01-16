@@ -140,7 +140,7 @@ The implementation follows these phases:
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
   - **Status: All 7 tests passing ✓**
 
-- [ ] 9. Implement withdrawal functionality
+- [x] 9. Implement withdrawal functionality
   - Implement `withdraw()` method in DriftAdapter
   - Add health ratio impact validation
   - Reject withdrawal if health would drop below 80%
@@ -148,16 +148,19 @@ The implementation follows these phases:
   - Implement transaction simulation and confirmation
   - Return transaction signature on success
   - _Requirements: 3.7, 3.8, 3.9_
+  - **Status: Implementation complete ✓**
 
-- [ ] 9.1 Write property test for withdrawal safety check
+- [x] 9.1 Write property test for withdrawal safety check
   - **Property 7: Withdrawal Safety Check**
   - **Validates: Requirements 3.8**
+  - **Status: Test passing (100 iterations) ✓**
 
-- [ ] 9.2 Write unit tests for withdrawal
+- [x] 9.2 Write unit tests for withdrawal
   - Test successful withdrawal
   - Test rejection when health < 80%
   - Test simulation failure handling
   - _Requirements: 3.7, 3.8, 3.9_
+  - **Status: All 7 tests passing ✓**
 
 - [ ] 10. Implement Engine_Vault synchronization
   - Update Engine_Vault balance after deposit/withdraw

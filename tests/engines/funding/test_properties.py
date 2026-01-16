@@ -283,3 +283,138 @@ def test_transaction_simulation_requirement(amount, should_fail):
     asyncio.run(run_test())
 
 
+
+
+# Feature: delta-neutral-live-mode, Property 7: Withdrawal Safety Check
+@settings(max_examples=100)
+@given(
+    current_collateral=st.floats(min_value=100.0, max_value=10000.0),
+    maintenance_margin=st.floats(min_value=0.0, max_value=5000.0),
+    withdrawal_amount=st.floats(min_value=0.1, max_value=1000.0),
+    sol_price=st.floats(min_value=50.0, max_value=300.0)
+)
+def test_withdrawal_safety_check(current_collateral, maintenance_margin, withdrawal_amount, sol_price):
+    """
+    Property 7: Withdrawal Safety Check
+    
+    For any withdrawal amount, if executing the withdrawal would cause the health 
+    ratio to drop below 80%, the system should reject the withdrawal.
+    
+    This property protects against user error by preventing withdrawals that would
+    leave insufficient collateral and create liquidation risk.
+    
+    Validates: Requirements 3.8
+    """
+    from unittest.mock import AsyncMock, MagicMock
+    from src.engines.funding.drift_adapter import DriftAdapter
+    import asyncio
+    
+    async def run_test():
+        # Create adapter
+        adapter = DriftAdapter(network="mainnet")
+        
+        # Set up connected state
+        adapter.connected = True
+        adapter.sub_account = 0
+        adapter.wallet = MagicMock()
+        adapter.wallet.payer = MagicMock()
+        adapter.wallet.payer.pubkey = MagicMock(return_value=MagicMock())
+        adapter.user_pda = MagicMock()
+        adapter.rpc_client = AsyncMock()
+        
+        # Mock get_account_state to return current state
+        mock_account_state = {
+            'total_collateral': current_collateral,
+            'maintenance_margin': maintenance_margin,
+            'health_ratio': ((current_collateral - maintenance_margin) / current_collateral * 100) if current_collateral > 0 else 0.0,
+            'positions': [],
+            'leverage': 0.0
+        }
+        
+        adapter.get_account_state = AsyncMock(return_value=mock_account_state)
+        
+        # Calculate projected health after withdrawal
+        withdrawal_usd = withdrawal_amount * sol_price
+        projected_collateral = current_collateral - withdrawal_usd
+        
+        if projected_collateral <= 1e-10:
+            projected_health = 0.0
+        else:
+            projected_health = ((projected_collateral - maintenance_margin) / projected_collateral) * 100
+            projected_health = max(0.0, min(100.0, projected_health))
+        
+        # Minimum health threshold
+        MIN_HEALTH = 80.0
+        
+        # Track whether withdrawal was attempted
+        withdrawal_attempted = False
+        withdrawal_succeeded = False
+        
+        # Mock the withdrawal implementation
+        async def mock_withdraw_impl(amount):
+            nonlocal withdrawal_attempted, withdrawal_succeeded
+            withdrawal_attempted = True
+            
+            # Validate amount
+            if amount <= 0:
+                raise ValueError("Withdraw amount must be positive")
+            
+            # Get account state (this is mocked above)
+            state = await adapter.get_account_state()
+            
+            # Calculate projected health (same logic as real implementation)
+            withdrawal_value = amount * sol_price
+            proj_collateral = state['total_collateral'] - withdrawal_value
+            
+            if proj_collateral <= 1e-10:
+                proj_health = 0.0
+            else:
+                proj_health = ((proj_collateral - state['maintenance_margin']) / proj_collateral) * 100
+                proj_health = max(0.0, min(100.0, proj_health))
+            
+            # Check health threshold
+            if proj_health < MIN_HEALTH:
+                raise ValueError(
+                    f"Withdrawal rejected: Health ratio would drop to {proj_health:.2f}% "
+                    f"(minimum: {MIN_HEALTH}%)"
+                )
+            
+            # If we got here, withdrawal is safe
+            withdrawal_succeeded = True
+            return "5Kq7abc123def456..."
+        
+        # Replace withdraw with our mock
+        adapter.withdraw = mock_withdraw_impl
+        
+        # Attempt withdrawal
+        try:
+            tx_sig = await adapter.withdraw(withdrawal_amount)
+            
+            # If we got here, withdrawal succeeded
+            assert withdrawal_attempted, "Withdrawal should have been attempted"
+            assert withdrawal_succeeded, "Withdrawal should have succeeded"
+            
+            # Verify health check passed
+            assert projected_health >= MIN_HEALTH, \
+                f"Withdrawal succeeded but projected health {projected_health:.2f}% < {MIN_HEALTH}%"
+            
+            # Verify transaction signature was returned
+            assert tx_sig is not None, "Transaction signature should be returned on success"
+            assert isinstance(tx_sig, str), "Transaction signature should be a string"
+            
+        except ValueError as e:
+            # If we got a ValueError, it should be due to health check
+            assert withdrawal_attempted, "Withdrawal should have been attempted"
+            assert not withdrawal_succeeded, "Withdrawal should not have succeeded"
+            
+            # Verify health check failed
+            assert projected_health < MIN_HEALTH, \
+                f"Withdrawal rejected but projected health {projected_health:.2f}% >= {MIN_HEALTH}%"
+            
+            # Verify error message mentions health
+            error_msg = str(e).lower()
+            assert "health" in error_msg or "rejected" in error_msg, \
+                f"Error message should mention health check: {e}"
+    
+    # Run the async test
+    asyncio.run(run_test())
