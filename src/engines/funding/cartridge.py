@@ -60,7 +60,10 @@ class FundingCartridge(BaseStrategy):
         self.perp_position: float = 0.0
         self.current_funding_rate: float = 0.0
         self.last_rebalance_time: float = 0.0
+        self.current_funding_rate: float = 0.0
+        self.last_rebalance_time: float = 0.0
         self.accumulated_funding: float = 0.0
+        self.current_price: float = 0.0
         
         # Connections (initialized in initialize())
         self._drift_client = None
@@ -139,6 +142,7 @@ class FundingCartridge(BaseStrategy):
         """
         # Extract market data
         sol_price = market_data.get("sol_price", 0.0)
+        self.current_price = sol_price
         funding_rate = market_data.get("funding_rate", self.current_funding_rate)
         self.current_funding_rate = funding_rate
         
@@ -256,16 +260,60 @@ class FundingCartridge(BaseStrategy):
     # ═══════════════════════════════════════════════════════════════
     
     async def on_heartbeat(self) -> Dict[str, Any]:
-        """Return health metrics for monitoring."""
+        """
+        Return health metrics for monitoring.
+        Formatted to match DriftController expectations.
+        """
+        price = getattr(self, "current_price", 0.0)
+        spot_usd = self.spot_balance * price
+        perp_usd = abs(self.perp_position) * price
+        
+        # Estimate Margin Use (Drift standard ~5% - 20% depending on asset)
+        # SOL-PERP is typically 5% maintenance
+        maint_margin = perp_usd * 0.05
+        
+        # Free Collateral = Equity - Maint Margin
+        # Equity ~= Spot USD + Unrealized PnL (ignored for now)
+        equity = spot_usd
+        free_collateral = max(0, equity - maint_margin)
+        
+        # Effective Leverage
+        leverage = 0.0
+        if equity > 0:
+            leverage = perp_usd / equity
+            
+        # Positions Array
+        positions_list = []
+        if abs(self.perp_position) > 0.001:
+            positions_list.append({
+                "market": "SOL-PERP",
+                "amount": self.perp_position, # Negative for short
+                "entry_price": 0.0, # Not strictly tracked in simple mode, could add
+                "mark_price": price,
+                "pnl": 0.0, # Needs entry price
+                "liq_price": 0.0 # Complex calc
+            })
+
         return {
             "engine": self.engine_name,
+            "type": "VIRTUAL", # Or ON_CHAIN
             "is_running": self.is_running,
             "uptime": self.uptime,
+            
+            # UI Metrics
+            "total_collateral": equity,
+            "equity": equity,
+            "free_collateral": free_collateral,
+            "maintenance_margin": maint_margin,
+            "leverage": leverage,
+            "positions": positions_list,
+            "net_delta": self._calculate_delta(),
+            
+            # Raw Data
             "spot_balance": self.spot_balance,
             "perp_position": self.perp_position,
             "funding_rate": self.current_funding_rate,
             "accumulated_funding": self.accumulated_funding,
-            "delta_pct": self._calculate_delta(),
             "config": {
                 "leverage": self.funding_config.leverage,
                 "watchdog": self.funding_config.watchdog_threshold
