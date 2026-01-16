@@ -271,13 +271,15 @@ This will test all API methods and display:
 
 ---
 
-## 📡 API Endpoints Used
+## 📡 Data Source
 
-All data is fetched from Drift's DLOB API:
+All data is fetched directly from the Drift Protocol on-chain program using the **driftpy SDK**:
 
-- **Markets**: `https://dlob.drift.trade/perpMarkets`
-- **Orderbook**: `https://dlob.drift.trade/l2?marketIndex={index}&marketType=perp&depth={depth}`
-- **User Data**: `https://dlob.drift.trade/user/{address}`
+- **On-Chain Data**: Market accounts, funding rates, oracle prices, open interest
+- **Real-Time**: Data is fetched directly from Solana RPC nodes
+- **No HTTP API**: Does not rely on deprecated DLOB HTTP endpoints
+
+**Note**: The previous DLOB HTTP API (`https://dlob.drift.trade`) has been deprecated. This implementation uses the official Drift SDK to fetch data directly from on-chain accounts, which is more reliable and doesn't require external API availability.
 
 ---
 
@@ -308,11 +310,12 @@ All data updates automatically when you navigate to the Funding Engine page.
 
 ## 📝 Notes
 
-- All API calls are **read-only** and don't require authentication
-- Data is fetched directly from Drift's DLOB API (no RPC calls needed)
+- All API calls fetch data **directly from on-chain Drift program accounts** using the driftpy SDK
+- No external HTTP API dependencies (the DLOB HTTP API has been deprecated)
+- Requires an active Solana RPC connection
 - Prices are automatically converted from Drift's precision (1e6 for quotes, 1e9 for base)
 - Funding rates are converted from hourly to 8-hour and annual rates
-- Orderbook data is real-time from the decentralized limit order book
+- Volume data (24h) is not available on-chain and returns 0 (would require historical indexing)
 
 ---
 

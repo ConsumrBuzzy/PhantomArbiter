@@ -1196,7 +1196,7 @@ class DriftAdapter:
         """
         Get current funding rate for a perpetual market.
         
-        Fetches funding rate data from Drift DLOB API.
+        Fetches funding rate data directly from on-chain Drift program using SDK.
         
         Args:
             market: Market symbol (e.g., "SOL-PERP", "BTC-PERP")
@@ -1209,9 +1209,16 @@ class DriftAdapter:
                 - mark_price: Current mark price
             Or None if fetch fails
         """
+        if not self.connected or not self.rpc_client:
+            Logger.debug(f"[DRIFT] Not connected, cannot fetch funding rate for {market}")
+            return None
+        
         Logger.debug(f"[DRIFT] Fetching funding rate for {market}...")
         try:
-            import httpx
+            from driftpy.drift_client import DriftClient, Wallet
+            from solders.keypair import Keypair
+            import base58
+            import os
             
             # Map market symbols to Drift market indices
             MARKET_INDICES = {
@@ -1231,32 +1238,37 @@ class DriftAdapter:
                 Logger.debug(f"[DRIFT] Unknown market: {market}")
                 return None
             
-            # Fetch from Drift DLOB API
-            url = f"https://dlob.drift.trade/perpMarkets"
+            # Get wallet keypair
+            private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
+            if not private_key:
+                Logger.debug("[DRIFT] No private key found in environment")
+                return None
             
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(url)
+            secret_bytes = base58.b58decode(private_key)
+            keypair = Keypair.from_bytes(secret_bytes)
+            
+            # Initialize DriftClient
+            wallet_obj = Wallet(keypair)
+            drift_client = DriftClient(
+                self.rpc_client,
+                wallet_obj,
+                env="mainnet" if self.network == "mainnet" else "devnet"
+            )
+            
+            # Subscribe to load program state
+            await drift_client.subscribe()
+            
+            try:
+                # Get perp market account
+                perp_market = drift_client.get_perp_market_account(market_index)
                 
-                if response.status_code != 200:
-                    Logger.debug(f"[DRIFT] API returned {response.status_code}")
+                if not perp_market:
+                    Logger.debug(f"[DRIFT] Market {market} not found")
                     return None
                 
-                data = response.json()
-                
-                # Find the market data
-                market_data = None
-                for perp_market in data.get("perpMarkets", []):
-                    if perp_market.get("marketIndex") == market_index:
-                        market_data = perp_market
-                        break
-                
-                if not market_data:
-                    Logger.debug(f"[DRIFT] Market {market} not found in API response")
-                    return None
-                
-                # Extract funding rate (stored as hourly rate in the API)
-                # Drift funding is paid hourly
-                funding_rate_hourly = float(market_data.get("fundingRate", 0)) / 1e9  # Convert from 1e9 precision
+                # Extract funding rate (stored as hourly rate)
+                # amm.last_funding_rate is in 1e9 precision
+                funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
                 
                 # Convert to 8-hour rate (multiply by 8)
                 rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
@@ -1264,11 +1276,14 @@ class DriftAdapter:
                 # Annualize: hourly rate * 24 hours * 365 days
                 rate_annual = funding_rate_hourly * 24 * 365 * 100  # Convert to percentage
                 
-                # Get mark price
-                mark_price = float(market_data.get("markPrice", 0)) / 1e6  # Convert from 1e6 precision
+                # Get mark price from oracle
+                # amm.historical_oracle_data.last_oracle_price is in 1e6 precision
+                mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
                 
                 # Determine if positive (longs pay shorts)
                 is_positive = funding_rate_hourly > 0
+                
+                Logger.debug(f"[DRIFT] {market}: rate_8h={rate_8h:.4f}%, mark=${mark_price:.2f}")
                 
                 return {
                     "rate_8h": rate_8h,
@@ -1277,11 +1292,14 @@ class DriftAdapter:
                     "mark_price": mark_price
                 }
                 
+            finally:
+                # Cleanup
+                await drift_client.unsubscribe()
+                
         except Exception as e:
             Logger.error(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
             import traceback
             traceback.print_exc()
-            return None
             return None
     
     async def get_time_to_funding(self) -> int:
@@ -1306,7 +1324,7 @@ class DriftAdapter:
     
     async def get_all_perp_markets(self) -> List[Dict[str, Any]]:
         """
-        Get data for all perpetual markets.
+        Get data for all perpetual markets using Drift SDK.
         
         Returns:
             List of dicts with market data:
@@ -1316,23 +1334,42 @@ class DriftAdapter:
                 - oraclePrice: Oracle price
                 - fundingRate: Hourly funding rate
                 - openInterest: Total open interest
-                - volume24h: 24-hour volume
+                - volume24h: 24-hour volume (not available on-chain, returns 0)
                 - baseAssetAmountLong: Long OI
                 - baseAssetAmountShort: Short OI
         """
+        if not self.connected or not self.rpc_client:
+            Logger.debug("[DRIFT] Not connected, cannot fetch perp markets")
+            return []
+        
         try:
-            import httpx
+            from driftpy.drift_client import DriftClient
+            from driftpy.wallet import Wallet
+            from solders.keypair import Keypair
+            import base58
+            import os
             
-            url = "https://dlob.drift.trade/perpMarkets"
+            # Get wallet keypair
+            private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
+            if not private_key:
+                Logger.debug("[DRIFT] No private key found in environment")
+                return []
             
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url)
-                
-                if response.status_code != 200:
-                    Logger.warning(f"[DRIFT] API returned {response.status_code}")
-                    return []
-                
-                data = response.json()
+            secret_bytes = base58.b58decode(private_key)
+            keypair = Keypair.from_bytes(secret_bytes)
+            
+            # Initialize DriftClient
+            wallet_obj = Wallet(keypair)
+            drift_client = DriftClient(
+                self.rpc_client,
+                wallet_obj,
+                env="mainnet" if self.network == "mainnet" else "devnet"
+            )
+            
+            # Subscribe to load program state
+            await drift_client.subscribe()
+            
+            try:
                 markets = []
                 
                 # Market name mapping
@@ -1346,25 +1383,56 @@ class DriftAdapter:
                     18: "TIA-PERP", 19: "JUP-PERP", 20: "INJ-PERP",
                 }
                 
-                for market_data in data.get("perpMarkets", []):
-                    market_index = market_data.get("marketIndex", -1)
-                    
-                    markets.append({
-                        "marketIndex": market_index,
-                        "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
-                        "markPrice": float(market_data.get("markPrice", 0)) / 1e6,
-                        "oraclePrice": float(market_data.get("oraclePrice", 0)) / 1e6,
-                        "fundingRate": float(market_data.get("fundingRate", 0)) / 1e9,
-                        "openInterest": float(market_data.get("openInterest", 0)) / 1e9,
-                        "volume24h": float(market_data.get("volume24h", 0)) / 1e6,
-                        "baseAssetAmountLong": float(market_data.get("baseAssetAmountLong", 0)) / 1e9,
-                        "baseAssetAmountShort": float(market_data.get("baseAssetAmountShort", 0)) / 1e9,
-                    })
+                # Fetch all perp markets (typically 0-20)
+                for market_index in range(21):
+                    try:
+                        perp_market = drift_client.get_perp_market_account(market_index)
+                        
+                        if not perp_market:
+                            continue
+                        
+                        # Extract data from on-chain account
+                        funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
+                        oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
+                        
+                        # Calculate mark price (simplified - in production use proper mark price calculation)
+                        mark_price = oracle_price
+                        
+                        # Get open interest from AMM
+                        base_asset_amount_long = float(perp_market.amm.base_asset_amount_long) / 1e9
+                        base_asset_amount_short = abs(float(perp_market.amm.base_asset_amount_short) / 1e9)
+                        
+                        # Total OI is the sum of long and short (in base asset units)
+                        open_interest = base_asset_amount_long + base_asset_amount_short
+                        
+                        markets.append({
+                            "marketIndex": market_index,
+                            "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
+                            "markPrice": mark_price,
+                            "oraclePrice": oracle_price,
+                            "fundingRate": funding_rate_hourly,
+                            "openInterest": open_interest,
+                            "volume24h": 0.0,  # Not available on-chain
+                            "baseAssetAmountLong": base_asset_amount_long,
+                            "baseAssetAmountShort": base_asset_amount_short,
+                        })
+                        
+                    except Exception as e:
+                        # Market might not exist, skip
+                        Logger.debug(f"[DRIFT] Market {market_index} not found or error: {e}")
+                        continue
                 
+                Logger.info(f"[DRIFT] Fetched {len(markets)} perp markets from on-chain data")
                 return markets
+                
+            finally:
+                # Cleanup
+                await drift_client.unsubscribe()
                 
         except Exception as e:
             Logger.error(f"[DRIFT] Failed to fetch perp markets: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     async def get_orderbook(self, market: str, depth: int = 10) -> Dict[str, Any]:
