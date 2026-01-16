@@ -181,12 +181,13 @@ The implementation follows these phases:
   - Test trading disabled on persistent sync failure
   - _Requirements: 7.1, 7.2, 7.7, 7.8_
 
-- [ ] 11. Update execute_funding_command for live mode
+- [x] 11. Update execute_funding_command for live mode
   - Route DEPOSIT command to DriftAdapter.deposit()
   - Route WITHDRAW command to DriftAdapter.withdraw()
   - Add error handling and user-friendly error messages
   - Log all capital management operations with full details
   - _Requirements: 3.10, 8.4, 8.5, 8.9_
+  - **Status: Implementation complete ✓**
 
 - [ ] 11.1 Write unit tests for command routing
   - Test DEPOSIT command execution
