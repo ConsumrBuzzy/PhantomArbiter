@@ -612,8 +612,12 @@ class FundingEngine(BaseEngine):
                 if action == "DEPOSIT":
                     amount = float(data.get("amount", 0))
                     
+                    Logger.info(f"[FUNDING] Executing DEPOSIT command: {amount} SOL")
+                    
                     # Execute deposit via DriftAdapter
                     tx_sig = await self.drift_adapter.deposit(amount)
+                    
+                    Logger.success(f"[FUNDING] ✅ Deposit successful: {amount} SOL, tx: {tx_sig}")
                     
                     # TODO: Update Engine_Vault balance (Task 10)
                     
@@ -626,8 +630,12 @@ class FundingEngine(BaseEngine):
                 elif action == "WITHDRAW":
                     amount = float(data.get("amount", 0))
                     
+                    Logger.info(f"[FUNDING] Executing WITHDRAW command: {amount} SOL")
+                    
                     # Execute withdrawal via DriftAdapter
                     tx_sig = await self.drift_adapter.withdraw(amount)
+                    
+                    Logger.success(f"[FUNDING] ✅ Withdrawal successful: {amount} SOL, tx: {tx_sig}")
                     
                     # TODO: Update Engine_Vault balance (Task 10)
                     
@@ -639,23 +647,26 @@ class FundingEngine(BaseEngine):
                 
                 elif action == "OPEN_POSITION":
                     # TODO: Implement position opening in Task 13
+                    Logger.warning("[FUNDING] OPEN_POSITION not implemented yet (Task 13)")
                     return {"success": False, "message": "Position opening not implemented yet (Task 13)"}
                 
                 elif action == "CLOSE_POSITION":
                     # TODO: Implement position closing in Task 14
+                    Logger.warning("[FUNDING] CLOSE_POSITION not implemented yet (Task 14)")
                     return {"success": False, "message": "Position closing not implemented yet (Task 14)"}
                 
                 else:
+                    Logger.warning(f"[FUNDING] Unknown action received: {action}")
                     return {"success": False, "message": f"Unknown action: {action}"}
             
             except ValueError as e:
                 # Validation errors (user-friendly)
-                Logger.warning(f"[FUNDING] Command validation failed: {e}")
+                Logger.warning(f"[FUNDING] Command validation failed: {action} - {e}")
                 return {"success": False, "message": str(e)}
             
             except Exception as e:
                 # Unexpected errors
-                Logger.error(f"[FUNDING] Command execution failed: {e}")
+                Logger.error(f"[FUNDING] Command execution failed: {action} - {e}")
                 return {"success": False, "message": f"Error: {e}"}
         
         else:
