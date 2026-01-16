@@ -30,6 +30,8 @@ import { Toast } from './components/toast.js';
 import { APIHealth } from './components/api-health.js';
 import { UnifiedVaultController } from './components/unified-vault.js';
 import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
+import { DriftController } from './components/drift-controller.js';
+import { EngineVaultCard } from './components/engine-vault-card.js';
 
 class TradingOS {
     constructor() {
@@ -99,7 +101,12 @@ class TradingOS {
         this.activeComponents = components;
         // Trigger immediate update if cache exists
         if (this.lastData) {
-            this.handlePacket(this.lastData);
+            // Safety: ensure components are ready before replaying data
+            try {
+                this.handlePacket(this.lastData);
+            } catch (e) {
+                console.warn("[TradingOS] Skipped replay packet due to init state", e);
+            }
         }
     }
 
@@ -393,9 +400,9 @@ class TradingOS {
         switch (type) {
             case 'SYSTEM_STATS':
                 this.headerStats.update(data);
-                if (data.live_wallet || data.paper_wallet) this.inventory.update(data);
+                if ((data.live_wallet || data.paper_wallet) && this.inventory) this.inventory.update(data);
                 if (data.engines) this.updateEngineStates(data.engines);
-                if (data.metrics) this.systemMetrics.update(data.metrics);
+                if (data.metrics && this.systemMetrics) this.systemMetrics.update(data.metrics);
                 break;
 
             case 'SCALP_SIGNAL':
@@ -831,7 +838,10 @@ class TradingOS {
 
         if (viewName.startsWith('engine-')) {
             const engineId = viewName.replace('engine-', '');
-            // Engine specific init logic can go here
+            // Engine specific init logic
+            if (engineId === 'drift') {
+                this.initDriftEnginePage();
+            }
         }
 
         if (viewName === 'settings') {
@@ -852,6 +862,80 @@ class TradingOS {
                 console.error("Error initializing scanner components:", e);
             }
         }
+    }
+
+    /**
+     * Initialize Drift Engine page components
+     */
+    initDriftEnginePage() {
+        console.log('[TradingOS] Initializing Drift Engine page');
+
+        // 1. Initialize Drift Controller
+        this.driftController = new DriftController();
+        this.driftController.init();
+
+        // 2. Initialize Drift Vault Card
+        const sideCol = document.querySelector('.grid-col-side');
+        if (sideCol) {
+            let vaultContainer = document.getElementById('drift-vault-card-container');
+            if (!vaultContainer) {
+                vaultContainer = document.createElement('div');
+                vaultContainer.id = 'drift-vault-card-container';
+                const controlPanel = sideCol.querySelector('section:first-child');
+                if (controlPanel) controlPanel.after(vaultContainer);
+            }
+            this.driftVault = new EngineVaultCard('drift-vault-card-container', 'Drift');
+        }
+
+        // Bind engine control buttons (Generic Start/Stop)
+        const controlMount = document.getElementById('drift-control-card-mount');
+        if (controlMount && !this.engines['drift']) {
+            this.engines['drift'] = new EngineCard('drift', {
+                onToggle: (n, s, m) => this.toggleEngine(n, s, m),
+                onSettings: (n, c) => this.openSettings(n, c),
+                onModeChange: (n, m) => { if (this.engines[n]) this.engines[n].setMode(m); }
+            });
+        }
+
+        // Settle PnL button
+        const settlePnlBtn = document.getElementById('drift-settle-pnl-btn');
+        if (settlePnlBtn) {
+            settlePnlBtn.onclick = () => {
+                this.ws.send('DRIFT_SETTLE_PNL', {});
+                this.terminal.addLog('DRIFT', 'INFO', 'Settling PnL...');
+            };
+        }
+
+        // Close All button
+        const closeAllBtn = document.getElementById('drift-close-all-btn');
+        if (closeAllBtn) {
+            closeAllBtn.onclick = () => {
+                if (confirm('Close ALL Drift positions?')) {
+                    this.ws.send('DRIFT_CLOSE_ALL', {});
+                    this.terminal.addLog('DRIFT', 'WARNING', 'Closing all positions...');
+                }
+            };
+        }
+
+        // Refresh Markets button
+        const refreshBtn = document.getElementById('drift-refresh-markets-btn');
+        if (refreshBtn) {
+            refreshBtn.onclick = () => {
+                const icon = refreshBtn.querySelector('.fa-sync');
+                if (icon) icon.classList.add('spinning');
+                this.fetchDriftMarketData().then(() => {
+                    setTimeout(() => icon?.classList.remove('spinning'), 500);
+                });
+            };
+        }
+
+        // Request initial state
+        if (this.ws && this.ws.connected) {
+            this.ws.send('GET_SYSTEM_STATS', {});
+            this.ws.send('GET_DRIFT_MARKETS', {});
+        }
+
+        this.fetchDriftMarketData();
     }
 
 
