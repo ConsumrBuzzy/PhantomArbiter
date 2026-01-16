@@ -1344,95 +1344,65 @@ class DriftAdapter:
                 - baseAssetAmountLong: Long OI
                 - baseAssetAmountShort: Short OI
         """
-        if not self.connected or not self.rpc_client:
+        if not self.connected or not self._drift_client:
             Logger.debug("[DRIFT] Not connected, cannot fetch perp markets")
             return []
         
         try:
-            from driftpy.drift_client import DriftClient, Wallet
-            from solders.keypair import Keypair
-            import base58
-            import os
+            markets = []
             
-            # Get wallet keypair
-            private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
-            if not private_key:
-                Logger.debug("[DRIFT] No private key found in environment")
-                return []
+            # Market name mapping
+            MARKET_NAMES = {
+                0: "SOL-PERP", 1: "BTC-PERP", 2: "ETH-PERP",
+                3: "APT-PERP", 4: "1MBONK-PERP", 5: "POL-PERP",
+                6: "ARB-PERP", 7: "DOGE-PERP", 8: "BNB-PERP",
+                9: "SUI-PERP", 10: "1MPEPE-PERP", 11: "OP-PERP",
+                12: "RNDR-PERP", 13: "HNT-PERP", 14: "WIF-PERP",
+                15: "JTO-PERP", 16: "ONDO-PERP", 17: "PYTH-PERP",
+                18: "TIA-PERP", 19: "JUP-PERP", 20: "INJ-PERP",
+            }
             
-            secret_bytes = base58.b58decode(private_key)
-            keypair = Keypair.from_bytes(secret_bytes)
-            
-            # Initialize DriftClient
-            wallet_obj = Wallet(keypair)
-            drift_client = DriftClient(
-                self.rpc_client,
-                wallet_obj,
-                env="mainnet" if self.network == "mainnet" else "devnet"
-            )
-            
-            # Subscribe to load program state
-            await drift_client.subscribe()
-            
-            try:
-                markets = []
-                
-                # Market name mapping
-                MARKET_NAMES = {
-                    0: "SOL-PERP", 1: "BTC-PERP", 2: "ETH-PERP",
-                    3: "APT-PERP", 4: "1MBONK-PERP", 5: "POL-PERP",
-                    6: "ARB-PERP", 7: "DOGE-PERP", 8: "BNB-PERP",
-                    9: "SUI-PERP", 10: "1MPEPE-PERP", 11: "OP-PERP",
-                    12: "RNDR-PERP", 13: "HNT-PERP", 14: "WIF-PERP",
-                    15: "JTO-PERP", 16: "ONDO-PERP", 17: "PYTH-PERP",
-                    18: "TIA-PERP", 19: "JUP-PERP", 20: "INJ-PERP",
-                }
-                
-                # Fetch all perp markets (typically 0-20)
-                for market_index in range(21):
-                    try:
-                        perp_market = drift_client.get_perp_market_account(market_index)
-                        
-                        if not perp_market:
-                            continue
-                        
-                        # Extract data from on-chain account
-                        funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
-                        oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
-                        
-                        # Calculate mark price (simplified - in production use proper mark price calculation)
-                        mark_price = oracle_price
-                        
-                        # Get open interest from AMM
-                        base_asset_amount_long = float(perp_market.amm.base_asset_amount_long) / 1e9
-                        base_asset_amount_short = abs(float(perp_market.amm.base_asset_amount_short) / 1e9)
-                        
-                        # Total OI is the sum of long and short (in base asset units)
-                        open_interest = base_asset_amount_long + base_asset_amount_short
-                        
-                        markets.append({
-                            "marketIndex": market_index,
-                            "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
-                            "markPrice": mark_price,
-                            "oraclePrice": oracle_price,
-                            "fundingRate": funding_rate_hourly,
-                            "openInterest": open_interest,
-                            "volume24h": 0.0,  # Not available on-chain
-                            "baseAssetAmountLong": base_asset_amount_long,
-                            "baseAssetAmountShort": base_asset_amount_short,
-                        })
-                        
-                    except Exception as e:
-                        # Market might not exist, skip
-                        Logger.debug(f"[DRIFT] Market {market_index} not found or error: {e}")
+            # Fetch all perp markets (typically 0-20)
+            for market_index in range(21):
+                try:
+                    perp_market = self._drift_client.get_perp_market_account(market_index)
+                    
+                    if not perp_market:
                         continue
-                
-                Logger.info(f"[DRIFT] Fetched {len(markets)} perp markets from on-chain data")
-                return markets
-                
-            finally:
-                # Cleanup
-                await drift_client.unsubscribe()
+                    
+                    # Extract data from on-chain account
+                    funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
+                    oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
+                    
+                    # Calculate mark price (simplified - in production use proper mark price calculation)
+                    mark_price = oracle_price
+                    
+                    # Get open interest from AMM
+                    base_asset_amount_long = float(perp_market.amm.base_asset_amount_long) / 1e9
+                    base_asset_amount_short = abs(float(perp_market.amm.base_asset_amount_short) / 1e9)
+                    
+                    # Total OI is the sum of long and short (in base asset units)
+                    open_interest = base_asset_amount_long + base_asset_amount_short
+                    
+                    markets.append({
+                        "marketIndex": market_index,
+                        "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
+                        "markPrice": mark_price,
+                        "oraclePrice": oracle_price,
+                        "fundingRate": funding_rate_hourly,
+                        "openInterest": open_interest,
+                        "volume24h": 0.0,  # Not available on-chain
+                        "baseAssetAmountLong": base_asset_amount_long,
+                        "baseAssetAmountShort": base_asset_amount_short,
+                    })
+                    
+                except Exception as e:
+                    # Market might not exist, skip
+                    Logger.debug(f"[DRIFT] Market {market_index} not found or error: {e}")
+                    continue
+            
+            Logger.info(f"[DRIFT] Fetched {len(markets)} perp markets from on-chain data")
+            return markets
                 
         except Exception as e:
             Logger.error(f"[DRIFT] Failed to fetch perp markets: {e}")
