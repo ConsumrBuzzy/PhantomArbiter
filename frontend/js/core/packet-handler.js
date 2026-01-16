@@ -129,6 +129,11 @@ export class PacketHandler {
         if (data.engines) this.app.engineManager.updateStates(data.engines);
         if (data.metrics && this.app.systemMetrics) this.app.systemMetrics.update(data.metrics);
 
+        // Drift Controller Update (Risk-First UI)
+        if (this.app.driftController) {
+            this.app.driftController.update(data);
+        }
+
         // Unified Balance (Single Source of Truth)
         if (data.unified_balance) {
             // Update VaultController

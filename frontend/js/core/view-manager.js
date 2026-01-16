@@ -69,8 +69,12 @@ export class ViewManager {
         // Dynamic Loading if not exists
         if (!viewPanel) {
             try {
-                console.log(`[ViewManager] Loading template: templates/${viewName}.html`);
-                const response = await fetch(`templates/${viewName}.html`);
+                // REDIRECT: 'funding' engine now uses the 'drift' (Delta Neutral) UI template
+                let templateName = viewName;
+                if (viewName === 'engine-funding') templateName = 'engine-drift';
+
+                console.log(`[ViewManager] Loading template: templates/${templateName}.html for ${viewName}`);
+                const response = await fetch(`templates/${templateName}.html`);
 
                 if (response.ok) {
                     const html = await response.text();
@@ -86,7 +90,7 @@ export class ViewManager {
                     // Initialize newly loaded components
                     this.initializeDynamicComponents(viewName);
                 } else {
-                    console.error(`[ViewManager] Template ${viewName} not found`);
+                    console.error(`[ViewManager] Template ${templateName} not found`);
                 }
             } catch (e) {
                 console.error('[ViewManager] View load error:', e);
@@ -115,7 +119,7 @@ export class ViewManager {
             this._initDashboardComponents();
         } else if (viewName.startsWith('engine-')) {
             const engineId = viewName.replace('engine-', '');
-            if (engineId === 'drift') {
+            if (engineId === 'drift' || engineId === 'funding') {
                 this._initDriftEnginePage();
             }
         } else if (viewName === 'settings') {

@@ -331,10 +331,13 @@ export class DriftController {
             const rateClass = isNegative ? 'pnl-negative' : 'pnl-positive';
             const rateSign = m.rate > 0 ? '+' : '';
 
+            const rate8h = m.rate * 8;
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td style="font-weight: bold;">${m.symbol}</td>
                 <td class="${rateClass}">${rateSign}${(m.rate * 100).toFixed(4)}%</td>
+                <td class="${rateClass}">${rateSign}${(rate8h * 100).toFixed(4)}%</td>
                 <td class="${rateClass}" style="font-weight: bold;">${(m.apr * 100).toFixed(2)}%</td>
                 <td>${m.direction.toUpperCase()}</td>
                 <td style="font-family: 'Roboto Mono';">$${(m.oi / 1000000).toFixed(1)}M</td>
