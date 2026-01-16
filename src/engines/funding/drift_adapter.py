@@ -1191,3 +1191,106 @@ class DriftAdapter:
         state = await self.get_account_state()
         
         return state['health_ratio']
+
+    async def get_funding_rate(self, market: str) -> Optional[Dict[str, Any]]:
+        """
+        Get current funding rate for a perpetual market.
+        
+        Fetches funding rate data from Drift DLOB API.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP", "BTC-PERP")
+        
+        Returns:
+            Dict with:
+                - rate_8h: 8-hour funding rate as percentage
+                - rate_annual: Annualized rate
+                - is_positive: True if longs pay shorts
+                - mark_price: Current mark price
+            Or None if fetch fails
+        """
+        try:
+            import httpx
+            
+            # Map market symbols to Drift market indices
+            MARKET_INDICES = {
+                "SOL-PERP": 0,
+                "BTC-PERP": 1,
+                "ETH-PERP": 2,
+                "APT-PERP": 3,
+                "1MBONK-PERP": 4,
+                "POL-PERP": 5,
+                "ARB-PERP": 6,
+                "DOGE-PERP": 7,
+                "BNB-PERP": 8,
+            }
+            
+            market_index = MARKET_INDICES.get(market)
+            if market_index is None:
+                Logger.debug(f"[DRIFT] Unknown market: {market}")
+                return None
+            
+            # Fetch from Drift DLOB API
+            url = f"https://dlob.drift.trade/perpMarkets"
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code != 200:
+                    Logger.debug(f"[DRIFT] API returned {response.status_code}")
+                    return None
+                
+                data = response.json()
+                
+                # Find the market data
+                market_data = None
+                for perp_market in data.get("perpMarkets", []):
+                    if perp_market.get("marketIndex") == market_index:
+                        market_data = perp_market
+                        break
+                
+                if not market_data:
+                    Logger.debug(f"[DRIFT] Market {market} not found in API response")
+                    return None
+                
+                # Extract funding rate (stored as hourly rate in the API)
+                # Drift funding is paid hourly
+                funding_rate_hourly = float(market_data.get("fundingRate", 0)) / 1e9  # Convert from 1e9 precision
+                
+                # Convert to 8-hour rate (multiply by 8)
+                rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
+                
+                # Annualize: hourly rate * 24 hours * 365 days
+                rate_annual = funding_rate_hourly * 24 * 365 * 100  # Convert to percentage
+                
+                # Get mark price
+                mark_price = float(market_data.get("markPrice", 0)) / 1e6  # Convert from 1e6 precision
+                
+                # Determine if positive (longs pay shorts)
+                is_positive = funding_rate_hourly > 0
+                
+                return {
+                    "rate_8h": rate_8h,
+                    "rate_annual": rate_annual,
+                    "is_positive": is_positive,
+                    "mark_price": mark_price
+                }
+                
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
+            return None
+    
+    async def get_time_to_funding(self) -> int:
+        """
+        Get seconds until next funding payment.
+        
+        Drift pays funding every hour on the hour.
+        
+        Returns:
+            Seconds until next funding payment
+        """
+        import time
+        
+        now = int(time.time())
+        next_hour = (now // 3600 + 1) * 3600
+        return next_hour - now
