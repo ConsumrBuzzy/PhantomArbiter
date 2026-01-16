@@ -86,6 +86,7 @@ class DriftAdapter:
         self.user_pda: Optional[Pubkey] = None
         self.rpc_client: Optional[AsyncClient] = None
         self.connected: bool = False
+        self._drift_client: Optional[Any] = None  # Cached DriftClient instance
         
         # RPC URL based on network
         if network == "mainnet":
