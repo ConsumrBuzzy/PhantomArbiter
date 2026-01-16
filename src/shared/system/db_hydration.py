@@ -23,6 +23,7 @@ import os
 import json
 import sqlite3
 import shutil
+import base64
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional
@@ -52,6 +53,51 @@ class DBHydrationManager:
     
     def __init__(self):
         self.ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # ═══════════════════════════════════════════════════════════════
+    # BLOB HANDLING
+    # ═══════════════════════════════════════════════════════════════
+    
+    @staticmethod
+    def _encode_blob(value: Any) -> Any:
+        """
+        Encode bytes to base64 string for JSON serialization.
+        
+        Args:
+            value: Value to encode (if bytes, will be base64 encoded)
+        
+        Returns:
+            Base64 string if value is bytes, otherwise original value
+        """
+        if isinstance(value, bytes):
+            return {
+                "__type__": "blob",
+                "__value__": base64.b64encode(value).decode('ascii')
+            }
+        return value
+    
+    @staticmethod
+    def _decode_blob(value: Any) -> Any:
+        """
+        Decode base64 string back to bytes.
+        
+        Args:
+            value: Value to decode (if dict with __type__='blob', will be decoded)
+        
+        Returns:
+            Bytes if value is encoded blob, otherwise original value
+        """
+        if isinstance(value, dict) and value.get("__type__") == "blob":
+            return base64.b64decode(value["__value__"])
+        return value
+    
+    def _encode_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Encode all BLOB values in a row for JSON serialization."""
+        return {key: self._encode_blob(val) for key, val in row.items()}
+    
+    def _decode_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Decode all BLOB values in a row after JSON deserialization."""
+        return {key: self._decode_blob(val) for key, val in row.items()}
     
     # ═══════════════════════════════════════════════════════════════
     # DEHYDRATION: DB → JSON
@@ -148,8 +194,8 @@ class DBHydrationManager:
                 cursor.execute(f"SELECT * FROM {table}")
                 rows = cursor.fetchall()
                 
-                # Convert rows to dicts
-                rows_data = [dict(row) for row in rows]
+                # Convert rows to dicts and encode BLOBs
+                rows_data = [self._encode_row(dict(row)) for row in rows]
                 
                 archive_data["tables"][table] = {
                     "schema": schema,
@@ -167,7 +213,7 @@ class DBHydrationManager:
         
         # Save to JSON
         with open(archive_path, 'w') as f:
-            json.dump(archive_data, f, indent=2, default=str)
+            json.dump(archive_data, f, indent=2)
         
         return {
             "archive_path": str(archive_path),
@@ -271,9 +317,10 @@ class DBHydrationManager:
                     placeholders = ','.join(['?' for _ in columns])
                     insert_sql = f"INSERT INTO {table_name} ({','.join(columns)}) VALUES ({placeholders})"
                     
-                    # Batch insert
+                    # Batch insert with BLOB decoding
                     for row in table_data["rows"]:
-                        values = [row[col] for col in columns]
+                        decoded_row = self._decode_row(row)
+                        values = [decoded_row[col] for col in columns]
                         cursor.execute(insert_sql, values)
                     
                     total_rows += len(table_data["rows"])
