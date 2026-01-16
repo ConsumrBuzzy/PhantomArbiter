@@ -233,6 +233,18 @@ class DashboardApp {
                 this.handleCommandResult(data);
                 break;
 
+            case 'FUNDING_UPDATE':
+                // Task 5.1: Handle real-time funding engine updates
+                // Requirements: 1.7, 2.9, 4.12
+                this.handleFundingUpdate(data);
+                break;
+
+            case 'HEALTH_ALERT':
+                // Task 5.6: Handle health warnings
+                // Requirements: 2.4, 2.5
+                this.handleHealthAlert(data);
+                break;
+
             default:
                 // Unhandled packet type
                 break;
@@ -1418,6 +1430,293 @@ class DashboardApp {
             toast.style.animation = 'slideOut 0.3s ease-in';
             setTimeout(() => toast.remove(), 300);
         }, 5000);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 5: WEBSOCKET REAL-TIME UPDATES
+    // ═══════════════════════════════════════════════════════════════
+    
+    /**
+     * Handle FUNDING_UPDATE from WebSocket
+     * Task 5.1: Implement handleFundingUpdate(data) method
+     * Requirements: 1.7, 2.9, 4.12
+     */
+    handleFundingUpdate(data) {
+        const { payload } = data;
+        
+        if (!payload) return;
+        
+        // Store in engine states for other methods to access
+        this.engineStates['funding'] = payload;
+        
+        // Update all UI components
+        this.updateHealthGauge(payload.health || 100);
+        this.updateLeverageMeter(payload.leverage || 0);
+        this.updateDeltaDisplay(payload.net_delta || 0, payload.drift_pct || 0);
+        this.updatePositionsTable(payload.positions || []);
+        this.updateCollateralMetrics(payload);
+    }
+    
+    /**
+     * Update health gauge with animation
+     * Task 5.2: Update health gauge animation
+     * Requirements: 2.4, 2.5
+     */
+    updateHealthGauge(health) {
+        // Clamp health to [0, 100]
+        health = Math.max(0, Math.min(100, health));
+        
+        // Calculate needle rotation (-90° to +90°)
+        // 0% = -90° (left), 50% = 0° (center), 100% = +90° (right)
+        const angle = (health - 50) * 1.8; // Map 0-100 to -90 to +90
+        
+        // Update needle rotation
+        const needle = document.getElementById('health-needle');
+        if (needle) {
+            needle.style.transition = 'transform 0.5s ease-out';
+            needle.setAttribute('transform', `rotate(${angle}, 100, 100)`);
+        }
+        
+        // Update percentage text
+        const pctEl = document.getElementById('drift-health-pct');
+        if (pctEl) {
+            pctEl.textContent = `${health.toFixed(1)}%`;
+        }
+        
+        // Update health label and color
+        const labelEl = document.querySelector('.health-label');
+        if (labelEl) {
+            if (health >= 70) {
+                labelEl.textContent = 'HEALTHY';
+                labelEl.style.color = 'var(--neon-green)';
+            } else if (health >= 50) {
+                labelEl.textContent = 'MODERATE';
+                labelEl.style.color = 'var(--neon-yellow)';
+            } else if (health >= 20) {
+                labelEl.textContent = 'WARNING';
+                labelEl.style.color = 'var(--neon-orange)';
+            } else {
+                labelEl.textContent = 'CRITICAL';
+                labelEl.style.color = 'var(--neon-red)';
+            }
+        }
+    }
+    
+    /**
+     * Update leverage meter with animation
+     * Task 5.3: Update leverage meter
+     * Requirements: 4.2, 6.7
+     */
+    updateLeverageMeter(leverage) {
+        // Calculate fill percentage (0-20x scale)
+        const maxLeverage = 20;
+        const fillPct = Math.min(100, (leverage / maxLeverage) * 100);
+        
+        // Update bar fill
+        const fillEl = document.getElementById('drift-leverage-fill');
+        if (fillEl) {
+            fillEl.style.transition = 'width 0.5s ease-out, background-color 0.5s ease-out';
+            fillEl.style.width = `${fillPct}%`;
+            
+            // Color based on leverage
+            if (leverage < 3) {
+                fillEl.style.background = 'linear-gradient(90deg, var(--neon-green), var(--neon-cyan))';
+            } else if (leverage < 5) {
+                fillEl.style.background = 'linear-gradient(90deg, var(--neon-yellow), var(--neon-orange))';
+            } else {
+                fillEl.style.background = 'linear-gradient(90deg, var(--neon-orange), var(--neon-red))';
+            }
+        }
+        
+        // Update leverage text
+        const leverageEl = document.getElementById('drift-current-leverage');
+        if (leverageEl) {
+            leverageEl.textContent = `${leverage.toFixed(2)}x`;
+            
+            // Color based on leverage
+            if (leverage < 3) {
+                leverageEl.style.color = 'var(--neon-green)';
+            } else if (leverage < 5) {
+                leverageEl.style.color = 'var(--neon-yellow)';
+            } else {
+                leverageEl.style.color = 'var(--neon-red)';
+            }
+        }
+    }
+    
+    /**
+     * Update delta display
+     * Task 5.4: Update delta display
+     * Requirements: 5.1, 5.2
+     */
+    updateDeltaDisplay(netDelta, driftPct) {
+        // Update delta value
+        const valueEl = document.getElementById('drift-delta-value');
+        if (valueEl) {
+            valueEl.textContent = netDelta.toFixed(3);
+        }
+        
+        // Update delta status
+        const statusEl = document.getElementById('drift-delta-status');
+        if (statusEl) {
+            // Remove all status classes
+            statusEl.classList.remove('neutral', 'long-bias', 'short-bias');
+            
+            if (Math.abs(driftPct) < 1.0) {
+                statusEl.textContent = 'NEUTRAL';
+                statusEl.classList.add('neutral');
+                statusEl.style.color = 'var(--neon-green)';
+            } else if (driftPct > 0) {
+                statusEl.textContent = 'LONG BIAS';
+                statusEl.classList.add('long-bias');
+                statusEl.style.color = 'var(--neon-cyan)';
+            } else {
+                statusEl.textContent = 'SHORT BIAS';
+                statusEl.classList.add('short-bias');
+                statusEl.style.color = 'var(--neon-purple)';
+            }
+        }
+    }
+    
+    /**
+     * Update positions table
+     * Task 5.5: Update positions table
+     * Requirements: 4.12
+     */
+    updatePositionsTable(positions) {
+        const tbody = document.getElementById('drift-positions-body');
+        if (!tbody) return;
+        
+        // Clear existing rows
+        tbody.innerHTML = '';
+        
+        if (!positions || positions.length === 0) {
+            tbody.innerHTML = `
+                <tr class="empty-row">
+                    <td colspan="8" class="empty-state">No open positions</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Render position rows
+        positions.forEach(pos => {
+            const side = pos.amount < 0 ? 'SHORT' : 'LONG';
+            const sideColor = pos.amount < 0 ? 'var(--neon-purple)' : 'var(--neon-cyan)';
+            const pnlColor = pos.unrealized_pnl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="font-weight: bold;">${pos.market}</td>
+                <td style="color: ${sideColor};">${side}</td>
+                <td>${Math.abs(pos.amount).toFixed(3)}</td>
+                <td>$${pos.entry_price.toFixed(2)}</td>
+                <td>$${pos.mark_price.toFixed(2)}</td>
+                <td style="color: ${pnlColor}; font-weight: bold;">
+                    ${pos.unrealized_pnl >= 0 ? '+' : ''}$${pos.unrealized_pnl.toFixed(2)}
+                </td>
+                <td>${pos.liq_price > 0 ? '$' + pos.liq_price.toFixed(2) : 'N/A'}</td>
+                <td>
+                    <button class="btn-xs btn-danger drift-leave-btn" 
+                            data-market="${pos.market}">
+                        Leave
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        // Bind click handlers to "Leave" buttons
+        tbody.querySelectorAll('.drift-leave-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const market = btn.dataset.market;
+                this.handleLeavePosition(market);
+            });
+        });
+    }
+    
+    /**
+     * Update collateral metrics
+     * Task 5.1: Update collateral metrics (part of handleFundingUpdate)
+     * Requirements: 1.7
+     */
+    updateCollateralMetrics(payload) {
+        // Total Collateral
+        const totalCollateralEl = document.getElementById('drift-total-collateral');
+        if (totalCollateralEl && payload.total_collateral !== undefined) {
+            totalCollateralEl.textContent = `$${payload.total_collateral.toFixed(2)}`;
+        }
+        
+        // Free Collateral
+        const freeCollateralEl = document.getElementById('drift-free-collateral');
+        if (freeCollateralEl && payload.free_collateral !== undefined) {
+            freeCollateralEl.textContent = `$${payload.free_collateral.toFixed(2)}`;
+        }
+        
+        // Maintenance Margin
+        const maintMarginEl = document.getElementById('drift-maint-margin');
+        if (maintMarginEl && payload.maintenance_margin !== undefined) {
+            maintMarginEl.textContent = `$${payload.maintenance_margin.toFixed(2)}`;
+        }
+    }
+    
+    /**
+     * Handle HEALTH_ALERT from WebSocket
+     * Task 5.6: Implement handleHealthAlert(data) method
+     * Requirements: 2.4, 2.5
+     */
+    handleHealthAlert(data) {
+        const { level, health, message } = data;
+        
+        // Create alert banner
+        const alertBanner = document.createElement('div');
+        alertBanner.className = `health-alert health-alert-${level.toLowerCase()}`;
+        alertBanner.style.cssText = `
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${level === 'CRITICAL' ? 'rgba(255,60,60,0.3)' : 'rgba(255,200,60,0.3)'};
+            border: 2px solid ${level === 'CRITICAL' ? 'var(--neon-red)' : 'var(--neon-orange)'};
+            border-radius: 8px;
+            padding: 15px 25px;
+            color: white;
+            z-index: 9999;
+            min-width: 400px;
+            max-width: 600px;
+            animation: slideDown 0.3s ease-out;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        `;
+        
+        alertBanner.innerHTML = `
+            <div>
+                <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 5px;">
+                    ${level === 'CRITICAL' ? '🚨' : '⚠️'} ${level} HEALTH ALERT
+                </div>
+                <div style="font-size: 0.9rem;">
+                    Health: ${health.toFixed(1)}% - ${message}
+                </div>
+            </div>
+            <button onclick="this.parentElement.remove()" 
+                    style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 0 10px;">
+                ×
+            </button>
+        `;
+        
+        document.body.appendChild(alertBanner);
+        
+        // Auto-dismiss after 10 seconds
+        setTimeout(() => {
+            if (alertBanner.parentElement) {
+                alertBanner.style.animation = 'slideUp 0.3s ease-in';
+                setTimeout(() => alertBanner.remove(), 300);
+            }
+        }, 10000);
+        
+        // Log to console
+        this.addLog('DRIFT', level === 'CRITICAL' ? 'ERROR' : 'WARNING', message);
     }
 }
 
