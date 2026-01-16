@@ -32,7 +32,7 @@ The implementation follows these phases:
   - **Property 4: Leverage Limit Enforcement**
   - **Validates: Requirements 1.6**
 
-- [-] 2. Update FundingEngine for enriched paper mode data
+- [x] 2. Update FundingEngine for enriched paper mode data
   - Modify `check_and_rebalance()` to return UI-ready metrics
   - Add health ratio calculation for paper mode
   - Add leverage calculation for paper mode
@@ -40,18 +40,18 @@ The implementation follows these phases:
   - Ensure WebSocket broadcast includes all required fields
   - _Requirements: 1.7_
 
-- [-] 2.1 Write property test for health ratio bounds
+- [x] 2.1 Write property test for health ratio bounds
   - **Property 2: Health Ratio Bounds**
   - **Validates: Requirements 1.4, 2.3**
 
-- [ ] 2.2 Write unit tests for paper mode command execution
+- [x] 2.2 Write unit tests for paper mode command execution
   - Test DEPOSIT command updates balance
   - Test WITHDRAW command updates balance
   - Test OPEN_POSITION command creates position
   - Test CLOSE_POSITION command removes position
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
 
-- [ ] 3. Checkpoint - Paper mode validation
+- [x] 3. Checkpoint - Paper mode validation
   - Run paper mode simulation with 10 funding cycles
   - Verify PnL accumulation is realistic
   - Verify rebalancing triggers at correct drift thresholds

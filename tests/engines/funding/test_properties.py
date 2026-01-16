@@ -172,12 +172,14 @@ def test_health_ratio_bounds(total_collateral, maintenance_margin):
     assert 0.0 <= health <= 100.0, \
         f"Health ratio {health} outside valid range [0, 100]"
     
-    # Verify edge cases
+    # Verify edge cases (with floating point tolerance)
+    tolerance = 1e-6
+    
     if total_collateral <= 1e-10:  # Effectively zero (floating point tolerance)
         assert health == 0.0, f"Health should be 0 when collateral is ~0 (got {health}, collateral={total_collateral})"
     
     if maintenance_margin <= 1e-10 and total_collateral > 1e-10:  # No margin, has collateral
-        assert health == 100.0, f"Health should be 100 when no margin required (got {health})"
+        assert abs(health - 100.0) < tolerance, f"Health should be ~100 when no margin required (got {health})"
     
     if maintenance_margin >= total_collateral and total_collateral > 1e-10:
-        assert health == 0.0, f"Health should be 0 when margin >= collateral (got {health})"
+        assert abs(health - 0.0) < tolerance, f"Health should be ~0 when margin >= collateral (got {health})"

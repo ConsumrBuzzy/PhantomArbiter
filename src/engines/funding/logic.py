@@ -488,12 +488,15 @@ class FundingEngine(BaseEngine):
                     
             elif action == "CLOSE_POSITION":
                  # Close all PERP positions
-                 # In Paper Mode, just zero out the position in VirtualDriver
-                 # VirtualDriver.positions = {"SOL-PERP": ...}
-                 if hasattr(self.driver, "positions"):
-                     self.driver.positions["SOL-PERP"] = {"size": 0.0, "side": "flat", "entry_price": 0.0}
-                     return {"success": True, "message": "Closed SOL-PERP (Paper)"}
-                 return {"success": False, "message": "Driver state error"}
+                 market = data.get("market", "SOL-PERP")
+                 
+                 # Use VirtualDriver's close_position method
+                 result = await self.driver.close_position(market)
+                 
+                 if result and result.status == "filled":
+                     return {"success": True, "message": f"Closed {market} (Paper)"}
+                 else:
+                     return {"success": False, "message": f"No position to close for {market}"}
 
             elif action == "OPEN_POSITION":
                 from src.shared.drivers.virtual_driver import VirtualOrder
@@ -514,7 +517,7 @@ class FundingEngine(BaseEngine):
                 )
                 
                 # Ensure price feed exists for new markets
-                if market not in self.driver.price_feed:
+                if market not in self.driver._current_prices:
                     # Mock price based on market
                     price = 145.0 if "SOL" in market else 60000.0 if "BTC" in market else 1.0
                     self.driver.set_price_feed({market: price})
