@@ -78,7 +78,7 @@ async def main():
                         for m in markets_data:
                             markets_list.append({
                                 "symbol": m.symbol,
-                                "rate": m.rate_8h / 100.0,  # Convert to decimal for display
+                                "rate": m.rate_1h,  # Send 1h rate (frontend will multiply by 8)
                                 "apr": m.apr,
                                 "direction": m.direction,
                                 "oi": m.open_interest,

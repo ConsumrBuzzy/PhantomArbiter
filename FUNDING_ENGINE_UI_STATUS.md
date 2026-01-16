@@ -1,5 +1,28 @@
 # Funding Engine UI - Implementation Status
 
+## 🔧 LATEST FIX (2026-01-16)
+
+### Issue
+Market data table showing zeros and "No open positions" despite API returning 200 status.
+
+### Root Causes Found & Fixed
+1. **Element ID Mismatch**: DriftController used `drift-*` prefix, HTML template used `funding-*` prefix
+   - Fixed: Updated all 17 `getElementById()` calls in `drift-controller.js`
+
+2. **API Data Format Mismatch**: Backend sent `rate_8h / 100`, frontend expected `rate_1h` in decimal
+   - Fixed: Changed API endpoint to send `m.rate_1h` instead of `m.rate_8h / 100.0`
+
+### Action Required
+**RESTART THE DASHBOARD** for API changes to take effect:
+```bash
+# Stop current dashboard (Ctrl+C)
+python run_dashboard.py
+```
+
+Then refresh browser and navigate to Funding Engine view.
+
+---
+
 ## ✅ COMPLETED WORK
 
 ### Backend (100% Complete)
