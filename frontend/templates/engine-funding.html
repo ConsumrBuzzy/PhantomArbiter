@@ -1,10 +1,10 @@
-<div class="engine-layout drift-theme">
+<div class="engine-layout funding-theme">
     <div class="engine-header-row">
         <div class="engine-title">
-            <i class="fa-solid fa-water"></i>
-            <h2>Delta Neutral Engine</h2>
+            <i class="fa-solid fa-scale-balanced"></i>
+            <h2>Funding Engine (Delta Neutral)</h2>
         </div>
-        <div class="engine-status-bar" id="drift-status-bar">
+        <div class="engine-status-bar" id="funding-status-bar">
             <span class="status-indicator stopped">STOPPED</span>
             <span class="mode-indicator paper">PAPER</span>
         </div>
@@ -18,7 +18,7 @@
             <section class="glass-panel health-gauge-panel">
                 <div class="panel-title">🛡️ Account Health</div>
                 <div class="health-gauge-container">
-                    <div class="health-gauge" id="drift-health-gauge">
+                    <div class="health-gauge" id="funding-health-gauge">
                         <svg viewBox="0 0 200 120" class="gauge-svg">
                             <!-- Background arc (gray) -->
                             <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)"
@@ -39,22 +39,22 @@
                             <circle cx="100" cy="100" r="6" fill="#875BF7" />
                         </svg>
                         <div class="health-value">
-                            <span id="drift-health-pct">100%</span>
+                            <span id="funding-health-pct">100%</span>
                             <span class="health-label">HEALTHY</span>
                         </div>
                     </div>
                     <div class="health-metrics-row">
                         <div class="metric-box">
                             <span class="metric-label">Total Collateral</span>
-                            <span class="metric-value" id="drift-total-collateral">$0.00</span>
+                            <span class="metric-value" id="funding-total-collateral">$0.00</span>
                         </div>
                         <div class="metric-box">
                             <span class="metric-label">Free Collateral</span>
-                            <span class="metric-value" id="drift-free-collateral">$0.00</span>
+                            <span class="metric-value" id="funding-free-collateral">$0.00</span>
                         </div>
                         <div class="metric-box">
                             <span class="metric-label">Maint. Margin</span>
-                            <span class="metric-value" id="drift-maint-margin">$0.00</span>
+                            <span class="metric-value" id="funding-maint-margin">$0.00</span>
                         </div>
                     </div>
                 </div>
@@ -65,10 +65,10 @@
                 <div class="panel-header">
                     <div class="panel-title">📈 Market Opportunities</div>
                     <div class="panel-controls">
-                        <span id="drift-last-refresh" style="font-size: 0.7rem; color: var(--text-dim); margin-right: 10px;">
+                        <span id="funding-last-refresh" style="font-size: 0.7rem; color: var(--text-dim); margin-right: 10px;">
                             Never
                         </span>
-                        <button class="btn-xs" id="drift-refresh-markets-btn">
+                        <button class="btn-xs" id="funding-refresh-markets-btn">
                             <i class="fa-solid fa-sync"></i> Refresh
                         </button>
                     </div>
@@ -78,7 +78,7 @@
                 <div class="market-section">
                     <div class="market-section-title">Funding Rates (8hr)</div>
                     <div class="funding-table-container" style="max-height: 200px; overflow-y: auto;">
-                        <table class="data-table compact" id="drift-funding-table">
+                        <table class="data-table compact" id="funding-funding-table">
                             <thead>
                                 <tr>
                                     <th>Market</th>
@@ -90,7 +90,7 @@
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="drift-funding-body">
+                            <tbody id="funding-funding-body">
                                 <tr>
                                     <td colspan="5" class="empty-state">Loading markets...</td>
                                 </tr>
@@ -103,7 +103,7 @@
                 <div class="market-section"
                     style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
                     <div class="market-section-title">🎯 Best Delta-Neutral Opportunities</div>
-                    <div class="opportunity-cards" id="drift-opportunities">
+                    <div class="opportunity-cards" id="funding-opportunities">
                         <div class="opportunity-card"
                             style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 8px; padding: 10px; margin: 5px 0;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -145,19 +145,19 @@
                     <div class="market-stat-item" style="text-align: center;">
                         <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase;">Total OI
                         </div>
-                        <div id="drift-total-oi"
+                        <div id="funding-total-oi"
                             style="font-size: 1.1rem; font-weight: bold; font-family: 'Roboto Mono';">$0.00</div>
                     </div>
                     <div class="market-stat-item" style="text-align: center;">
                         <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase;">24h Volume
                         </div>
-                        <div id="drift-24h-volume"
+                        <div id="funding-24h-volume"
                             style="font-size: 1.1rem; font-weight: bold; font-family: 'Roboto Mono';">$0.00</div>
                     </div>
                     <div class="market-stat-item" style="text-align: center;">
                         <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase;">Avg Funding
                         </div>
-                        <div id="drift-avg-funding"
+                        <div id="funding-avg-funding"
                             style="font-size: 1.1rem; font-weight: bold; font-family: 'Roboto Mono'; color: var(--neon-green);">
                             +0.00%</div>
                     </div>
@@ -169,11 +169,11 @@
                 <div class="panel-header">
                     <div class="panel-title">⚔️ Combat Zone</div>
                     <div class="panel-controls">
-                        <button class="btn-xs btn-danger" id="drift-close-all-btn" disabled>Close All</button>
+                        <button class="btn-xs btn-danger" id="funding-close-all-btn" disabled>Close All</button>
                     </div>
                 </div>
                 <div class="position-table-container">
-                    <table class="data-table" id="drift-positions-table">
+                    <table class="data-table" id="funding-positions-table">
                         <thead>
                             <tr>
                                 <th>Market</th>
@@ -186,7 +186,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="drift-positions-body">
+                        <tbody id="funding-positions-body">
                             <tr class="empty-row">
                                 <td colspan="8" class="empty-state">No open positions</td>
                             </tr>
@@ -201,7 +201,7 @@
             <!-- Engine Control -->
             <section class="glass-panel">
                 <div class="panel-title">Engine Control</div>
-                <div id="drift-control-card-mount"></div>
+                <div id="funding-control-card-mount"></div>
             </section>
 
             <!-- Leverage Meter -->
@@ -209,7 +209,7 @@
                 <div class="panel-title">📊 Leverage</div>
                 <div class="leverage-meter">
                     <div class="leverage-bar">
-                        <div class="leverage-fill" id="drift-leverage-fill" style="width: 0%"></div>
+                        <div class="leverage-fill" id="funding-leverage-fill" style="width: 0%"></div>
                         <div class="leverage-markers">
                             <span>0x</span>
                             <span>5x</span>
@@ -218,7 +218,7 @@
                         </div>
                     </div>
                     <div class="leverage-value">
-                        <span id="drift-current-leverage">0.0x</span>
+                        <span id="funding-current-leverage">0.0x</span>
                         <span class="leverage-max">/ 20x max</span>
                     </div>
                 </div>
@@ -228,7 +228,7 @@
             <section class="glass-panel">
                 <div class="panel-title">👤 Sub-Account</div>
                 <div class="subaccount-selector">
-                    <select id="drift-subaccount-select" class="form-select">
+                    <select id="funding-subaccount-select" class="form-select">
                         <option value="0" selected>Main Account (0)</option>
                         <option value="1">Sub-Account 1</option>
                         <option value="2">Sub-Account 2</option>
@@ -240,13 +240,13 @@
             <section class="glass-panel">
                 <div class="panel-title">⚡ Quick Actions</div>
                 <div class="action-buttons">
-                    <button class="btn-action drift-btn" id="drift-settle-pnl-btn" disabled>
+                    <button class="btn-action funding-btn" id="funding-settle-pnl-btn" disabled>
                         <i class="fa-solid fa-coins"></i> Settle PnL
                     </button>
-                    <button class="btn-action drift-btn" id="drift-deposit-btn">
+                    <button class="btn-action funding-btn" id="funding-deposit-btn">
                         <i class="fa-solid fa-arrow-down"></i> Deposit
                     </button>
-                    <button class="btn-action drift-btn" id="drift-withdraw-btn">
+                    <button class="btn-action funding-btn" id="funding-withdraw-btn">
                         <i class="fa-solid fa-arrow-up"></i> Withdraw
                     </button>
                 </div>
@@ -256,9 +256,9 @@
             <section class="glass-panel">
                 <div class="panel-title">⚖️ Delta Neutrality</div>
                 <div class="delta-display">
-                    <div class="delta-value" id="drift-delta-value">0.00</div>
+                    <div class="delta-value" id="funding-delta-value">0.00</div>
                     <div class="delta-label">Net Delta (SOL)</div>
-                    <div class="delta-status neutral" id="drift-delta-status">NEUTRAL</div>
+                    <div class="delta-status neutral" id="funding-delta-status">NEUTRAL</div>
                 </div>
             </section>
         </div>
@@ -266,37 +266,35 @@
 </div>
 
 <!-- Position Size Modal -->
-<!-- Task 3.1: Create position size input modal -->
-<!-- Requirements: 4.1, 4.2 -->
-<div id="drift-position-modal" class="modal-overlay" style="display: none;">
+<div id="funding-position-modal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
-            <h3 id="drift-modal-title">Take Position</h3>
-            <button class="modal-close" onclick="window.driftCloseModal()">&times;</button>
+            <h3 id="funding-modal-title">Take Position</h3>
+            <button class="modal-close" onclick="window.fundingCloseModal()">&times;</button>
         </div>
         <div class="modal-body">
             <!-- Market Info -->
             <div class="modal-section">
                 <div class="modal-info-row">
                     <span class="modal-label">Market:</span>
-                    <span class="modal-value" id="drift-modal-market">SOL-PERP</span>
+                    <span class="modal-value" id="funding-modal-market">SOL-PERP</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Direction:</span>
-                    <span class="modal-value" id="drift-modal-direction">SHORT</span>
+                    <span class="modal-value" id="funding-modal-direction">SHORT</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Current APR:</span>
-                    <span class="modal-value" id="drift-modal-apr" style="color: var(--neon-green);">+12.4%</span>
+                    <span class="modal-value" id="funding-modal-apr" style="color: var(--neon-green);">+12.4%</span>
                 </div>
             </div>
 
             <!-- Position Size Input -->
             <div class="modal-section">
-                <label for="drift-position-size" class="modal-label">Position Size (SOL)</label>
+                <label for="funding-position-size" class="modal-label">Position Size (SOL)</label>
                 <input 
                     type="number" 
-                    id="drift-position-size" 
+                    id="funding-position-size" 
                     class="form-input" 
                     placeholder="0.005" 
                     min="0.005" 
@@ -304,7 +302,7 @@
                     style="width: 100%; margin-top: 5px;"
                 />
                 <div class="modal-hint" style="margin-top: 5px; font-size: 0.75rem; color: var(--text-dim);">
-                    Min: 0.005 SOL | Available: <span id="drift-modal-available">0.00</span> SOL
+                    Min: 0.005 SOL | Available: <span id="funding-modal-available">0.00</span> SOL
                 </div>
             </div>
 
@@ -312,27 +310,27 @@
             <div class="modal-section">
                 <div class="modal-info-row">
                     <span class="modal-label">Expected Leverage:</span>
-                    <span class="modal-value" id="drift-modal-leverage">0.0x</span>
+                    <span class="modal-value" id="funding-modal-leverage">0.0x</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Estimated Cost:</span>
-                    <span class="modal-value" id="drift-modal-cost">$0.00</span>
+                    <span class="modal-value" id="funding-modal-cost">$0.00</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Health After:</span>
-                    <span class="modal-value" id="drift-modal-health-after">100%</span>
+                    <span class="modal-value" id="funding-modal-health-after">100%</span>
                 </div>
             </div>
 
             <!-- Warning Messages -->
-            <div id="drift-modal-warning" class="modal-warning" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255,200,60,0.1); border: 1px solid rgba(255,200,60,0.3); border-radius: 4px; font-size: 0.8rem;">
+            <div id="funding-modal-warning" class="modal-warning" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255,200,60,0.1); border: 1px solid rgba(255,200,60,0.3); border-radius: 4px; font-size: 0.8rem;">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                <span id="drift-modal-warning-text">Warning message</span>
+                <span id="funding-modal-warning-text">Warning message</span>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-secondary" onclick="window.driftCloseModal()">Cancel</button>
-            <button class="btn-primary" id="drift-modal-confirm-btn" onclick="window.driftConfirmPosition()">
+            <button class="btn-secondary" onclick="window.fundingCloseModal()">Cancel</button>
+            <button class="btn-primary" id="funding-modal-confirm-btn" onclick="window.fundingConfirmPosition()">
                 <i class="fa-solid fa-check"></i> Confirm Position
             </button>
         </div>
@@ -340,28 +338,26 @@
 </div>
 
 <!-- Close Position Confirmation Modal -->
-<!-- Task 4.2: Implement handleLeavePosition(market) method -->
-<!-- Requirements: 4.8 -->
-<div id="drift-close-modal" class="modal-overlay" style="display: none;">
+<div id="funding-close-modal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
             <h3>Close Position</h3>
-            <button class="modal-close" onclick="window.driftCloseCloseModal()">&times;</button>
+            <button class="modal-close" onclick="window.fundingCloseCloseModal()">&times;</button>
         </div>
         <div class="modal-body">
             <!-- Position Info -->
             <div class="modal-section">
                 <div class="modal-info-row">
                     <span class="modal-label">Market:</span>
-                    <span class="modal-value" id="drift-close-modal-market">SOL-PERP</span>
+                    <span class="modal-value" id="funding-close-modal-market">SOL-PERP</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Side:</span>
-                    <span class="modal-value" id="drift-close-modal-side">SHORT</span>
+                    <span class="modal-value" id="funding-close-modal-side">SHORT</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Size:</span>
-                    <span class="modal-value" id="drift-close-modal-size">10.5 SOL</span>
+                    <span class="modal-value" id="funding-close-modal-size">10.5 SOL</span>
                 </div>
             </div>
 
@@ -369,15 +365,15 @@
             <div class="modal-section">
                 <div class="modal-info-row">
                     <span class="modal-label">Entry Price:</span>
-                    <span class="modal-value" id="drift-close-modal-entry">$145.50</span>
+                    <span class="modal-value" id="funding-close-modal-entry">$145.50</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Mark Price:</span>
-                    <span class="modal-value" id="drift-close-modal-mark">$147.20</span>
+                    <span class="modal-value" id="funding-close-modal-mark">$147.20</span>
                 </div>
                 <div class="modal-info-row">
                     <span class="modal-label">Unrealized PnL:</span>
-                    <span class="modal-value" id="drift-close-modal-pnl" style="color: var(--neon-green);">+$17.85</span>
+                    <span class="modal-value" id="funding-close-modal-pnl" style="color: var(--neon-green);">+$17.85</span>
                 </div>
             </div>
 
@@ -385,7 +381,7 @@
             <div class="modal-section">
                 <div class="modal-info-row" style="font-weight: bold; font-size: 1.1rem;">
                     <span class="modal-label">Expected Proceeds:</span>
-                    <span class="modal-value" id="drift-close-modal-proceeds">$1,547.20</span>
+                    <span class="modal-value" id="funding-close-modal-proceeds">$1,547.20</span>
                 </div>
             </div>
 
@@ -395,8 +391,8 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-secondary" onclick="window.driftCloseCloseModal()">Cancel</button>
-            <button class="btn-danger" id="drift-close-modal-confirm-btn" onclick="window.driftConfirmClose()">
+            <button class="btn-secondary" onclick="window.fundingCloseCloseModal()">Cancel</button>
+            <button class="btn-danger" id="funding-close-modal-confirm-btn" onclick="window.fundingConfirmClose()">
                 <i class="fa-solid fa-times-circle"></i> Close Position
             </button>
         </div>
