@@ -37,7 +37,7 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Determine direction (positive rate = shorts receive)
   - _Requirements: 2.2, 2.6_
 
-- [ ] 1.3 Implement get_market_stats() method
+- [x] 1.3 Implement get_market_stats() method
   - Calculate total open interest across all markets
   - Calculate total 24h volume
   - Calculate average funding rate
