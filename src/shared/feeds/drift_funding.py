@@ -93,28 +93,34 @@ class DriftFundingFeed:
         self._cache_ttl = 300.0  # 5 minute cache (Task 1.4: Requirements 2.8)
         self._last_fetch = 0.0
 
-    def _get_drift(self):
-        """Lazy-load Drift adapter."""
+    async def _ensure_connected(self):
+        """Ensure Drift adapter is connected."""
         if self._drift is None:
             try:
                 from src.shared.infrastructure.drift_adapter import DriftAdapter
                 from src.drivers.wallet_manager import WalletManager
-                import asyncio
 
                 self._drift = DriftAdapter("mainnet")
                 
-                # Connect with wallet (synchronously for lazy init)
+                # Connect with wallet
                 wallet_manager = WalletManager()
-                loop = asyncio.get_event_loop()
-                
-                # Try to connect - if it fails, we'll still return the adapter
-                # but is_connected will be False
                 try:
-                    loop.run_until_complete(self._drift.connect(wallet_manager, sub_account=0))
+                    await self._drift.connect(wallet_manager, sub_account=0)
                     Logger.info("[DriftFeed] Connected to Drift Protocol")
                 except Exception as conn_err:
-                    Logger.debug(f"[DriftFeed] Could not connect to Drift: {conn_err}")
+                    Logger.warning(f"[DriftFeed] Could not connect to Drift: {conn_err}")
                     
+            except Exception as e:
+                Logger.error(f"[DriftFeed] Failed to load DriftAdapter: {e}")
+        
+        return self._drift
+
+    def _get_drift(self):
+        """Get Drift adapter (may not be connected yet)."""
+        if self._drift is None:
+            try:
+                from src.shared.infrastructure.drift_adapter import DriftAdapter
+                self._drift = DriftAdapter("mainnet")
             except Exception as e:
                 Logger.debug(f"Failed to load DriftAdapter: {e}")
         return self._drift
@@ -135,8 +141,10 @@ class DriftFundingFeed:
             if time.time() - self._last_fetch < self._cache_ttl:
                 return cached
 
-        drift = self._get_drift()
+        # Ensure connected
+        drift = await self._ensure_connected()
         if not drift or not drift.is_connected:
+            Logger.debug(f"[DriftFeed] Not connected, cannot fetch {market}")
             return None
 
         try:
@@ -161,7 +169,7 @@ class DriftFundingFeed:
             return funding
 
         except Exception as e:
-            Logger.debug(f"Drift funding rate error: {e}")
+            Logger.debug(f"Drift funding rate error for {market}: {e}")
             return None
 
     async def get_all_funding_rates(self) -> Dict[str, FundingInfo]:
