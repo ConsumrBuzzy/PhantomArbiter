@@ -258,6 +258,15 @@ The implementation follows these phases:
   - _Requirements: 4.8, 4.9, 4.10, 4.11, 4.12_
   - **Status: All 8 tests passing ✓**
 
+- [x] 14.3 Verify Web UI integration for position management
+  - Verify UI has buttons/controls for OPEN_POSITION and CLOSE_POSITION
+  - Verify WebSocket command format matches backend expectations
+  - Verify UI displays transaction signatures and success messages
+  - Verify position table updates after operations
+  - _Requirements: 8.6, 8.7, 8.8, 8.9, 8.10_
+  - **Status: Verification complete ✓**
+  - **Documentation**: `.kiro/specs/delta-neutral-live-mode/UI_INTEGRATION_VERIFICATION.md`
+
 - [ ] 15. Implement delta drift auto-rebalancing for live mode
   - Update `check_and_rebalance()` to execute real trades in live mode
   - Implement cooldown enforcement (30 minutes)
