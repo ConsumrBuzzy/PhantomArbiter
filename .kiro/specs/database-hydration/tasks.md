@@ -45,7 +45,7 @@ This plan implements a JSON-based database hydration/dehydration system for port
     - _Requirements: 8.5_
 
 - [ ] 5. Property-Based Testing
-  - [ ] 5.1 Write property test for round-trip consistency
+  - [x] 5.1 Write property test for round-trip consistency
     - **Property 1: Round-trip Consistency**
     - **Validates: Requirements 1.2, 2.3, 10.5**
     - Generate random databases, dehydrate, hydrate, verify data matches

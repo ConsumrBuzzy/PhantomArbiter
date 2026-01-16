@@ -23,7 +23,12 @@ def pytest_configure(config):
     """
     Pre-Flight Injection: Manually register pytest-asyncio if the
     standard metadata loader failed (common on Windows 3.12).
+    
+    Also blocks anchorpy pytest plugin to avoid pytest_xprocess dependency issues.
     """
+    # Block anchorpy plugin (requires pytest_xprocess which causes import issues)
+    config.pluginmanager.set_blocked("anchorpy")
+    
     try:
         import pytest_asyncio.plugin
         if not config.pluginmanager.has_plugin("asyncio"):
