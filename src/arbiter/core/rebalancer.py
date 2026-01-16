@@ -235,7 +235,7 @@ class RebalancingEngine:
             }
 
             spot_feed = JupiterFeed()
-            spot = spot_feed.get_spot_price(MINTS.get(coin, ""), USDC)
+            spot = await spot_feed.get_spot_price(MINTS.get(coin, ""), USDC)
             spot_price = spot.price if spot else None
 
             funding_feed = MockDriftFundingFeed()

@@ -198,7 +198,7 @@ class PhantomScoreCalculator:
             if not mint:
                 return None
 
-            spot = feed.get_spot_price(mint, USDC)
+            spot = await feed.get_spot_price(mint, USDC)
             if not spot:
                 return None
 
