@@ -924,15 +924,15 @@ class DashboardApp {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // DRIFT FUNDING ENGINE METHODS (Phase 2: Market Data Display)
+    // FUNDING ENGINE METHODS (Phase 2: Market Data Display)
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Fetch Drift market opportunities
-     * Task 2.1: Implement fetchDriftMarkets() method
+     * Fetch Funding market opportunities
+     * Task 2.1: Implement fetchFundingMarkets() method
      * Requirements: 2.1, 2.8
      */
-    async fetchDriftMarkets() {
+    async fetchFundingMarkets() {
         try {
             const response = await fetch('/api/drift/markets');
             if (!response.ok) {
@@ -947,14 +947,14 @@ class DashboardApp {
             this.updateMarketStats(data.stats);
             
             // Update last refresh timestamp
-            const timestampEl = document.getElementById('drift-last-refresh');
+            const timestampEl = document.getElementById('funding-last-refresh');
             if (timestampEl) {
                 timestampEl.textContent = new Date().toLocaleTimeString();
             }
             
         } catch (error) {
-            console.error('[DRIFT] Failed to fetch markets:', error);
-            this.showDriftError('Failed to load market data. Please try again.');
+            console.error('[FUNDING] Failed to fetch markets:', error);
+            this.showFundingError('Failed to load market data. Please try again.');
         }
     }
 
@@ -964,7 +964,7 @@ class DashboardApp {
      * Requirements: 2.2
      */
     renderFundingTable(markets) {
-        const tbody = document.getElementById('drift-funding-body');
+        const tbody = document.getElementById('funding-funding-body');
         if (!tbody) return;
         
         if (!markets || markets.length === 0) {
@@ -994,7 +994,7 @@ class DashboardApp {
                     </td>
                     <td style="text-align: right;">${this.formatNumber(m.oi)}</td>
                     <td>
-                        <button class="btn-xs drift-take-btn" 
+                        <button class="btn-xs funding-take-btn" 
                                 data-market="${m.symbol}" 
                                 data-direction="${m.direction}"
                                 data-apr="${m.apr}">
@@ -1006,7 +1006,7 @@ class DashboardApp {
         }).join('');
         
         // Bind click handlers to "Take" buttons
-        tbody.querySelectorAll('.drift-take-btn').forEach(btn => {
+        tbody.querySelectorAll('.funding-take-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const market = btn.dataset.market;
                 const direction = btn.dataset.direction;
