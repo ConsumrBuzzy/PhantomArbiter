@@ -50,7 +50,8 @@ class TradingOS {
         // Tapes (In Header - Always Present)
         this.solTape = new SolTape('sol-tape-container');
         this.majorsTape = new MajorsTape('majors-tape-container');
-        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-container', 'paper'); // ID was corrected in earlier steps
+        this.whaleTicker = TickerTape.createWhaleTape('whale-tape-container', 'paper');
+        this.whaleTicker.update([]); // Clear 'Loading...' placeholder immediately
 
         // Dynamic Components (Initialized when view loads)
         this.tokenWatchlist = null;
