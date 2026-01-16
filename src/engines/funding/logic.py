@@ -64,6 +64,9 @@ class RebalanceConfig:
     
     # Loop interval for continuous monitoring
     loop_interval_seconds: int = 60
+    
+    # Maximum leverage for live mode (default: 5x)
+    max_leverage: float = 5.0
 
 
 # =============================================================================
@@ -438,10 +441,55 @@ class FundingEngine(BaseEngine):
                  result["message"] = f"Would {action} by {correction_size:.6f} SOL"
                  Logger.info(f"[REBALANCER] SIMULATION: {result['message']}")
         else:
-            # Live execution (Phase 4)
-            result["status"] = "error"
-            result["message"] = "Live trading not implemented yet (Phase 4)"
-            Logger.warning("[REBALANCER] Live trading requires Phase 4 implementation")
+            # ═══════════════════════════════════════════════════════════════
+            # LIVE MODE AUTO-REBALANCING (Phase 4 - Task 15)
+            # ═══════════════════════════════════════════════════════════════
+            try:
+                Logger.info(f"[REBALANCER] 🔴 LIVE MODE: Executing {action} for {correction_size:.6f} SOL")
+                
+                # Determine direction for DriftAdapter
+                # EXPAND_SHORT = open new short position (sell)
+                # REDUCE_SHORT = close part of short position (buy)
+                if action == "EXPAND_SHORT":
+                    direction = "short"
+                else:
+                    direction = "long"  # Buy to offset short
+                
+                # Execute via DriftAdapter
+                tx_sig = await self.drift_adapter.open_position(
+                    market="SOL-PERP",
+                    direction=direction,
+                    size=correction_size,
+                    max_leverage=self.config.max_leverage if hasattr(self.config, 'max_leverage') else 5.0
+                )
+                
+                Logger.success(f"[REBALANCER] ✅ Rebalance executed: {action} {correction_size:.6f} SOL-PERP")
+                Logger.info(f"[REBALANCER] Transaction: {tx_sig}")
+                
+                # Update last rebalance timestamp
+                self.last_rebalance = datetime.now()
+                save_last_rebalance_time()
+                
+                # Sync vault after rebalance
+                await self._sync_vault_from_drift()
+                
+                result["status"] = "executed_live"
+                result["message"] = f"[LIVE] {action} {correction_size:.4f} SOL-PERP @ ${sol_price:.2f}"
+                result["tx_signature"] = tx_sig
+                
+                Logger.success(result["message"])
+                
+            except ValueError as e:
+                # Validation errors (leverage limit, invalid market, etc.)
+                Logger.warning(f"[REBALANCER] Rebalance blocked by validation: {e}")
+                result["status"] = "blocked"
+                result["message"] = f"Rebalance blocked: {e}"
+                
+            except Exception as e:
+                # Execution errors
+                Logger.error(f"[REBALANCER] Rebalance execution failed: {e}")
+                result["status"] = "error"
+                result["message"] = f"Rebalance failed: {e}"
         
         return result
     
