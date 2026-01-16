@@ -98,8 +98,23 @@ class DriftFundingFeed:
         if self._drift is None:
             try:
                 from src.shared.infrastructure.drift_adapter import DriftAdapter
+                from src.drivers.wallet_manager import WalletManager
+                import asyncio
 
                 self._drift = DriftAdapter("mainnet")
+                
+                # Connect with wallet (synchronously for lazy init)
+                wallet_manager = WalletManager()
+                loop = asyncio.get_event_loop()
+                
+                # Try to connect - if it fails, we'll still return the adapter
+                # but is_connected will be False
+                try:
+                    loop.run_until_complete(self._drift.connect(wallet_manager, sub_account=0))
+                    Logger.info("[DriftFeed] Connected to Drift Protocol")
+                except Exception as conn_err:
+                    Logger.debug(f"[DriftFeed] Could not connect to Drift: {conn_err}")
+                    
             except Exception as e:
                 Logger.debug(f"Failed to load DriftAdapter: {e}")
         return self._drift
