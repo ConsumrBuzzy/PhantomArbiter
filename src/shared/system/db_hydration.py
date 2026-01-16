@@ -165,61 +165,64 @@ class DBHydrationManager:
         db_name = db_path.stem
         archive_path = self.ARCHIVE_DIR / f"{db_name}.json"
         
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        # Get all tables
-        cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        )
-        tables = [row[0] for row in cursor.fetchall()]
-        
-        # Export each table
-        archive_data = {
-            "database": db_name,
-            "exported_at": datetime.now().isoformat(),
-            "tables": {}
-        }
-        
-        total_rows = 0
-        
-        for table in tables:
-            try:
-                # Get table schema
-                cursor.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,))
-                schema = cursor.fetchone()[0]
-                
-                # Get all rows
-                cursor.execute(f"SELECT * FROM {table}")
-                rows = cursor.fetchall()
-                
-                # Convert rows to dicts and encode BLOBs
-                rows_data = [self._encode_row(dict(row)) for row in rows]
-                
-                archive_data["tables"][table] = {
-                    "schema": schema,
-                    "row_count": len(rows_data),
-                    "rows": rows_data
-                }
-                
-                total_rows += len(rows_data)
-                
-            except Exception as e:
-                Logger.warning(f"💧 [Dehydration] Failed to export table {table}: {e}")
-                continue
-        
-        conn.close()
-        
-        # Save to JSON
-        with open(archive_path, 'w') as f:
-            json.dump(archive_data, f, indent=2)
-        
-        return {
-            "archive_path": str(archive_path),
-            "tables_exported": len(archive_data["tables"]),
-            "total_rows": total_rows
-        }
+        conn = None
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get all tables
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            # Export each table
+            archive_data = {
+                "database": db_name,
+                "exported_at": datetime.now().isoformat(),
+                "tables": {}
+            }
+            
+            total_rows = 0
+            
+            for table in tables:
+                try:
+                    # Get table schema
+                    cursor.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,))
+                    schema = cursor.fetchone()[0]
+                    
+                    # Get all rows
+                    cursor.execute(f"SELECT * FROM {table}")
+                    rows = cursor.fetchall()
+                    
+                    # Convert rows to dicts and encode BLOBs
+                    rows_data = [self._encode_row(dict(row)) for row in rows]
+                    
+                    archive_data["tables"][table] = {
+                        "schema": schema,
+                        "row_count": len(rows_data),
+                        "rows": rows_data
+                    }
+                    
+                    total_rows += len(rows_data)
+                    
+                except Exception as e:
+                    Logger.warning(f"💧 [Dehydration] Failed to export table {table}: {e}")
+                    continue
+            
+            # Save to JSON
+            with open(archive_path, 'w') as f:
+                json.dump(archive_data, f, indent=2)
+            
+            return {
+                "archive_path": str(archive_path),
+                "tables_exported": len(archive_data["tables"]),
+                "total_rows": total_rows
+            }
+        finally:
+            if conn:
+                conn.close()
     
     # ═══════════════════════════════════════════════════════════════
     # HYDRATION: JSON → DB
