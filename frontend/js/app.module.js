@@ -110,6 +110,17 @@ class TradingOS {
         this.viewManager.switchView('dashboard');
     }
 
+    /**
+     * Fetch Funding Market Data (wrapper for app.js method)
+     * Called by ViewManager when Funding Engine view loads
+     */
+    async fetchFundingMarketData() {
+        // Delegate to the global app instance which has the fetchDriftMarkets method
+        if (window.app && window.app.fetchDriftMarkets) {
+            await window.app.fetchDriftMarkets();
+        }
+    }
+
 
 
 
