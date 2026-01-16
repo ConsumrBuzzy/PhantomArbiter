@@ -21,10 +21,8 @@ export class DashboardPage extends BasePage {
                                 <div class="inventory-label" style="color: var(--neon-red);">🔴 LIVE</div>
                                 <table id="live-inventory-table"><thead><tr><th>ASSET</th><th>AMOUNT</th><th>VALUE</th></tr></thead><tbody><tr><td colspan="3">Loading...</td></tr></tbody></table>
                             </div>
-                            <div class="inventory-half paper">
-                                <div class="inventory-label" style="color: var(--neon-blue);">🔵 PAPER</div>
-                                <table id="paper-inventory-table"><thead><tr><th>ASSET</th><th>AMOUNT</th><th>VALUE</th></tr></thead><tbody><tr><td colspan="3">Loading...</td></tr></tbody></table>
-                            </div>
+                            <!-- Legacy Paper logic removed -->
+                            <!-- <div class="inventory-half paper">...</div> -->
                         </div>
                     </section>
                 </div>
