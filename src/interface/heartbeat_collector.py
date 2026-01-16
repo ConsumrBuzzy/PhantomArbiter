@@ -641,7 +641,12 @@ class HeartbeatDataCollector:
     def _collect_engine_vaults(self, sol_price: float) -> Dict[str, Any]:
         """Aggregate all engine vaults."""
         from src.shared.state.vault_manager import get_vault_registry
-        return get_vault_registry().get_global_snapshot(sol_price)
+        snapshot = get_vault_registry().get_global_snapshot(sol_price)
+        # Debug log to verify we are seeing the vaults
+        if not snapshot.get("vaults"):
+            rows = get_vault_registry().get_all_vault_names()
+            Logger.debug(f"[Heartbeat] Vault Snapshot EMPTY. Registered Engines: {rows}")
+        return snapshot
 
     async def _collect_drift_markets(self) -> DriftMarketInfo:
         """
