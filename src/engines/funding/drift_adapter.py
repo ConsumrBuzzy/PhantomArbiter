@@ -198,16 +198,12 @@ class DriftAdapter:
         """
         Fetch current sub-account state.
         
-        Parses Drift account data to extract:
-        - Collateral (total value)
-        - Positions (perp positions with sizes and PnL)
-        - Maintenance margin requirement
-        - Health ratio
-        - Leverage
+        Uses the Drift Gateway API for accurate balance information.
+        Falls back to raw byte parsing if API is unavailable.
         
         Returns:
             dict with:
-                - collateral: Total collateral (SOL equivalent)
+                - collateral: Total collateral (USD)
                 - positions: List of position dicts
                 - margin_requirement: Maintenance margin
                 - health_ratio: Health ratio [0, 100]
@@ -220,20 +216,23 @@ class DriftAdapter:
             raise RuntimeError("Not connected to Drift. Call connect() first.")
         
         try:
-            # Fetch account data
-            account_info = await self.rpc_client.get_account_info(self.user_pda)
+            # Try to fetch from Drift Gateway API first (more accurate)
+            collateral = await self._fetch_collateral_from_api()
             
-            if not account_info.value:
-                raise RuntimeError(f"User account not found: {self.user_pda}")
-            
-            # Parse account data
-            data = bytes(account_info.value.data)
-            
-            # Parse collateral (simplified - using spot positions)
-            collateral = self._parse_collateral(data)
-            
-            # Parse perp positions
-            positions = self._parse_perp_positions(data)
+            if collateral is None:
+                # Fallback to raw byte parsing
+                Logger.warning("[DRIFT] API unavailable, using raw byte parsing (may be inaccurate)")
+                account_info = await self.rpc_client.get_account_info(self.user_pda)
+                
+                if not account_info.value:
+                    raise RuntimeError(f"User account not found: {self.user_pda}")
+                
+                data = bytes(account_info.value.data)
+                collateral = self._parse_collateral(data)
+                positions = self._parse_perp_positions(data)
+            else:
+                # Fetch positions from API too
+                positions = await self._fetch_positions_from_api()
             
             # Calculate maintenance margin
             margin_requirement = 0.0
@@ -263,6 +262,116 @@ class DriftAdapter:
         except Exception as e:
             Logger.error(f"[DRIFT] Failed to fetch account state: {e}")
             raise
+    
+    async def _fetch_collateral_from_api(self) -> Optional[float]:
+        """
+        Fetch collateral from Drift DLOB API.
+        
+        Uses the correct endpoint from https://docs.drift.trade/sdk-documentation
+        
+        Returns:
+            Total collateral in USD, or None if API unavailable
+        """
+        try:
+            import httpx
+            
+            # Get wallet address
+            if hasattr(self.wallet, 'pubkey'):
+                wallet_str = str(self.wallet.pubkey())
+            elif hasattr(self.wallet, 'keypair'):
+                wallet_str = str(self.wallet.keypair.pubkey())
+            else:
+                return None
+            
+            # Drift DLOB API (correct endpoint from docs.drift.trade)
+            url = f"https://dlob.drift.trade/user/{wallet_str}"
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code != 200:
+                    return None
+                
+                data = response.json()
+                
+                # Extract total collateral
+                total_collateral = float(data.get("totalCollateralValue", 0)) / 1e6
+                
+                return total_collateral
+                
+        except Exception as e:
+            Logger.debug(f"[DRIFT] API fetch failed: {e}")
+            return None
+    
+    async def _fetch_positions_from_api(self) -> List[Dict[str, Any]]:
+        """
+        Fetch positions from Drift Gateway API.
+        
+        Returns:
+            List of position dicts
+        """
+        try:
+            import httpx
+            
+            # Get wallet address
+            if hasattr(self.wallet, 'pubkey'):
+                wallet_str = str(self.wallet.pubkey())
+            elif hasattr(self.wallet, 'keypair'):
+                wallet_str = str(self.wallet.keypair.pubkey())
+            else:
+                return []
+            
+            # Drift Gateway API
+            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{wallet_str}"
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code != 200:
+                    return []
+                
+                data = response.json()
+                
+                # Parse perp positions
+                positions = []
+                for perp in data.get("perpPositions", []):
+                    base_amount = float(perp.get("baseAssetAmount", 0)) / 1e9
+                    
+                    if base_amount == 0:
+                        continue
+                    
+                    market_index = perp.get("marketIndex", 0)
+                    
+                    # Market names
+                    MARKET_NAMES = {
+                        0: "SOL-PERP",
+                        1: "BTC-PERP",
+                        2: "ETH-PERP",
+                        3: "APT-PERP",
+                        4: "1MBONK-PERP",
+                        5: "POL-PERP",
+                        6: "ARB-PERP",
+                        7: "DOGE-PERP",
+                        8: "BNB-PERP",
+                    }
+                    
+                    positions.append({
+                        "market": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
+                        "market_index": market_index,
+                        "side": "long" if base_amount > 0 else "short",
+                        "size": abs(base_amount),
+                        "entry_price": 0.0,  # TODO: Calculate from API data
+                        "mark_price": 150.0,  # TODO: Fetch from oracle
+                        "settled_pnl": 0.0,
+                        "unrealized_pnl": 0.0,
+                        "total_pnl": 0.0
+                    })
+                
+                return positions
+                
+        except Exception as e:
+            Logger.debug(f"[DRIFT] API position fetch failed: {e}")
+            return []
     
     def _parse_collateral(self, data: bytes) -> float:
         """
