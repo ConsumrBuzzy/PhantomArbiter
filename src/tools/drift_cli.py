@@ -80,8 +80,8 @@ def get_rpc_client() -> SolanaClient:
 def get_drift_balance(wallet_pubkey: str) -> Optional[DriftBalance]:
     """Fetch Drift account balance via API."""
     try:
-        # Drift API endpoint for user account
-        url = f"{DRIFT_API_URL}/v1/user/{wallet_pubkey}"
+        # Drift DLOB API endpoint for user account
+        url = f"{DRIFT_API_URL}/user/{wallet_pubkey}"
         response = requests.get(url, timeout=10)
 
         if response.status_code != 200:

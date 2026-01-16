@@ -204,7 +204,7 @@ class EngineVault:
             
             # Temporary: direct fetch to avoid circular deps or complex adapter changes right now
             import requests
-            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{wallet}"
+            url = f"https://dlob.drift.trade/user/{wallet}"
             resp = requests.get(url, timeout=2.0)
             
             if resp.status_code == 200:
