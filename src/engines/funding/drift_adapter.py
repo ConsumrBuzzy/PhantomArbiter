@@ -269,13 +269,13 @@ class DriftAdapter:
         Parse total collateral from account data.
         
         Parses spot positions to calculate total collateral.
-        Currently supports SOL (market index 0).
+        Supports USDC (market 0) and SOL (market 1).
         
         Args:
             data: Raw account data
         
         Returns:
-            Total collateral in USD equivalent
+            Total collateral in USD
         """
         # Calculate offsets
         DISCRIMINATOR = 8
@@ -285,13 +285,23 @@ class DriftAdapter:
         SPOT_POSITIONS_OFFSET = DISCRIMINATOR + AUTHORITY + DELEGATE + NAME
         SPOT_POSITION_SIZE = 40
         
+        # Drift spot market indices
+        SPOT_MARKETS = {
+            0: ("USDC", 10 ** 6, 1.0),      # (name, precision, usd_price)
+            1: ("SOL", 10 ** 9, 150.0),     # TODO: Fetch oracle price
+            2: ("mSOL", 10 ** 9, 150.0),
+            3: ("wBTC", 10 ** 8, 100000.0),
+            4: ("wETH", 10 ** 8, 3500.0),
+            5: ("USDT", 10 ** 6, 1.0),
+        }
+        
         total_collateral_usd = 0.0
         
         if len(data) < SPOT_POSITIONS_OFFSET + SPOT_POSITION_SIZE:
             return 0.0
         
         # Parse each spot position slot
-        for i in range(8):
+        for i in range(len(SPOT_MARKETS)):
             offset = SPOT_POSITIONS_OFFSET + (i * SPOT_POSITION_SIZE)
             
             if offset + SPOT_POSITION_SIZE > len(data):
@@ -304,16 +314,17 @@ class DriftAdapter:
             if scaled_balance == 0:
                 continue
             
-            # Convert to human-readable (Drift uses 10^9 precision for spot)
-            SPOT_PRECISION = 10 ** 9
-            balance = scaled_balance / SPOT_PRECISION
+            # Get market info
+            if i not in SPOT_MARKETS:
+                continue
             
-            # Market index 0 is SOL
-            # For now, assume all collateral is SOL and use a default price
-            # TODO: Fetch oracle prices for accurate USD conversion
-            if i == 0:  # SOL spot position
-                sol_price = 150.0  # Default price, should fetch from oracle
-                total_collateral_usd += balance * sol_price
+            market_name, precision, usd_price = SPOT_MARKETS[i]
+            
+            # Convert to human-readable
+            balance = scaled_balance / precision
+            
+            # Add to total collateral
+            total_collateral_usd += balance * usd_price
         
         return total_collateral_usd
     
