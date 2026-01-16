@@ -306,14 +306,24 @@ export class DriftController {
         try {
             console.log("[Drift] Fetching market data...");
             const response = await fetch('/api/drift/markets');
+            console.log("[Drift] Response status:", response.status);
+            
             const data = await response.json();
+            console.log("[Drift] Received data:", data);
 
             if (data.markets) {
+                console.log("[Drift] Rendering", data.markets.length, "markets");
                 this._renderMarkets(data.markets);
                 this._renderOpportunities(data.markets); // Highlight top APRs
+            } else {
+                console.warn("[Drift] No markets data in response");
             }
+            
             if (data.stats) {
+                console.log("[Drift] Rendering market stats");
                 this._renderMarketStats(data.stats);
+            } else {
+                console.warn("[Drift] No stats data in response");
             }
         } catch (e) {
             console.error("[Drift] Failed to fetch markets:", e);
