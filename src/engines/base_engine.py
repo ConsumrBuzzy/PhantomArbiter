@@ -76,7 +76,7 @@ class BaseEngine(ABC):
                 # PAPER EXECUTION
                 # 1. Get Price
                 # Use USDC as quote
-                quote = self.feed.get_spot_price(token_mint, JupiterFeed.USDC_MINT)
+                quote = await self.feed.get_spot_price(token_mint, JupiterFeed.USDC_MINT)
                 if not quote:
                     return {"success": False, "error": f"No price for {token_mint}"}
                 

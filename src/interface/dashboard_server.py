@@ -412,7 +412,7 @@ class DashboardServer:
                 sol_price = 150.0
                 try:
                     if hasattr(self, '_val_feed'):
-                        quote = self._val_feed.get_spot_price("SOL", "USDC")
+                        quote = await self._val_feed.get_spot_price("SOL", "USDC")
                         if quote and quote.price > 0:
                             sol_price = quote.price
                 except Exception:

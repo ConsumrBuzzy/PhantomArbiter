@@ -179,7 +179,7 @@ class TriangularEngine:
 
             feed = JupiterFeed()
             USDC = self.TOKENS["USDC"]
-            spot = feed.get_spot_price(mint, USDC)
+            spot = await feed.get_spot_price(mint, USDC)
 
             return spot.price if spot else None
 
