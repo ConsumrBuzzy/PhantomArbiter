@@ -246,8 +246,9 @@ export class ViewManager {
             refreshBtn.onclick = () => {
                 const icon = refreshBtn.querySelector('.fa-sync');
                 if (icon) icon.classList.add('spinning');
-                if (this.app.fetchFundingMarketData) {
-                    this.app.fetchFundingMarketData().then(() => {
+                // Use window.app to access the fetchDriftMarkets method from app.js
+                if (window.app && window.app.fetchDriftMarkets) {
+                    window.app.fetchDriftMarkets().then(() => {
                         setTimeout(() => icon?.classList.remove('spinning'), 500);
                     });
                 }
@@ -260,9 +261,14 @@ export class ViewManager {
             this.app.ws.send('GET_DRIFT_MARKETS', {});
         }
 
-        if (this.app.fetchFundingMarketData) {
-            this.app.fetchFundingMarketData();
-        }
+        // Trigger initial market data fetch using window.app
+        // Wait a bit for DOM to be ready
+        setTimeout(() => {
+            if (window.app && window.app.fetchDriftMarkets) {
+                console.log('[ViewManager] Triggering initial funding market fetch');
+                window.app.fetchDriftMarkets();
+            }
+        }, 500);
     }
 
     registerDashboardComponents(components) {
