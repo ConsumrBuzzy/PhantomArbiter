@@ -126,26 +126,26 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Add leverage display
   - _Requirements: 4.1, 4.2_
 
-- [-] 3.2 Implement handleTakePosition(market, direction) method
+- [x] 3.2 Implement handleTakePosition(market, direction) method
   - Show position size modal
   - Pre-fill market and direction
   - Calculate suggested size based on available collateral
   - _Requirements: 4.1_
 
-- [ ] 3.3 Implement confirmTakePosition() method
+- [x] 3.3 Implement confirmTakePosition() method
   - Validate size input (min: 0.005 SOL, max: available collateral)
   - Calculate expected leverage
   - Show confirmation with trade details
   - _Requirements: 4.2, 6.7_
 
-- [ ] 3.4 Send DRIFT_OPEN_POSITION command
+- [x] 3.4 Send DRIFT_OPEN_POSITION command
   - Build WebSocket command payload
   - Include market, direction, size
   - Show loading state on button
   - Disable all action buttons during execution
   - _Requirements: 4.3, 8.6_
 
-- [ ] 3.5 Handle COMMAND_RESULT response
+- [x] 3.5 Handle COMMAND_RESULT response
   - Show success toast with transaction signature
   - Show error toast with error message
   - Re-enable action buttons
@@ -164,26 +164,26 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Handle responses
   - _Requirements: 4.8, 4.10, 4.12, 8.7_
 
-- [ ] 4.1 Add "Leave" button to positions table
+- [x] 4.1 Add "Leave" button to positions table
   - Add button to each position row
   - Show position details (market, size, PnL)
   - Disable if no position exists
   - _Requirements: 4.8_
 
-- [ ] 4.2 Implement handleLeavePosition(market) method
+- [x] 4.2 Implement handleLeavePosition(market) method
   - Show confirmation modal
   - Display position details (size, entry, mark, PnL)
   - Calculate expected proceeds
   - _Requirements: 4.8_
 
-- [ ] 4.3 Implement confirmLeavePosition() method
+- [x] 4.3 Implement confirmLeavePosition() method
   - Send DRIFT_CLOSE_POSITION command
   - Include market name
   - Show loading state
   - Disable all action buttons
   - _Requirements: 4.9, 8.7_
 
-- [ ] 4.4 Handle position close response
+- [x] 4.4 Handle position close response
   - Show success toast with PnL
   - Show error toast if failed
   - Update positions table

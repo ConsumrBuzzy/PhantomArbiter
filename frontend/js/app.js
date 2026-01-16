@@ -227,6 +227,12 @@ class DashboardApp {
                 this.updateInventory(data);
                 break;
 
+            case 'COMMAND_RESULT':
+                // Task 3.5 & 4.4: Handle position command responses
+                // Requirements: 8.8, 8.9
+                this.handleCommandResult(data);
+                break;
+
             default:
                 // Unhandled packet type
                 break;
@@ -1113,15 +1119,316 @@ class DashboardApp {
 
     /**
      * Handle "Take Position" button click
-     * Task 3.1-3.3: Implement handleTakePosition() method
-     * Requirements: 4.1, 4.2
+     * Task 3.2: Implement handleTakePosition(market, direction) method
+     * Requirements: 4.1
      */
     handleTakePosition(market, direction, apr) {
-        // TODO: Implement position size modal (Phase 3)
         console.log('[DRIFT] Take position:', market, direction, apr);
         this.addLog('DRIFT', 'INFO', `Opening position modal for ${market} (${direction})`);
+        
+        // Store current position data
+        this.currentPositionData = {
+            market,
+            direction,
+            apr
+        };
+        
+        // Get current engine state for available collateral
+        const fundingState = this.engineStates['funding'] || {};
+        const availableCollateral = fundingState.free_collateral || 0;
+        const solPrice = fundingState.sol_price || 150;
+        const availableSol = availableCollateral / solPrice;
+        
+        // Populate modal
+        document.getElementById('drift-modal-market').textContent = market;
+        document.getElementById('drift-modal-direction').textContent = direction.toUpperCase();
+        document.getElementById('drift-modal-apr').textContent = `${apr >= 0 ? '+' : ''}${apr.toFixed(2)}%`;
+        document.getElementById('drift-modal-available').textContent = availableSol.toFixed(3);
+        
+        // Reset input
+        const sizeInput = document.getElementById('drift-position-size');
+        sizeInput.value = '';
+        sizeInput.max = availableSol.toFixed(3);
+        
+        // Reset leverage preview
+        document.getElementById('drift-modal-leverage').textContent = '0.0x';
+        document.getElementById('drift-modal-cost').textContent = '$0.00';
+        document.getElementById('drift-modal-health-after').textContent = '100%';
+        
+        // Hide warning
+        document.getElementById('drift-modal-warning').style.display = 'none';
+        
+        // Bind input change handler for live preview
+        sizeInput.oninput = () => this.updatePositionPreview();
+        
+        // Show modal
+        document.getElementById('drift-position-modal').style.display = 'flex';
+    }
+    
+    /**
+     * Update position preview as user types size
+     * Task 3.3: Implement confirmTakePosition() method (preview part)
+     * Requirements: 4.2, 6.7
+     */
+    updatePositionPreview() {
+        const sizeInput = document.getElementById('drift-position-size');
+        const size = parseFloat(sizeInput.value) || 0;
+        
+        // Get current state
+        const fundingState = this.engineStates['funding'] || {};
+        const solPrice = fundingState.sol_price || 150;
+        const currentEquity = fundingState.equity || 1000;
+        const currentLeverage = fundingState.leverage || 0;
+        const currentHealth = fundingState.health || 100;
+        
+        // Calculate new metrics
+        const positionValue = size * solPrice;
+        const newLeverage = ((currentLeverage * currentEquity) + positionValue) / currentEquity;
+        const estimatedCost = positionValue * 0.001; // 0.1% fee estimate
+        
+        // Estimate health after (simplified)
+        const marginRequired = positionValue * 0.05; // 5% maintenance margin
+        const healthAfter = Math.max(0, Math.min(100, ((currentEquity - estimatedCost) / (marginRequired + (currentEquity * currentLeverage * 0.05))) * 100));
+        
+        // Update preview
+        document.getElementById('drift-modal-leverage').textContent = `${newLeverage.toFixed(2)}x`;
+        document.getElementById('drift-modal-cost').textContent = `$${estimatedCost.toFixed(2)}`;
+        document.getElementById('drift-modal-health-after').textContent = `${healthAfter.toFixed(1)}%`;
+        
+        // Show warnings
+        const warningEl = document.getElementById('drift-modal-warning');
+        const warningText = document.getElementById('drift-modal-warning-text');
+        const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+        
+        if (size < 0.005) {
+            warningEl.style.display = 'block';
+            warningText.textContent = 'Minimum position size is 0.005 SOL';
+            confirmBtn.disabled = true;
+        } else if (newLeverage > 5.0) {
+            warningEl.style.display = 'block';
+            warningText.textContent = `Leverage ${newLeverage.toFixed(2)}x exceeds maximum 5.0x`;
+            confirmBtn.disabled = true;
+        } else if (healthAfter < 60) {
+            warningEl.style.display = 'block';
+            warningText.textContent = `Health would drop to ${healthAfter.toFixed(1)}% (minimum 60%)`;
+            confirmBtn.disabled = true;
+        } else {
+            warningEl.style.display = 'none';
+            confirmBtn.disabled = false;
+        }
+    }
+    
+    /**
+     * Confirm and execute position
+     * Task 3.4: Send DRIFT_OPEN_POSITION command
+     * Requirements: 4.3, 8.6
+     */
+    confirmPosition() {
+        const size = parseFloat(document.getElementById('drift-position-size').value);
+        
+        if (!size || size < 0.005) {
+            alert('Please enter a valid position size (min 0.005 SOL)');
+            return;
+        }
+        
+        const { market, direction } = this.currentPositionData;
+        
+        // Show loading state
+        const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Opening...';
+        
+        // Send WebSocket command
+        // Task 3.4: Send DRIFT_OPEN_POSITION command
+        this.sendCommand('DRIFT_OPEN_POSITION', {
+            market,
+            direction,
+            size
+        });
+        
+        this.addLog('DRIFT', 'INFO', `Opening ${direction} position: ${size} ${market}`);
+    }
+    
+    /**
+     * Handle "Leave Position" button click
+     * Task 4.2: Implement handleLeavePosition(market) method
+     * Requirements: 4.8
+     */
+    handleLeavePosition(market) {
+        console.log('[DRIFT] Leave position:', market);
+        this.addLog('DRIFT', 'INFO', `Opening close modal for ${market}`);
+        
+        // Find position in current state
+        const fundingState = this.engineStates['funding'] || {};
+        const positions = fundingState.positions || [];
+        const position = positions.find(p => p.market === market);
+        
+        if (!position) {
+            alert('Position not found');
+            return;
+        }
+        
+        // Store current position
+        this.currentClosePosition = position;
+        
+        // Populate modal
+        document.getElementById('drift-close-modal-market').textContent = position.market;
+        document.getElementById('drift-close-modal-side').textContent = position.amount < 0 ? 'SHORT' : 'LONG';
+        document.getElementById('drift-close-modal-size').textContent = `${Math.abs(position.amount).toFixed(3)} SOL`;
+        document.getElementById('drift-close-modal-entry').textContent = `$${position.entry_price.toFixed(2)}`;
+        document.getElementById('drift-close-modal-mark').textContent = `$${position.mark_price.toFixed(2)}`;
+        
+        // PnL color
+        const pnlEl = document.getElementById('drift-close-modal-pnl');
+        const pnl = position.unrealized_pnl || 0;
+        pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+        pnlEl.style.color = pnl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        
+        // Expected proceeds
+        const proceeds = Math.abs(position.amount) * position.mark_price;
+        document.getElementById('drift-close-modal-proceeds').textContent = `$${proceeds.toFixed(2)}`;
+        
+        // Show modal
+        document.getElementById('drift-close-modal').style.display = 'flex';
+    }
+    
+    /**
+     * Confirm and execute position close
+     * Task 4.3: Implement confirmLeavePosition() method
+     * Requirements: 4.9, 8.7
+     */
+    confirmClose() {
+        if (!this.currentClosePosition) {
+            alert('No position selected');
+            return;
+        }
+        
+        const market = this.currentClosePosition.market;
+        
+        // Show loading state
+        const confirmBtn = document.getElementById('drift-close-modal-confirm-btn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Closing...';
+        
+        // Send WebSocket command
+        // Task 4.3: Send DRIFT_CLOSE_POSITION command
+        this.sendCommand('DRIFT_CLOSE_POSITION', {
+            market
+        });
+        
+        this.addLog('DRIFT', 'INFO', `Closing position: ${market}`);
+    }
+    
+    /**
+     * Close position modal
+     */
+    closeModal() {
+        document.getElementById('drift-position-modal').style.display = 'none';
+        
+        // Reset button state
+        const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Position';
+    }
+    
+    /**
+     * Close close-position modal
+     */
+    closeCloseModal() {
+        document.getElementById('drift-close-modal').style.display = 'none';
+        
+        // Reset button state
+        const confirmBtn = document.getElementById('drift-close-modal-confirm-btn');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-times-circle"></i> Close Position';
+    }
+    
+    /**
+     * Handle COMMAND_RESULT from WebSocket
+     * Task 3.5 & 4.4: Handle position command responses
+     * Requirements: 8.8, 8.9
+     */
+    handleCommandResult(data) {
+        const { action, success, message, tx_signature } = data;
+        
+        if (action === 'DRIFT_OPEN_POSITION') {
+            if (success) {
+                this.addLog('DRIFT', 'SUCCESS', `Position opened: ${message}`);
+                if (tx_signature) {
+                    this.addLog('DRIFT', 'INFO', `TX: ${tx_signature}`);
+                }
+                this.closeModal();
+                // Show success toast
+                this.showToast('success', 'Position Opened', message);
+            } else {
+                this.addLog('DRIFT', 'ERROR', `Failed to open position: ${message}`);
+                // Re-enable button
+                const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Position';
+                // Show error toast
+                this.showToast('error', 'Position Failed', message);
+            }
+        } else if (action === 'DRIFT_CLOSE_POSITION') {
+            if (success) {
+                this.addLog('DRIFT', 'SUCCESS', `Position closed: ${message}`);
+                this.closeCloseModal();
+                // Show success toast
+                this.showToast('success', 'Position Closed', message);
+            } else {
+                this.addLog('DRIFT', 'ERROR', `Failed to close position: ${message}`);
+                // Re-enable button
+                const confirmBtn = document.getElementById('drift-close-modal-confirm-btn');
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fa-solid fa-times-circle"></i> Close Position';
+                // Show error toast
+                this.showToast('error', 'Close Failed', message);
+            }
+        }
+    }
+    
+    /**
+     * Show toast notification
+     */
+    showToast(type, title, message) {
+        // Simple toast implementation (can be enhanced with a toast library)
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? 'rgba(0,255,136,0.2)' : 'rgba(255,60,60,0.2)'};
+            border: 1px solid ${type === 'success' ? 'var(--neon-green)' : 'var(--neon-red)'};
+            border-radius: 8px;
+            padding: 15px 20px;
+            color: white;
+            z-index: 10000;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        `;
+        toast.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 5px;">${title}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">${message}</div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// GLOBAL FUNCTIONS (for onclick handlers in HTML)
+// ═══════════════════════════════════════════════════════════════
+
+window.driftCloseModal = () => window.app.closeModal();
+window.driftConfirmPosition = () => window.app.confirmPosition();
+window.driftCloseCloseModal = () => window.app.closeCloseModal();
+window.driftConfirmClose = () => window.app.confirmClose();
 
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL INIT
