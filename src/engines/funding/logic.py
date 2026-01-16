@@ -149,12 +149,55 @@ class FundingEngine(BaseEngine):
     
     Monitors the delta between spot SOL and perp short position.
     When drift exceeds tolerance, executes corrective trades.
+    
+    Supports both paper mode (VirtualDriver) and live mode (DriftAdapter).
     """
     
     def __init__(self, live_mode: bool = False, config: Optional[RebalanceConfig] = None):
         super().__init__("funding", live_mode)
         self.config = config or RebalanceConfig()
         self.last_rebalance = load_last_rebalance_time()
+        self.drift_adapter: Optional[Any] = None  # Will be initialized on start
+        self._last_health_warning: Optional[datetime] = None
+        self._health_warning_cooldown = 60  # seconds between warnings
+    
+    async def start(self):
+        """Start the engine and initialize adapters."""
+        # Initialize DriftAdapter for live mode
+        if self.live_mode:
+            from src.engines.funding.drift_adapter import DriftAdapter
+            from src.drivers.wallet_manager import WalletManager
+            
+            Logger.info("[FUNDING] Initializing live mode with DriftAdapter...")
+            
+            # Create adapter
+            self.drift_adapter = DriftAdapter(network="mainnet")
+            
+            # Load wallet
+            wallet_manager = WalletManager()
+            
+            # Connect to Drift
+            success = await self.drift_adapter.connect(wallet_manager, sub_account=0)
+            
+            if not success:
+                Logger.error("[FUNDING] Failed to connect to Drift Protocol")
+                Logger.error("[FUNDING] Please ensure your Drift account is initialized")
+                return
+            
+            Logger.success("[FUNDING] ✅ Connected to Drift Protocol (Live Mode)")
+        
+        # Call parent start
+        await super().start()
+    
+    async def stop(self):
+        """Stop the engine and cleanup."""
+        # Disconnect from Drift if connected
+        if self.drift_adapter:
+            await self.drift_adapter.disconnect()
+            self.drift_adapter = None
+        
+        # Call parent stop
+        await super().stop()
         
     async def tick(self):
         """Single execution step."""
@@ -174,25 +217,83 @@ class FundingEngine(BaseEngine):
         """
         Check delta drift and rebalance if needed.
         
+        Supports both paper mode (VirtualDriver) and live mode (DriftAdapter).
+        
         Returns:
-            dict with status, drift_pct, action_taken, etc.
+            dict with status, drift_pct, action_taken, health, leverage, positions, etc.
         """
         load_dotenv()
         
-        # Load wallet
+        # Load wallet for live mode
         private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
-        if not private_key:
-            return {"status": "error", "message": "No private key found"}
         
-        secret_bytes = base58.b58decode(private_key)
-        keypair = Keypair.from_bytes(secret_bytes)
-        wallet_pk = keypair.pubkey()
-        user_pda = derive_user_account(wallet_pk)
+        if self.live_mode and self.drift_adapter:
+            # ═══════════════════════════════════════════════════════════════
+            # LIVE MODE: Use DriftAdapter
+            # ═══════════════════════════════════════════════════════════════
+            try:
+                # Fetch account state from Drift
+                account_state = await self.drift_adapter.get_account_state()
+                
+                # Get wallet SOL balance
+                if not private_key:
+                    return {"status": "error", "message": "No private key found"}
+                
+                secret_bytes = base58.b58decode(private_key)
+                keypair = Keypair.from_bytes(secret_bytes)
+                wallet_pk = keypair.pubkey()
+                
+                rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
+                async with AsyncClient(rpc_url) as client:
+                    sol_balance = await client.get_balance(wallet_pk)
+                    spot_sol = sol_balance.value / (10 ** SOL_DECIMALS)
+                
+                # Extract data from account state
+                collateral = account_state['collateral']
+                raw_positions = account_state['positions']
+                health_ratio = account_state['health_ratio']
+                leverage = account_state['leverage']
+                margin_requirement = account_state['margin_requirement']
+                
+                # Find SOL-PERP position
+                perp_sol = 0.0
+                sol_price = 150.0  # Default
+                
+                for pos in raw_positions:
+                    if pos['market'] == 'SOL-PERP':
+                        perp_sol = -pos['size'] if pos['side'] == 'short' else pos['size']
+                        sol_price = pos['mark_price']
+                        break
+                
+                # Calculate equity
+                equity = collateral
+                
+                # Reformat positions for UI (match paper mode format)
+                positions = []
+                for pos in raw_positions:
+                    positions.append({
+                        "market": pos["market"],
+                        "amount": -pos["size"] if pos["side"] == "short" else pos["size"],
+                        "entry_price": pos["entry_price"],
+                        "mark_price": pos["mark_price"],
+                        "pnl": pos["total_pnl"],
+                        "liq_price": 0.0,  # TODO: Calculate liquidation price
+                        "settled_pnl": pos["settled_pnl"],
+                        "unsettled_pnl": 0.0,  # TODO: Parse unsettled PnL
+                        "unrealized_pnl": pos["unrealized_pnl"]
+                    })
+                
+                # Emit health warnings
+                await self._check_health_warnings(health_ratio)
+                
+            except Exception as e:
+                Logger.error(f"[FUNDING] Live mode error: {e}")
+                return {"status": "error", "message": f"Live mode error: {e}"}
         
-        rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
-        
-        if not self.live_mode and self.driver:
-            # PAPER MODE: Fetch from VirtualDriver
+        elif not self.live_mode and self.driver:
+            # ═══════════════════════════════════════════════════════════════
+            # PAPER MODE: Use VirtualDriver
+            # ═══════════════════════════════════════════════════════════════
             balances = self.driver.get_balances()
             spot_sol = balances.get("SOL", 0.0)
             
@@ -201,7 +302,6 @@ class FundingEngine(BaseEngine):
             perp_pos = positions_data.get("SOL-PERP")
             
             if perp_pos:
-                # Short positions have negative size in our tracking
                 perp_sol = -perp_pos.size if perp_pos.side == "short" else perp_pos.size
                 sol_price = self.driver._current_prices.get("SOL-PERP", 150.0)
             else:
@@ -209,37 +309,44 @@ class FundingEngine(BaseEngine):
                 sol_price = self.driver._current_prices.get("SOL-PERP", 150.0)
             
             quote_amount = balances.get("USDC", 1000.0)
-
-        elif private_key:
-            # LIVE (or Read-Only) MODE: Fetch from RPC
-            async with AsyncClient(rpc_url) as client:
-                # Fetch current positions
-                try:
-                    sol_balance = await client.get_balance(wallet_pk)
-                    spot_sol = sol_balance.value / (10 ** SOL_DECIMALS)
-                    
-                    user_info = await client.get_account_info(user_pda)
-                    if not user_info.value:
-                        perp_sol = 0.0
-                        quote_amount = 0.0
-                    else:
-                        data = bytes(user_info.value.data)
-                        position = parse_perp_position(data, market_index=0)
-                        
-                        if not position:
-                             perp_sol = 0.0
-                             quote_amount = 0.0
-                        else:
-                             perp_sol = position["base_asset_amount"] / (10 ** SOL_DECIMALS)
-                             quote_amount = position["quote_asset_amount"] / (10 ** USDC_DECIMALS)
-                    
-                    # Rough price estimate (mocking oracle)
-                    sol_price = 150.0 # TODO: Fetch from Pyth or Jupiter
-                except Exception as e:
-                     return {"status": "error", "message": f"RPC Error: {e}"}
+            
+            # Calculate metrics using VirtualDriver
+            maint_margin = 0.0
+            for symbol, position in self.driver.positions.items():
+                current_price = self.driver._current_prices.get(symbol, position.entry_price)
+                maint_margin += position.calculate_maintenance_margin(current_price)
+            
+            health_ratio = self.driver.calculate_health_ratio()
+            equity = spot_sol * sol_price + quote_amount
+            leverage = 0.0
+            if equity > 0:
+                perp_usd = abs(perp_sol) * sol_price
+                leverage = perp_usd / equity
+            
+            margin_requirement = maint_margin
+            
+            # Build positions list
+            positions = []
+            for pos_dict in self.driver.get_paper_positions():
+                positions.append({
+                    "market": pos_dict["symbol"],
+                    "amount": -pos_dict["size"] if pos_dict["side"] == "short" else pos_dict["size"],
+                    "entry_price": pos_dict["entry_price"],
+                    "mark_price": pos_dict["current_price"],
+                    "pnl": pos_dict["total_pnl"],
+                    "liq_price": 0.0,
+                    "settled_pnl": pos_dict["settled_pnl"],
+                    "unsettled_pnl": pos_dict["unsettled_pnl"],
+                    "unrealized_pnl": pos_dict["unrealized_pnl"]
+                })
+        
         else:
-             return {"status": "error", "message": "No private key"}
+            return {"status": "error", "message": "No driver or adapter initialized"}
 
+        # ═══════════════════════════════════════════════════════════════
+        # COMMON LOGIC: Delta calculation and rebalancing
+        # ═══════════════════════════════════════════════════════════════
+        
         # Calculate delta
         hedgeable_spot = max(0, spot_sol - self.config.reserved_sol)
         net_delta = hedgeable_spot + perp_sol  # perp_sol is negative for shorts
@@ -250,58 +357,7 @@ class FundingEngine(BaseEngine):
         
         abs_drift = abs(drift_pct)
         
-        # --- ENRICH DATA FOR UI ---
-        spot_usd = spot_sol * sol_price
-        perp_usd = abs(perp_sol) * sol_price
-        
-        # Calculate maintenance margin using VirtualDriver if available
-        if not self.live_mode and self.driver:
-            maint_margin = 0.0
-            for symbol, position in self.driver.positions.items():
-                current_price = self.driver._current_prices.get(symbol, position.entry_price)
-                maint_margin += position.calculate_maintenance_margin(current_price)
-            
-            # Calculate health ratio
-            health_ratio = self.driver.calculate_health_ratio()
-        else:
-            # Live mode or fallback
-            maint_margin = perp_usd * 0.05
-            equity = spot_usd + quote_amount
-            health_ratio = ((equity - maint_margin) / equity * 100) if equity > 0 else 0.0
-        
-        equity = spot_usd + quote_amount  # Approx
-        
-        leverage = 0.0
-        if equity > 0:
-            leverage = perp_usd / equity
-
-        # Build positions list with enriched data
-        positions_list = []
-        if not self.live_mode and self.driver:
-            # Use VirtualDriver's enriched position data
-            for pos_dict in self.driver.get_paper_positions():
-                positions_list.append({
-                    "market": pos_dict["symbol"],
-                    "amount": -pos_dict["size"] if pos_dict["side"] == "short" else pos_dict["size"],
-                    "entry_price": pos_dict["entry_price"],
-                    "mark_price": pos_dict["current_price"],
-                    "pnl": pos_dict["total_pnl"],
-                    "liq_price": 0.0,  # TODO: Calculate liquidation price
-                    "settled_pnl": pos_dict["settled_pnl"],
-                    "unsettled_pnl": pos_dict["unsettled_pnl"],
-                    "unrealized_pnl": pos_dict["unrealized_pnl"]
-                })
-        elif abs(perp_sol) > 0.0001:
-            # Fallback for live mode
-            positions_list.append({
-                "market": "SOL-PERP",
-                "amount": perp_sol,
-                "entry_price": 0.0,
-                "mark_price": sol_price,
-                "pnl": 0.0,
-                "liq_price": 0.0
-            })
-
+        # Build result
         result = {
             "timestamp": datetime.now().isoformat(),
             "spot_sol": spot_sol,
@@ -312,14 +368,14 @@ class FundingEngine(BaseEngine):
             "action_taken": None,
             "tx_signature": None,
             
-            # UI Metrics (enriched)
+            # UI Metrics
             "health": health_ratio,
             "total_collateral": equity,
             "equity": equity,
-            "maintenance_margin": maint_margin,
+            "maintenance_margin": margin_requirement,
             "leverage": leverage,
-            "positions": positions_list,
-            "free_collateral": max(0, equity - maint_margin)
+            "positions": positions,
+            "free_collateral": max(0, equity - margin_requirement)
         }
             
         # Check if rebalance needed
@@ -347,11 +403,9 @@ class FundingEngine(BaseEngine):
         
         # Determine trade direction
         if net_delta > 0:
-            # Net long - need to increase short
             action = "EXPAND_SHORT"
             Logger.info(f"[REBALANCER] Net delta +{net_delta:.6f} SOL - expanding short by {correction_size:.6f}")
         else:
-            # Net short - need to reduce short
             action = "REDUCE_SHORT"
             Logger.info(f"[REBALANCER] Net delta {net_delta:.6f} SOL - reducing short by {correction_size:.6f}")
         
@@ -359,15 +413,11 @@ class FundingEngine(BaseEngine):
         result["correction_size"] = correction_size
         
         # Execute trade
-        # Execute trade
         if simulate:
             if self.driver:
-                 # Paper Mode Execution (VirtualDriver)
+                 # Paper Mode Execution
                  from src.shared.drivers.virtual_driver import VirtualOrder
                  
-                 # Map action to side
-                 # EXPAND_SHORT = Sell SOL-PERP (Open Short)
-                 # REDUCE_SHORT = Buy SOL-PERP (Close Short)
                  side = "sell" if action == "EXPAND_SHORT" else "buy" 
                  
                  order = VirtualOrder(
@@ -388,26 +438,57 @@ class FundingEngine(BaseEngine):
                  result["message"] = f"Would {action} by {correction_size:.6f} SOL"
                  Logger.info(f"[REBALANCER] SIMULATION: {result['message']}")
         else:
-            try:
-                tx_sig = await self._execute_rebalance(
-                    client, keypair, wallet_pk, action, correction_size
-                )
-                result["status"] = "executed"
-                result["tx_signature"] = tx_sig
-                result["message"] = f"Executed {action}: {tx_sig}"
-                
-                # Update cooldown
-                save_last_rebalance_time()
-                self.last_rebalance = datetime.now()
-                
-                Logger.success(f"[REBALANCER] ✅ Rebalance complete: {tx_sig}")
-                
-            except Exception as e:
-                result["status"] = "error"
-                result["message"] = f"Execution failed: {e}"
-                Logger.error(f"[REBALANCER] ❌ Execution error: {e}")
+            # Live execution (Phase 4)
+            result["status"] = "error"
+            result["message"] = "Live trading not implemented yet (Phase 4)"
+            Logger.warning("[REBALANCER] Live trading requires Phase 4 implementation")
         
         return result
+    
+    async def _check_health_warnings(self, health_ratio: float):
+        """
+        Emit health warnings based on thresholds.
+        
+        - Warning: health < 50%
+        - Critical: health < 20%
+        
+        Args:
+            health_ratio: Current health ratio [0, 100]
+        """
+        now = datetime.now()
+        
+        # Check cooldown
+        if self._last_health_warning:
+            time_since_last = (now - self._last_health_warning).total_seconds()
+            if time_since_last < self._health_warning_cooldown:
+                return
+        
+        # Emit warnings
+        if health_ratio < 20:
+            Logger.error(f"[FUNDING] 🚨 CRITICAL: Health ratio {health_ratio:.1f}% - Risk of liquidation!")
+            self._last_health_warning = now
+            
+            # Broadcast to UI if callback available
+            if self._callback:
+                await self._callback({
+                    "type": "HEALTH_ALERT",
+                    "level": "CRITICAL",
+                    "health": health_ratio,
+                    "message": f"Health ratio {health_ratio:.1f}% - Risk of liquidation!"
+                })
+        
+        elif health_ratio < 50:
+            Logger.warning(f"[FUNDING] ⚠️  WARNING: Health ratio {health_ratio:.1f}% - Consider adding collateral")
+            self._last_health_warning = now
+            
+            # Broadcast to UI if callback available
+            if self._callback:
+                await self._callback({
+                    "type": "HEALTH_ALERT",
+                    "level": "WARNING",
+                    "health": health_ratio,
+                    "message": f"Health ratio {health_ratio:.1f}% - Consider adding collateral"
+                })
     
     async def _execute_rebalance(
         self, 

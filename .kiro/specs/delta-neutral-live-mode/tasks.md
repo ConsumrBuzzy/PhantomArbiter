@@ -88,7 +88,7 @@ The implementation follows these phases:
   - **Property 2: Health Ratio Bounds**
   - **Validates: Requirements 2.3**
 
-- [ ] 6. Integrate live monitoring into FundingEngine
+- [x] 6. Integrate live monitoring into FundingEngine
   - Update `check_and_rebalance()` to use DriftAdapter in live mode
   - Implement polling loop with configurable interval (default 10s)
   - Add health ratio warning emission (< 50%)
@@ -96,11 +96,11 @@ The implementation follows these phases:
   - Ensure WebSocket broadcast within 500ms of state change
   - _Requirements: 2.4, 2.5, 2.8, 2.9_
 
-- [ ] 6.1 Write property test for WebSocket response timeliness
+- [x] 6.1 Write property test for WebSocket response timeliness
   - **Property 11: WebSocket Response Timeliness**
   - **Validates: Requirements 2.9, 8.8**
 
-- [ ] 6.2 Write unit tests for live monitoring
+- [x] 6.2 Write unit tests for live monitoring
   - Test account state fetch and parse
   - Test health warnings at correct thresholds
   - Test WebSocket broadcast format
