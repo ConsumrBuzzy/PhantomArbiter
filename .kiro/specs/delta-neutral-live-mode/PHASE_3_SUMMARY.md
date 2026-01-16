@@ -243,15 +243,17 @@ Drift Protocol (Solana)
 
 ## Next Steps
 
-### Immediate (Task 10)
-1. Implement Engine_Vault synchronization
-2. Update vault balance after deposit/withdraw
-3. Add sync verification and retry logic
-4. Write property and unit tests
+### Task 12: Manual Testing Checkpoint
+1. Test deposit via UI with vault sync verification
+2. Test withdrawal via UI with vault sync verification
+3. Verify vault balances in database
+4. Test retry logic with simulated failures
 
-### After Task 10
+### After Phase 3
 1. Complete Task 12 checkpoint (manual testing)
 2. Proceed to Phase 4 (Live Mode Trading)
+3. Implement position opening/closing
+4. Add safety gates and risk controls
 
 ---
 
