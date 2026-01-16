@@ -248,7 +248,7 @@ class AtomicExecutor:
             }
 
             spot_feed = JupiterFeed()
-            spot_price_obj = spot_feed.get_spot_price(MINTS.get(coin, ""), USDC)
+            spot_price_obj = await spot_feed.get_spot_price(MINTS.get(coin, ""), USDC)
             spot_price = spot_price_obj.price if spot_price_obj else None
 
             funding_feed = MockDriftFundingFeed()
