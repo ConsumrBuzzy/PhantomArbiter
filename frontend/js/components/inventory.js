@@ -31,6 +31,8 @@ export class Inventory {
         // 2. Update Dynamic Strategy Vaults
         if (data.vaults) {
             Object.entries(data.vaults).forEach(([engineName, vaultData]) => {
+                // Skip 'global' or 'total_equity' artifacts if any remain
+                if (engineName.toLowerCase() === 'global') return;
                 this.updateStrategyVault(engineName, vaultData);
             });
         }
