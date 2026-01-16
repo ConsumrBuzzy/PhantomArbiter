@@ -321,8 +321,11 @@ export class DriftController {
     }
 
     _renderMarkets(markets) {
-        const tbody = document.getElementById('drift-funding-body');
-        if (!tbody) return;
+        const tbody = document.getElementById('funding-funding-body');
+        if (!tbody) {
+            console.warn('[DriftController] funding-funding-body element not found');
+            return;
+        }
 
         tbody.innerHTML = '';
 
