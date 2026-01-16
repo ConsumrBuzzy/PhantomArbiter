@@ -1343,8 +1343,7 @@ class DriftAdapter:
             return []
         
         try:
-            from driftpy.drift_client import DriftClient
-            from driftpy.wallet import Wallet
+            from driftpy.drift_client import DriftClient, Wallet
             from solders.keypair import Keypair
             import base58
             import os
