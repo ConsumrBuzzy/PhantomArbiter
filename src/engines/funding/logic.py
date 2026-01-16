@@ -490,6 +490,58 @@ class FundingEngine(BaseEngine):
                     "message": f"Health ratio {health_ratio:.1f}% - Consider adding collateral"
                 })
     
+    async def _sync_vault_from_drift(self, max_retries: int = 3):
+        """
+        Synchronize Engine_Vault balance with Drift Protocol sub-account.
+        
+        Implements retry logic with exponential backoff for transient failures.
+        
+        Args:
+            max_retries: Maximum number of retry attempts (default: 3)
+        
+        Validates: Requirements 7.1, 7.2, 7.7, 7.8
+        """
+        from src.shared.state.vault_manager import get_engine_vault
+        
+        # Get the funding engine's vault
+        vault = get_engine_vault("funding")
+        
+        # Retry logic with exponential backoff
+        backoff = 1.0  # Start with 1 second
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                Logger.debug(f"[FUNDING] Syncing vault from Drift (attempt {attempt}/{max_retries})...")
+                
+                # Sync vault from Drift adapter
+                await vault.sync_from_drift(self.drift_adapter)
+                
+                Logger.success(f"[FUNDING] ✅ Vault synchronized with Drift")
+                return  # Success
+                
+            except Exception as e:
+                Logger.warning(f"[FUNDING] Vault sync attempt {attempt} failed: {e}")
+                
+                if attempt < max_retries:
+                    Logger.info(f"[FUNDING] Retrying vault sync in {backoff:.1f}s...")
+                    await asyncio.sleep(backoff)
+                    backoff *= 2  # Exponential backoff
+                else:
+                    # All retries exhausted
+                    Logger.error(f"[FUNDING] ❌ Vault sync failed after {max_retries} attempts")
+                    
+                    # Emit error event
+                    if self._callback:
+                        await self._callback({
+                            "type": "VAULT_SYNC_ERROR",
+                            "level": "ERROR",
+                            "message": f"Failed to sync vault after {max_retries} attempts: {e}"
+                        })
+                    
+                    # TODO: Disable trading if vault desynchronized (Requirement 7.8)
+                    # For now, just log the error
+                    raise RuntimeError(f"Vault synchronization failed after {max_retries} attempts: {e}")
+    
     async def _execute_rebalance(
         self, 
         client: AsyncClient,
@@ -619,7 +671,8 @@ class FundingEngine(BaseEngine):
                     
                     Logger.success(f"[FUNDING] ✅ Deposit successful: {amount} SOL, tx: {tx_sig}")
                     
-                    # TODO: Update Engine_Vault balance (Task 10)
+                    # Update Engine_Vault balance (Task 10)
+                    await self._sync_vault_from_drift()
                     
                     return {
                         "success": True, 
@@ -637,7 +690,8 @@ class FundingEngine(BaseEngine):
                     
                     Logger.success(f"[FUNDING] ✅ Withdrawal successful: {amount} SOL, tx: {tx_sig}")
                     
-                    # TODO: Update Engine_Vault balance (Task 10)
+                    # Update Engine_Vault balance (Task 10)
+                    await self._sync_vault_from_drift()
                     
                     return {
                         "success": True, 

@@ -189,11 +189,12 @@ The implementation follows these phases:
   - _Requirements: 3.10, 8.4, 8.5, 8.9_
   - **Status: Implementation complete ✓**
 
-- [ ] 11.1 Write unit tests for command routing
+- [x] 11.1 Write unit tests for command routing
   - Test DEPOSIT command execution
   - Test WITHDRAW command execution
   - Test error response format
   - _Requirements: 8.4, 8.5, 8.9_
+  - **Status: All 10 tests passing ✓**
 
 - [ ] 12. Checkpoint - Capital management validation
   - Deposit 0.1 SOL via UI

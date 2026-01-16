@@ -181,6 +181,9 @@ class EngineVault:
         """
         Sync balances from Drift Protocol Sub-Account.
         
+        Uses DriftAdapter.get_account_state() to fetch current collateral
+        and update vault balances accordingly.
+        
         Args:
            drift_adapter: Instance of DriftAdapter connected to the user.
         """
@@ -188,45 +191,40 @@ class EngineVault:
             return
 
         try:
-            # Check if adapter has builder (access to account)
-            if not drift_adapter or not drift_adapter._builder:
+            # Check if adapter is connected
+            if not drift_adapter or not drift_adapter.connected:
+                logger.warning(f"[{self.engine_name}] DriftAdapter not connected, skipping sync")
                 return
-                
-            # For now, we assume sub-account 0 (Main) until we add sub-account switching
-            # The drift_adapter uses the wallet's configured sub-account
             
-            # Fetch user account data (collateral)
-            # The adapter should have a method for this, or we construct the URL
-            wallet = str(drift_adapter._builder.wallet)
+            # Fetch account state from Drift
+            account_state = await drift_adapter.get_account_state()
             
-            # We can reuse the logic from HeartbeatCollector for now, 
-            # or better: rely on the adapter to provide 'get_user_account()'
+            # Extract collateral and positions
+            total_collateral = account_state['collateral']
+            positions = account_state['positions']
             
-            # Temporary: direct fetch to avoid circular deps or complex adapter changes right now
-            import requests
-            url = f"https://dlob.drift.trade/user/{wallet}"
-            resp = requests.get(url, timeout=2.0)
+            # Calculate deployed capital (in positions)
+            deployed = 0.0
+            for pos in positions:
+                # Position value = size * mark_price
+                deployed += abs(pos['size']) * pos['mark_price']
             
-            if resp.status_code == 200:
-                data = resp.json()
-                
-                # Parse Collateral
-                # Drift "Total Collateral" is essentially the equity we care about
-                total_collateral = float(data.get("totalCollateralValue", 0)) / 1e6
-                free_collateral = float(data.get("freeCollateral", 0)) / 1e6
-                
-                # Update Vault State
-                # We map 'USDC' to Free Collateral (Tradeable)
-                # We add 'DRIFT_POS' (synthetic) to represent active positions so Equity is correct
-                # Equity = Free + Deployed
-                deployed = max(0, total_collateral - free_collateral)
-                
-                self.balances['USDC'] = free_collateral
-                self.balances['DRIFT_POS'] = deployed
-                self.balances['SOL'] = 0.0 
-                
-                self._save_state()
-                # logger.debug(f"[{self.engine_name}] Synced from Drift: ${total_collateral:.2f}")
+            # Free collateral = total - deployed
+            free_collateral = max(0, total_collateral - deployed)
+            
+            # Update Vault State
+            # 'USDC' represents free/available collateral
+            # 'DRIFT_POS' represents capital deployed in positions
+            self.balances['USDC'] = free_collateral
+            self.balances['DRIFT_POS'] = deployed
+            self.balances['SOL'] = 0.0  # SOL is represented as USDC collateral in Drift
+            
+            self._save_state()
+            logger.debug(
+                f"[{self.engine_name}] Synced from Drift: "
+                f"Total=${total_collateral:.2f}, Free=${free_collateral:.2f}, "
+                f"Deployed=${deployed:.2f}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to sync Drift vault [{self.engine_name}]: {e}")
