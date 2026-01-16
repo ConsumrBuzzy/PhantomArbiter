@@ -196,13 +196,25 @@ class BaseEngine(ABC):
                 # For standardization, let's allow tick() to return state upgrades or handle it explicitly.
                 # Here we strictly run tick().
                 
+            except asyncio.CancelledError:
+                Logger.info(f"[{self.name.upper()}] Loop cancelled")
+                self.running = False
+                break
+            except KeyboardInterrupt:
+                Logger.info(f"[{self.name.upper()}] Interrupted")
+                self.running = False
+                break
             except Exception as e:
                 Logger.error(f"[{self.name.upper()}] Error: {e}")
                 self.status = "ERROR"
-                # decided NOT to stop on error immediately to allow retry or recovery, 
-                # but valid to consider self.stop() here depending on severity.
             
-            await asyncio.sleep(self.get_interval())
+            # Wait for next tick (handle cancel during sleep too)
+            try:
+                await asyncio.sleep(self.get_interval())
+            except asyncio.CancelledError:
+                Logger.info(f"[{self.name.upper()}] Sleep cancelled")
+                self.running = False
+                break
 
     @abstractmethod
     async def tick(self):

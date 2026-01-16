@@ -350,7 +350,7 @@ class SentimentEngine:
             }
 
             feed = JupiterFeed()
-            spot = feed.get_spot_price(MINTS.get(coin, ""), USDC)
+            spot = await feed.get_spot_price(MINTS.get(coin, ""), USDC)
 
             if spot:
                 # Use price as proxy for volume activity

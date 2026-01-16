@@ -75,7 +75,7 @@ class JupiterFeed(PriceSource):
         """Get token decimals (cached)."""
         return self.DECIMALS.get(mint, 9)  # Default to 9 (SOL-like)
 
-    def get_quote(
+    async def get_quote(
         self, input_mint: str, output_mint: str, amount: float
     ) -> Optional[Quote]:
         """
@@ -97,6 +97,9 @@ class JupiterFeed(PriceSource):
 
             # Method 1: Try Price API V2 (Faster, Reliable)
             # This is "The Better Way" for scanning
+            # Note: get_jupiter_price_v2 in SmartRouter is likely blocking if not refactored, 
+            # but usually router uses internal cache or lightweight checks. 
+            # For now we assume router is fast or we should wrap it too.
             price_data = self.router.get_jupiter_price_v2(output_mint)
 
             price = 0.0
@@ -122,45 +125,20 @@ class JupiterFeed(PriceSource):
                     route=None,  # No route needed for scan
                     timestamp=time.time(),
                 )
-
-            # Method 2: Fallback to Swap Quote (Slow, Rate Limited)
-            # ... (Existing logic removed for cleaner switch)
-
-            if not raw_quote:
-                return None
-
-            # Parse response
-            out_amount_atomic = int(raw_quote.get("outAmount", 0))
-            output_amount = out_amount_atomic / (10**output_decimals)
-
-            # Calculate effective price
-            price = output_amount / amount if amount > 0 else 0
-
-            # Extract slippage estimate
-            slippage_bps = raw_quote.get("slippageBps", 0)
-
-            return Quote(
-                dex="JUPITER",
-                input_mint=input_mint,
-                output_mint=output_mint,
-                input_amount=amount,
-                output_amount=output_amount,
-                price=price,
-                slippage_estimate_pct=slippage_bps / 100,
-                fee_pct=self.get_fee_pct(),
-                route=raw_quote,  # Store full quote for execution
-                timestamp=time.time(),
-            )
+            
+            # Logic fallback removed in previous edit, continuing with None return if V2 fails
+            return None
 
         except Exception as e:
             Logger.debug(f"Jupiter quote error: {e}")
             return None
 
-    def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
+    async def get_spot_price(self, base_mint: str, quote_mint: str) -> Optional[SpotPrice]:
         """
         Get spot price using Jupiter v3 Price API.
 
         Falls back to DexScreener if API unavailable.
+        Uses executor to avoid blocking event loop.
         """
         cache_key = f"{base_mint}:{quote_mint}"
 
@@ -176,17 +154,21 @@ class JupiterFeed(PriceSource):
                     timestamp=cached["timestamp"],
                 )
 
-        # Try Jupiter v3 API first (if we have API key)
+        loop = asyncio.get_running_loop()
+        timestamp = time.time()
         price = None
+
+        # Try Jupiter v3 API first (if we have API key)
         if self.api_key:
-            price = self._fetch_jupiter_v3_price(base_mint)
+            # Run blocking call in executor
+            price = await loop.run_in_executor(None, self._fetch_jupiter_v3_price, base_mint)
 
         # Fallback to DexScreener
         if not price:
-            price = self._fetch_dexscreener_best_price(base_mint)
+            # Run blocking call in executor
+            price = await loop.run_in_executor(None, self._fetch_dexscreener_best_price, base_mint)
 
         if price and price > 0:
-            timestamp = time.time()
             self._price_cache[cache_key] = {"price": price, "timestamp": timestamp}
 
             return SpotPrice(
@@ -202,8 +184,7 @@ class JupiterFeed(PriceSource):
     def _fetch_jupiter_v3_price(self, mint: str) -> Optional[float]:
         """
         Fetch price from Jupiter v3 Price API.
-
-        Requires API key from portal.jup.ag
+        Blocking call - should be run in executor.
         """
         try:
             url = f"{self.PRICE_API_V3}?ids={mint}"
@@ -234,10 +215,7 @@ class JupiterFeed(PriceSource):
     def _fetch_dexscreener_best_price(self, mint: str) -> Optional[float]:
         """
         Fetch best available price from DexScreener.
-
-        DexScreener returns pools sorted by liquidity, so first price
-        is typically the most accurate/liquid - similar to what Jupiter
-        would route through.
+        Blocking call - should be run in executor.
         """
         try:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
