@@ -34,6 +34,7 @@ import { DriftController } from './components/drift-controller.js';
 import { EngineVaultCard } from './components/engine-vault-card.js';
 import { ViewManager } from './core/view-manager.js';
 import { EngineManager } from './core/engine-manager.js';
+import { PacketHandler } from './core/packet-handler.js';
 
 class TradingOS {
     constructor() {
@@ -100,6 +101,7 @@ class TradingOS {
         // Initialize Managers
         this.viewManager = new ViewManager(this);
         this.engineManager = new EngineManager(this);
+        this.packetHandler = new PacketHandler(this);
 
         this.viewManager.bindEvents();
 
@@ -135,6 +137,11 @@ class TradingOS {
      * Handle incoming packets
      */
     handlePacket(packet) {
+        this.packetHandler.handle(packet);
+    }
+
+    /*
+    _legacy_handlePacket(packet) {
         const { type, data } = packet;
 
         switch (type) {
@@ -319,6 +326,7 @@ class TradingOS {
                 break;
         }
     }
+    */
 
 
 
