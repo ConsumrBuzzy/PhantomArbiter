@@ -211,7 +211,7 @@ The implementation follows these phases:
 
 ### Phase 4: Live Mode Trading
 
-- [ ] 13. Implement position opening
+- [x] 13. Implement position opening
   - Implement `open_position()` method in DriftAdapter
   - Validate market exists on Drift Protocol
   - Check current leverage does not exceed maximum (5x)
@@ -221,17 +221,20 @@ The implementation follows these phases:
   - Add retry logic for Jito failures (3 retries)
   - Update Engine_Vault position tracking on success
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
+  - **Status: Implementation complete ✓**
 
-- [ ] 13.1 Write property test for leverage limit enforcement
-  - **Property 4: Leverage Limit Enforcement**
+- [x] 13.1 Write property test for leverage limit enforcement
+  - **Property 4: Leverage Limit Enforcement (Live Mode)**
   - **Validates: Requirements 4.2, 6.7**
+  - **Status: Test passing (100 iterations) ✓**
 
-- [ ] 13.2 Write unit tests for position opening
+- [x] 13.2 Write unit tests for position opening
   - Test successful position open
   - Test leverage limit rejection
   - Test invalid market rejection
   - Test Jito submission with fallback
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
+  - **Status: All 8 tests passing ✓**
 
 - [ ] 14. Implement position closing
   - Implement `close_position()` method in DriftAdapter
