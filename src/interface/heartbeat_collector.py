@@ -382,6 +382,9 @@ class HeartbeatDataCollector:
         deployed = await self._collect_drift_active_capital()
         idle = net_worth - deployed
         
+        # Debug Log for Unified Balance Construction
+        Logger.info(f"[Heartbeat] NetWorth Inputs -> CEX: ${coinbase_total:.2f}, Phantom: ${phantom_total:.2f}, Drift: ${drift_total:.2f}")
+
         unified_balance = UnifiedBalance(
             net_worth_usd=net_worth,
             deployed_usd=deployed,
