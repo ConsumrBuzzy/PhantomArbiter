@@ -16,7 +16,7 @@ The implementation follows these phases:
 
 ### Phase 1: Paper Mode Enhancement
 
-- [ ] 1. Enhance VirtualDriver for realistic simulation
+- [x] 1. Enhance VirtualDriver for realistic simulation
   - Implement settled vs unsettled PnL tracking
   - Add funding rate application method (8-hour cycles)
   - Implement realistic slippage calculation (0.1-0.3% based on size)
@@ -70,7 +70,7 @@ The implementation follows these phases:
   - Add connection retry logic with exponential backoff
   - _Requirements: 2.1_
 
-- [ ]* 4.1 Write unit tests for DriftAdapter connection
+- [ ] 4.1 Write unit tests for DriftAdapter connection
   - Test successful connection
   - Test connection retry on failure
   - Test account not found error
@@ -84,7 +84,7 @@ The implementation follows these phases:
   - Calculate health ratio from maintenance margin and collateral
   - _Requirements: 2.2, 2.3, 2.6, 2.7_
 
-- [ ]* 5.1 Write property test for health ratio calculation
+- [ ] 5.1 Write property test for health ratio calculation
   - **Property 2: Health Ratio Bounds**
   - **Validates: Requirements 2.3**
 
@@ -96,11 +96,11 @@ The implementation follows these phases:
   - Ensure WebSocket broadcast within 500ms of state change
   - _Requirements: 2.4, 2.5, 2.8, 2.9_
 
-- [ ]* 6.1 Write property test for WebSocket response timeliness
+- [ ] 6.1 Write property test for WebSocket response timeliness
   - **Property 11: WebSocket Response Timeliness**
   - **Validates: Requirements 2.9, 8.8**
 
-- [ ]* 6.2 Write unit tests for live monitoring
+- [ ] 6.2 Write unit tests for live monitoring
   - Test account state fetch and parse
   - Test health warnings at correct thresholds
   - Test WebSocket broadcast format
@@ -127,11 +127,11 @@ The implementation follows these phases:
   - Return transaction signature on success
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ]* 8.1 Write property test for transaction simulation requirement
+- [ ] 8.1 Write property test for transaction simulation requirement
   - **Property 14: Transaction Simulation Requirement**
   - **Validates: Requirements 3.4, 9.2**
 
-- [ ]* 8.2 Write unit tests for deposit
+- [ ] 8.2 Write unit tests for deposit
   - Test successful deposit
   - Test validation rejection (negative amount)
   - Test validation rejection (insufficient balance)
@@ -148,11 +148,11 @@ The implementation follows these phases:
   - Return transaction signature on success
   - _Requirements: 3.7, 3.8, 3.9_
 
-- [ ]* 9.1 Write property test for withdrawal safety check
+- [ ] 9.1 Write property test for withdrawal safety check
   - **Property 7: Withdrawal Safety Check**
   - **Validates: Requirements 3.8**
 
-- [ ]* 9.2 Write unit tests for withdrawal
+- [ ] 9.2 Write unit tests for withdrawal
   - Test successful withdrawal
   - Test rejection when health < 80%
   - Test simulation failure handling
@@ -166,11 +166,11 @@ The implementation follows these phases:
   - Disable trading if vault desynchronized
   - _Requirements: 7.1, 7.2, 7.7, 7.8_
 
-- [ ]* 10.1 Write property test for account state synchronization
+- [ ] 10.1 Write property test for account state synchronization
   - **Property 10: Account State Synchronization**
   - **Validates: Requirements 7.2**
 
-- [ ]* 10.2 Write unit tests for vault synchronization
+- [ ] 10.2 Write unit tests for vault synchronization
   - Test sync after deposit
   - Test sync after withdrawal
   - Test retry on sync failure
@@ -184,7 +184,7 @@ The implementation follows these phases:
   - Log all capital management operations with full details
   - _Requirements: 3.10, 8.4, 8.5, 8.9_
 
-- [ ]* 11.1 Write unit tests for command routing
+- [ ] 11.1 Write unit tests for command routing
   - Test DEPOSIT command execution
   - Test WITHDRAW command execution
   - Test error response format
@@ -215,11 +215,11 @@ The implementation follows these phases:
   - Update Engine_Vault position tracking on success
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
 
-- [ ]* 13.1 Write property test for leverage limit enforcement
+- [ ] 13.1 Write property test for leverage limit enforcement
   - **Property 4: Leverage Limit Enforcement**
   - **Validates: Requirements 4.2, 6.7**
 
-- [ ]* 13.2 Write unit tests for position opening
+- [ ] 13.2 Write unit tests for position opening
   - Test successful position open
   - Test leverage limit rejection
   - Test invalid market rejection
@@ -235,11 +235,11 @@ The implementation follows these phases:
   - Broadcast updated position list to UI within 1 second
   - _Requirements: 4.8, 4.9, 4.10, 4.11, 4.12_
 
-- [ ]* 14.1 Write property test for position closure completeness
+- [ ] 14.1 Write property test for position closure completeness
   - **Property 15: Position Closure Completeness**
   - **Validates: Requirements 4.8, 4.9**
 
-- [ ]* 14.2 Write unit tests for position closing
+- [ ] 14.2 Write unit tests for position closing
   - Test successful position close
   - Test PnL settlement trigger
   - Test UI broadcast timing
@@ -255,23 +255,23 @@ The implementation follows these phases:
   - Update last rebalance timestamp on success
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10_
 
-- [ ]* 15.1 Write property test for delta drift calculation
+- [ ] 15.1 Write property test for delta drift calculation
   - **Property 1: Delta Drift Calculation Accuracy**
   - **Validates: Requirements 5.1**
 
-- [ ]* 15.2 Write property test for cooldown enforcement
+- [ ] 15.2 Write property test for cooldown enforcement
   - **Property 5: Cooldown Period Enforcement**
   - **Validates: Requirements 5.3, 5.4**
 
-- [ ]* 15.3 Write property test for minimum trade size filter
+- [ ] 15.3 Write property test for minimum trade size filter
   - **Property 6: Minimum Trade Size Filter**
   - **Validates: Requirements 5.6**
 
-- [ ]* 15.4 Write property test for position direction correctness
+- [ ] 15.4 Write property test for position direction correctness
   - **Property 8: Position Direction Correctness**
   - **Validates: Requirements 5.7, 5.8**
 
-- [ ]* 15.5 Write unit tests for auto-rebalancing
+- [ ] 15.5 Write unit tests for auto-rebalancing
   - Test rebalance triggered at correct drift
   - Test cooldown prevents premature rebalance
   - Test minimum size filter
@@ -291,11 +291,11 @@ The implementation follows these phases:
   - Log rejection reason when gate blocks trade
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10_
 
-- [ ]* 16.1 Write property test for profitability gate
+- [ ] 16.1 Write property test for profitability gate
   - **Property 13: Profitability Gate**
   - **Validates: Requirements 6.2, 6.3, 6.4**
 
-- [ ]* 16.2 Write unit tests for safety gates
+- [ ] 16.2 Write unit tests for safety gates
   - Test profitability rejection
   - Test latency rejection
   - Test gas reserve rejection
@@ -317,7 +317,7 @@ The implementation follows these phases:
   - Return structured error on failure
   - _Requirements: 8.6, 8.7, 8.9_
 
-- [ ]* 18.1 Write unit tests for trading command routing
+- [ ] 18.1 Write unit tests for trading command routing
   - Test OPEN_POSITION command execution
   - Test CLOSE_POSITION command execution
   - Test safety gate integration
@@ -345,11 +345,11 @@ The implementation follows these phases:
   - Raise exception after max retries
   - _Requirements: 9.1_
 
-- [ ]* 20.1 Write property test for error recovery idempotence
+- [ ] 20.1 Write property test for error recovery idempotence
   - **Property 12: Error Recovery Idempotence**
   - **Validates: Requirements 9.1, 9.3**
 
-- [ ]* 20.2 Write unit tests for RPC retry logic
+- [ ] 20.2 Write unit tests for RPC retry logic
   - Test successful retry after transient failure
   - Test exception after max retries
   - Test exponential backoff timing
@@ -363,7 +363,7 @@ The implementation follows these phases:
   - Alert user for unknown status
   - _Requirements: 9.3, 9.4_
 
-- [ ]* 21.1 Write unit tests for transaction status query
+- [ ] 21.1 Write unit tests for transaction status query
   - Test confirmed transaction
   - Test failed transaction
   - Test unknown transaction
@@ -377,7 +377,7 @@ The implementation follows these phases:
   - Disable trading during connection loss
   - _Requirements: 9.5, 9.6, 9.9_
 
-- [ ]* 22.1 Write unit tests for connection recovery
+- [ ] 22.1 Write unit tests for connection recovery
   - Test reconnection after connection loss
   - Test account state re-sync
   - Test trading disabled during outage
@@ -390,7 +390,7 @@ The implementation follows these phases:
   - Prevent trade execution during error recovery
   - _Requirements: 9.7, 9.8, 9.10_
 
-- [ ]* 23.1 Write unit tests for critical error handling
+- [ ] 23.1 Write unit tests for critical error handling
   - Test engine stop on critical error
   - Test error broadcast to UI
   - Test trading disabled during error
@@ -417,7 +417,7 @@ The implementation follows these phases:
   - Log profitability calculations (revenue, costs, net profit)
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
 
-- [ ]* 25.1 Write unit tests for logging
+- [ ] 25.1 Write unit tests for logging
   - Test log level configuration
   - Test trade execution logging
   - Test error logging format
@@ -431,7 +431,7 @@ The implementation follows these phases:
   - Support DEBUG level for debugging
   - _Requirements: 10.8, 10.9, 10.10_
 
-- [ ]* 26.1 Write unit tests for log rotation
+- [ ] 26.1 Write unit tests for log rotation
   - Test daily rotation trigger
   - Test retention policy
   - _Requirements: 10.8, 10.9_
@@ -449,7 +449,6 @@ The implementation follows these phases:
 
 ## Notes
 
-- Tasks marked with `*` are optional and can be skipped for faster MVP
 - Each task references specific requirements for traceability
 - Checkpoints ensure incremental validation at phase boundaries
 - Property tests validate universal correctness properties (minimum 100 iterations each)
