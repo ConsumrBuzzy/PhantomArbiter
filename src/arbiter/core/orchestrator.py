@@ -169,7 +169,7 @@ class ArbitrageOrchestrator:
             # Build price dict for all DEXs
             prices = {}
             for feed in self._feeds:
-                spot = feed.get_spot_price(opp.base_mint, opp.quote_mint)
+                spot = await feed.get_spot_price(opp.base_mint, opp.quote_mint)
                 if spot:
                     prices[feed.get_name().title()] = spot.price
 
