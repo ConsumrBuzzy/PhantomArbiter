@@ -119,14 +119,14 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Handle responses
   - _Requirements: 4.1, 4.2, 4.7, 8.6_
 
-- [ ] 3.1 Create position size input modal
+- [x] 3.1 Create position size input modal
   - Add modal HTML to engine-drift.html
   - Include market name, direction, size input
   - Add min/max size validation
   - Add leverage display
   - _Requirements: 4.1, 4.2_
 
-- [ ] 3.2 Implement handleTakePosition(market, direction) method
+- [-] 3.2 Implement handleTakePosition(market, direction) method
   - Show position size modal
   - Pre-fill market and direction
   - Calculate suggested size based on available collateral
