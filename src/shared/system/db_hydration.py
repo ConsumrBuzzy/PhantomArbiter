@@ -347,6 +347,10 @@ class DBHydrationManager:
     def _is_db_valid(self, db_path: Path) -> bool:
         """Check if a database file is valid and not corrupted."""
         try:
+            # Check if file exists and has content
+            if not db_path.exists() or db_path.stat().st_size == 0:
+                return False
+            
             conn = sqlite3.connect(str(db_path))
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
