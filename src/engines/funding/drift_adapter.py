@@ -268,21 +268,54 @@ class DriftAdapter:
         """
         Parse total collateral from account data.
         
-        For now, this is simplified. In production, would parse:
-        - Spot positions (SOL, USDC, etc.)
-        - Unsettled PnL
-        - Settled PnL
+        Parses spot positions to calculate total collateral.
+        Currently supports SOL (market index 0).
         
         Args:
             data: Raw account data
         
         Returns:
-            Total collateral in SOL equivalent
+            Total collateral in USD equivalent
         """
-        # TODO: Implement full collateral parsing
-        # For now, return a placeholder
-        # This will be expanded based on actual account structure
-        return 0.0
+        # Calculate offsets
+        DISCRIMINATOR = 8
+        AUTHORITY = 32
+        DELEGATE = 32
+        NAME = 32
+        SPOT_POSITIONS_OFFSET = DISCRIMINATOR + AUTHORITY + DELEGATE + NAME
+        SPOT_POSITION_SIZE = 40
+        
+        total_collateral_usd = 0.0
+        
+        if len(data) < SPOT_POSITIONS_OFFSET + SPOT_POSITION_SIZE:
+            return 0.0
+        
+        # Parse each spot position slot
+        for i in range(8):
+            offset = SPOT_POSITIONS_OFFSET + (i * SPOT_POSITION_SIZE)
+            
+            if offset + SPOT_POSITION_SIZE > len(data):
+                break
+            
+            # Read scaled balance (u128, 16 bytes)
+            scaled_balance_bytes = data[offset:offset+16]
+            scaled_balance = int.from_bytes(scaled_balance_bytes, 'little')
+            
+            if scaled_balance == 0:
+                continue
+            
+            # Convert to human-readable (Drift uses 10^9 precision for spot)
+            SPOT_PRECISION = 10 ** 9
+            balance = scaled_balance / SPOT_PRECISION
+            
+            # Market index 0 is SOL
+            # For now, assume all collateral is SOL and use a default price
+            # TODO: Fetch oracle prices for accurate USD conversion
+            if i == 0:  # SOL spot position
+                sol_price = 150.0  # Default price, should fetch from oracle
+                total_collateral_usd += balance * sol_price
+        
+        return total_collateral_usd
     
     def _parse_perp_positions(self, data: bytes) -> List[Dict[str, Any]]:
         """
