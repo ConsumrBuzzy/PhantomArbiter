@@ -7,6 +7,7 @@ import { ArbScanner, FundingMonitor } from '../components/market-component.js';
 import { APIHealth } from '../components/api-health.js';
 import { DriftController } from '../components/drift-controller.js';
 import { EngineVaultCard } from '../components/engine-vault-card.js';
+import { TokenWatchlist } from '../components/token-watchlist.js';
 
 /**
  * ViewManager
@@ -130,6 +131,7 @@ export class ViewManager {
             this.app.inventory = new Inventory();
             this.app.systemMetrics = new SystemMetrics('chart-metrics');
             this.app.memeSniper = new MemeSniperStrip('meme-sniper-mount'); // Dashboard Instance
+            this.app.tokenWatchlist = new TokenWatchlist('watchlist-container');
 
             // Active Scalp Engine Card (Dashboard Widget)
             const scalpWidget = new EngineCard('scalp', {
