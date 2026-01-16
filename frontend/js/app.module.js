@@ -139,54 +139,13 @@ class TradingOS {
 
         switch (type) {
             case 'SYSTEM_STATS':
+                // Headers & Inventory
                 this.headerStats.update(data);
                 if ((data.live_wallet || data.paper_wallet) && this.inventory) this.inventory.update(data);
+
+                // Engines & Metrics
                 if (data.engines) this.engineManager.updateStates(data.engines);
                 if (data.metrics && this.systemMetrics) this.systemMetrics.update(data.metrics);
-                break;
-
-            case 'SCALP_SIGNAL':
-                // Real Engine Signal -> Dashboard Widget "Top Opportunity"
-                this.updateScalpTarget(data);
-                break;
-
-            case 'SCALP_UPDATE':
-                // Real Engine State -> Dashboard Widget Stats
-                // Payload might be nested
-                if (data.payload) this.updateScalpStats(data.payload);
-                break;
-
-                // Watchlist
-                if (data.watchlist) {
-                    // Update Dashboard Watchlist
-                    if (this.activeComponents.sniper) {
-                        this.activeComponents.sniper.update({ tokens: data.watchlist });
-                    } else if (this.memeSniper) {
-                        this.memeSniper.update({ tokens: data.watchlist });
-                    }
-
-                    // Update Scalp Engine Widget "Top Target"
-                    // (Fallback: If no active signal, show top scanner result?)
-                    // User requested "Fully Wired", so we prefer Engine Signals.
-                    // Leaving this commented out or removed to avoid overriding real signals.
-                    /*
-                    if (data.watchlist && data.watchlist.length > 0) {
-                        const topToken = data.watchlist.reduce((prev, current) =>
-                            (prev.dp_24h || 0) > (current.dp_24h || 0) ? prev : current
-                        );
-    
-                        const symbolEl = document.getElementById('scalp-target-symbol');
-                        const spreadEl = document.getElementById('scalp-target-spread');
-    
-                        if (symbolEl && topToken) {
-                            symbolEl.textContent = topToken.symbol;
-                            // Using daily change or score as placeholder "spread" value logic if spread not available
-                            const val = topToken.spread_pct || topToken.dp_24h || 0;
-                            spreadEl.textContent = `+${val.toFixed(2)}%`;
-                        }
-                    }
-                    */
-                }
 
                 // ═══════════════════════════════════════════════════════════════
                 // UNIFIED BALANCE (Single Source of Truth)
@@ -220,6 +179,15 @@ class TradingOS {
                     }
                 }
 
+                // Watchlist (if included in stats)
+                if (data.watchlist) {
+                    if (this.activeComponents.sniper) {
+                        this.activeComponents.sniper.update({ tokens: data.watchlist });
+                    } else if (this.memeSniper) {
+                        this.memeSniper.update({ tokens: data.watchlist });
+                    }
+                }
+
                 // Legacy CEX UI UPDATE (for backward compat)
                 if (data.cex_wallet && !data.unified_balance) {
                     const cexBalEl = document.getElementById('cex-wallet-balance');
@@ -232,6 +200,17 @@ class TradingOS {
                         cexUsdcEl.textContent = (data.cex_wallet.withdrawable_usdc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     }
                 }
+                break;
+
+            case 'SCALP_SIGNAL':
+                // Real Engine Signal -> Dashboard Widget "Top Opportunity"
+                this.updateScalpTarget(data);
+                break;
+
+            case 'SCALP_UPDATE':
+                // Real Engine State -> Dashboard Widget Stats
+                // Payload might be nested
+                if (data.payload) this.updateScalpStats(data.payload);
                 break;
 
             case 'SIGNAL':
