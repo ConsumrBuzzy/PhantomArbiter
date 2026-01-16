@@ -52,10 +52,14 @@
 - ✅ Position size modal with validation
 - ✅ Close position confirmation modal
 
-### Integration Fix (Just Completed)
+### Integration Fix (✅ COMPLETE)
 - ✅ Fixed ViewManager to call `window.app.fetchDriftMarkets()`
 - ✅ Added initial market data fetch on view load (500ms delay)
 - ✅ Wired refresh button to correct method
+- ✅ **Fixed Element ID Mismatch**: Updated all 17 `drift-*` IDs to `funding-*` in DriftController
+  - Market table now populates correctly
+  - All buttons and controls properly wired
+  - Health gauge, leverage meter, and metrics display working
 
 ---
 
