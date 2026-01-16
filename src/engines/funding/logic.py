@@ -196,18 +196,19 @@ class FundingEngine(BaseEngine):
             balances = self.driver.get_balances()
             spot_sol = balances.get("SOL", 0.0)
             
-            # VirtualDriver doesn't always track perp positions cleanly in 'balances' 
-            # unless using 'positions' dict. Let's assume driver.positions
-            positions_data = getattr(self.driver, "positions", {})
-            perp_pos = positions_data.get("SOL-PERP", {"size": 0.0})
-            perp_sol = perp_pos.get("size", 0.0)
-            # Short is negative in Drift logic, but VirtualDriver might store absolute. 
-            # Let's assume standard signed: negative = short.
-            if perp_pos.get("side") == "short":
-                perp_sol = -abs(perp_sol)
+            # Get positions from VirtualDriver
+            positions_data = self.driver.positions
+            perp_pos = positions_data.get("SOL-PERP")
             
-            quote_amount = balances.get("USDC", 1000.0) # Assume some USDC for quoting
-            sol_price = self.driver.price_feed.get("SOL-PERP", 150.0)
+            if perp_pos:
+                # Short positions have negative size in our tracking
+                perp_sol = -perp_pos.size if perp_pos.side == "short" else perp_pos.size
+                sol_price = self.driver._current_prices.get("SOL-PERP", 150.0)
+            else:
+                perp_sol = 0.0
+                sol_price = self.driver._current_prices.get("SOL-PERP", 150.0)
+            
+            quote_amount = balances.get("USDC", 1000.0)
 
         elif private_key:
             # LIVE (or Read-Only) MODE: Fetch from RPC
@@ -252,19 +253,50 @@ class FundingEngine(BaseEngine):
         # --- ENRICH DATA FOR UI ---
         spot_usd = spot_sol * sol_price
         perp_usd = abs(perp_sol) * sol_price
-        maint_margin = perp_usd * 0.05
-        equity = spot_usd + quote_amount # Approx
+        
+        # Calculate maintenance margin using VirtualDriver if available
+        if not self.live_mode and self.driver:
+            maint_margin = 0.0
+            for symbol, position in self.driver.positions.items():
+                current_price = self.driver._current_prices.get(symbol, position.entry_price)
+                maint_margin += position.calculate_maintenance_margin(current_price)
+            
+            # Calculate health ratio
+            health_ratio = self.driver.calculate_health_ratio()
+        else:
+            # Live mode or fallback
+            maint_margin = perp_usd * 0.05
+            equity = spot_usd + quote_amount
+            health_ratio = ((equity - maint_margin) / equity * 100) if equity > 0 else 0.0
+        
+        equity = spot_usd + quote_amount  # Approx
         
         leverage = 0.0
         if equity > 0:
             leverage = perp_usd / equity
 
+        # Build positions list with enriched data
         positions_list = []
-        if abs(perp_sol) > 0.0001:
+        if not self.live_mode and self.driver:
+            # Use VirtualDriver's enriched position data
+            for pos_dict in self.driver.get_paper_positions():
+                positions_list.append({
+                    "market": pos_dict["symbol"],
+                    "amount": -pos_dict["size"] if pos_dict["side"] == "short" else pos_dict["size"],
+                    "entry_price": pos_dict["entry_price"],
+                    "mark_price": pos_dict["current_price"],
+                    "pnl": pos_dict["total_pnl"],
+                    "liq_price": 0.0,  # TODO: Calculate liquidation price
+                    "settled_pnl": pos_dict["settled_pnl"],
+                    "unsettled_pnl": pos_dict["unsettled_pnl"],
+                    "unrealized_pnl": pos_dict["unrealized_pnl"]
+                })
+        elif abs(perp_sol) > 0.0001:
+            # Fallback for live mode
             positions_list.append({
                 "market": "SOL-PERP",
                 "amount": perp_sol,
-                "entry_price": 0.0, # Unknown in this scan
+                "entry_price": 0.0,
                 "mark_price": sol_price,
                 "pnl": 0.0,
                 "liq_price": 0.0
@@ -280,7 +312,8 @@ class FundingEngine(BaseEngine):
             "action_taken": None,
             "tx_signature": None,
             
-            # UI Metrics
+            # UI Metrics (enriched)
+            "health": health_ratio,
             "total_collateral": equity,
             "equity": equity,
             "maintenance_margin": maint_margin,

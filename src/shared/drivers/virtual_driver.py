@@ -11,8 +11,12 @@ Features:
 - Uses live price feeds for realistic simulation
 - Tracks simulated P&L in paper_wallet
 - Full order lifecycle (fills, partials, rejects)
-- Slippage simulation
+- Slippage simulation (0.1-0.3% based on size)
 - Fee calculation
+- Settled vs unsettled PnL tracking
+- Funding rate accrual (8-hour cycles)
+- Leverage limits (10x for paper mode)
+- Maintenance margin calculation (5% for SOL-PERP)
 """
 
 import time
@@ -20,6 +24,7 @@ import asyncio
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from datetime import datetime, timedelta
 import uuid
 
 from src.shared.system.persistence import get_db
@@ -31,6 +36,32 @@ class ExecutionMode(Enum):
     """Engine execution mode."""
     PAPER = "paper"
     LIVE = "live"
+
+
+@dataclass
+class VirtualPosition:
+    """Represents a simulated position with PnL tracking."""
+    symbol: str
+    side: str  # "long" or "short"
+    size: float
+    entry_price: float
+    leverage: float
+    settled_pnl: float = 0.0
+    unsettled_pnl: float = 0.0
+    last_funding_time: float = field(default_factory=time.time)
+    opened_at: float = field(default_factory=time.time)
+    
+    def calculate_unrealized_pnl(self, current_price: float) -> float:
+        """Calculate unrealized PnL based on current price."""
+        if self.side == "long":
+            return (current_price - self.entry_price) * self.size
+        else:  # short
+            return (self.entry_price - current_price) * self.size
+    
+    def calculate_maintenance_margin(self, current_price: float, margin_rate: float = 0.05) -> float:
+        """Calculate maintenance margin requirement."""
+        notional = self.size * current_price
+        return notional * margin_rate
 
 
 @dataclass
@@ -58,13 +89,31 @@ class VirtualDriver:
     
     Simulates order execution using live market prices but records
     trades to the paper_trades table instead of executing on-chain.
+    
+    Enhanced features:
+    - Settled vs unsettled PnL tracking
+    - Funding rate accrual (8-hour cycles)
+    - Realistic slippage (0.1-0.3% based on size)
+    - Leverage limits (10x for paper mode)
+    - Maintenance margin calculation (5% for SOL-PERP)
     """
     
     # Default fee rate (0.1% = 10 bps)
     DEFAULT_FEE_RATE = 0.001
     
-    # Slippage simulation (0.05% = 5 bps)
-    DEFAULT_SLIPPAGE = 0.0005
+    # Slippage simulation (size-based)
+    MIN_SLIPPAGE = 0.001  # 0.1% for small trades
+    MAX_SLIPPAGE = 0.003  # 0.3% for large trades
+    SLIPPAGE_SIZE_THRESHOLD = 10.0  # SOL
+    
+    # Leverage limits
+    MAX_LEVERAGE_PAPER = 10.0
+    
+    # Maintenance margin rate (5% for SOL-PERP)
+    MAINTENANCE_MARGIN_RATE = 0.05
+    
+    # Funding rate cycle (8 hours in seconds)
+    FUNDING_CYCLE_SECONDS = 8 * 60 * 60
     
     def __init__(self, engine_name: str, initial_balances: Dict[str, float] = None):
         """
@@ -86,6 +135,12 @@ class VirtualDriver:
         
         # Price feed (set externally)
         self._current_prices: Dict[str, float] = {}
+        
+        # Position tracking (in-memory for performance)
+        self.positions: Dict[str, VirtualPosition] = {}
+        
+        # Funding rate tracking
+        self._funding_rates: Dict[str, float] = {}  # symbol -> rate per 8h
     
     def _init_paper_wallet(self, balances: Dict[str, float]):
         """Initialize paper wallet via EngineVault."""
@@ -99,11 +154,116 @@ class VirtualDriver:
     
     def set_price_feed(self, prices: Dict[str, float]):
         """Update current prices for execution."""
-        self._current_prices = prices
+        self._current_prices.update(prices)
+    
+    def set_funding_rates(self, rates: Dict[str, float]):
+        """Update funding rates (per 8-hour cycle)."""
+        self._funding_rates.update(rates)
     
     def set_on_fill_callback(self, callback: Callable):
         """Set callback for fill notifications."""
         self._on_fill_callback = callback
+    
+    def _calculate_slippage(self, size: float) -> float:
+        """Calculate slippage based on trade size (0.1-0.3%)."""
+        if size <= self.SLIPPAGE_SIZE_THRESHOLD:
+            return self.MIN_SLIPPAGE
+        
+        # Linear interpolation between min and max
+        ratio = min(size / (self.SLIPPAGE_SIZE_THRESHOLD * 5), 1.0)
+        return self.MIN_SLIPPAGE + (self.MAX_SLIPPAGE - self.MIN_SLIPPAGE) * ratio
+    
+    def _check_leverage_limit(self, new_position_size: float, current_price: float) -> bool:
+        """Check if new position would exceed leverage limit."""
+        vault = get_engine_vault(self.engine_name)
+        total_collateral = sum(vault.balances.values())  # Simplified
+        
+        if total_collateral <= 0:
+            return False
+        
+        notional = new_position_size * current_price
+        leverage = notional / total_collateral
+        
+        return leverage <= self.MAX_LEVERAGE_PAPER
+    
+    def calculate_health_ratio(self) -> float:
+        """
+        Calculate health ratio: (total_collateral - maint_margin) / total_collateral * 100.
+        
+        Returns:
+            Health ratio in range [0, 100]
+        """
+        vault = get_engine_vault(self.engine_name)
+        total_collateral = sum(vault.balances.values())
+        
+        if total_collateral <= 0:
+            return 0.0
+        
+        # Calculate total maintenance margin
+        total_maint_margin = 0.0
+        for symbol, position in self.positions.items():
+            current_price = self._current_prices.get(symbol, position.entry_price)
+            total_maint_margin += position.calculate_maintenance_margin(
+                current_price, self.MAINTENANCE_MARGIN_RATE
+            )
+        
+        health = ((total_collateral - total_maint_margin) / total_collateral) * 100
+        return max(0.0, min(100.0, health))
+    
+    def apply_funding_rate(self, symbol: str, rate_8h: float):
+        """
+        Apply funding rate to position (simulates 8-hour funding payment).
+        
+        Args:
+            symbol: Market symbol (e.g., "SOL-PERP")
+            rate_8h: Funding rate for 8-hour period (e.g., 0.0001 = 0.01%)
+        """
+        if symbol not in self.positions:
+            return
+        
+        position = self.positions[symbol]
+        current_price = self._current_prices.get(symbol, position.entry_price)
+        
+        # Calculate funding payment
+        notional = position.size * current_price
+        funding_payment = notional * rate_8h
+        
+        # For shorts, we receive funding if rate is positive
+        if position.side == "short":
+            funding_payment = -funding_payment
+        
+        # Add to unsettled PnL
+        position.unsettled_pnl += funding_payment
+        position.last_funding_time = time.time()
+        
+        Logger.debug(f"[PAPER] Funding applied to {symbol}: ${funding_payment:.4f}")
+    
+    def settle_pnl(self, symbol: str):
+        """Move unsettled PnL to settled PnL."""
+        if symbol not in self.positions:
+            return
+        
+        position = self.positions[symbol]
+        position.settled_pnl += position.unsettled_pnl
+        position.unsettled_pnl = 0.0
+        
+        Logger.debug(f"[PAPER] PnL settled for {symbol}: ${position.settled_pnl:.4f}")
+    
+    def get_balances(self) -> Dict[str, float]:
+        """Get current paper wallet balances."""
+        vault = get_engine_vault(self.engine_name)
+        return vault.balances.copy()
+    
+    def set_balance(self, asset: str, amount: float):
+        """Set balance for an asset."""
+        vault = get_engine_vault(self.engine_name)
+        current = vault.balances.get(asset, 0.0)
+        diff = amount - current
+        
+        if diff > 0:
+            vault.credit(asset, diff)
+        elif diff < 0:
+            vault.debit(asset, abs(diff))
     
     # ═══════════════════════════════════════════════════════════════
     # ORDER EXECUTION
@@ -147,11 +307,18 @@ class VirtualDriver:
         return order
     
     async def _fill_order(self, order: VirtualOrder, base_price: float) -> VirtualOrder:
-        """Execute a fill at the given price with slippage."""
+        """Execute a fill at the given price with size-based slippage."""
         now = time.time()
         
-        # Apply slippage (worse for taker)
-        slippage = self.DEFAULT_SLIPPAGE
+        # Check leverage limit before fill
+        if not self._check_leverage_limit(order.size, base_price):
+            order.status = "rejected"
+            order.metadata["error"] = f"Leverage limit exceeded (max {self.MAX_LEVERAGE_PAPER}x)"
+            Logger.warning(f"[PAPER] Order rejected: leverage limit")
+            return order
+        
+        # Apply size-based slippage (worse for taker)
+        slippage = self._calculate_slippage(order.size)
         if order.side == "buy":
             fill_price = base_price * (1 + slippage)
         else:
@@ -171,16 +338,68 @@ class VirtualDriver:
         # Update paper wallet
         await self._update_paper_wallet(order)
         
+        # Update position tracking
+        self._update_position_tracking(order)
+        
         # Record paper trade
         await self._record_paper_trade(order)
         
-        Logger.info(f"[PAPER] ✅ {order.side.upper()} {order.size:.4f} {order.symbol} @ {fill_price:.2f}")
+        Logger.info(
+            f"[PAPER] ✅ {order.side.upper()} {order.size:.4f} {order.symbol} "
+            f"@ {fill_price:.2f} (slippage: {slippage*100:.2f}%)"
+        )
         
         # Notify via callback
         if self._on_fill_callback:
             await self._on_fill_callback(order)
         
         return order
+    
+    def _update_position_tracking(self, order: VirtualOrder):
+        """Update in-memory position tracking."""
+        symbol = order.symbol
+        
+        if symbol not in self.positions:
+            # New position
+            side = "long" if order.side == "buy" else "short"
+            self.positions[symbol] = VirtualPosition(
+                symbol=symbol,
+                side=side,
+                size=order.filled_size,
+                entry_price=order.filled_price,
+                leverage=1.0  # Simplified
+            )
+        else:
+            # Modify existing position
+            position = self.positions[symbol]
+            
+            if order.side == "buy":
+                if position.side == "short":
+                    # Reducing short
+                    position.size -= order.filled_size
+                    if position.size <= 0:
+                        # Position closed or flipped
+                        del self.positions[symbol]
+                else:
+                    # Adding to long
+                    # Weighted average entry price
+                    total_cost = (position.size * position.entry_price + 
+                                 order.filled_size * order.filled_price)
+                    position.size += order.filled_size
+                    position.entry_price = total_cost / position.size
+            else:  # sell
+                if position.side == "long":
+                    # Reducing long
+                    position.size -= order.filled_size
+                    if position.size <= 0:
+                        # Position closed or flipped
+                        del self.positions[symbol]
+                else:
+                    # Adding to short
+                    total_cost = (position.size * position.entry_price + 
+                                 order.filled_size * order.filled_price)
+                    position.size += order.filled_size
+                    position.entry_price = total_cost / position.size
     
     async def _update_paper_wallet(self, order: VirtualOrder):
         """Update engine vault balances after fill."""
@@ -239,40 +458,27 @@ class VirtualDriver:
         filled_order = await self.place_order(order)
         
         if filled_order.status == "filled":
-            # Record position
-            self._update_paper_position(
-                symbol=symbol,
-                side=side,
-                size=size,
-                entry_price=filled_order.filled_price,
-                leverage=leverage
-            )
+            # Position tracking handled in _update_position_tracking
+            Logger.info(f"[PAPER] Position opened: {symbol} {side} {size}")
         
         return filled_order
     
     async def close_position(self, symbol: str) -> Optional[VirtualOrder]:
         """Close an existing paper position."""
-        conn = self.db._get_connection()
-        
-        # Get current position
-        row = conn.execute("""
-            SELECT * FROM paper_positions 
-            WHERE engine = ? AND symbol = ? AND size != 0
-        """, (self.engine_name, symbol)).fetchone()
-        
-        if not row:
+        if symbol not in self.positions:
             Logger.warning(f"[PAPER] No position to close: {symbol}")
             return None
         
+        position = self.positions[symbol]
+        
         # Determine close side
-        position_side = row["side"]
-        close_side = "sell" if position_side == "long" else "buy"
+        close_side = "sell" if position.side == "long" else "buy"
         
         order = VirtualOrder(
             engine=self.engine_name,
             symbol=symbol,
             side=close_side,
-            size=row["size"],
+            size=position.size,
             order_type="market"
         )
         
@@ -280,19 +486,10 @@ class VirtualDriver:
         
         if filled_order.status == "filled":
             # Calculate realized P&L
-            entry_price = row["entry_price"]
-            exit_price = filled_order.filled_price
-            size = row["size"]
-            
-            if position_side == "long":
-                pnl = (exit_price - entry_price) * size
-            else:
-                pnl = (entry_price - exit_price) * size
-            
+            current_price = filled_order.filled_price
+            pnl = position.calculate_unrealized_pnl(current_price)
+            pnl += position.settled_pnl + position.unsettled_pnl
             pnl -= filled_order.fee
-            
-            # Update position
-            self._close_paper_position(symbol, exit_price, pnl)
             
             Logger.info(f"[PAPER] Position closed: {symbol} PnL: ${pnl:.2f}")
         
@@ -356,35 +553,44 @@ class VirtualDriver:
     
     def get_paper_positions(self) -> list:
         """Get all open paper positions for this engine."""
-        conn = self.db._get_connection()
-        rows = conn.execute("""
-            SELECT * FROM paper_positions 
-            WHERE engine = ? AND size != 0
-        """, (self.engine_name,)).fetchall()
-        return [dict(row) for row in rows]
+        positions_list = []
+        for symbol, position in self.positions.items():
+            current_price = self._current_prices.get(symbol, position.entry_price)
+            unrealized_pnl = position.calculate_unrealized_pnl(current_price)
+            
+            positions_list.append({
+                "symbol": symbol,
+                "side": position.side,
+                "size": position.size,
+                "entry_price": position.entry_price,
+                "current_price": current_price,
+                "leverage": position.leverage,
+                "settled_pnl": position.settled_pnl,
+                "unsettled_pnl": position.unsettled_pnl,
+                "unrealized_pnl": unrealized_pnl,
+                "total_pnl": position.settled_pnl + position.unsettled_pnl + unrealized_pnl,
+                "opened_at": position.opened_at,
+                "last_funding_time": position.last_funding_time
+            })
+        
+        return positions_list
     
     def get_paper_pnl(self, since: float = None) -> Dict[str, float]:
         """Get paper trading P&L statistics for this engine."""
-        conn = self.db._get_connection()
+        # Calculate from in-memory positions
+        settled = sum(p.settled_pnl for p in self.positions.values())
+        unsettled = sum(p.unsettled_pnl for p in self.positions.values())
         
-        query = "SELECT SUM(realized_pnl) as total FROM paper_trades WHERE engine = ? AND status = 'closed'"
-        params = [self.engine_name]
-        
-        if since:
-            query += " AND closed_at >= ?"
-            params.append(since)
-        
-        row = conn.execute(query, params).fetchone()
-        realized = row["total"] or 0.0
-        
-        # Calculate unrealized from open positions
-        positions = self.get_paper_positions()
-        unrealized = sum(p.get("unrealized_pnl", 0) for p in positions)
+        unrealized = 0.0
+        for symbol, position in self.positions.items():
+            current_price = self._current_prices.get(symbol, position.entry_price)
+            unrealized += position.calculate_unrealized_pnl(current_price)
         
         return {
-            "realized": realized,
+            "settled": settled,
+            "unsettled": unsettled,
             "unrealized": unrealized,
-            "total": realized + unrealized
+            "total": settled + unsettled + unrealized
         }
     
     def reset_paper_wallet(self, balances: Dict[str, float]):
@@ -395,6 +601,9 @@ class VirtualDriver:
         conn.execute("DELETE FROM paper_positions WHERE engine = ?", (self.engine_name,))
         conn.execute("DELETE FROM paper_trades WHERE engine = ?", (self.engine_name,))
         conn.commit()
+        
+        # Clear in-memory positions
+        self.positions.clear()
         
         # Reset wallet via Vault
         self._init_paper_wallet(balances)

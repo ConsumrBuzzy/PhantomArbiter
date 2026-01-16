@@ -24,15 +24,15 @@ The implementation follows these phases:
   - Implement maintenance margin calculation (5% for SOL-PERP)
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
 
-- [ ] 1.1 Write property test for slippage application
+- [x] 1.1 Write property test for slippage application
   - **Property 9: Slippage Application in Paper Mode**
   - **Validates: Requirements 1.5**
 
-- [ ] 1.2 Write property test for leverage limit enforcement
+- [x] 1.2 Write property test for leverage limit enforcement
   - **Property 4: Leverage Limit Enforcement**
   - **Validates: Requirements 1.6**
 
-- [ ] 2. Update FundingEngine for enriched paper mode data
+- [-] 2. Update FundingEngine for enriched paper mode data
   - Modify `check_and_rebalance()` to return UI-ready metrics
   - Add health ratio calculation for paper mode
   - Add leverage calculation for paper mode
@@ -40,7 +40,7 @@ The implementation follows these phases:
   - Ensure WebSocket broadcast includes all required fields
   - _Requirements: 1.7_
 
-- [ ] 2.1 Write property test for health ratio bounds
+- [-] 2.1 Write property test for health ratio bounds
   - **Property 2: Health Ratio Bounds**
   - **Validates: Requirements 1.4, 2.3**
 
