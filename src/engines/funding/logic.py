@@ -298,83 +298,83 @@ class FundingEngine(BaseEngine):
         # Check cooldown
         if self.last_rebalance:
             time_since_last = datetime.now() - self.last_rebalance
-                if time_since_last < timedelta(seconds=self.config.cooldown_seconds):
-                    remaining = self.config.cooldown_seconds - time_since_last.total_seconds()
-                    result["status"] = "cooldown"
-                    result["message"] = f"Cooldown active ({remaining:.0f}s remaining)"
-                    return result
-            
-            # Calculate correction trade
-            correction_size = abs(net_delta)
-            
-            if correction_size < self.config.min_trade_size:
-                result["status"] = "skip"
-                result["message"] = f"Correction too small ({correction_size:.6f} SOL)"
+            if time_since_last < timedelta(seconds=self.config.cooldown_seconds):
+                remaining = self.config.cooldown_seconds - time_since_last.total_seconds()
+                result["status"] = "cooldown"
+                result["message"] = f"Cooldown active ({remaining:.0f}s remaining)"
                 return result
-            
-            # Determine trade direction
-            if net_delta > 0:
-                # Net long - need to increase short
-                action = "EXPAND_SHORT"
-                Logger.info(f"[REBALANCER] Net delta +{net_delta:.6f} SOL - expanding short by {correction_size:.6f}")
-            else:
-                # Net short - need to reduce short
-                action = "REDUCE_SHORT"
-                Logger.info(f"[REBALANCER] Net delta {net_delta:.6f} SOL - reducing short by {correction_size:.6f}")
-            
-            result["action_taken"] = action
-            result["correction_size"] = correction_size
-            
-            # Execute trade
-            # Execute trade
-            if simulate:
-                if self.driver:
-                     # Paper Mode Execution (VirtualDriver)
-                     from src.shared.drivers.virtual_driver import VirtualOrder
-                     
-                     # Map action to side
-                     # EXPAND_SHORT = Sell SOL-PERP (Open Short)
-                     # REDUCE_SHORT = Buy SOL-PERP (Close Short)
-                     side = "sell" if action == "EXPAND_SHORT" else "buy" 
-                     
-                     order = VirtualOrder(
-                        symbol="SOL-PERP",
-                        side=side,
-                        size=correction_size,
-                        order_type="market"
-                     )
-                     self.driver.set_price_feed({"SOL-PERP": sol_price})
-                     
-                     filled = await self.driver.place_order(order)
-                     
-                     result["status"] = "executed_paper"
-                     result["message"] = f"[PAPER] {action} {correction_size:.4f} SOL-PERP @ ${sol_price:.2f}"
-                     Logger.info(result["message"])
-                else:
-                     result["status"] = "simulated"
-                     result["message"] = f"Would {action} by {correction_size:.6f} SOL"
-                     Logger.info(f"[REBALANCER] SIMULATION: {result['message']}")
-            else:
-                try:
-                    tx_sig = await self._execute_rebalance(
-                        client, keypair, wallet_pk, action, correction_size
-                    )
-                    result["status"] = "executed"
-                    result["tx_signature"] = tx_sig
-                    result["message"] = f"Executed {action}: {tx_sig}"
-                    
-                    # Update cooldown
-                    save_last_rebalance_time()
-                    self.last_rebalance = datetime.now()
-                    
-                    Logger.success(f"[REBALANCER] ✅ Rebalance complete: {tx_sig}")
-                    
-                except Exception as e:
-                    result["status"] = "error"
-                    result["message"] = f"Execution failed: {e}"
-                    Logger.error(f"[REBALANCER] ❌ Execution error: {e}")
-            
+        
+        # Calculate correction trade
+        correction_size = abs(net_delta)
+        
+        if correction_size < self.config.min_trade_size:
+            result["status"] = "skip"
+            result["message"] = f"Correction too small ({correction_size:.6f} SOL)"
             return result
+        
+        # Determine trade direction
+        if net_delta > 0:
+            # Net long - need to increase short
+            action = "EXPAND_SHORT"
+            Logger.info(f"[REBALANCER] Net delta +{net_delta:.6f} SOL - expanding short by {correction_size:.6f}")
+        else:
+            # Net short - need to reduce short
+            action = "REDUCE_SHORT"
+            Logger.info(f"[REBALANCER] Net delta {net_delta:.6f} SOL - reducing short by {correction_size:.6f}")
+        
+        result["action_taken"] = action
+        result["correction_size"] = correction_size
+        
+        # Execute trade
+        # Execute trade
+        if simulate:
+            if self.driver:
+                 # Paper Mode Execution (VirtualDriver)
+                 from src.shared.drivers.virtual_driver import VirtualOrder
+                 
+                 # Map action to side
+                 # EXPAND_SHORT = Sell SOL-PERP (Open Short)
+                 # REDUCE_SHORT = Buy SOL-PERP (Close Short)
+                 side = "sell" if action == "EXPAND_SHORT" else "buy" 
+                 
+                 order = VirtualOrder(
+                    symbol="SOL-PERP",
+                    side=side,
+                    size=correction_size,
+                    order_type="market"
+                 )
+                 self.driver.set_price_feed({"SOL-PERP": sol_price})
+                 
+                 filled = await self.driver.place_order(order)
+                 
+                 result["status"] = "executed_paper"
+                 result["message"] = f"[PAPER] {action} {correction_size:.4f} SOL-PERP @ ${sol_price:.2f}"
+                 Logger.info(result["message"])
+            else:
+                 result["status"] = "simulated"
+                 result["message"] = f"Would {action} by {correction_size:.6f} SOL"
+                 Logger.info(f"[REBALANCER] SIMULATION: {result['message']}")
+        else:
+            try:
+                tx_sig = await self._execute_rebalance(
+                    client, keypair, wallet_pk, action, correction_size
+                )
+                result["status"] = "executed"
+                result["tx_signature"] = tx_sig
+                result["message"] = f"Executed {action}: {tx_sig}"
+                
+                # Update cooldown
+                save_last_rebalance_time()
+                self.last_rebalance = datetime.now()
+                
+                Logger.success(f"[REBALANCER] ✅ Rebalance complete: {tx_sig}")
+                
+            except Exception as e:
+                result["status"] = "error"
+                result["message"] = f"Execution failed: {e}"
+                Logger.error(f"[REBALANCER] ❌ Execution error: {e}")
+        
+        return result
     
     async def _execute_rebalance(
         self, 
