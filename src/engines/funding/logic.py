@@ -462,6 +462,33 @@ class FundingEngine(BaseEngine):
                      return {"success": True, "message": "Closed SOL-PERP (Paper)"}
                  return {"success": False, "message": "Driver state error"}
 
+            elif action == "OPEN_POSITION":
+                from src.shared.drivers.virtual_driver import VirtualOrder
+                
+                market = data.get("market", "SOL-PERP")
+                direction = data.get("direction", "shorts") # UI sends "shorts" or "longs"
+                size = float(data.get("size", 0.0))
+                
+                # Map direction to side
+                # If market provides "shorts" APR, we want to go SHORT -> SELL
+                side = "sell" if "short" in direction.lower() else "buy"
+                
+                order = VirtualOrder(
+                    symbol=market,
+                    side=side,
+                    size=size,
+                    order_type="market"
+                )
+                
+                # Ensure price feed exists for new markets
+                if market not in self.driver.price_feed:
+                    # Mock price based on market
+                    price = 145.0 if "SOL" in market else 60000.0 if "BTC" in market else 1.0
+                    self.driver.set_price_feed({market: price})
+                
+                filled = await self.driver.place_order(order)
+                return {"success": True, "message": f"Opened {side} {size} {market} (Paper)"}
+
         else:
             # --- LIVE MODE EXECUTION ---
             # TODO: Implement real Drift Client calls
