@@ -192,6 +192,9 @@ class TradingOS {
                 // UNIFIED BALANCE (Single Source of Truth)
                 // ═══════════════════════════════════════════════════════════════
                 if (data.unified_balance) {
+                    // Debug Log for Vault Data
+                    console.log('[App] Received Unified Balance:', data.unified_balance);
+
                     // Update the UnifiedVaultController (Global or Page-Specific)
                     if (this.activeComponents.vault) {
                         this.activeComponents.vault.update(data.unified_balance);
