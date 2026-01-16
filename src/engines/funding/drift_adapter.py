@@ -1245,17 +1245,12 @@ class DriftAdapter:
                 - mark_price: Current mark price
             Or None if fetch fails
         """
-        if not self.connected or not self.rpc_client:
+        if not self.connected or not self._drift_client:
             Logger.debug(f"[DRIFT] Not connected, cannot fetch funding rate for {market}")
             return None
         
         Logger.debug(f"[DRIFT] Fetching funding rate for {market}...")
         try:
-            from driftpy.drift_client import DriftClient, Wallet
-            from solders.keypair import Keypair
-            import base58
-            import os
-            
             # Map market symbols to Drift market indices
             MARKET_INDICES = {
                 "SOL-PERP": 0,
@@ -1274,63 +1269,38 @@ class DriftAdapter:
                 Logger.debug(f"[DRIFT] Unknown market: {market}")
                 return None
             
-            # Get wallet keypair
-            private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
-            if not private_key:
-                Logger.debug("[DRIFT] No private key found in environment")
+            # Get perp market account from cached client
+            perp_market = self._drift_client.get_perp_market_account(market_index)
+            
+            if not perp_market:
+                Logger.debug(f"[DRIFT] Market {market} not found")
                 return None
             
-            secret_bytes = base58.b58decode(private_key)
-            keypair = Keypair.from_bytes(secret_bytes)
+            # Extract funding rate (stored as hourly rate)
+            # amm.last_funding_rate is in 1e9 precision
+            funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
             
-            # Initialize DriftClient
-            wallet_obj = Wallet(keypair)
-            drift_client = DriftClient(
-                self.rpc_client,
-                wallet_obj,
-                env="mainnet" if self.network == "mainnet" else "devnet"
-            )
+            # Convert to 8-hour rate (multiply by 8)
+            rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
             
-            # Subscribe to load program state
-            await drift_client.subscribe()
+            # Annualize: hourly rate * 24 hours * 365 days
+            rate_annual = funding_rate_hourly * 24 * 365 * 100  # Convert to percentage
             
-            try:
-                # Get perp market account
-                perp_market = drift_client.get_perp_market_account(market_index)
-                
-                if not perp_market:
-                    Logger.debug(f"[DRIFT] Market {market} not found")
-                    return None
-                
-                # Extract funding rate (stored as hourly rate)
-                # amm.last_funding_rate is in 1e9 precision
-                funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
-                
-                # Convert to 8-hour rate (multiply by 8)
-                rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
-                
-                # Annualize: hourly rate * 24 hours * 365 days
-                rate_annual = funding_rate_hourly * 24 * 365 * 100  # Convert to percentage
-                
-                # Get mark price from oracle
-                # amm.historical_oracle_data.last_oracle_price is in 1e6 precision
-                mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
-                
-                # Determine if positive (longs pay shorts)
-                is_positive = funding_rate_hourly > 0
-                
-                Logger.debug(f"[DRIFT] {market}: rate_8h={rate_8h:.4f}%, mark=${mark_price:.2f}")
-                
-                return {
-                    "rate_8h": rate_8h,
-                    "rate_annual": rate_annual,
-                    "is_positive": is_positive,
-                    "mark_price": mark_price
-                }
-                
-            finally:
-                # Cleanup
-                await drift_client.unsubscribe()
+            # Get mark price from oracle
+            # amm.historical_oracle_data.last_oracle_price is in 1e6 precision
+            mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
+            
+            # Determine if positive (longs pay shorts)
+            is_positive = funding_rate_hourly > 0
+            
+            Logger.debug(f"[DRIFT] {market}: rate_8h={rate_8h:.4f}%, mark=${mark_price:.2f}")
+            
+            return {
+                "rate_8h": rate_8h,
+                "rate_annual": rate_annual,
+                "is_positive": is_positive,
+                "mark_price": mark_price
+            }
                 
         except Exception as e:
             Logger.error(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
