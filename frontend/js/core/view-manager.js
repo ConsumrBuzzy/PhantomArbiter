@@ -69,12 +69,8 @@ export class ViewManager {
         // Dynamic Loading if not exists
         if (!viewPanel) {
             try {
-                // REDIRECT: 'funding' engine now uses the 'drift' (Delta Neutral) UI template
-                let templateName = viewName;
-                if (viewName === 'engine-funding') templateName = 'engine-drift';
-
-                console.log(`[ViewManager] Loading template: templates/${templateName}.html for ${viewName}`);
-                const response = await fetch(`templates/${templateName}.html`);
+                console.log(`[ViewManager] Loading template: templates/${viewName}.html`);
+                const response = await fetch(`templates/${viewName}.html`);
 
                 if (response.ok) {
                     const html = await response.text();
