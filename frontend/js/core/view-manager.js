@@ -191,29 +191,29 @@ export class ViewManager {
     }
 
     _initDriftEnginePage() {
-        console.log('[ViewManager] Initializing Drift Engine page');
+        console.log('[ViewManager] Initializing Funding Engine page');
 
-        // 1. Initialize Drift Controller
+        // 1. Initialize Drift Controller (backend still uses "drift" for Drift Protocol)
         this.app.driftController = new DriftController();
         this.app.driftController.init();
 
         // 2. Initialize Drift Vault Card
         const sideCol = document.querySelector('.grid-col-side');
         if (sideCol) {
-            let vaultContainer = document.getElementById('drift-vault-card-container');
+            let vaultContainer = document.getElementById('funding-vault-card-container');
             if (!vaultContainer) {
                 vaultContainer = document.createElement('div');
-                vaultContainer.id = 'drift-vault-card-container';
+                vaultContainer.id = 'funding-vault-card-container';
                 const controlPanel = sideCol.querySelector('section:first-child');
                 if (controlPanel) controlPanel.after(vaultContainer);
             }
-            this.app.driftVault = new EngineVaultCard('drift-vault-card-container', 'Drift');
+            this.app.driftVault = new EngineVaultCard('funding-vault-card-container', 'Drift');
         }
 
         // Bind engine control buttons (Generic Start/Stop)
-        const controlMount = document.getElementById('drift-control-card-mount');
-        if (controlMount && !this.app.engines['drift']) {
-            this.app.engines['drift'] = new EngineCard('drift', {
+        const controlMount = document.getElementById('funding-control-card-mount');
+        if (controlMount && !this.app.engines['funding']) {
+            this.app.engines['funding'] = new EngineCard('funding', {
                 onToggle: (n, s, m) => this.app.engineManager.toggleEngine(n, s, m),
                 onSettings: (n, c) => this.app.engineManager.openSettings(n, c),
                 onModeChange: (n, m) => { if (this.app.engines[n]) this.app.engines[n].setMode(m); }
@@ -221,33 +221,33 @@ export class ViewManager {
         }
 
         // Settle PnL button
-        const settlePnlBtn = document.getElementById('drift-settle-pnl-btn');
+        const settlePnlBtn = document.getElementById('funding-settle-pnl-btn');
         if (settlePnlBtn) {
             settlePnlBtn.onclick = () => {
                 this.app.ws.send('DRIFT_SETTLE_PNL', {});
-                this.app.terminal.addLog('DRIFT', 'INFO', 'Settling PnL...');
+                this.app.terminal.addLog('FUNDING', 'INFO', 'Settling PnL...');
             };
         }
 
         // Close All button
-        const closeAllBtn = document.getElementById('drift-close-all-btn');
+        const closeAllBtn = document.getElementById('funding-close-all-btn');
         if (closeAllBtn) {
             closeAllBtn.onclick = () => {
-                if (confirm('Close ALL Drift positions?')) {
+                if (confirm('Close ALL Funding positions?')) {
                     this.app.ws.send('DRIFT_CLOSE_ALL', {});
-                    this.app.terminal.addLog('DRIFT', 'WARNING', 'Closing all positions...');
+                    this.app.terminal.addLog('FUNDING', 'WARNING', 'Closing all positions...');
                 }
             };
         }
 
         // Refresh Markets button
-        const refreshBtn = document.getElementById('drift-refresh-markets-btn');
+        const refreshBtn = document.getElementById('funding-refresh-markets-btn');
         if (refreshBtn) {
             refreshBtn.onclick = () => {
                 const icon = refreshBtn.querySelector('.fa-sync');
                 if (icon) icon.classList.add('spinning');
-                if (this.app.fetchDriftMarketData) {
-                    this.app.fetchDriftMarketData().then(() => {
+                if (this.app.fetchFundingMarketData) {
+                    this.app.fetchFundingMarketData().then(() => {
                         setTimeout(() => icon?.classList.remove('spinning'), 500);
                     });
                 }
@@ -260,8 +260,8 @@ export class ViewManager {
             this.app.ws.send('GET_DRIFT_MARKETS', {});
         }
 
-        if (this.app.fetchDriftMarketData) {
-            this.app.fetchDriftMarketData();
+        if (this.app.fetchFundingMarketData) {
+            this.app.fetchFundingMarketData();
         }
     }
 

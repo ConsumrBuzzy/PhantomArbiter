@@ -65,6 +65,21 @@ Successfully merged duplicate "Funding Engine" and "Delta Neutral Engine" templa
 ### 5. Dashboard Reference Update (`frontend/templates/dashboard.html`)
 - Updated "Manage" button to navigate to `engine-funding` instead of `engine-drift`
 
+### 6. View Manager Updates (`frontend/js/core/view-manager.js`)
+- **REMOVED**: Redirect from `engine-funding` to `engine-drift` template
+- Updated `_initDriftEnginePage()` method:
+  - Changed log message from "Drift Engine" to "Funding Engine"
+  - Updated DOM element IDs from `drift-*` to `funding-*`:
+    - `drift-vault-card-container` → `funding-vault-card-container`
+    - `drift-control-card-mount` → `funding-control-card-mount`
+    - `drift-settle-pnl-btn` → `funding-settle-pnl-btn`
+    - `drift-close-all-btn` → `funding-close-all-btn`
+    - `drift-refresh-markets-btn` → `funding-refresh-markets-btn`
+  - Updated engine registration from `engines['drift']` to `engines['funding']`
+  - Updated log messages from `[DRIFT]` to `[FUNDING]`
+  - Updated method references from `fetchDriftMarketData` to `fetchFundingMarketData`
+- Template now loads directly as `engine-funding.html` without redirect
+
 ## Technical Details
 
 ### Engine Identity
