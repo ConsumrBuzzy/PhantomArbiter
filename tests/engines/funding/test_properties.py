@@ -489,7 +489,7 @@ def test_leverage_limit_enforcement_live_mode(current_collateral, current_levera
         position_succeeded = False
         
         # Mock the open_position implementation
-        async def mock_open_position_impl(market, direction, size, max_lev=5.0):
+        async def mock_open_position_impl(market, direction, size, max_leverage=5.0):
             nonlocal position_attempted, position_succeeded
             position_attempted = True
             
@@ -518,11 +518,11 @@ def test_leverage_limit_enforcement_live_mode(current_collateral, current_levera
             total_not = (current_lev * current_coll) + new_notional
             proj_lev = total_not / current_coll if current_coll > 0 else 0.0
             
-            # Check leverage limit
-            if proj_lev > max_lev:
+            # Check leverage limit (use the passed max_leverage parameter)
+            if proj_lev > max_leverage:
                 raise ValueError(
                     f"Leverage limit exceeded: Projected leverage {proj_lev:.2f}x "
-                    f"exceeds maximum {max_lev:.2f}x"
+                    f"exceeds maximum {max_leverage:.2f}x"
                 )
             
             # If we got here, position opening is safe
