@@ -54,13 +54,13 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Add error handling for RPC failures
   - _Requirements: 2.1, 2.2_
 
-- [ ]* 1.6 Write unit tests for DriftFundingFeed
+- [ ] 1.6 Write unit tests for DriftFundingFeed
   - Test market data parsing
   - Test APR calculation
   - Test stats aggregation
   - _Requirements: 2.2_
 
-- [ ]* 1.7 Write property test for APR calculation
+- [ ] 1.7 Write property test for APR calculation
   - **Property 26: Revenue Calculation**
   - **Validates: Requirements 6.2**
   - For any funding rate R, APR should equal R × 3 × 365
@@ -105,7 +105,7 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Add manual refresh button
   - _Requirements: 2.8, 2.9_
 
-- [ ]* 2.6 Write integration test for market display
+- [ ] 2.6 Write integration test for market display
   - Test data fetching
   - Test table rendering
   - Test opportunity cards
@@ -152,7 +152,7 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Close modal on success
   - _Requirements: 8.8, 8.9_
 
-- [ ]* 3.6 Write property test for position size validation
+- [ ] 3.6 Write property test for position size validation
   - **Property 9: Deposit Validation**
   - **Validates: Requirements 3.1**
   - For any size S and available collateral C, position should be accepted if 0.005 ≤ S ≤ C
@@ -196,12 +196,12 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Update PnL display after settlement
   - _Requirements: 4.10, 4.11_
 
-- [ ]* 4.6 Write property test for position close sizing
+- [ ] 4.6 Write property test for position close sizing
   - **Property 15: Position Close Sizing**
   - **Validates: Requirements 4.8**
   - For any position with size S, close command should generate offsetting order of size S
 
-- [ ]* 4.7 Write property test for conditional PnL settlement
+- [ ] 4.7 Write property test for conditional PnL settlement
   - **Property 16: Conditional PnL Settlement**
   - **Validates: Requirements 4.10**
   - For any position close, if unsettled PnL > $1.00, settle_pnl should be called
@@ -258,12 +258,12 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Auto-dismiss after 10 seconds
   - _Requirements: 2.4, 2.5_
 
-- [ ]* 5.7 Write property test for broadcast latency
+- [ ] 5.7 Write property test for broadcast latency
   - **Property 8: Broadcast Latency**
   - **Validates: Requirements 2.9**
   - For any state change, WebSocket broadcast should occur within 500ms
 
-- [ ]* 5.8 Write property test for message completeness
+- [ ] 5.8 Write property test for message completeness
   - **Property 5: WebSocket Message Completeness**
   - **Validates: Requirements 1.7, 8.10**
   - For any FUNDING_UPDATE, message should contain all required fields
@@ -281,7 +281,7 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Test with negative perp (short position)
   - _Requirements: 5.1_
 
-- [ ]* 6.2 Write property test for delta drift calculation
+- [ ] 6.2 Write property test for delta drift calculation
   - **Property 18: Delta Drift Calculation**
   - **Validates: Requirements 5.1**
   - For any spot S, perp P, reserved R, drift should equal ((S - R + P) / (S - R)) × 100
@@ -292,7 +292,7 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Test clamping to [0, 100] range
   - _Requirements: 1.4, 2.3_
 
-- [ ]* 6.4 Write property test for health ratio calculation
+- [ ] 6.4 Write property test for health ratio calculation
   - **Property 2: Health Ratio Calculation**
   - **Validates: Requirements 1.4, 2.3**
   - For any collateral C and margin M, health should equal (C / M) × 100, clamped to [0, 100]
@@ -303,12 +303,12 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Test rejection when unprofitable
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ]* 6.6 Write property test for profitability check
+- [ ] 6.6 Write property test for profitability check
   - **Property 27: Profitability Check**
   - **Validates: Requirements 6.3**
   - For any expected revenue E and cost C, trade should be rejected if E < C
 
-- [ ]* 6.7 Write property test for conservative funding estimate
+- [ ] 6.7 Write property test for conservative funding estimate
   - **Property 28: Conservative Funding Estimate**
   - **Validates: Requirements 6.4**
   - For any funding rate R, profitability calculation should use 0.5 × R
@@ -378,9 +378,9 @@ This implementation plan focuses on completing the Web UI integration for the De
 
 ## Notes
 
-- Tasks marked with `*` are optional and can be skipped for faster MVP
+- All tasks are required for comprehensive implementation
 - Each task references specific requirements for traceability
-- Property tests validate universal correctness properties
+- Property tests validate universal correctness properties (100 iterations each)
 - Unit tests validate specific examples and edge cases
 - Integration tests validate end-to-end flows
 - Checkpoint ensures incremental validation
@@ -389,15 +389,14 @@ This implementation plan focuses on completing the Web UI integration for the De
 
 ## Estimated Timeline
 
-- **Phase 1** (Backend API): 2-3 hours
-- **Phase 2** (Market Display): 3-4 hours
-- **Phase 3** (Take Position): 2-3 hours
-- **Phase 4** (Leave Position): 2-3 hours
-- **Phase 5** (WebSocket): 1-2 hours
-- **Phase 6** (Testing & Polish): 2-3 hours
+- **Phase 1** (Backend API): 3-4 hours
+- **Phase 2** (Market Display): 4-5 hours
+- **Phase 3** (Take Position): 3-4 hours
+- **Phase 4** (Leave Position): 3-4 hours
+- **Phase 5** (WebSocket): 2-3 hours
+- **Phase 6** (Testing & Polish): 3-4 hours
 
-**Total**: 12-18 hours (with optional tasks)  
-**MVP** (without optional tasks): 8-12 hours
+**Total**: 18-24 hours (comprehensive with all tests)
 
 ---
 
