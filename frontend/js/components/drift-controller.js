@@ -55,20 +55,20 @@ export class DriftController {
 
         // Cache DOM Elements
         this.els.gauge.needle = document.getElementById('health-needle');
-        this.els.gauge.value = document.getElementById('drift-health-pct');
-        this.els.gauge.container = document.getElementById('drift-health-gauge');
+        this.els.gauge.value = document.getElementById('funding-health-pct');
+        this.els.gauge.container = document.getElementById('funding-health-gauge');
 
-        this.els.metrics.total = document.getElementById('drift-total-collateral');
-        this.els.metrics.free = document.getElementById('drift-free-collateral');
-        this.els.metrics.maint = document.getElementById('drift-maint-margin');
+        this.els.metrics.total = document.getElementById('funding-total-collateral');
+        this.els.metrics.free = document.getElementById('funding-free-collateral');
+        this.els.metrics.maint = document.getElementById('funding-maint-margin');
 
-        this.els.leverage.fill = document.getElementById('drift-leverage-fill');
-        this.els.leverage.value = document.getElementById('drift-current-leverage');
+        this.els.leverage.fill = document.getElementById('funding-leverage-fill');
+        this.els.leverage.value = document.getElementById('funding-current-leverage');
 
-        this.els.delta.val = document.getElementById('drift-delta-value');
-        this.els.delta.status = document.getElementById('drift-delta-status');
+        this.els.delta.val = document.getElementById('funding-delta-value');
+        this.els.delta.status = document.getElementById('funding-delta-status');
 
-        this.els.positionsBody = document.getElementById('drift-positions-body');
+        this.els.positionsBody = document.getElementById('funding-positions-body');
 
         // Bind Controls
         this._bindControls();
@@ -81,7 +81,7 @@ export class DriftController {
 
     _bindControls() {
         // Subaccount Selector
-        const subAccSelect = document.getElementById('drift-subaccount-select');
+        const subAccSelect = document.getElementById('funding-subaccount-select');
         if (subAccSelect) {
             subAccSelect.addEventListener('change', (e) => {
                 this.activeSubAccount = parseInt(e.target.value);
@@ -91,7 +91,7 @@ export class DriftController {
         }
 
         // Refresh Button
-        const refreshBtn = document.getElementById('drift-refresh-markets-btn');
+        const refreshBtn = document.getElementById('funding-refresh-markets-btn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
                 refreshBtn.querySelector('i').classList.add('spinning');
@@ -102,7 +102,7 @@ export class DriftController {
         }
 
         // Deposit Button
-        const depositBtn = document.getElementById('drift-deposit-btn');
+        const depositBtn = document.getElementById('funding-deposit-btn');
         if (depositBtn) {
             depositBtn.addEventListener('click', () => {
                 const amount = prompt("Enter amount to DEPOSIT (SOL):");
@@ -113,7 +113,7 @@ export class DriftController {
         }
 
         // Withdraw Button
-        const withdrawBtn = document.getElementById('drift-withdraw-btn');
+        const withdrawBtn = document.getElementById('funding-withdraw-btn');
         if (withdrawBtn) {
             withdrawBtn.addEventListener('click', () => {
                 const amount = prompt("Enter amount to WITHDRAW (SOL):");
@@ -124,7 +124,7 @@ export class DriftController {
         }
 
         // Close All Button
-        const closeAllBtn = document.getElementById('drift-close-all-btn');
+        const closeAllBtn = document.getElementById('funding-close-all-btn');
         if (closeAllBtn) {
             closeAllBtn.addEventListener('click', () => {
                 if (confirm("Are you sure you want to CLOSE ALL positions?")) {
@@ -356,7 +356,7 @@ export class DriftController {
     }
 
     _renderOpportunities(markets) {
-        const container = document.getElementById('drift-opportunities');
+        const container = document.getElementById('funding-opportunities');
         if (!container) return;
 
         // Sort by ABS(APR) descending
@@ -391,10 +391,10 @@ export class DriftController {
     }
 
     _renderMarketStats(stats) {
-        this._setText(document.getElementById('drift-total-oi'), `$${(stats.total_oi / 1000000).toFixed(1)}M`);
-        this._setText(document.getElementById('drift-24h-volume'), `$${(stats.volume_24h / 1000000).toFixed(1)}M`);
+        this._setText(document.getElementById('funding-total-oi'), `$${(stats.total_oi / 1000000).toFixed(1)}M`);
+        this._setText(document.getElementById('funding-24h-volume'), `$${(stats.volume_24h / 1000000).toFixed(1)}M`);
 
-        const avgEl = document.getElementById('drift-avg-funding');
+        const avgEl = document.getElementById('funding-avg-funding');
         if (avgEl) {
             avgEl.textContent = `${(stats.avg_funding * 100).toFixed(2)}%`;
             avgEl.style.color = stats.avg_funding >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
