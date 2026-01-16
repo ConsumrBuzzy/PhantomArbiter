@@ -73,6 +73,9 @@ export class DriftController {
         // Bind Controls
         this._bindControls();
 
+        // Initial fetch
+        this.fetchMarkets();
+
         this.initialized = true;
     }
 
@@ -92,7 +95,9 @@ export class DriftController {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
                 refreshBtn.querySelector('i').classList.add('spinning');
-                setTimeout(() => refreshBtn.querySelector('i').classList.remove('spinning'), 1000);
+                this.fetchMarkets().then(() => {
+                    setTimeout(() => refreshBtn.querySelector('i').classList.remove('spinning'), 500);
+                });
             });
         }
 
@@ -132,6 +137,18 @@ export class DriftController {
         window.closeDriftPosition = (market) => {
             if (confirm(`Close position for ${market}?`)) {
                 window.tradingOS.ws.send('DRIFT_CLOSE_POSITION', { market: market });
+            }
+        };
+
+        // Open Position Action (Global)
+        window.openDriftPosition = (market, direction) => {
+            const size = prompt(`Enter size to ${direction} ${market} (SOL):`, "1.0");
+            if (size && !isNaN(size)) {
+                window.tradingOS.ws.send('DRIFT_OPEN_POSITION', {
+                    market: market,
+                    direction: direction,
+                    size: parseFloat(size)
+                });
             }
         };
     }

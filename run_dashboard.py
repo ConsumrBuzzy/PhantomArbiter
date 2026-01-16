@@ -179,7 +179,7 @@ async def main():
                     return
 
             # --- DRIFT CONTROLS ---
-            elif action in ["DRIFT_DEPOSIT", "DRIFT_WITHDRAW", "DRIFT_CLOSE_POSITION"]:
+            elif action in ["DRIFT_DEPOSIT", "DRIFT_WITHDRAW", "DRIFT_CLOSE_POSITION", "DRIFT_OPEN_POSITION"]:
                  if "funding" in self.local_engines:
                      eng = self.local_engines["funding"]
                      # Strip DRIFT_ prefix to get raw action
