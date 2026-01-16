@@ -127,11 +127,15 @@ export class ViewManager {
     _initDashboardComponents() {
         try {
             // Initialize Dashboard Components
+            console.log('[ViewManager] Creating UnifiedVaultController...');
             this.app.unifiedVault = new UnifiedVaultController('unified-vault-container');
             this.app.inventory = new Inventory();
             this.app.systemMetrics = new SystemMetrics('chart-metrics');
             this.app.memeSniper = new MemeSniperStrip('meme-sniper-mount'); // Dashboard Instance
-            this.app.tokenWatchlist = new TokenWatchlist('watchlist-container');
+            console.log('[ViewManager] Creating TokenWatchlist...');
+            try {
+                this.app.tokenWatchlist = new TokenWatchlist('watchlist-container');
+            } catch (e) { console.error('[ViewManager] Watchlist Init Error:', e); }
 
             // Active Scalp Engine Card (Dashboard Widget)
             const scalpWidget = new EngineCard('scalp', {

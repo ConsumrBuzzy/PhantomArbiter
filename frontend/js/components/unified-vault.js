@@ -16,7 +16,10 @@
 
 export class UnifiedVaultController {
     constructor(containerId) {
+        console.log(`[UnifiedVault] Initializing with container ID: ${containerId}`);
         this.container = document.getElementById(containerId);
+        console.log(`[UnifiedVault] Container found:`, this.container);
+
         this.data = {
             coinbase: { usdc: 0, usd: 0, sol: 0, total: 0, status: 'disconnected' },
             phantom: { sol: 0, usdc: 0, total: 0, status: 'disconnected' },
