@@ -118,18 +118,18 @@
    ========================================================================== */
 
 /* Theme */
-.drift-theme {
-    --drift-purple: #875BF7;
-    --drift-purple-light: #AB8BFF;
-    --drift-purple-dark: #5936B2;
+.funding-theme {
+    --funding-purple: #875BF7;
+    --funding-purple-light: #AB8BFF;
+    --funding-purple-dark: #5936B2;
 }
 
-.drift-theme .engine-title i {
-    color: var(--drift-purple);
+.funding-theme .engine-title i {
+    color: var(--funding-purple);
 }
 
-.drift-theme .glass-panel {
-    border-top: 2px solid var(--drift-purple);
+.funding-theme .glass-panel {
+    border-top: 2px solid var(--funding-purple);
 }
 
 /* ==========================================================================
@@ -310,30 +310,30 @@
     overflow-y: auto;
 }
 
-#drift-positions-table {
+#funding-positions-table {
     width: 100%;
 }
 
-#drift-positions-table th {
+#funding-positions-table th {
     position: sticky;
     top: 0;
     background: rgba(20, 20, 30, 0.95);
     z-index: 1;
 }
 
-#drift-positions-table .side-long {
+#funding-positions-table .side-long {
     color: #00ff88;
 }
 
-#drift-positions-table .side-short {
+#funding-positions-table .side-short {
     color: #ff6b6b;
 }
 
-#drift-positions-table .pnl-positive {
+#funding-positions-table .pnl-positive {
     color: #00ff88;
 }
 
-#drift-positions-table .pnl-negative {
+#funding-positions-table .pnl-negative {
     color: #ff4444;
 }
 
@@ -371,7 +371,7 @@
 
 .subaccount-selector .form-select:focus {
     outline: none;
-    border-color: var(--drift-purple);
+    border-color: var(--funding-purple);
     box-shadow: 0 0 8px rgba(135, 91, 247, 0.3);
 }
 

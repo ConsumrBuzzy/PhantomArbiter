@@ -1736,7 +1736,7 @@ window.fundingConfirmClose = () => window.app.confirmClose();
 window.addEventListener('load', () => {
     window.app = new DashboardApp();
     
-    // Bind Drift refresh button
+    // Bind Funding refresh button
     const refreshBtn = document.getElementById('funding-refresh-markets-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
@@ -1749,11 +1749,11 @@ window.addEventListener('load', () => {
         window.app.fetchFundingMarkets();
     }, 1000);
     
-    // Auto-fetch Drift markets every 30 seconds if on Drift view
+    // Auto-fetch Funding markets every 30 seconds if on Funding view
     // Task 2.5: Add auto-refresh logic
     setInterval(() => {
-        const driftView = document.querySelector('.engine-layout.funding-theme');
-        if (driftView && driftView.offsetParent !== null) {
+        const fundingView = document.querySelector('.engine-layout.funding-theme');
+        if (fundingView && fundingView.offsetParent !== null) {
             window.app.fetchFundingMarkets();
         }
     }, 30000);
