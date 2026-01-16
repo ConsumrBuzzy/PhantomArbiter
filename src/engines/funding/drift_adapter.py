@@ -129,6 +129,7 @@ class DriftAdapter:
         - Derives user PDA
         - Verifies account exists
         - Implements exponential backoff retry logic
+        - Creates and subscribes DriftClient for market data access
         
         Args:
             wallet: WalletManager instance or keypair
@@ -172,6 +173,33 @@ class DriftAdapter:
                     Logger.error("[DRIFT] Please initialize your Drift account first")
                     return False
                 
+                # Initialize DriftClient for market data access
+                try:
+                    from driftpy.drift_client import DriftClient, Wallet
+                    from solders.keypair import Keypair
+                    import base58
+                    import os
+                    
+                    # Get wallet keypair
+                    private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
+                    if private_key:
+                        secret_bytes = base58.b58decode(private_key)
+                        keypair = Keypair.from_bytes(secret_bytes)
+                        wallet_obj = Wallet(keypair)
+                        
+                        self._drift_client = DriftClient(
+                            self.rpc_client,
+                            wallet_obj,
+                            env="mainnet" if self.network == "mainnet" else "devnet"
+                        )
+                        
+                        # Subscribe to load program state
+                        await self._drift_client.subscribe()
+                        Logger.info("[DRIFT] DriftClient subscribed for market data")
+                except Exception as e:
+                    Logger.warning(f"[DRIFT] Could not initialize DriftClient: {e}")
+                    # Continue anyway - basic connection still works
+                
                 # Success
                 self.connected = True
                 Logger.success(f"[DRIFT] ✅ Connected to {self.network}")
@@ -192,7 +220,14 @@ class DriftAdapter:
         return False
     
     async def disconnect(self):
-        """Close RPC connection."""
+        """Close RPC connection and unsubscribe DriftClient."""
+        if self._drift_client:
+            try:
+                await self._drift_client.unsubscribe()
+            except:
+                pass
+            self._drift_client = None
+        
         if self.rpc_client:
             await self.rpc_client.close()
             self.connected = False
