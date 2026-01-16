@@ -904,6 +904,223 @@ class DashboardApp {
         if (source === 'scalp') return `${value.toFixed(0)}%`;
         return `${value}`;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DRIFT FUNDING ENGINE METHODS (Phase 2: Market Data Display)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Fetch Drift market opportunities
+     * Task 2.1: Implement fetchDriftMarkets() method
+     * Requirements: 2.1, 2.8
+     */
+    async fetchDriftMarkets() {
+        try {
+            const response = await fetch('/api/drift/markets');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Render market data
+            this.renderFundingTable(data.markets);
+            this.renderOpportunityCards(data.markets);
+            this.updateMarketStats(data.stats);
+            
+            // Update last refresh timestamp
+            const timestampEl = document.getElementById('drift-last-refresh');
+            if (timestampEl) {
+                timestampEl.textContent = new Date().toLocaleTimeString();
+            }
+            
+        } catch (error) {
+            console.error('[DRIFT] Failed to fetch markets:', error);
+            this.showDriftError('Failed to load market data. Please try again.');
+        }
+    }
+
+    /**
+     * Render funding rates table
+     * Task 2.2: Implement renderFundingTable(markets) method
+     * Requirements: 2.2
+     */
+    renderFundingTable(markets) {
+        const tbody = document.getElementById('drift-funding-body');
+        if (!tbody) return;
+        
+        if (!markets || markets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No markets available</td></tr>';
+            return;
+        }
+        
+        // Sort by APR (highest first)
+        const sorted = [...markets].sort((a, b) => Math.abs(b.apr) - Math.abs(a.apr));
+        
+        tbody.innerHTML = sorted.map(m => {
+            const rateColor = m.rate >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            const aprColor = m.apr >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            const rate1h = (m.rate / 8).toFixed(4);
+            const rate8h = m.rate.toFixed(4);
+            
+            return `
+                <tr>
+                    <td style="font-weight: bold;">${m.symbol}</td>
+                    <td style="color: ${rateColor}; text-align: right;">${rate1h}%</td>
+                    <td style="color: ${rateColor}; text-align: right;">${rate8h}%</td>
+                    <td style="color: ${aprColor}; font-weight: bold; text-align: right;">
+                        ${m.apr >= 0 ? '+' : ''}${m.apr.toFixed(2)}%
+                    </td>
+                    <td style="text-transform: uppercase; font-size: 0.75rem;">
+                        ${m.direction}
+                    </td>
+                    <td style="text-align: right;">${this.formatNumber(m.oi)}</td>
+                    <td>
+                        <button class="btn-xs drift-take-btn" 
+                                data-market="${m.symbol}" 
+                                data-direction="${m.direction}"
+                                data-apr="${m.apr}">
+                            Take
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        // Bind click handlers to "Take" buttons
+        tbody.querySelectorAll('.drift-take-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const market = btn.dataset.market;
+                const direction = btn.dataset.direction;
+                const apr = parseFloat(btn.dataset.apr);
+                this.handleTakePosition(market, direction, apr);
+            });
+        });
+    }
+
+    /**
+     * Render opportunity cards (top 3)
+     * Task 2.3: Implement renderOpportunityCards(opportunities) method
+     * Requirements: 2.2
+     */
+    renderOpportunityCards(markets) {
+        const container = document.getElementById('drift-opportunities');
+        if (!container) return;
+        
+        if (!markets || markets.length === 0) {
+            container.innerHTML = '<div class="empty-state">No opportunities found</div>';
+            return;
+        }
+        
+        // Get top 3 by absolute APR
+        const top3 = [...markets]
+            .sort((a, b) => Math.abs(b.apr) - Math.abs(a.apr))
+            .slice(0, 3);
+        
+        container.innerHTML = top3.map(m => {
+            const bgColor = m.apr >= 0 ? 'rgba(0,255,136,0.05)' : 'rgba(255,60,60,0.05)';
+            const borderColor = m.apr >= 0 ? 'rgba(0,255,136,0.2)' : 'rgba(255,60,60,0.2)';
+            const aprColor = m.apr >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+            const directionText = m.direction === 'shorts' ? 'SHORT' : 'LONG';
+            
+            return `
+                <div class="opportunity-card" 
+                     style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 10px; margin: 5px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span class="opp-symbol" style="font-weight: bold; font-size: 1.1rem;">${m.symbol}</span>
+                            <span class="opp-direction" style="color: ${aprColor}; margin-left: 8px; font-size: 0.8rem;">
+                                ${directionText}
+                            </span>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="opp-apr" style="color: ${aprColor}; font-weight: bold;">
+                                ${m.apr >= 0 ? '+' : ''}${m.apr.toFixed(1)}% APR
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--text-dim);">
+                                Funding pays ${m.direction}
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-xs drift-take-btn" 
+                            data-market="${m.symbol}" 
+                            data-direction="${m.direction}"
+                            data-apr="${m.apr}"
+                            style="width: 100%; margin-top: 8px;">
+                        Take Position
+                    </button>
+                </div>
+            `;
+        }).join('');
+        
+        // Bind click handlers
+        container.querySelectorAll('.drift-take-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const market = btn.dataset.market;
+                const direction = btn.dataset.direction;
+                const apr = parseFloat(btn.dataset.apr);
+                this.handleTakePosition(market, direction, apr);
+            });
+        });
+    }
+
+    /**
+     * Update market statistics display
+     * Task 2.4: Implement updateMarketStats(stats) method
+     * Requirements: 2.2
+     */
+    updateMarketStats(stats) {
+        const oiEl = document.getElementById('drift-total-oi');
+        const volumeEl = document.getElementById('drift-24h-volume');
+        const fundingEl = document.getElementById('drift-avg-funding');
+        
+        if (oiEl) oiEl.textContent = this.formatNumber(stats.total_oi);
+        if (volumeEl) volumeEl.textContent = this.formatNumber(stats.volume_24h);
+        if (fundingEl) {
+            const sign = stats.avg_funding >= 0 ? '+' : '';
+            fundingEl.textContent = `${sign}${stats.avg_funding.toFixed(2)}%`;
+        }
+    }
+
+    /**
+     * Format large numbers with K/M/B suffixes
+     */
+    formatNumber(num) {
+        if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+        if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+        if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+        return `$${num.toFixed(2)}`;
+    }
+
+    /**
+     * Show error message in Drift UI
+     */
+    showDriftError(message) {
+        const tbody = document.getElementById('drift-funding-body');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state" style="color: var(--neon-red);">
+                        ⚠️ ${message}
+                        <button class="btn-xs" onclick="app.fetchDriftMarkets()" style="margin-left: 10px;">
+                            Retry
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    /**
+     * Handle "Take Position" button click
+     * Task 3.1-3.3: Implement handleTakePosition() method
+     * Requirements: 4.1, 4.2
+     */
+    handleTakePosition(market, direction, apr) {
+        // TODO: Implement position size modal (Phase 3)
+        console.log('[DRIFT] Take position:', market, direction, apr);
+        this.addLog('DRIFT', 'INFO', `Opening position modal for ${market} (${direction})`);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -912,4 +1129,26 @@ class DashboardApp {
 
 window.addEventListener('load', () => {
     window.app = new DashboardApp();
+    
+    // Bind Drift refresh button
+    const refreshBtn = document.getElementById('drift-refresh-markets-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            window.app.fetchDriftMarkets();
+        });
+    }
+    
+    // Initial fetch on page load
+    setTimeout(() => {
+        window.app.fetchDriftMarkets();
+    }, 1000);
+    
+    // Auto-fetch Drift markets every 30 seconds if on Drift view
+    // Task 2.5: Add auto-refresh logic
+    setInterval(() => {
+        const driftView = document.querySelector('.engine-layout.drift-theme');
+        if (driftView && driftView.offsetParent !== null) {
+            window.app.fetchDriftMarkets();
+        }
+    }, 30000);
 });

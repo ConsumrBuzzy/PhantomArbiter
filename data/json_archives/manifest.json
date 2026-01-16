@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-01-16T12:35:24.845040",
+  "databases": {
+    "trading_journal.db": {
+      "archive_path": "data\\json_archives\\trading_journal.json",
+      "tables_exported": 8,
+      "total_rows": 0
+    },
+    "arbiter.db": {
+      "archive_path": "data\\json_archives\\arbiter.json",
+      "tables_exported": 8,
+      "total_rows": 12
+    }
+  },
+  "total_tables": 16,
+  "total_rows": 12,
+  "errors": [
+    "Failed to dehydrate market_data.db: file is not a database"
+  ]
+}

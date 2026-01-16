@@ -58,10 +58,18 @@ src/core/price_history_*.json
 # Data & State (Nomad Architecture)
 data/*.db
 data/*.db-journal
+data/*.db-shm
+data/*.db-wal
+data/*.db.backup_*
 # archives/ is strictly for JSON mission logs
 archives/
 !archives/*.json
 !archives/.keep
+
+# JSON Archives (Hydration System) - KEEP THESE IN GIT
+!data/json_archives/
+!data/json_archives/*.json
+!data/json_archives/.keep
 
 start.bat
 

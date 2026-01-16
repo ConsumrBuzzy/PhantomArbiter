@@ -1,0 +1,2 @@
+# This directory stores JSON archives for database hydration/dehydration
+# These files are tracked in Git for portability across stations

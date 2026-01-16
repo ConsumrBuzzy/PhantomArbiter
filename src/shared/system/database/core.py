@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import time
+from pathlib import Path
 from contextlib import contextmanager
 from src.shared.system.logging import Logger
 
@@ -29,9 +30,42 @@ class DatabaseCore:
 
     def _init(self):
         self._ensure_data_dir()
+        self._check_and_hydrate()
         self._init_wal_mode()
         # Schema init is handled by the Facade or individual repos now,
         # but Core provides the connection.
+    
+    def _check_and_hydrate(self):
+        """
+        Check if database is corrupted and attempt hydration from JSON.
+        Task: Database Hydration System Integration
+        Requirement: Auto-fix corrupted databases on startup
+        """
+        try:
+            # Import here to avoid circular dependency
+            from src.shared.system.db_hydration import get_hydration_manager
+            
+            manager = get_hydration_manager()
+            
+            # Check if DB exists and is valid
+            if os.path.exists(self.DB_PATH):
+                if not manager._is_db_valid(self.DB_PATH):
+                    Logger.warning("⚠️ Database corrupted, attempting hydration from JSON...")
+                    
+                    # Try to fix from JSON archive
+                    db_file = os.path.basename(self.DB_PATH)
+                    archive_path = manager.ARCHIVE_DIR / f"{os.path.splitext(db_file)[0]}.json"
+                    
+                    if archive_path.exists():
+                        manager._hydrate_database(self.DB_PATH, archive_path, force=True)
+                        Logger.success("✅ Database restored from JSON archive")
+                    else:
+                        Logger.warning("⚠️ No JSON archive found, will create fresh database")
+                        # Remove corrupted DB to allow fresh creation
+                        os.remove(self.DB_PATH)
+            
+        except Exception as e:
+            Logger.warning(f"⚠️ Hydration check failed: {e}, proceeding with normal init")
 
     def _ensure_data_dir(self):
         directory = os.path.dirname(self.DB_PATH)

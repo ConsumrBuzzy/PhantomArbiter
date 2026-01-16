@@ -30,8 +30,17 @@ async def main():
     from src.shared.feeds.simple_price_feed import SimplePriceFeed, PriceData
     from src.shared.feeds.token_watchlist import TokenWatchlistFeed, TokenPrice
     from src.core.sensors.whale_sensor import WhaleSensor
+    from src.shared.system.db_hydration import get_hydration_manager
     
     Logger.info("🚀 Starting Phantom Arbiter Command Center...")
+    
+    # Auto-hydrate databases on startup
+    try:
+        hydration_manager = get_hydration_manager()
+        Logger.info("💧 Checking database hydration status...")
+        hydration_manager.hydrate_all(force=False)
+    except Exception as e:
+        Logger.warning(f"⚠️ Hydration check failed: {e}, proceeding with normal startup")
     
     # 1. Static Web Server (Frontend) + API
     def run_http():
@@ -43,53 +52,57 @@ async def main():
                 if self.path == '/api/drift/markets':
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     
                     try:
-                        # Use project root for imports (we are in frontend dir now)
+                        # Task 1.5: Update /api/drift/markets endpoint
+                        # Requirements: 2.1, 2.2
                         sys.path.insert(0, os.path.dirname(os.getcwd()))
                         from src.shared.feeds.drift_funding import get_funding_feed
                         
-                        # Use sync method to get data
+                        # Use enhanced feed with full market data
                         feed = get_funding_feed(use_mock=False)
-                        # We need full stats, but sync method returns dict.
-                        # Let's mock the structure to match what frontend expects
-                        # based on the sync dict we get.
-                        rates_dict = feed.get_funding_rates_sync()
                         
-                        markets = []
-                        total_oi = 0.0
-                        total_funding_abs = 0.0
+                        # Run async methods in sync context
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            markets_data = loop.run_until_complete(feed.get_funding_markets())
+                            stats_data = loop.run_until_complete(feed.get_market_stats())
+                        finally:
+                            loop.close()
                         
-                        for symbol, rate_8h in rates_dict.items():
-                             # Reconstruct basic info
-                             start_seed = sum(ord(c) for c in symbol)
-                             mock_oi = (start_seed * 1000000) % 500000000 + 10000000
-                             
-                             markets.append({
-                                 "symbol": symbol,
-                                 "rate": rate_8h / 100.0,
-                                 "apr": rate_8h * 3 * 365,
-                                 "direction": "shorts" if rate_8h > 0 else "longs",
-                                 "oi": mock_oi,
-                                 "volume_24h": mock_oi * 1.5
-                             })
-                             total_oi += mock_oi
-                             total_funding_abs += abs(rate_8h * 3 * 365)
+                        # Convert FundingMarket dataclasses to dicts
+                        markets_list = []
+                        for m in markets_data:
+                            markets_list.append({
+                                "symbol": m.symbol,
+                                "rate": m.rate_8h / 100.0,  # Convert to decimal for display
+                                "apr": m.apr,
+                                "direction": m.direction,
+                                "oi": m.open_interest,
+                                "volume_24h": m.volume_24h
+                            })
                         
                         response_data = {
-                            "markets": markets,
-                            "stats": {
-                                "total_oi": total_oi,
-                                "volume_24h": total_oi * 1.5,
-                                "avg_funding": (total_funding_abs / len(markets)) if markets else 0.0
-                            }
+                            "markets": markets_list,
+                            "stats": stats_data
                         }
                         
                         self.wfile.write(json.dumps(response_data).encode())
                         
                     except Exception as e:
-                        error_resp = {"error": str(e), "markets": [], "stats": {}}
+                        Logger.error(f"[API] /api/drift/markets error: {e}")
+                        error_resp = {
+                            "error": str(e), 
+                            "markets": [], 
+                            "stats": {
+                                "total_oi": 0.0,
+                                "volume_24h": 0.0,
+                                "avg_funding": 0.0
+                            }
+                        }
                         self.wfile.write(json.dumps(error_resp).encode())
                     return
 
@@ -401,6 +414,15 @@ async def main():
     except KeyboardInterrupt:
         Logger.info("👋 Shutting down...")
     finally:
+        # Auto-dehydrate databases on shutdown
+        try:
+            Logger.info("💧 Dehydrating databases to JSON...")
+            hydration_manager = get_hydration_manager()
+            results = hydration_manager.dehydrate_all()
+            Logger.success(f"💧 Dehydrated {results['total_tables']} tables, {results['total_rows']} rows")
+        except Exception as e:
+            Logger.warning(f"⚠️ Dehydration failed: {e}")
+        
         price_feed.stop()
         watchlist_feed.stop()
         context_driver.stop()

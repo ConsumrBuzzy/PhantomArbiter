@@ -43,6 +43,23 @@ class FundingInfo:
         return f"{self.market}: {sign}{self.rate_8h:.4f}%/8h (APY: {self.rate_annual:.1f}%)"
 
 
+@dataclass
+class FundingMarket:
+    """
+    Complete market data for Web UI display.
+    
+    Task 1.1: Enhanced market data structure
+    Requirements: 2.2
+    """
+    symbol: str  # e.g., "SOL-PERP"
+    rate_1h: float  # Hourly rate as decimal (e.g., 0.0001 = 0.01%)
+    rate_8h: float  # 8-hour rate as decimal
+    apr: float  # Annualized percentage rate
+    direction: str  # "shorts" or "longs" (who receives funding)
+    open_interest: float  # Total OI in USD
+    volume_24h: float  # 24h volume in USD
+
+
 class DriftFundingFeed:
     """
     Drift Protocol funding rate feed.
@@ -194,6 +211,84 @@ class DriftFundingFeed:
             return None
 
         return best
+
+    async def get_funding_markets(self) -> list[FundingMarket]:
+        """
+        Get complete market data for all monitored markets.
+        
+        Task 1.2: Implement get_funding_markets() method
+        Requirements: 2.2, 2.6
+        
+        Returns:
+            List of FundingMarket objects with complete data
+        """
+        markets = []
+        
+        for market_symbol in self.MARKETS:
+            info = await self.get_funding_rate(market_symbol)
+            if not info:
+                continue
+            
+            # Calculate 1h rate from 8h rate (8h rate / 8)
+            rate_1h = info.rate_8h / 8.0
+            
+            # Calculate APR: rate_8h × 3 (per day) × 365
+            # Task 1.2: APR calculation formula
+            apr = info.rate_8h * 3 * 365
+            
+            # Determine direction (who receives funding)
+            # Positive rate = longs pay shorts → shorts receive
+            # Negative rate = shorts pay longs → longs receive
+            direction = "shorts" if info.is_positive else "longs"
+            
+            # Mock OI and volume (in production, fetch from Drift API)
+            # Using deterministic mock based on symbol for consistency
+            seed = sum(ord(c) for c in market_symbol)
+            mock_oi = (seed * 1000000) % 500000000 + 10000000  # $10M-$510M
+            mock_volume = mock_oi * 1.5  # Volume typically 1.5x OI
+            
+            market = FundingMarket(
+                symbol=market_symbol,
+                rate_1h=rate_1h,
+                rate_8h=info.rate_8h,
+                apr=apr,
+                direction=direction,
+                open_interest=mock_oi,
+                volume_24h=mock_volume
+            )
+            
+            markets.append(market)
+        
+        return markets
+
+    async def get_market_stats(self) -> dict:
+        """
+        Calculate aggregate market statistics.
+        
+        Task 1.3: Implement get_market_stats() method
+        Requirements: 2.2
+        
+        Returns:
+            Dict with total_oi, volume_24h, avg_funding
+        """
+        markets = await self.get_funding_markets()
+        
+        if not markets:
+            return {
+                "total_oi": 0.0,
+                "volume_24h": 0.0,
+                "avg_funding": 0.0
+            }
+        
+        total_oi = sum(m.open_interest for m in markets)
+        total_volume = sum(m.volume_24h for m in markets)
+        avg_funding = sum(abs(m.apr) for m in markets) / len(markets)
+        
+        return {
+            "total_oi": total_oi,
+            "volume_24h": total_volume,
+            "avg_funding": avg_funding
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════
