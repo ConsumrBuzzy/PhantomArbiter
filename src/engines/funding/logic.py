@@ -734,9 +734,26 @@ class FundingEngine(BaseEngine):
                     }
                 
                 elif action == "CLOSE_POSITION":
-                    # TODO: Implement position closing in Task 14
-                    Logger.warning("[FUNDING] CLOSE_POSITION not implemented yet (Task 14)")
-                    return {"success": False, "message": "Position closing not implemented yet (Task 14)"}
+                    market = data.get("market", "SOL-PERP")
+                    
+                    Logger.info(f"[FUNDING] Executing CLOSE_POSITION command: {market}")
+                    
+                    # Execute position closing via DriftAdapter
+                    tx_sig = await self.drift_adapter.close_position(
+                        market=market,
+                        settle_pnl=True
+                    )
+                    
+                    Logger.success(f"[FUNDING] ✅ Position closed: {market}, tx: {tx_sig}")
+                    
+                    # Update Engine_Vault position tracking (Task 14 Requirement 4.12)
+                    await self._sync_vault_from_drift()
+                    
+                    return {
+                        "success": True,
+                        "message": f"Closed position {market}",
+                        "tx_signature": tx_sig
+                    }
                 
                 else:
                     Logger.warning(f"[FUNDING] Unknown action received: {action}")

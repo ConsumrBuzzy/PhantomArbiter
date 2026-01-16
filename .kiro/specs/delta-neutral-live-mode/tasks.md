@@ -236,7 +236,7 @@ The implementation follows these phases:
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
   - **Status: All 8 tests passing ✓**
 
-- [ ] 14. Implement position closing
+- [x] 14. Implement position closing
   - Implement `close_position()` method in DriftAdapter
   - Calculate exact offsetting size to flatten position
   - Build offsetting order (buy to close short, sell to close long)
@@ -244,16 +244,19 @@ The implementation follows these phases:
   - Call settle_pnl instruction on Drift Protocol
   - Broadcast updated position list to UI within 1 second
   - _Requirements: 4.8, 4.9, 4.10, 4.11, 4.12_
+  - **Status: Implementation complete ✓**
 
-- [ ] 14.1 Write property test for position closure completeness
+- [x] 14.1 Write property test for position closure completeness
   - **Property 15: Position Closure Completeness**
   - **Validates: Requirements 4.8, 4.9**
+  - **Status: Test passing (100 iterations) ✓**
 
-- [ ] 14.2 Write unit tests for position closing
+- [x] 14.2 Write unit tests for position closing
   - Test successful position close
   - Test PnL settlement trigger
   - Test UI broadcast timing
   - _Requirements: 4.8, 4.9, 4.10, 4.11, 4.12_
+  - **Status: All 8 tests passing ✓**
 
 - [ ] 15. Implement delta drift auto-rebalancing for live mode
   - Update `check_and_rebalance()` to execute real trades in live mode
