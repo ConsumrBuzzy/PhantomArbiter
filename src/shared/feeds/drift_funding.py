@@ -90,7 +90,7 @@ class DriftFundingFeed:
         """
         self._drift = drift_adapter
         self._cache: Dict[str, FundingInfo] = {}
-        self._cache_ttl = 60.0  # 1 minute cache (funding doesn't change fast)
+        self._cache_ttl = 300.0  # 5 minute cache (Task 1.4: Requirements 2.8)
         self._last_fetch = 0.0
 
     def _get_drift(self):

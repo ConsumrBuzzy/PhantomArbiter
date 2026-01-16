@@ -43,18 +43,18 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Calculate average funding rate
   - _Requirements: 2.2_
 
-- [ ] 1.4 Add response caching (5-minute TTL)
+- [x] 1.4 Add response caching (5-minute TTL)
   - Cache market data to reduce RPC calls
   - Invalidate cache on manual refresh
   - _Requirements: 2.8_
 
-- [ ] 1.5 Update /api/drift/markets endpoint
+- [x] 1.5 Update /api/drift/markets endpoint
   - Use enhanced DriftFundingFeed
   - Return JSON with markets array and stats object
   - Add error handling for RPC failures
   - _Requirements: 2.1, 2.2_
 
-- [ ] 1.6 Write unit tests for DriftFundingFeed
+- [-] 1.6 Write unit tests for DriftFundingFeed
   - Test market data parsing
   - Test APR calculation
   - Test stats aggregation
