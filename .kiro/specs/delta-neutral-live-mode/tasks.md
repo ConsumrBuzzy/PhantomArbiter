@@ -267,7 +267,19 @@ The implementation follows these phases:
   - **Status: Verification complete ✓**
   - **Documentation**: `.kiro/specs/delta-neutral-live-mode/UI_INTEGRATION_VERIFICATION.md`
 
-- [ ] 15. Implement delta drift auto-rebalancing for live mode
+- [x] 15. Implement delta drift auto-rebalancing for live mode
+  - Update `check_and_rebalance()` to execute real trades in live mode
+  - Implement cooldown enforcement (30 minutes)
+  - Implement minimum trade size filter (0.005 SOL)
+  - Calculate correction trade size from net delta
+  - Determine trade direction (EXPAND_SHORT vs REDUCE_SHORT)
+  - Execute rebalance trade via DriftAdapter
+  - Update last rebalance timestamp on success
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10_
+  - **Status: Implementation complete ✓**
+  - **Documentation**: `.kiro/specs/delta-neutral-live-mode/TASK_15_SUMMARY.md`
+
+- [ ] 15.1 Write property test for delta drift calculation
   - Update `check_and_rebalance()` to execute real trades in live mode
   - Implement cooldown enforcement (30 minutes)
   - Implement minimum trade size filter (0.005 SOL)
