@@ -178,6 +178,30 @@ async def main():
                     await self._broadcast_engine_status()
                     return
 
+            # --- DRIFT CONTROLS ---
+            elif action in ["DRIFT_DEPOSIT", "DRIFT_WITHDRAW", "DRIFT_CLOSE_POSITION"]:
+                 if "funding" in self.local_engines:
+                     eng = self.local_engines["funding"]
+                     # Strip DRIFT_ prefix to get raw action
+                     raw_action = action.replace("DRIFT_", "")
+                     result = await eng.execute_funding_command(raw_action, data)
+                     
+                     await websocket.send(json.dumps({
+                         "type": "COMMAND_RESULT",
+                         "action": action,
+                         "success": result["success"],
+                         "message": result["message"]
+                     }))
+                     return
+                 else:
+                      await websocket.send(json.dumps({
+                         "type": "COMMAND_RESULT",
+                         "action": action,
+                         "success": False,
+                         "message": "Funding engine not loaded"
+                     }))
+                      return
+
             # Fallback to default handler
             await super()._handle_command(websocket, data)
 

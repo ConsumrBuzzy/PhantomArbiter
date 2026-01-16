@@ -191,57 +191,113 @@ class FundingEngine(BaseEngine):
         
         rpc_url = os.getenv("RPC_URL", "https://api.mainnet-beta.solana.com")
         
-        async with AsyncClient(rpc_url) as client:
-            # Fetch current positions
-            sol_balance = await client.get_balance(wallet_pk)
-            spot_sol = sol_balance.value / (10 ** SOL_DECIMALS)
+        if not self.live_mode and self.driver:
+            # PAPER MODE: Fetch from VirtualDriver
+            balances = self.driver.get_balances()
+            spot_sol = balances.get("SOL", 0.0)
             
-            user_info = await client.get_account_info(user_pda)
-            if not user_info.value:
-                return {"status": "error", "message": "Drift user account not found"}
+            # VirtualDriver doesn't always track perp positions cleanly in 'balances' 
+            # unless using 'positions' dict. Let's assume driver.positions
+            positions_data = getattr(self.driver, "positions", {})
+            perp_pos = positions_data.get("SOL-PERP", {"size": 0.0})
+            perp_sol = perp_pos.get("size", 0.0)
+            # Short is negative in Drift logic, but VirtualDriver might store absolute. 
+            # Let's assume standard signed: negative = short.
+            if perp_pos.get("side") == "short":
+                perp_sol = -abs(perp_sol)
             
-            data = bytes(user_info.value.data)
-            position = parse_perp_position(data, market_index=0)
-            
-            if not position:
-                return {"status": "error", "message": "No perp position found"}
-            
-            perp_sol = position["base_asset_amount"] / (10 ** SOL_DECIMALS)
-            quote_amount = position["quote_asset_amount"] / (10 ** USDC_DECIMALS)
-            
-            # Calculate delta
-            hedgeable_spot = max(0, spot_sol - self.config.reserved_sol)
-            net_delta = hedgeable_spot + perp_sol  # perp_sol is negative for shorts
-            
-            if hedgeable_spot == 0:
-                return {"status": "error", "message": "No hedgeable spot balance"}
-            
+            quote_amount = balances.get("USDC", 1000.0) # Assume some USDC for quoting
+            sol_price = self.driver.price_feed.get("SOL-PERP", 150.0)
+
+        elif private_key:
+            # LIVE (or Read-Only) MODE: Fetch from RPC
+            async with AsyncClient(rpc_url) as client:
+                # Fetch current positions
+                try:
+                    sol_balance = await client.get_balance(wallet_pk)
+                    spot_sol = sol_balance.value / (10 ** SOL_DECIMALS)
+                    
+                    user_info = await client.get_account_info(user_pda)
+                    if not user_info.value:
+                        perp_sol = 0.0
+                        quote_amount = 0.0
+                    else:
+                        data = bytes(user_info.value.data)
+                        position = parse_perp_position(data, market_index=0)
+                        
+                        if not position:
+                             perp_sol = 0.0
+                             quote_amount = 0.0
+                        else:
+                             perp_sol = position["base_asset_amount"] / (10 ** SOL_DECIMALS)
+                             quote_amount = position["quote_asset_amount"] / (10 ** USDC_DECIMALS)
+                    
+                    # Rough price estimate (mocking oracle)
+                    sol_price = 150.0 # TODO: Fetch from Pyth or Jupiter
+                except Exception as e:
+                     return {"status": "error", "message": f"RPC Error: {e}"}
+        else:
+             return {"status": "error", "message": "No private key"}
+
+        # Calculate delta
+        hedgeable_spot = max(0, spot_sol - self.config.reserved_sol)
+        net_delta = hedgeable_spot + perp_sol  # perp_sol is negative for shorts
+        
+        drift_pct = 0.0
+        if hedgeable_spot > 0:
             drift_pct = (net_delta / hedgeable_spot) * 100
-            abs_drift = abs(drift_pct)
+        
+        abs_drift = abs(drift_pct)
+        
+        # --- ENRICH DATA FOR UI ---
+        spot_usd = spot_sol * sol_price
+        perp_usd = abs(perp_sol) * sol_price
+        maint_margin = perp_usd * 0.05
+        equity = spot_usd + quote_amount # Approx
+        
+        leverage = 0.0
+        if equity > 0:
+            leverage = perp_usd / equity
+
+        positions_list = []
+        if abs(perp_sol) > 0.0001:
+            positions_list.append({
+                "market": "SOL-PERP",
+                "amount": perp_sol,
+                "entry_price": 0.0, # Unknown in this scan
+                "mark_price": sol_price,
+                "pnl": 0.0,
+                "liq_price": 0.0
+            })
+
+        result = {
+            "timestamp": datetime.now().isoformat(),
+            "spot_sol": spot_sol,
+            "perp_sol": perp_sol,
+            "net_delta": net_delta,
+            "drift_pct": drift_pct,
+            "sol_price": sol_price,
+            "action_taken": None,
+            "tx_signature": None,
             
-            # Estimate SOL price
-            sol_price = abs(quote_amount / perp_sol) if perp_sol != 0 else 150.0
+            # UI Metrics
+            "total_collateral": equity,
+            "equity": equity,
+            "maintenance_margin": maint_margin,
+            "leverage": leverage,
+            "positions": positions_list,
+            "free_collateral": max(0, equity - maint_margin)
+        }
             
-            result = {
-                "timestamp": datetime.now().isoformat(),
-                "spot_sol": spot_sol,
-                "perp_sol": perp_sol,
-                "net_delta": net_delta,
-                "drift_pct": drift_pct,
-                "sol_price": sol_price,
-                "action_taken": None,
-                "tx_signature": None,
-            }
-            
-            # Check if rebalance needed
-            if abs_drift <= self.config.drift_tolerance_pct:
-                result["status"] = "ok"
-                result["message"] = f"Delta within tolerance ({drift_pct:+.2f}%)"
-                return result
-            
-            # Check cooldown
-            if self.last_rebalance:
-                time_since_last = datetime.now() - self.last_rebalance
+        # Check if rebalance needed
+        if abs_drift <= self.config.drift_tolerance_pct:
+            result["status"] = "ok"
+            result["message"] = f"Delta within tolerance ({drift_pct:+.2f}%)"
+            return result
+        
+        # Check cooldown
+        if self.last_rebalance:
+            time_since_last = datetime.now() - self.last_rebalance
                 if time_since_last < timedelta(seconds=self.config.cooldown_seconds):
                     remaining = self.config.cooldown_seconds - time_since_last.total_seconds()
                     result["status"] = "cooldown"
@@ -366,6 +422,51 @@ class FundingEngine(BaseEngine):
         
         return sig
     
+
+    async def execute_funding_command(self, action: str, data: dict) -> dict:
+        """
+        Execute manual commands from Dashboard.
+        Actions: DEPOSIT, WITHDRAW, CLOSE_POSITION
+        """
+        Logger.info(f"[FUNDING] Received command: {action} {data}")
+        
+        if not self.live_mode and self.driver:
+            # --- PAPER MODE EXECUTION ---
+            if action == "DEPOSIT":
+                amount = float(data.get("amount", 0))
+                # Add to Virtual Wallet (USDC or SOL?)
+                # Usually funding engine holds SOL spot and short perp.
+                # Let's assume deposit is SOL.
+                # VirtualDriver doesn't explicit deposit, but we can set balance.
+                balances = self.driver.get_balances()
+                current_sol = balances.get("SOL", 0.0)
+                self.driver.set_balance("SOL", current_sol + amount)
+                return {"success": True, "message": f"Deposited {amount} SOL (Paper)"}
+                
+            elif action == "WITHDRAW":
+                amount = float(data.get("amount", 0))
+                balances = self.driver.get_balances()
+                current_sol = balances.get("SOL", 0.0)
+                if current_sol >= amount:
+                    self.driver.set_balance("SOL", current_sol - amount)
+                    return {"success": True, "message": f"Withdrew {amount} SOL (Paper)"}
+                else:
+                    return {"success": False, "message": "Insufficient funds"}
+                    
+            elif action == "CLOSE_POSITION":
+                 # Close all PERP positions
+                 # In Paper Mode, just zero out the position in VirtualDriver
+                 # VirtualDriver.positions = {"SOL-PERP": ...}
+                 if hasattr(self.driver, "positions"):
+                     self.driver.positions["SOL-PERP"] = {"size": 0.0, "side": "flat", "entry_price": 0.0}
+                     return {"success": True, "message": "Closed SOL-PERP (Paper)"}
+                 return {"success": False, "message": "Driver state error"}
+
+        else:
+            # --- LIVE MODE EXECUTION ---
+            # TODO: Implement real Drift Client calls
+            return {"success": False, "message": "Live execution not implemented yet"}
+
 
 # Backward Compatibility
 AutoRebalancer = FundingEngine

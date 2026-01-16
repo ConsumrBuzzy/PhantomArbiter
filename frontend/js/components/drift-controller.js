@@ -77,6 +77,7 @@ export class DriftController {
     }
 
     _bindControls() {
+        // Subaccount Selector
         const subAccSelect = document.getElementById('drift-subaccount-select');
         if (subAccSelect) {
             subAccSelect.addEventListener('change', (e) => {
@@ -86,6 +87,7 @@ export class DriftController {
             });
         }
 
+        // Refresh Button
         const refreshBtn = document.getElementById('drift-refresh-markets-btn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
@@ -93,6 +95,45 @@ export class DriftController {
                 setTimeout(() => refreshBtn.querySelector('i').classList.remove('spinning'), 1000);
             });
         }
+
+        // Deposit Button
+        const depositBtn = document.getElementById('drift-deposit-btn');
+        if (depositBtn) {
+            depositBtn.addEventListener('click', () => {
+                const amount = prompt("Enter amount to DEPOSIT (SOL):");
+                if (amount && !isNaN(amount)) {
+                    window.tradingOS.ws.send('DRIFT_DEPOSIT', { amount: parseFloat(amount) });
+                }
+            });
+        }
+
+        // Withdraw Button
+        const withdrawBtn = document.getElementById('drift-withdraw-btn');
+        if (withdrawBtn) {
+            withdrawBtn.addEventListener('click', () => {
+                const amount = prompt("Enter amount to WITHDRAW (SOL):");
+                if (amount && !isNaN(amount)) {
+                    window.tradingOS.ws.send('DRIFT_WITHDRAW', { amount: parseFloat(amount) });
+                }
+            });
+        }
+
+        // Close All Button
+        const closeAllBtn = document.getElementById('drift-close-all-btn');
+        if (closeAllBtn) {
+            closeAllBtn.addEventListener('click', () => {
+                if (confirm("Are you sure you want to CLOSE ALL positions?")) {
+                    window.tradingOS.ws.send('DRIFT_CLOSE_POSITION', { market: 'ALL' });
+                }
+            });
+        }
+
+        // Global Action for Rows
+        window.closeDriftPosition = (market) => {
+            if (confirm(`Close position for ${market}?`)) {
+                window.tradingOS.ws.send('DRIFT_CLOSE_POSITION', { market: market });
+            }
+        };
     }
 
     /**
