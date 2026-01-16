@@ -700,9 +700,38 @@ class FundingEngine(BaseEngine):
                     }
                 
                 elif action == "OPEN_POSITION":
-                    # TODO: Implement position opening in Task 13
-                    Logger.warning("[FUNDING] OPEN_POSITION not implemented yet (Task 13)")
-                    return {"success": False, "message": "Position opening not implemented yet (Task 13)"}
+                    market = data.get("market", "SOL-PERP")
+                    direction = data.get("direction", "short")  # UI sends "shorts" or "longs"
+                    size = float(data.get("size", 0.0))
+                    
+                    # Map UI direction format to adapter format
+                    # UI sends "shorts" for short positions, "longs" for long positions
+                    if "short" in direction.lower():
+                        direction_normalized = "short"
+                    elif "long" in direction.lower():
+                        direction_normalized = "long"
+                    else:
+                        return {"success": False, "message": f"Invalid direction: {direction}"}
+                    
+                    Logger.info(f"[FUNDING] Executing OPEN_POSITION command: {direction_normalized} {size} {market}")
+                    
+                    # Execute position opening via DriftAdapter
+                    tx_sig = await self.drift_adapter.open_position(
+                        market=market,
+                        direction=direction_normalized,
+                        size=size
+                    )
+                    
+                    Logger.success(f"[FUNDING] ✅ Position opened: {direction_normalized} {size} {market}, tx: {tx_sig}")
+                    
+                    # Update Engine_Vault position tracking (Task 13 Requirement 4.7)
+                    await self._sync_vault_from_drift()
+                    
+                    return {
+                        "success": True,
+                        "message": f"Opened {direction_normalized} {size} {market}",
+                        "tx_signature": tx_sig
+                    }
                 
                 elif action == "CLOSE_POSITION":
                     # TODO: Implement position closing in Task 14
