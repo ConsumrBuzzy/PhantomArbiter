@@ -7,7 +7,7 @@ export class Inventory {
     constructor() {
         // Get fixed table bodies
         this.liveTableBody = document.querySelector('#live-inventory-table tbody');
-        this.paperTableBody = document.querySelector('#paper-inventory-table tbody');
+        // this.paperTableBody = document.querySelector('#paper-inventory-table tbody');
 
         // Container for dynamic strategy vaults
         this.container = document.querySelector('#inventory-container');
@@ -25,9 +25,8 @@ export class Inventory {
         if (data.live_wallet) {
             this.renderTable(this.liveTableBody, data.live_wallet, 'live');
         }
-        if (data.paper_wallet || data.wallet) {
-            this.renderTable(this.paperTableBody, data.paper_wallet || data.wallet, 'paper');
-        }
+        // Removed legacy global paper wallet rendering per user request
+        // if (data.paper_wallet || data.wallet) { ... }
 
         // 2. Update Dynamic Strategy Vaults
         if (data.vaults) {
