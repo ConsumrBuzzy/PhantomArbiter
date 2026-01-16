@@ -38,7 +38,11 @@ export class UnifiedVaultController {
      * Render the 3-pillar vault view
      */
     render() {
-        if (!this.container) return;
+        if (!this.container) {
+            console.error('[UnifiedVault] Render failed: Container is missing!');
+            return;
+        }
+        console.log('[UnifiedVault] Rendering to container...');
 
         this.container.innerHTML = `
             <div class="unified-vault">
