@@ -5,7 +5,7 @@ Wrapper for driftpy SDK with PhantomArbiter conventions.
 
 Provides a clean interface for:
 - Connection management with retry logic
-- Account state fetching with full parsing
+- Account state fetching with accurate on-chain parsing
 - Capital management (deposit/withdraw)
 - Position management (open/close)
 - Health ratio calculation
@@ -15,7 +15,10 @@ Features:
 - User PDA derivation
 - Account existence verification
 - Connection recovery
-- Full Drift account parsing (collateral, positions, margin)
+- Accurate Drift account parsing (collateral at offset 128, positions, margin)
+
+Note: Balance parsing reads directly from on-chain data at the correct offset (128)
+for the USDC spot balance (scaled_balance field with 1e6 precision).
 """
 
 import asyncio
