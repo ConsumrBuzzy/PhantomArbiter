@@ -27,6 +27,7 @@ dependencies = [
     "textual>=0.50.0",
     "pytest==7.4.4",
     "pytest-asyncio==0.23.8",
+    "hypothesis>=6.98.0",
 ]
 
 [tool.maturin]
