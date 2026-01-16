@@ -1022,7 +1022,7 @@ class DashboardApp {
      * Requirements: 2.2
      */
     renderOpportunityCards(markets) {
-        const container = document.getElementById('drift-opportunities');
+        const container = document.getElementById('funding-opportunities');
         if (!container) return;
         
         if (!markets || markets.length === 0) {
@@ -1060,7 +1060,7 @@ class DashboardApp {
                             </div>
                         </div>
                     </div>
-                    <button class="btn-xs drift-take-btn" 
+                    <button class="btn-xs funding-take-btn" 
                             data-market="${m.symbol}" 
                             data-direction="${m.direction}"
                             data-apr="${m.apr}"
@@ -1072,7 +1072,7 @@ class DashboardApp {
         }).join('');
         
         // Bind click handlers
-        container.querySelectorAll('.drift-take-btn').forEach(btn => {
+        container.querySelectorAll('.funding-take-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const market = btn.dataset.market;
                 const direction = btn.dataset.direction;
@@ -1088,9 +1088,9 @@ class DashboardApp {
      * Requirements: 2.2
      */
     updateMarketStats(stats) {
-        const oiEl = document.getElementById('drift-total-oi');
-        const volumeEl = document.getElementById('drift-24h-volume');
-        const fundingEl = document.getElementById('drift-avg-funding');
+        const oiEl = document.getElementById('funding-total-oi');
+        const volumeEl = document.getElementById('funding-24h-volume');
+        const fundingEl = document.getElementById('funding-avg-funding');
         
         if (oiEl) oiEl.textContent = this.formatNumber(stats.total_oi);
         if (volumeEl) volumeEl.textContent = this.formatNumber(stats.volume_24h);
@@ -1113,14 +1113,14 @@ class DashboardApp {
     /**
      * Show error message in Drift UI
      */
-    showDriftError(message) {
-        const tbody = document.getElementById('drift-funding-body');
+    showFundingError(message) {
+        const tbody = document.getElementById('funding-funding-body');
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" class="empty-state" style="color: var(--neon-red);">
                         ⚠️ ${message}
-                        <button class="btn-xs" onclick="app.fetchDriftMarkets()" style="margin-left: 10px;">
+                        <button class="btn-xs" onclick="app.fetchFundingMarkets()" style="margin-left: 10px;">
                             Retry
                         </button>
                     </td>
@@ -1135,7 +1135,7 @@ class DashboardApp {
      * Requirements: 4.1
      */
     handleTakePosition(market, direction, apr) {
-        console.log('[DRIFT] Take position:', market, direction, apr);
+        console.log('[FUNDING] Take position:', market, direction, apr);
         this.addLog('DRIFT', 'INFO', `Opening position modal for ${market} (${direction})`);
         
         // Store current position data
@@ -1152,29 +1152,29 @@ class DashboardApp {
         const availableSol = availableCollateral / solPrice;
         
         // Populate modal
-        document.getElementById('drift-modal-market').textContent = market;
-        document.getElementById('drift-modal-direction').textContent = direction.toUpperCase();
-        document.getElementById('drift-modal-apr').textContent = `${apr >= 0 ? '+' : ''}${apr.toFixed(2)}%`;
-        document.getElementById('drift-modal-available').textContent = availableSol.toFixed(3);
+        document.getElementById('funding-modal-market').textContent = market;
+        document.getElementById('funding-modal-direction').textContent = direction.toUpperCase();
+        document.getElementById('funding-modal-apr').textContent = `${apr >= 0 ? '+' : ''}${apr.toFixed(2)}%`;
+        document.getElementById('funding-modal-available').textContent = availableSol.toFixed(3);
         
         // Reset input
-        const sizeInput = document.getElementById('drift-position-size');
+        const sizeInput = document.getElementById('funding-position-size');
         sizeInput.value = '';
         sizeInput.max = availableSol.toFixed(3);
         
         // Reset leverage preview
-        document.getElementById('drift-modal-leverage').textContent = '0.0x';
-        document.getElementById('drift-modal-cost').textContent = '$0.00';
-        document.getElementById('drift-modal-health-after').textContent = '100%';
+        document.getElementById('funding-modal-leverage').textContent = '0.0x';
+        document.getElementById('funding-modal-cost').textContent = '$0.00';
+        document.getElementById('funding-modal-health-after').textContent = '100%';
         
         // Hide warning
-        document.getElementById('drift-modal-warning').style.display = 'none';
+        document.getElementById('funding-modal-warning').style.display = 'none';
         
         // Bind input change handler for live preview
         sizeInput.oninput = () => this.updatePositionPreview();
         
         // Show modal
-        document.getElementById('drift-position-modal').style.display = 'flex';
+        document.getElementById('funding-position-modal').style.display = 'flex';
     }
     
     /**
@@ -1183,7 +1183,7 @@ class DashboardApp {
      * Requirements: 4.2, 6.7
      */
     updatePositionPreview() {
-        const sizeInput = document.getElementById('drift-position-size');
+        const sizeInput = document.getElementById('funding-position-size');
         const size = parseFloat(sizeInput.value) || 0;
         
         // Get current state
@@ -1203,14 +1203,14 @@ class DashboardApp {
         const healthAfter = Math.max(0, Math.min(100, ((currentEquity - estimatedCost) / (marginRequired + (currentEquity * currentLeverage * 0.05))) * 100));
         
         // Update preview
-        document.getElementById('drift-modal-leverage').textContent = `${newLeverage.toFixed(2)}x`;
-        document.getElementById('drift-modal-cost').textContent = `$${estimatedCost.toFixed(2)}`;
-        document.getElementById('drift-modal-health-after').textContent = `${healthAfter.toFixed(1)}%`;
+        document.getElementById('funding-modal-leverage').textContent = `${newLeverage.toFixed(2)}x`;
+        document.getElementById('funding-modal-cost').textContent = `$${estimatedCost.toFixed(2)}`;
+        document.getElementById('funding-modal-health-after').textContent = `${healthAfter.toFixed(1)}%`;
         
         // Show warnings
-        const warningEl = document.getElementById('drift-modal-warning');
-        const warningText = document.getElementById('drift-modal-warning-text');
-        const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+        const warningEl = document.getElementById('funding-modal-warning');
+        const warningText = document.getElementById('funding-modal-warning-text');
+        const confirmBtn = document.getElementById('funding-modal-confirm-btn');
         
         if (size < 0.005) {
             warningEl.style.display = 'block';
@@ -1236,7 +1236,7 @@ class DashboardApp {
      * Requirements: 4.3, 8.6
      */
     confirmPosition() {
-        const size = parseFloat(document.getElementById('drift-position-size').value);
+        const size = parseFloat(document.getElementById('funding-position-size').value);
         
         if (!size || size < 0.005) {
             alert('Please enter a valid position size (min 0.005 SOL)');
@@ -1246,7 +1246,7 @@ class DashboardApp {
         const { market, direction } = this.currentPositionData;
         
         // Show loading state
-        const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+        const confirmBtn = document.getElementById('funding-modal-confirm-btn');
         confirmBtn.disabled = true;
         confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Opening...';
         
@@ -1267,7 +1267,7 @@ class DashboardApp {
      * Requirements: 4.8
      */
     handleLeavePosition(market) {
-        console.log('[DRIFT] Leave position:', market);
+        console.log('[FUNDING] Leave position:', market);
         this.addLog('DRIFT', 'INFO', `Opening close modal for ${market}`);
         
         // Find position in current state
@@ -1284,24 +1284,24 @@ class DashboardApp {
         this.currentClosePosition = position;
         
         // Populate modal
-        document.getElementById('drift-close-modal-market').textContent = position.market;
-        document.getElementById('drift-close-modal-side').textContent = position.amount < 0 ? 'SHORT' : 'LONG';
-        document.getElementById('drift-close-modal-size').textContent = `${Math.abs(position.amount).toFixed(3)} SOL`;
-        document.getElementById('drift-close-modal-entry').textContent = `$${position.entry_price.toFixed(2)}`;
-        document.getElementById('drift-close-modal-mark').textContent = `$${position.mark_price.toFixed(2)}`;
+        document.getElementById('funding-close-modal-market').textContent = position.market;
+        document.getElementById('funding-close-modal-side').textContent = position.amount < 0 ? 'SHORT' : 'LONG';
+        document.getElementById('funding-close-modal-size').textContent = `${Math.abs(position.amount).toFixed(3)} SOL`;
+        document.getElementById('funding-close-modal-entry').textContent = `$${position.entry_price.toFixed(2)}`;
+        document.getElementById('funding-close-modal-mark').textContent = `$${position.mark_price.toFixed(2)}`;
         
         // PnL color
-        const pnlEl = document.getElementById('drift-close-modal-pnl');
+        const pnlEl = document.getElementById('funding-close-modal-pnl');
         const pnl = position.unrealized_pnl || 0;
         pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
         pnlEl.style.color = pnl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
         
         // Expected proceeds
         const proceeds = Math.abs(position.amount) * position.mark_price;
-        document.getElementById('drift-close-modal-proceeds').textContent = `$${proceeds.toFixed(2)}`;
+        document.getElementById('funding-close-modal-proceeds').textContent = `$${proceeds.toFixed(2)}`;
         
         // Show modal
-        document.getElementById('drift-close-modal').style.display = 'flex';
+        document.getElementById('funding-close-modal').style.display = 'flex';
     }
     
     /**
@@ -1318,7 +1318,7 @@ class DashboardApp {
         const market = this.currentClosePosition.market;
         
         // Show loading state
-        const confirmBtn = document.getElementById('drift-close-modal-confirm-btn');
+        const confirmBtn = document.getElementById('funding-close-modal-confirm-btn');
         confirmBtn.disabled = true;
         confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Closing...';
         
@@ -1335,10 +1335,10 @@ class DashboardApp {
      * Close position modal
      */
     closeModal() {
-        document.getElementById('drift-position-modal').style.display = 'none';
+        document.getElementById('funding-position-modal').style.display = 'none';
         
         // Reset button state
-        const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+        const confirmBtn = document.getElementById('funding-modal-confirm-btn');
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Position';
     }
@@ -1347,10 +1347,10 @@ class DashboardApp {
      * Close close-position modal
      */
     closeCloseModal() {
-        document.getElementById('drift-close-modal').style.display = 'none';
+        document.getElementById('funding-close-modal').style.display = 'none';
         
         // Reset button state
-        const confirmBtn = document.getElementById('drift-close-modal-confirm-btn');
+        const confirmBtn = document.getElementById('funding-close-modal-confirm-btn');
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = '<i class="fa-solid fa-times-circle"></i> Close Position';
     }
@@ -1375,7 +1375,7 @@ class DashboardApp {
             } else {
                 this.addLog('DRIFT', 'ERROR', `Failed to open position: ${message}`);
                 // Re-enable button
-                const confirmBtn = document.getElementById('drift-modal-confirm-btn');
+                const confirmBtn = document.getElementById('funding-modal-confirm-btn');
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Position';
                 // Show error toast
@@ -1390,7 +1390,7 @@ class DashboardApp {
             } else {
                 this.addLog('DRIFT', 'ERROR', `Failed to close position: ${message}`);
                 // Re-enable button
-                const confirmBtn = document.getElementById('drift-close-modal-confirm-btn');
+                const confirmBtn = document.getElementById('funding-close-modal-confirm-btn');
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="fa-solid fa-times-circle"></i> Close Position';
                 // Show error toast
@@ -1478,7 +1478,7 @@ class DashboardApp {
         }
         
         // Update percentage text
-        const pctEl = document.getElementById('drift-health-pct');
+        const pctEl = document.getElementById('funding-health-pct');
         if (pctEl) {
             pctEl.textContent = `${health.toFixed(1)}%`;
         }
@@ -1513,7 +1513,7 @@ class DashboardApp {
         const fillPct = Math.min(100, (leverage / maxLeverage) * 100);
         
         // Update bar fill
-        const fillEl = document.getElementById('drift-leverage-fill');
+        const fillEl = document.getElementById('funding-leverage-fill');
         if (fillEl) {
             fillEl.style.transition = 'width 0.5s ease-out, background-color 0.5s ease-out';
             fillEl.style.width = `${fillPct}%`;
@@ -1529,7 +1529,7 @@ class DashboardApp {
         }
         
         // Update leverage text
-        const leverageEl = document.getElementById('drift-current-leverage');
+        const leverageEl = document.getElementById('funding-current-leverage');
         if (leverageEl) {
             leverageEl.textContent = `${leverage.toFixed(2)}x`;
             
@@ -1551,13 +1551,13 @@ class DashboardApp {
      */
     updateDeltaDisplay(netDelta, driftPct) {
         // Update delta value
-        const valueEl = document.getElementById('drift-delta-value');
+        const valueEl = document.getElementById('funding-delta-value');
         if (valueEl) {
             valueEl.textContent = netDelta.toFixed(3);
         }
         
         // Update delta status
-        const statusEl = document.getElementById('drift-delta-status');
+        const statusEl = document.getElementById('funding-delta-status');
         if (statusEl) {
             // Remove all status classes
             statusEl.classList.remove('neutral', 'long-bias', 'short-bias');
@@ -1584,7 +1584,7 @@ class DashboardApp {
      * Requirements: 4.12
      */
     updatePositionsTable(positions) {
-        const tbody = document.getElementById('drift-positions-body');
+        const tbody = document.getElementById('funding-positions-body');
         if (!tbody) return;
         
         // Clear existing rows
@@ -1617,7 +1617,7 @@ class DashboardApp {
                 </td>
                 <td>${pos.liq_price > 0 ? '$' + pos.liq_price.toFixed(2) : 'N/A'}</td>
                 <td>
-                    <button class="btn-xs btn-danger drift-leave-btn" 
+                    <button class="btn-xs btn-danger funding-leave-btn" 
                             data-market="${pos.market}">
                         Leave
                     </button>
@@ -1627,7 +1627,7 @@ class DashboardApp {
         });
         
         // Bind click handlers to "Leave" buttons
-        tbody.querySelectorAll('.drift-leave-btn').forEach(btn => {
+        tbody.querySelectorAll('.funding-leave-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const market = btn.dataset.market;
                 this.handleLeavePosition(market);
@@ -1642,19 +1642,19 @@ class DashboardApp {
      */
     updateCollateralMetrics(payload) {
         // Total Collateral
-        const totalCollateralEl = document.getElementById('drift-total-collateral');
+        const totalCollateralEl = document.getElementById('funding-total-collateral');
         if (totalCollateralEl && payload.total_collateral !== undefined) {
             totalCollateralEl.textContent = `$${payload.total_collateral.toFixed(2)}`;
         }
         
         // Free Collateral
-        const freeCollateralEl = document.getElementById('drift-free-collateral');
+        const freeCollateralEl = document.getElementById('funding-free-collateral');
         if (freeCollateralEl && payload.free_collateral !== undefined) {
             freeCollateralEl.textContent = `$${payload.free_collateral.toFixed(2)}`;
         }
         
         // Maintenance Margin
-        const maintMarginEl = document.getElementById('drift-maint-margin');
+        const maintMarginEl = document.getElementById('funding-maint-margin');
         if (maintMarginEl && payload.maintenance_margin !== undefined) {
             maintMarginEl.textContent = `$${payload.maintenance_margin.toFixed(2)}`;
         }
@@ -1724,10 +1724,10 @@ class DashboardApp {
 // GLOBAL FUNCTIONS (for onclick handlers in HTML)
 // ═══════════════════════════════════════════════════════════════
 
-window.driftCloseModal = () => window.app.closeModal();
-window.driftConfirmPosition = () => window.app.confirmPosition();
-window.driftCloseCloseModal = () => window.app.closeCloseModal();
-window.driftConfirmClose = () => window.app.confirmClose();
+window.fundingCloseModal = () => window.app.closeModal();
+window.fundingConfirmPosition = () => window.app.confirmPosition();
+window.fundingCloseCloseModal = () => window.app.closeCloseModal();
+window.fundingConfirmClose = () => window.app.confirmClose();
 
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL INIT
@@ -1737,24 +1737,25 @@ window.addEventListener('load', () => {
     window.app = new DashboardApp();
     
     // Bind Drift refresh button
-    const refreshBtn = document.getElementById('drift-refresh-markets-btn');
+    const refreshBtn = document.getElementById('funding-refresh-markets-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
-            window.app.fetchDriftMarkets();
+            window.app.fetchFundingMarkets();
         });
     }
     
     // Initial fetch on page load
     setTimeout(() => {
-        window.app.fetchDriftMarkets();
+        window.app.fetchFundingMarkets();
     }, 1000);
     
     // Auto-fetch Drift markets every 30 seconds if on Drift view
     // Task 2.5: Add auto-refresh logic
     setInterval(() => {
-        const driftView = document.querySelector('.engine-layout.drift-theme');
+        const driftView = document.querySelector('.engine-layout.funding-theme');
         if (driftView && driftView.offsetParent !== null) {
-            window.app.fetchDriftMarkets();
+            window.app.fetchFundingMarkets();
         }
     }, 30000);
 });
+
