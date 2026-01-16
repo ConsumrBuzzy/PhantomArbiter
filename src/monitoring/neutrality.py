@@ -261,7 +261,7 @@ class DeltaCalculator:
         try:
             if self.price_feed:
                 if hasattr(self.price_feed, 'get_spot_price'):
-                    quote = self.price_feed.get_spot_price("SOL", "USDC")
+                    quote = await self.price_feed.get_spot_price("SOL", "USDC")
                     if quote and quote.price > 0:
                         return quote.price
         except Exception as e:

@@ -856,7 +856,7 @@ class HeartbeatDataCollector:
                 from src.shared.feeds.jupiter_feed import JupiterFeed
                 self._price_feed = JupiterFeed()
             
-            quote = self._price_feed.get_spot_price(symbol, "USDC")
+            quote = await self._price_feed.get_spot_price(symbol, "USDC")
             if quote and quote.price > 0:
                 return quote.price
                 
