@@ -285,6 +285,99 @@ export class DriftController {
         return '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    async fetchMarkets() {
+        try {
+            console.log("[Drift] Fetching market data...");
+            const response = await fetch('/api/drift/markets');
+            const data = await response.json();
+
+            if (data.markets) {
+                this._renderMarkets(data.markets);
+                this._renderOpportunities(data.markets); // Highlight top APRs
+            }
+            if (data.stats) {
+                this._renderMarketStats(data.stats);
+            }
+        } catch (e) {
+            console.error("[Drift] Failed to fetch markets:", e);
+        }
+    }
+
+    _renderMarkets(markets) {
+        const tbody = document.getElementById('drift-funding-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        markets.forEach(m => {
+            const isNegative = m.rate < 0;
+            const rateClass = isNegative ? 'pnl-negative' : 'pnl-positive';
+            const rateSign = m.rate > 0 ? '+' : '';
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="font-weight: bold;">${m.symbol}</td>
+                <td class="${rateClass}">${rateSign}${(m.rate * 100).toFixed(4)}%</td>
+                <td class="${rateClass}" style="font-weight: bold;">${(m.apr * 100).toFixed(2)}%</td>
+                <td>${m.direction.toUpperCase()}</td>
+                <td style="font-family: 'Roboto Mono';">$${(m.oi / 1000000).toFixed(1)}M</td>
+                <td>
+                    <button class="btn-xs" style="background: rgba(0,255,136,0.1); color: var(--neon-green); border: 1px solid var(--neon-green);" 
+                        onclick="window.openDriftPosition('${m.symbol}', '${m.direction}')">
+                       Start
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    _renderOpportunities(markets) {
+        const container = document.getElementById('drift-opportunities');
+        if (!container) return;
+
+        // Sort by ABS(APR) descending
+        const sorted = [...markets].sort((a, b) => Math.abs(b.apr) - Math.abs(a.apr)).slice(0, 2);
+
+        container.innerHTML = '';
+
+        sorted.forEach(m => {
+            const borderColor = m.direction === 'shorts' ? 'var(--neon-green)' : 'var(--neon-purple)';
+            const bgColor05 = m.direction === 'shorts' ? 'rgba(0,255,136,0.05)' : 'rgba(135,91,247,0.05)';
+            const bgColor20 = m.direction === 'shorts' ? 'rgba(0,255,136,0.2)' : 'rgba(135,91,247,0.2)';
+
+            const card = document.createElement('div');
+            card.className = 'opportunity-card';
+            card.style.cssText = `background: ${bgColor05}; border: 1px solid ${bgColor20}; border-radius: 8px; padding: 10px; margin: 5px 0; cursor: pointer; transition: all 0.2s;`;
+            card.onclick = () => window.openDriftPosition(m.symbol, m.direction);
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span class="opp-symbol" style="font-weight: bold; font-size: 1.1rem;">${m.symbol}</span>
+                        <span class="opp-direction" style="color: ${borderColor}; margin-left: 8px; font-size: 0.8rem;">${m.direction.toUpperCase()}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="opp-apr" style="color: ${borderColor}; font-weight: bold;">${(m.apr * 100).toFixed(1)}% APR</div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim);">Funding pays ${m.direction}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    _renderMarketStats(stats) {
+        this._setText(document.getElementById('drift-total-oi'), `$${(stats.total_oi / 1000000).toFixed(1)}M`);
+        this._setText(document.getElementById('drift-24h-volume'), `$${(stats.volume_24h / 1000000).toFixed(1)}M`);
+
+        const avgEl = document.getElementById('drift-avg-funding');
+        if (avgEl) {
+            avgEl.textContent = `${(stats.avg_funding * 100).toFixed(2)}%`;
+            avgEl.style.color = stats.avg_funding >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+        }
+    }
+
     _setText(el, text) {
         if (el) el.textContent = text;
     }
