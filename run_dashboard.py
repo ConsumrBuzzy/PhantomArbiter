@@ -68,8 +68,12 @@ async def main():
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                         try:
+                            Logger.info("[API] Fetching funding markets...")
                             markets_data = loop.run_until_complete(feed.get_funding_markets())
+                            Logger.info(f"[API] Received {len(markets_data)} markets")
+                            
                             stats_data = loop.run_until_complete(feed.get_market_stats())
+                            Logger.info(f"[API] Stats: {stats_data}")
                         finally:
                             loop.close()
                         
@@ -90,6 +94,7 @@ async def main():
                             "stats": stats_data
                         }
                         
+                        Logger.info(f"[API] Sending response with {len(markets_list)} markets")
                         self.wfile.write(json.dumps(response_data).encode())
                         
                     except Exception as e:
