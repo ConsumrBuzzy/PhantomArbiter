@@ -143,7 +143,7 @@ class DriftFundingFeed:
 
         # Ensure connected
         drift = await self._ensure_connected()
-        if not drift or not drift.is_connected:
+        if not drift or not drift.connected:
             Logger.debug(f"[DriftFeed] Not connected, cannot fetch {market}")
             return None
 

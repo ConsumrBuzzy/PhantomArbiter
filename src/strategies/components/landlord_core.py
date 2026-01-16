@@ -330,7 +330,7 @@ class LandlordCore:
 
             # Close Drift SHORT
             drift = self._get_drift_adapter()
-            if not drift.is_connected:
+            if not drift.connected:
                 await drift.connect()
 
             close_result = await drift.close_position("SOL-PERP")

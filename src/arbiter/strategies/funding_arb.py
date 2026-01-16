@@ -134,7 +134,7 @@ class FundingRateArbitrage:
             from src.shared.feeds.drift_funding import get_funding_feed
 
             # Use mock if Drift not connected
-            use_mock = self.drift is None or not self.drift.is_connected
+            use_mock = self.drift is None or not self.drift.connected
             self._funding_feed = get_funding_feed(use_mock=use_mock)
         return self._funding_feed
 
@@ -265,7 +265,7 @@ class FundingRateArbitrage:
             # Step 3: Short perp
             Logger.info(f"[FUNDING] Opening SHORT: {size_base:.4f} {market}")
 
-            if self.drift.is_connected:
+            if self.drift.connected:
                 result = await self.drift.place_perp_order(market, "SHORT", size_base)
 
                 if not result.get("success"):
@@ -324,7 +324,7 @@ class FundingRateArbitrage:
             Logger.info(f"[FUNDING] Exiting {market} position...")
 
             # Step 1: Close perp
-            if self.drift and self.drift.is_connected:
+            if self.drift and self.drift.connected:
                 result = await self.drift.close_position(market)
                 if not result.get("success"):
                     raise Exception(f"Close perp failed: {result.get('error')}")
