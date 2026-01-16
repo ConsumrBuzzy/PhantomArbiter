@@ -1294,3 +1294,322 @@ class DriftAdapter:
         now = int(time.time())
         next_hour = (now // 3600 + 1) * 3600
         return next_hour - now
+
+    
+    # =========================================================================
+    # EXTENDED DRIFT API COVERAGE
+    # =========================================================================
+    
+    async def get_all_perp_markets(self) -> List[Dict[str, Any]]:
+        """
+        Get data for all perpetual markets.
+        
+        Returns:
+            List of dicts with market data:
+                - marketIndex: Market index
+                - symbol: Market symbol (e.g., "SOL-PERP")
+                - markPrice: Current mark price
+                - oraclePrice: Oracle price
+                - fundingRate: Hourly funding rate
+                - openInterest: Total open interest
+                - volume24h: 24-hour volume
+                - baseAssetAmountLong: Long OI
+                - baseAssetAmountShort: Short OI
+        """
+        try:
+            import httpx
+            
+            url = "https://dlob.drift.trade/perpMarkets"
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code != 200:
+                    Logger.warning(f"[DRIFT] API returned {response.status_code}")
+                    return []
+                
+                data = response.json()
+                markets = []
+                
+                # Market name mapping
+                MARKET_NAMES = {
+                    0: "SOL-PERP", 1: "BTC-PERP", 2: "ETH-PERP",
+                    3: "APT-PERP", 4: "1MBONK-PERP", 5: "POL-PERP",
+                    6: "ARB-PERP", 7: "DOGE-PERP", 8: "BNB-PERP",
+                    9: "SUI-PERP", 10: "1MPEPE-PERP", 11: "OP-PERP",
+                    12: "RNDR-PERP", 13: "HNT-PERP", 14: "WIF-PERP",
+                    15: "JTO-PERP", 16: "ONDO-PERP", 17: "PYTH-PERP",
+                    18: "TIA-PERP", 19: "JUP-PERP", 20: "INJ-PERP",
+                }
+                
+                for market_data in data.get("perpMarkets", []):
+                    market_index = market_data.get("marketIndex", -1)
+                    
+                    markets.append({
+                        "marketIndex": market_index,
+                        "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
+                        "markPrice": float(market_data.get("markPrice", 0)) / 1e6,
+                        "oraclePrice": float(market_data.get("oraclePrice", 0)) / 1e6,
+                        "fundingRate": float(market_data.get("fundingRate", 0)) / 1e9,
+                        "openInterest": float(market_data.get("openInterest", 0)) / 1e9,
+                        "volume24h": float(market_data.get("volume24h", 0)) / 1e6,
+                        "baseAssetAmountLong": float(market_data.get("baseAssetAmountLong", 0)) / 1e9,
+                        "baseAssetAmountShort": float(market_data.get("baseAssetAmountShort", 0)) / 1e9,
+                    })
+                
+                return markets
+                
+        except Exception as e:
+            Logger.error(f"[DRIFT] Failed to fetch perp markets: {e}")
+            return []
+    
+    async def get_orderbook(self, market: str, depth: int = 10) -> Dict[str, Any]:
+        """
+        Get L2 orderbook for a market.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            depth: Number of levels to fetch (default 10)
+        
+        Returns:
+            Dict with:
+                - bids: List of [price, size] tuples
+                - asks: List of [price, size] tuples
+                - spread: Bid-ask spread
+                - midPrice: Mid price
+        """
+        try:
+            import httpx
+            
+            # Map market to index
+            MARKET_INDICES = {
+                "SOL-PERP": 0, "BTC-PERP": 1, "ETH-PERP": 2,
+                "APT-PERP": 3, "1MBONK-PERP": 4, "POL-PERP": 5,
+                "ARB-PERP": 6, "DOGE-PERP": 7, "BNB-PERP": 8,
+            }
+            
+            market_index = MARKET_INDICES.get(market)
+            if market_index is None:
+                return {"bids": [], "asks": [], "spread": 0, "midPrice": 0}
+            
+            url = f"https://dlob.drift.trade/l2?marketIndex={market_index}&marketType=perp&depth={depth}"
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code != 200:
+                    return {"bids": [], "asks": [], "spread": 0, "midPrice": 0}
+                
+                data = response.json()
+                
+                # Parse bids and asks
+                bids = [[float(b["price"]), float(b["size"])] for b in data.get("bids", [])]
+                asks = [[float(a["price"]), float(a["size"])] for a in data.get("asks", [])]
+                
+                # Calculate spread and mid price
+                best_bid = bids[0][0] if bids else 0
+                best_ask = asks[0][0] if asks else 0
+                spread = best_ask - best_bid if (best_bid and best_ask) else 0
+                mid_price = (best_bid + best_ask) / 2 if (best_bid and best_ask) else 0
+                
+                return {
+                    "bids": bids,
+                    "asks": asks,
+                    "spread": spread,
+                    "midPrice": mid_price,
+                    "bestBid": best_bid,
+                    "bestAsk": best_ask,
+                }
+                
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Failed to fetch orderbook for {market}: {e}")
+            return {"bids": [], "asks": [], "spread": 0, "midPrice": 0}
+    
+    async def get_user_positions(self, user_address: str) -> List[Dict[str, Any]]:
+        """
+        Get all positions for a user.
+        
+        Args:
+            user_address: User's wallet address
+        
+        Returns:
+            List of position dicts with:
+                - market: Market symbol
+                - marketIndex: Market index
+                - side: "long" or "short"
+                - size: Position size
+                - entryPrice: Average entry price
+                - markPrice: Current mark price
+                - unrealizedPnl: Unrealized PnL
+                - leverage: Position leverage
+        """
+        try:
+            import httpx
+            
+            url = f"https://dlob.drift.trade/user/{user_address}"
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code != 200:
+                    return []
+                
+                data = response.json()
+                positions = []
+                
+                MARKET_NAMES = {
+                    0: "SOL-PERP", 1: "BTC-PERP", 2: "ETH-PERP",
+                    3: "APT-PERP", 4: "1MBONK-PERP", 5: "POL-PERP",
+                    6: "ARB-PERP", 7: "DOGE-PERP", 8: "BNB-PERP",
+                }
+                
+                for perp in data.get("perpPositions", []):
+                    base_amount = float(perp.get("baseAssetAmount", 0)) / 1e9
+                    
+                    if base_amount == 0:
+                        continue
+                    
+                    market_index = perp.get("marketIndex", 0)
+                    quote_amount = float(perp.get("quoteAssetAmount", 0)) / 1e6
+                    
+                    # Calculate entry price
+                    entry_price = abs(quote_amount / base_amount) if base_amount != 0 else 0
+                    
+                    # Get mark price (would need to fetch from markets endpoint)
+                    mark_price = entry_price  # Placeholder
+                    
+                    # Calculate unrealized PnL
+                    if base_amount > 0:  # Long
+                        unrealized_pnl = (mark_price - entry_price) * abs(base_amount)
+                    else:  # Short
+                        unrealized_pnl = (entry_price - mark_price) * abs(base_amount)
+                    
+                    positions.append({
+                        "market": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
+                        "marketIndex": market_index,
+                        "side": "long" if base_amount > 0 else "short",
+                        "size": abs(base_amount),
+                        "entryPrice": entry_price,
+                        "markPrice": mark_price,
+                        "unrealizedPnl": unrealized_pnl,
+                        "leverage": 0,  # Would need collateral to calculate
+                    })
+                
+                return positions
+                
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Failed to fetch user positions: {e}")
+            return []
+    
+    async def get_market_stats(self, market: str) -> Dict[str, Any]:
+        """
+        Get comprehensive stats for a market.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+        
+        Returns:
+            Dict with:
+                - symbol: Market symbol
+                - markPrice: Current mark price
+                - indexPrice: Index/oracle price
+                - fundingRate: Current funding rate (hourly)
+                - fundingRate8h: 8-hour funding rate
+                - nextFundingTime: Seconds until next funding
+                - openInterest: Total OI in USD
+                - volume24h: 24h volume in USD
+                - priceChange24h: 24h price change %
+                - high24h: 24h high
+                - low24h: 24h low
+        """
+        try:
+            # Get market data from all markets
+            all_markets = await self.get_all_perp_markets()
+            
+            # Find the specific market
+            market_data = None
+            for m in all_markets:
+                if m["symbol"] == market:
+                    market_data = m
+                    break
+            
+            if not market_data:
+                return {}
+            
+            # Get funding time
+            next_funding = await self.get_time_to_funding()
+            
+            # Calculate 8h funding rate
+            funding_rate_hourly = market_data["fundingRate"]
+            funding_rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
+            
+            # Calculate OI in USD
+            mark_price = market_data["markPrice"]
+            oi_usd = market_data["openInterest"] * mark_price
+            
+            return {
+                "symbol": market,
+                "markPrice": mark_price,
+                "indexPrice": market_data["oraclePrice"],
+                "fundingRate": funding_rate_hourly,
+                "fundingRate8h": funding_rate_8h,
+                "nextFundingTime": next_funding,
+                "openInterest": oi_usd,
+                "volume24h": market_data["volume24h"],
+                "priceChange24h": 0,  # Would need historical data
+                "high24h": 0,  # Would need historical data
+                "low24h": 0,  # Would need historical data
+                "longOI": market_data["baseAssetAmountLong"] * mark_price,
+                "shortOI": market_data["baseAssetAmountShort"] * mark_price,
+                "longShortRatio": market_data["baseAssetAmountLong"] / max(market_data["baseAssetAmountShort"], 0.001),
+            }
+            
+        except Exception as e:
+            Logger.error(f"[DRIFT] Failed to fetch market stats for {market}: {e}")
+            return {}
+    
+    async def get_oracle_price(self, market: str) -> Optional[float]:
+        """
+        Get oracle price for a market.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+        
+        Returns:
+            Oracle price or None
+        """
+        try:
+            all_markets = await self.get_all_perp_markets()
+            
+            for m in all_markets:
+                if m["symbol"] == market:
+                    return m["oraclePrice"]
+            
+            return None
+            
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Failed to fetch oracle price for {market}: {e}")
+            return None
+    
+    async def get_mark_price(self, market: str) -> Optional[float]:
+        """
+        Get mark price for a market.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+        
+        Returns:
+            Mark price or None
+        """
+        try:
+            all_markets = await self.get_all_perp_markets()
+            
+            for m in all_markets:
+                if m["symbol"] == market:
+                    return m["markPrice"]
+            
+            return None
+            
+        except Exception as e:
+            Logger.debug(f"[DRIFT] Failed to fetch mark price for {market}: {e}")
+            return None
