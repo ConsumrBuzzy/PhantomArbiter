@@ -45,7 +45,7 @@ from src.shared.system.logging import Logger
 
 
 # Constants
-DRIFT_API_URL = "https://drift-gateway-api.mainnet.drift.trade"
+DRIFT_API_URL = "https://dlob.drift.trade"
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 USDC_DECIMALS = 6
 

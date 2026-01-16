@@ -305,7 +305,7 @@ class DriftAdapter:
     
     async def _fetch_positions_from_api(self) -> List[Dict[str, Any]]:
         """
-        Fetch positions from Drift Gateway API.
+        Fetch positions from Drift DLOB API.
         
         Returns:
             List of position dicts
@@ -321,8 +321,8 @@ class DriftAdapter:
             else:
                 return []
             
-            # Drift Gateway API
-            url = f"https://drift-gateway-api.mainnet.drift.trade/v1/user/{wallet_str}"
+            # Drift DLOB API (correct endpoint from docs.drift.trade)
+            url = f"https://dlob.drift.trade/user/{wallet_str}"
             
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(url)
