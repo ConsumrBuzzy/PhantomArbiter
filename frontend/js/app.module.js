@@ -32,6 +32,8 @@ import { UnifiedVaultController } from './components/unified-vault.js';
 import { TickerTape, createWhaleItem } from './components/ticker-tape.js';
 import { DriftController } from './components/drift-controller.js';
 import { EngineVaultCard } from './components/engine-vault-card.js';
+import { ViewManager } from './core/view-manager.js';
+import { EngineManager } from './core/engine-manager.js';
 
 class TradingOS {
     constructor() {
@@ -72,7 +74,8 @@ class TradingOS {
         });
 
         // Modal callbacks
-        this.modal.onSaveConfig = (engine, config) => this.saveConfig(engine, config);
+        // Modal callbacks
+        this.modal.onSaveConfig = (engine, config) => this.engineManager.saveConfig(engine, config);
         this.modal.onSOS = () => this.executeSOS();
 
         // Header callbacks
@@ -85,294 +88,31 @@ class TradingOS {
             }
         };
 
-        // Bind navigation and SOS
-        this.bindGlobalEvents();
+        // Modal callbacks
+        this.modal.onSaveConfig = (engine, config) => this.engineManager.saveConfig(engine, config);
+
+
 
         // Connect
         const url = this.ws.connect();
         this.terminal.addLog('SYSTEM', 'INFO', `Connecting to Command Center: ${url}...`);
 
+        // Initialize Managers
+        this.viewManager = new ViewManager(this);
+        this.engineManager = new EngineManager(this);
+
+        this.viewManager.bindEvents();
+
         // Load Default View
-        this.switchView('dashboard');
+        this.viewManager.switchView('dashboard');
     }
 
 
-    registerDashboardComponents(components) {
-        this.activeComponents = components;
-        // Trigger immediate update if cache exists
-        if (this.lastData) {
-            // Safety: ensure components are ready before replaying data
-            try {
-                this.handlePacket(this.lastData);
-            } catch (e) {
-                console.warn("[TradingOS] Skipped replay packet due to init state", e);
-            }
-        }
-    }
-
-    unregisterDashboardComponents() {
-        this.activeComponents = {};
-    }
-
-    /**
-     * Bind global UI events (navigation, SOS)
-     */
-    bindGlobalEvents() {
-        // Navigation
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => this.switchView(item.dataset.view));
-        });
 
 
-        // Listen for navigation events from existing cards
-        Object.values(this.engines).forEach(engine => {
-            if (engine.card) {  // Only bind if card exists in DOM
-                engine.card.addEventListener('engine-selected', (e) => {
-                    this.showEngineDetail(e.detail.engineId);
-                });
-            }
-        });
 
-        // Initialize Detail View Back Button
-        const backBtn = document.querySelector('.back-btn');
-        if (backBtn) {
-            backBtn.addEventListener('click', () => {
-                this.showEngineList();
-            });
-        }
-    }
 
-    showEngineDetail(engineId) {
-        console.log(`Navigating to Control Room: ${engineId}`);
-        this.currentDetailEngine = engineId;
 
-        // 1. Hide List
-        document.querySelector('.engine-stack').style.display = 'none';
-
-        // 2. Show Detail Container (CSS handles slide-in)
-        const detailView = document.getElementById('view-engine-detail');
-        detailView.classList.add('active');
-
-        // 3. Update Header
-        const engineNames = {
-            'arb': 'Arbitrage Engine',
-            'funding': 'Funding Rate Engine',
-            'scalp': 'Scalp Sniper Engine',
-            'lst': 'LST De-Pegger'
-        };
-        document.getElementById('detail-engine-name').textContent = engineNames[engineId] || engineId.toUpperCase();
-
-        // Update status badge
-        const engineState = this.engines[engineId]?.state || {};
-        const statusBadge = document.getElementById('detail-engine-status');
-        if (statusBadge) {
-            statusBadge.textContent = (engineState.status || 'stopped').toUpperCase();
-            statusBadge.className = 'engine-badge ' + (engineState.status || 'stopped');
-        }
-
-        // 4. Request Engine Vault Data
-        this.ws.send('GET_ENGINE_VAULT', { engine: engineId });
-
-        // 5. Populate Config Panel
-        this.populateConfigPanel(engineId);
-
-        // 6. Bind Vault Control Buttons
-        this.bindDetailViewEvents(engineId);
-
-        // 7. Update Log Filter
-        const logFilter = document.getElementById('detail-log-filter');
-        if (logFilter) {
-            logFilter.textContent = engineId.toUpperCase();
-        }
-
-        // 8. Update Inventory Context
-        if (this.inventory) this.inventory.setContext(engineId);
-    }
-
-    /**
-     * Populate config panel based on engine type
-     */
-    populateConfigPanel(engineId) {
-        const configGrid = document.getElementById('detail-config-grid');
-        if (!configGrid) return;
-
-        const engine = this.engines[engineId];
-        const config = engine?.state?.config || {};
-
-        const configFormatters = {
-            'arb': {
-                'min_spread': { label: 'Min Spread', format: v => `${v}%` },
-                'max_trade_usd': { label: 'Max Trade', format: v => `$${v}` },
-                'scan_interval': { label: 'Scan Interval', format: v => `${v}s` },
-                'risk_tier': { label: 'Risk Tier', format: v => v.toUpperCase() }
-            },
-            'funding': {
-                'leverage': { label: 'Leverage', format: v => `${v}x` },
-                'watchdog_threshold': { label: 'Watchdog', format: v => `${(v * 100).toFixed(2)}%` },
-                'rebalance_enabled': { label: 'Rebalance', format: v => v ? 'ON' : 'OFF' },
-                'max_position_usd': { label: 'Max Position', format: v => `$${v}` }
-            },
-            'scalp': {
-                'take_profit_pct': { label: 'Take Profit', format: v => `+${v}%` },
-                'stop_loss_pct': { label: 'Stop Loss', format: v => `-${v}%` },
-                'max_pods': { label: 'Max Pods', format: v => v },
-                'sentiment_threshold': { label: 'Sentiment', format: v => `${(v * 100).toFixed(0)}%` }
-            },
-            'lst': {
-                'peg_threshold': { label: 'Peg Threshold', format: v => `${v}%` },
-                'exit_liquidity': { label: 'Exit Check', format: v => v ? 'ON' : 'OFF' }
-            }
-        };
-
-        const formatters = configFormatters[engineId] || {};
-        let html = '';
-
-        Object.entries(config).forEach(([key, value]) => {
-            const formatter = formatters[key];
-            if (formatter) {
-                html += `
-                    <div class="config-item">
-                        <div class="config-label">${formatter.label}</div>
-                        <div class="config-value">${formatter.format(value)}</div>
-                    </div>
-                `;
-            }
-        });
-
-        // Fallback if no config
-        if (!html) {
-            html = '<div class="config-item"><div class="config-label">No Config</div><div class="config-value">--</div></div>';
-        }
-
-        configGrid.innerHTML = html;
-    }
-
-    /**
-     * Bind vault control button events
-     */
-    bindDetailViewEvents(engineId) {
-        // Reset Sim Button
-        const resetBtn = document.querySelector('.vault-btn.reset');
-        if (resetBtn) {
-            resetBtn.onclick = () => {
-                this.ws.send('VAULT_RESET', { engine: engineId });
-                this.terminal.addLog('VAULT', 'WARNING', `Resetting ${engineId} vault...`);
-            };
-        }
-
-        // Live Sync Button
-        const syncBtn = document.querySelector('.vault-btn.sync');
-        if (syncBtn) {
-            syncBtn.onclick = () => {
-                this.ws.send('VAULT_SYNC', { engine: engineId });
-                this.terminal.addLog('VAULT', 'INFO', `Syncing ${engineId} vault from live wallet...`);
-            };
-        }
-
-        // Power Toggle in Detail View
-        const powerBtn = document.querySelector('.detail-power');
-        if (powerBtn) {
-            powerBtn.onclick = () => {
-                const engine = this.engines[engineId];
-                const mode = engine?.mode || 'paper';
-                const status = engine?.state?.status || 'stopped';
-                this.toggleEngine(engineId, status, mode);
-            };
-        }
-
-        // Mode Selector in Detail View
-        const modeSelector = document.querySelector('.detail-mode');
-        if (modeSelector) {
-            modeSelector.querySelectorAll('.mode-btn').forEach(btn => {
-                btn.onclick = () => {
-                    modeSelector.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    if (this.engines[engineId]) {
-                        this.engines[engineId].setMode(btn.dataset.mode);
-                    }
-                };
-            });
-        }
-    }
-
-    /**
-     * Update vault panel with data from WebSocket
-     */
-    updateVaultPanel(engineId, vaultData) {
-        if (this.currentDetailEngine !== engineId) return;
-
-        // Update equity
-        const equityEl = document.getElementById('detail-vault-equity');
-        if (equityEl) {
-            equityEl.textContent = `$${(vaultData.equity || 0).toFixed(2)}`;
-        }
-
-        // Update asset rows
-        const assetsContainer = document.getElementById('detail-vault-assets');
-        if (assetsContainer && vaultData.assets) {
-            let html = '';
-            Object.entries(vaultData.assets).sort((a, b) => {
-                // USDC first, then SOL, then others
-                if (a[0] === 'USDC') return -1;
-                if (b[0] === 'USDC') return 1;
-                if (a[0] === 'SOL') return -1;
-                if (b[0] === 'SOL') return 1;
-                return 0;
-            }).forEach(([asset, balance]) => {
-                const displayBal = balance >= 1 ? balance.toFixed(2) : balance.toFixed(4);
-                html += `
-                    <div class="vault-asset-row">
-                        <span class="vault-asset-symbol">${asset}</span>
-                        <span class="vault-asset-balance">${displayBal}</span>
-                    </div>
-                `;
-            });
-            assetsContainer.innerHTML = html || '<div class="vault-asset-row"><span>No assets</span></div>';
-        }
-    }
-
-    /**
-     * Add log entry to engine-specific log stream
-     */
-    addEngineLog(engineId, level, message) {
-        if (this.currentDetailEngine !== engineId) return;
-
-        const logStream = document.getElementById('detail-log-stream');
-        if (!logStream) return;
-
-        // Clear placeholder if first real log
-        if (logStream.querySelector('.log-entry.info')?.textContent.includes('Waiting')) {
-            logStream.innerHTML = '';
-        }
-
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${level.toLowerCase()}`;
-        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-        logStream.insertBefore(entry, logStream.firstChild);
-
-        // Keep max 50 entries
-        while (logStream.children.length > 50) {
-            logStream.removeChild(logStream.lastChild);
-        }
-    }
-
-    showEngineList() {
-        // 1. Hide Detail
-        const detailView = document.getElementById('view-engine-detail');
-        detailView.classList.remove('active');
-
-        // 2. Show List
-        document.querySelector('.engine-stack').style.display = 'flex';
-
-        // Reset Inventory Context
-        if (this.inventory) this.inventory.setContext('GLOBAL');
-    }
-
-    initializeWebSocket() {
-        document.getElementById('sos-btn')?.addEventListener('click', () => {
-            this.modal.openSOS();
-        });
-    }
 
     /**
      * Handle WebSocket connect
@@ -401,7 +141,7 @@ class TradingOS {
             case 'SYSTEM_STATS':
                 this.headerStats.update(data);
                 if ((data.live_wallet || data.paper_wallet) && this.inventory) this.inventory.update(data);
-                if (data.engines) this.updateEngineStates(data.engines);
+                if (data.engines) this.engineManager.updateStates(data.engines);
                 if (data.metrics && this.systemMetrics) this.systemMetrics.update(data.metrics);
                 break;
 
@@ -434,10 +174,10 @@ class TradingOS {
                         const topToken = data.watchlist.reduce((prev, current) =>
                             (prev.dp_24h || 0) > (current.dp_24h || 0) ? prev : current
                         );
-
+    
                         const symbolEl = document.getElementById('scalp-target-symbol');
                         const spreadEl = document.getElementById('scalp-target-spread');
-
+    
                         if (symbolEl && topToken) {
                             symbolEl.textContent = topToken.symbol;
                             // Using daily change or score as placeholder "spread" value logic if spread not available
@@ -501,11 +241,11 @@ class TradingOS {
                 break;
 
             case 'ENGINE_STATUS':
-                this.updateEngineStates(data);
+                this.engineManager.updateStates(data);
                 break;
 
             case 'ENGINE_RESPONSE':
-                this.handleEngineResponse(packet);
+                this.engineManager.handleResponse(packet);
                 // Safety Gate Toast Feedback
                 if (!packet.result?.success) {
                     this.toast.show(packet.result?.message || 'Engine command failed', 'error');
@@ -570,7 +310,7 @@ class TradingOS {
             case 'ENGINE_VAULT':
                 // Vault data response for detail view
                 if (packet.engine && packet.data) {
-                    this.updateVaultPanel(packet.engine, packet.data);
+                    this.engineManager.updateVaultPanel(packet.engine, packet.data);
                 }
                 break;
 
@@ -598,45 +338,7 @@ class TradingOS {
         }
     }
 
-    /**
-     * Update all engine states
-     */
-    updateEngineStates(states) {
-        let runningCount = 0;
 
-        Object.entries(states).forEach(([name, state]) => {
-            if (this.engines[name]) {
-                this.engines[name].setState(state);
-                if (state.status === 'running') runningCount++;
-            }
-        });
-
-        this.headerStats.setEngineCount(runningCount, Object.keys(this.engines).length);
-    }
-
-    /**
-     * Toggle engine on/off
-     */
-    toggleEngine(engineName, currentStatus, mode) {
-        const isRunning = currentStatus === 'running' || currentStatus === 'starting';
-
-        if (isRunning) {
-            this.ws.send('STOP_ENGINE', { engine: engineName });
-            this.terminal.addLog('SYSTEM', 'INFO', `Stopping ${engineName} engine...`);
-        } else {
-            this.ws.send('START_ENGINE', { engine: engineName, mode: mode });
-            this.terminal.addLog('SYSTEM', 'INFO',
-                `Starting ${engineName} engine in ${mode.toUpperCase()} mode...`);
-        }
-    }
-
-    /**
-     * Save engine configuration
-     */
-    saveConfig(engineName, config) {
-        this.ws.send('UPDATE_CONFIG', { engine: engineName, config });
-        this.terminal.addLog('SYSTEM', 'INFO', `Updated config for ${engineName}`);
-    }
 
     /**
      * Update Token Scalper Watch Table
@@ -719,14 +421,7 @@ class TradingOS {
         this.terminal.addLog('SYSTEM', 'WARNING', '🆘 EMERGENCY STOP INITIATED');
     }
 
-    /**
-     * Handle engine response
-     */
-    handleEngineResponse(packet) {
-        const { engine, result } = packet;
-        const level = result.success ? 'SUCCESS' : 'ERROR';
-        this.terminal.addLog('ENGINE', level, `${engine}: ${result.message}`);
-    }
+
 
     /**
      * Handle SOS response
@@ -741,202 +436,7 @@ class TradingOS {
         }
     }
 
-    /**
-     * Switch between views
-     */
-    /**
-     * Switch between views (Async Template Loading)
-     */
-    async switchView(viewName) {
-        const viewId = `view-${viewName}`;
-        let viewPanel = document.getElementById(viewId);
 
-        // Nav State
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.view === viewName);
-        });
-
-        // Dynamic Loading
-        if (!viewPanel) {
-            // Show loading state?
-            try {
-                console.log(`Loading template: templates/${viewName}.html`);
-                const response = await fetch(`templates/${viewName}.html`);
-
-                if (response.ok) {
-                    const html = await response.text();
-
-                    // Create view container
-                    viewPanel = document.createElement('div');
-                    viewPanel.className = 'view-panel';
-                    viewPanel.id = viewId;
-                    viewPanel.innerHTML = html;
-
-                    document.querySelector('.view-stack').appendChild(viewPanel);
-
-                    // Initialize newly loaded components
-                    this.initializeDynamicComponents(viewName);
-                } else {
-                    console.error(`Template ${viewName} not found`);
-                    // Fallback to dashboard?
-                }
-            } catch (e) {
-                console.error('View load error:', e);
-            }
-        }
-
-        // Toggle Visibility
-        document.querySelectorAll('.view-panel').forEach(panel => {
-            panel.classList.toggle('active', panel.id === viewId);
-        });
-
-        // Request API health when entering Config view
-        if (viewName === 'settings' && this.ws) {
-            this.ws.send('GET_API_HEALTH', {});
-        }
-    }
-
-    /**
-     * Initialize components appearing in dynamic views
-     */
-    initializeDynamicComponents(viewName) {
-        console.log(`Initializing components for ${viewName}`);
-        if (this.layoutManager) this.layoutManager.refresh();
-
-        if (viewName === 'dashboard') {
-            try {
-                // Initialize Dashboard Components
-                this.unifiedVault = new UnifiedVaultController('unified-vault-container');
-                // this.tokenWatchlist = new TokenWatchlist('watchlist-panel'); // Legacy - Replaced by MemeSniper
-                this.inventory = new Inventory();
-                this.systemMetrics = new SystemMetrics('chart-metrics');
-                this.memeSniper = new MemeSniperStrip('meme-sniper-mount'); // Dashboard Instance
-
-                // Active Scalp Engine Card (Dashboard Widget)
-                this.scalpEngineWidget = new EngineCard('scalp', {
-                    onToggle: (n, s, m) => this.toggleEngine(n, s, m),
-                    onSettings: (n, c) => this.openSettings(n, c),
-                    onModeChange: (n, m) => { if (this.engines[n]) this.engines[n].setMode(m); }
-                });
-                this.engines['scalp'] = this.scalpEngineWidget;
-                if (this.unifiedVault) {
-                    this.unifiedVault.setBridgeCallback((amount) => {
-                        this.ws.send('BRIDGE_TRIGGER', { amount });
-                        this.terminal.addLog('BRIDGE', 'INFO', `Bridge initiated: $${amount.toFixed(2)} USDC -> Phantom`);
-                    });
-                }
-
-                // Request Initial Data
-                if (this.ws && this.ws.connected) {
-                    this.ws.send('GET_SYSTEM_STATS', {});
-                    this.ws.send('GET_WATCHLIST', {});
-                }
-            } catch (e) {
-                console.error("Error initializing dashboard components:", e);
-            }
-        }
-
-        if (viewName.startsWith('engine-')) {
-            const engineId = viewName.replace('engine-', '');
-            // Engine specific init logic
-            if (engineId === 'drift') {
-                this.initDriftEnginePage();
-            }
-        }
-
-        if (viewName === 'settings') {
-            try {
-                this.apiHealth = new APIHealth('api-health-container');
-                // Request initial health data
-                if (this.ws && this.ws.connected) this.ws.send('GET_API_HEALTH', {});
-            } catch (e) {
-                console.error("Error initializing settings components:", e);
-            }
-        }
-
-        if (viewName === 'scanner') {
-            try {
-                this.marketComponents['arb'] = new ArbScanner('arb', '#arb-scanner-mount');
-                this.marketComponents['funding'] = new FundingMonitor('funding', '#funding-scanner-mount');
-            } catch (e) {
-                console.error("Error initializing scanner components:", e);
-            }
-        }
-    }
-
-    /**
-     * Initialize Drift Engine page components
-     */
-    initDriftEnginePage() {
-        console.log('[TradingOS] Initializing Drift Engine page');
-
-        // 1. Initialize Drift Controller
-        this.driftController = new DriftController();
-        this.driftController.init();
-
-        // 2. Initialize Drift Vault Card
-        const sideCol = document.querySelector('.grid-col-side');
-        if (sideCol) {
-            let vaultContainer = document.getElementById('drift-vault-card-container');
-            if (!vaultContainer) {
-                vaultContainer = document.createElement('div');
-                vaultContainer.id = 'drift-vault-card-container';
-                const controlPanel = sideCol.querySelector('section:first-child');
-                if (controlPanel) controlPanel.after(vaultContainer);
-            }
-            this.driftVault = new EngineVaultCard('drift-vault-card-container', 'Drift');
-        }
-
-        // Bind engine control buttons (Generic Start/Stop)
-        const controlMount = document.getElementById('drift-control-card-mount');
-        if (controlMount && !this.engines['drift']) {
-            this.engines['drift'] = new EngineCard('drift', {
-                onToggle: (n, s, m) => this.toggleEngine(n, s, m),
-                onSettings: (n, c) => this.openSettings(n, c),
-                onModeChange: (n, m) => { if (this.engines[n]) this.engines[n].setMode(m); }
-            });
-        }
-
-        // Settle PnL button
-        const settlePnlBtn = document.getElementById('drift-settle-pnl-btn');
-        if (settlePnlBtn) {
-            settlePnlBtn.onclick = () => {
-                this.ws.send('DRIFT_SETTLE_PNL', {});
-                this.terminal.addLog('DRIFT', 'INFO', 'Settling PnL...');
-            };
-        }
-
-        // Close All button
-        const closeAllBtn = document.getElementById('drift-close-all-btn');
-        if (closeAllBtn) {
-            closeAllBtn.onclick = () => {
-                if (confirm('Close ALL Drift positions?')) {
-                    this.ws.send('DRIFT_CLOSE_ALL', {});
-                    this.terminal.addLog('DRIFT', 'WARNING', 'Closing all positions...');
-                }
-            };
-        }
-
-        // Refresh Markets button
-        const refreshBtn = document.getElementById('drift-refresh-markets-btn');
-        if (refreshBtn) {
-            refreshBtn.onclick = () => {
-                const icon = refreshBtn.querySelector('.fa-sync');
-                if (icon) icon.classList.add('spinning');
-                this.fetchDriftMarketData().then(() => {
-                    setTimeout(() => icon?.classList.remove('spinning'), 500);
-                });
-            };
-        }
-
-        // Request initial state
-        if (this.ws && this.ws.connected) {
-            this.ws.send('GET_SYSTEM_STATS', {});
-            this.ws.send('GET_DRIFT_MARKETS', {});
-        }
-
-        this.fetchDriftMarketData();
-    }
 
 
     /**
