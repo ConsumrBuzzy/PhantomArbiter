@@ -97,7 +97,7 @@ class DriftFundingFeed:
         """Ensure Drift adapter is connected."""
         if self._drift is None:
             try:
-                from src.shared.infrastructure.drift_adapter import DriftAdapter
+                from src.leverage.drift_adapter import DriftAdapter
                 from src.drivers.wallet_manager import WalletManager
 
                 self._drift = DriftAdapter("mainnet")
@@ -119,7 +119,7 @@ class DriftFundingFeed:
         """Get Drift adapter (may not be connected yet)."""
         if self._drift is None:
             try:
-                from src.shared.infrastructure.drift_adapter import DriftAdapter
+                from src.leverage.drift_adapter import DriftAdapter
                 self._drift = DriftAdapter("mainnet")
             except Exception as e:
                 Logger.debug(f"Failed to load DriftAdapter: {e}")
