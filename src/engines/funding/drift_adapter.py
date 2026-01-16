@@ -268,65 +268,24 @@ class DriftAdapter:
         """
         Parse total collateral from account data.
         
-        Parses spot positions to calculate total collateral.
-        Supports USDC (market 0) and SOL (market 1).
+        DEPRECATED: This method parses raw bytes incorrectly.
+        Use the Drift Gateway API instead via _fetch_collateral_from_api().
         
         Args:
             data: Raw account data
         
         Returns:
-            Total collateral in USD
+            Total collateral in USD (may be incorrect - use API instead)
         """
-        # Calculate offsets
-        DISCRIMINATOR = 8
-        AUTHORITY = 32
-        DELEGATE = 32
-        NAME = 32
-        SPOT_POSITIONS_OFFSET = DISCRIMINATOR + AUTHORITY + DELEGATE + NAME
-        SPOT_POSITION_SIZE = 40
+        # This parsing is INCORRECT - it reads the wrong bytes
+        # The Drift account structure is more complex than this simple parsing
+        # Use the Drift Gateway API instead for accurate balances
         
-        # Drift spot market indices
-        SPOT_MARKETS = {
-            0: ("USDC", 10 ** 6, 1.0),      # (name, precision, usd_price)
-            1: ("SOL", 10 ** 9, 150.0),     # TODO: Fetch oracle price
-            2: ("mSOL", 10 ** 9, 150.0),
-            3: ("wBTC", 10 ** 8, 100000.0),
-            4: ("wETH", 10 ** 8, 3500.0),
-            5: ("USDT", 10 ** 6, 1.0),
-        }
+        Logger.warning("[DRIFT] Using deprecated raw byte parsing - results may be incorrect")
+        Logger.warning("[DRIFT] Consider using Drift Gateway API for accurate balances")
         
-        total_collateral_usd = 0.0
-        
-        if len(data) < SPOT_POSITIONS_OFFSET + SPOT_POSITION_SIZE:
-            return 0.0
-        
-        # Parse each spot position slot
-        for i in range(len(SPOT_MARKETS)):
-            offset = SPOT_POSITIONS_OFFSET + (i * SPOT_POSITION_SIZE)
-            
-            if offset + SPOT_POSITION_SIZE > len(data):
-                break
-            
-            # Read scaled balance (u128, 16 bytes)
-            scaled_balance_bytes = data[offset:offset+16]
-            scaled_balance = int.from_bytes(scaled_balance_bytes, 'little')
-            
-            if scaled_balance == 0:
-                continue
-            
-            # Get market info
-            if i not in SPOT_MARKETS:
-                continue
-            
-            market_name, precision, usd_price = SPOT_MARKETS[i]
-            
-            # Convert to human-readable
-            balance = scaled_balance / precision
-            
-            # Add to total collateral
-            total_collateral_usd += balance * usd_price
-        
-        return total_collateral_usd
+        # Return 0 to force using the API
+        return 0.0
     
     def _parse_perp_positions(self, data: bytes) -> List[Dict[str, Any]]:
         """
