@@ -62,7 +62,7 @@ The implementation follows these phases:
 
 ### Phase 2: Live Mode Read-Only Monitoring
 
-- [ ] 4. Implement DriftAdapter connection logic
+- [x] 4. Implement DriftAdapter connection logic
   - Create `DriftAdapter` class in `src/engines/funding/drift_adapter.py`
   - Implement `connect()` method with driftpy client initialization
   - Implement user PDA derivation
@@ -70,13 +70,13 @@ The implementation follows these phases:
   - Add connection retry logic with exponential backoff
   - _Requirements: 2.1_
 
-- [ ] 4.1 Write unit tests for DriftAdapter connection
+- [x] 4.1 Write unit tests for DriftAdapter connection
   - Test successful connection
   - Test connection retry on failure
   - Test account not found error
   - _Requirements: 2.1_
 
-- [ ] 5. Implement account state fetching
+- [x] 5. Implement account state fetching
   - Implement `get_account_state()` method in DriftAdapter
   - Parse Drift account data bytes
   - Extract collateral, positions, and margin data
@@ -84,7 +84,7 @@ The implementation follows these phases:
   - Calculate health ratio from maintenance margin and collateral
   - _Requirements: 2.2, 2.3, 2.6, 2.7_
 
-- [ ] 5.1 Write property test for health ratio calculation
+- [x] 5.1 Write property test for health ratio calculation
   - **Property 2: Health Ratio Bounds**
   - **Validates: Requirements 2.3**
 
