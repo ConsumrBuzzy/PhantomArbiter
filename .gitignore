@@ -90,4 +90,40 @@ bridges/package-lock.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Rust build artifacts
 src_rust/target/*
+Cargo.lock
+
+# Test output files
+test_*.txt
+*_output.txt
+*_debug.txt
+*_results.txt
+sim*.log
+*.out.txt
+
+# Temporary/debug files
+temp_*.py
+debug_*.py
+verify_*.py
+check_*.py
+fix_*.py
+clean_*.py
+refactor_*.py
+test_*.py
+collect_log.txt
+reality_check.txt
+scanner_fail.txt
+final_*.log
+final_*.txt
+error.log
+log.txt
+run_log.txt
+
+# Trading state files
+trading_state.json
+
+# Pytest cache
+.pytest_cache/
+.hypothesis/

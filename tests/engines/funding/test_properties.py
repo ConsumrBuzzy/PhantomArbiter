@@ -140,7 +140,11 @@ def test_health_ratio_bounds(total_collateral, maintenance_margin):
     
     Validates: Requirements 1.4, 2.3
     """
-    driver = VirtualDriver("test_engine", {"USDC": total_collateral})
+    # Use unique engine name to avoid cache issues
+    import uuid
+    engine_name = f"test_engine_{uuid.uuid4().hex[:8]}"
+    
+    driver = VirtualDriver(engine_name, {"USDC": total_collateral})
     
     # Create a position that requires the given maintenance margin
     if total_collateral > 0 and maintenance_margin > 0:
@@ -169,11 +173,11 @@ def test_health_ratio_bounds(total_collateral, maintenance_margin):
         f"Health ratio {health} outside valid range [0, 100]"
     
     # Verify edge cases
-    if total_collateral == 0:
-        assert health == 0.0, "Health should be 0 when collateral is 0"
+    if total_collateral <= 1e-10:  # Effectively zero (floating point tolerance)
+        assert health == 0.0, f"Health should be 0 when collateral is ~0 (got {health}, collateral={total_collateral})"
     
-    if maintenance_margin == 0 and total_collateral > 0:
-        assert health == 100.0, "Health should be 100 when no margin required"
+    if maintenance_margin <= 1e-10 and total_collateral > 1e-10:  # No margin, has collateral
+        assert health == 100.0, f"Health should be 100 when no margin required (got {health})"
     
-    if maintenance_margin >= total_collateral and total_collateral > 0:
-        assert health == 0.0, "Health should be 0 when margin >= collateral"
+    if maintenance_margin >= total_collateral and total_collateral > 1e-10:
+        assert health == 0.0, f"Health should be 0 when margin >= collateral (got {health})"

@@ -145,10 +145,11 @@ class VirtualDriver:
     def _init_paper_wallet(self, balances: Dict[str, float]):
         """Initialize paper wallet via EngineVault."""
         vault = get_engine_vault(self.engine_name)
-        # Reset and init
-        vault.reset()
-        for asset, balance in balances.items():
-            vault.credit(asset, balance)
+        # Clear existing balances
+        vault._clear_vault()
+        # Set new balances
+        vault.balances = dict(balances)
+        vault._save_state()
             
         Logger.info(f"[PAPER] Initialized engine vault [{self.engine_name}]: {balances}")
     
@@ -196,9 +197,6 @@ class VirtualDriver:
         vault = get_engine_vault(self.engine_name)
         total_collateral = sum(vault.balances.values())
         
-        if total_collateral <= 0:
-            return 0.0
-        
         # Calculate total maintenance margin
         total_maint_margin = 0.0
         for symbol, position in self.positions.items():
@@ -207,6 +205,11 @@ class VirtualDriver:
                 current_price, self.MAINTENANCE_MARGIN_RATE
             )
         
+        # Edge case: no collateral = liquidated
+        if total_collateral <= 1e-10:  # Floating point tolerance
+            return 0.0
+        
+        # Normal case
         health = ((total_collateral - total_maint_margin) / total_collateral) * 100
         return max(0.0, min(100.0, health))
     
