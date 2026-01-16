@@ -29,6 +29,7 @@ async def main():
     from src.shared.system.logging import Logger
     from src.shared.feeds.simple_price_feed import SimplePriceFeed, PriceData
     from src.shared.feeds.token_watchlist import TokenWatchlistFeed, TokenPrice
+    from src.core.sensors.whale_sensor import WhaleSensor
     
     Logger.info("🚀 Starting Phantom Arbiter Command Center...")
     
@@ -355,6 +356,11 @@ async def main():
     # We might need to manually inject status into the stats broadcast or register it properly.
     # For MVP, we'll let it run and log to console, and maybe add a UI card later.
 
+    # 10. Whale Sensor (Alpha Wallets)
+    whale_sensor = WhaleSensor(poll_interval=15.0)
+    # Start in background task (it loops forever)
+    asyncio.create_task(whale_sensor.start(), name="WhaleSensor")
+
     Logger.info("📈 Live price feed connected (Pyth WebSocket)")
     Logger.info("🎯 Token watchlist tracking 10 meme/AI tokens")
     Logger.info("🌍 Market Context Driver active (SOL/BTC, Jito)")
@@ -378,6 +384,8 @@ async def main():
         await scalp_engine.stop()
         await arb_engine.stop()
         await funding_engine.stop()
+        if 'whale_sensor' in locals():
+            whale_sensor.stop()
 
 
 if __name__ == "__main__":
