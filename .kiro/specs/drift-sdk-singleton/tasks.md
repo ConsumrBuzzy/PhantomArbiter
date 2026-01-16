@@ -12,7 +12,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - Add thread-safe access with asyncio.Lock
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ]* 1.1 Write property test for cache expiration
+- [ ] 1.1 Write property test for cache expiration
   - **Property 6: Cache Expiration**
   - **Validates: Requirements 6.3**
 
@@ -29,7 +29,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - Add thread-safe access with _lock
   - _Requirements: 1.2, 1.3, 2.2, 3.2_
 
-- [ ]* 2.2 Write property test for singleton guarantee
+- [ ] 2.2 Write property test for singleton guarantee
   - **Property 1: Singleton Guarantee**
   - **Validates: Requirements 1.1, 1.2**
 
@@ -40,7 +40,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - Unsubscribe DriftClient and close connections
   - _Requirements: 1.4, 1.5, 2.4_
 
-- [ ]* 2.4 Write property test for reference counting
+- [ ] 2.4 Write property test for reference counting
   - **Property 2: Reference Counting Correctness**
   - **Validates: Requirements 1.5**
 
@@ -66,7 +66,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
     - Handle KeyError gracefully
     - _Requirements: 6.1, 6.2, 4.2_
 
-- [ ]* 3.2 Write property test for cache consistency
+- [ ] 3.2 Write property test for cache consistency
   - **Property 5: Cache Consistency**
   - **Validates: Requirements 6.1, 6.2**
 
@@ -120,7 +120,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - If False, use old implementation
   - _Requirements: 7.1, 7.3, 7.4_
 
-- [ ]* 4.6 Write property test for backward compatibility
+- [ ] 4.6 Write property test for backward compatibility
   - **Property 8: Backward Compatibility**
   - **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 
@@ -143,7 +143,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - Log all errors with context
   - _Requirements: 4.1, 4.2, 4.4_
 
-- [ ]* 5.4 Write property test for graceful degradation
+- [ ] 5.4 Write property test for graceful degradation
   - **Property 7: Graceful Degradation**
   - **Validates: Requirements 4.1, 4.2, 4.4**
 
@@ -178,7 +178,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
     - Test thread safety
     - _Requirements: All_
 
-- [ ]* 7.2 Run property-based tests
+- [ ] 7.2 Run property-based tests
   - Run all property tests with 100+ iterations
   - Verify all properties pass
   - _Requirements: All_
@@ -218,7 +218,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
 
 ## Notes
 
-- Tasks marked with `*` are optional property-based tests
+- All tasks including property-based tests are required for comprehensive coverage
 - Each task references specific requirements for traceability
 - Implementation should be done in order to maintain dependencies
 - Test after each major component (Cache, Manager, Adapter)
