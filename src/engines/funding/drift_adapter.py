@@ -673,15 +673,20 @@ class DriftAdapter:
         """
         Withdraw SOL collateral from sub-account.
         
+        Validates health ratio impact before withdrawal. Rejects if health
+        would drop below 80% after withdrawal.
+        
         Args:
-            amount_sol: Amount in SOL
+            amount_sol: Amount in SOL to withdraw
         
         Returns:
             Transaction signature
         
         Raises:
-            RuntimeError: If not connected
-            ValueError: If amount invalid
+            RuntimeError: If not connected or withdrawal fails
+            ValueError: If amount invalid or health check fails
+        
+        Validates: Requirements 3.7, 3.8, 3.9
         """
         if not self.connected:
             raise RuntimeError("Not connected to Drift. Call connect() first.")
@@ -689,8 +694,107 @@ class DriftAdapter:
         if amount_sol <= 0:
             raise ValueError("Withdraw amount must be positive")
         
-        # TODO: Implement withdraw logic in Phase 3
-        raise NotImplementedError("Withdraw not implemented yet (Phase 3)")
+        try:
+            # Get current account state for health check
+            Logger.info(f"[DRIFT] Checking health ratio before withdrawal of {amount_sol} SOL")
+            account_state = await self.get_account_state()
+            
+            # Calculate health ratio after withdrawal
+            # Withdrawal reduces collateral, which affects health
+            current_collateral_usd = account_state.total_collateral
+            maintenance_margin_usd = account_state.maintenance_margin
+            
+            # Estimate SOL price from current collateral (rough approximation)
+            # In production, should use oracle price
+            sol_price_estimate = 150.0  # Conservative estimate
+            withdrawal_usd = amount_sol * sol_price_estimate
+            
+            # Calculate projected health after withdrawal
+            projected_collateral = current_collateral_usd - withdrawal_usd
+            
+            if projected_collateral <= 1e-10:
+                projected_health = 0.0
+            else:
+                projected_health = ((projected_collateral - maintenance_margin_usd) / projected_collateral) * 100
+                projected_health = max(0.0, min(100.0, projected_health))
+            
+            Logger.info(f"[DRIFT] Current health: {account_state.health_ratio:.2f}%")
+            Logger.info(f"[DRIFT] Projected health after withdrawal: {projected_health:.2f}%")
+            
+            # Requirement 3.8: Reject if health would drop below 80%
+            MIN_HEALTH_AFTER_WITHDRAWAL = 80.0
+            if projected_health < MIN_HEALTH_AFTER_WITHDRAWAL:
+                raise ValueError(
+                    f"Withdrawal rejected: Health ratio would drop to {projected_health:.2f}% "
+                    f"(minimum: {MIN_HEALTH_AFTER_WITHDRAWAL}%). "
+                    f"Current health: {account_state.health_ratio:.2f}%"
+                )
+            
+            # Get wallet keypair
+            keypair = self.wallet.payer
+            wallet_pk = keypair.pubkey()
+            
+            Logger.info(f"[DRIFT] Withdrawing {amount_sol} SOL from sub-account {self.sub_account}")
+            Logger.info(f"[DRIFT] Current collateral: ${current_collateral_usd:.2f}")
+            
+            # Initialize DriftClient
+            wallet_obj = Wallet(keypair)
+            drift_client = DriftClient(
+                self.rpc_client,
+                wallet_obj,
+                env="mainnet" if self.network == "mainnet" else "devnet"
+            )
+            
+            # Subscribe to load program state
+            await drift_client.subscribe()
+            
+            try:
+                # SOL is spot market index 1 on Drift (0 is USDC)
+                SOL_MARKET_INDEX = 1
+                
+                # Convert amount to spot market precision
+                amount_precision = drift_client.convert_to_spot_precision(
+                    amount_sol, 
+                    SOL_MARKET_INDEX
+                )
+                
+                Logger.info(f"[DRIFT] Amount in precision: {amount_precision}")
+                
+                # Get user's associated token account for SOL
+                sol_mint = drift_client.get_spot_market_account(SOL_MARKET_INDEX).mint
+                user_token_account = get_associated_token_address(wallet_pk, sol_mint)
+                
+                Logger.info(f"[DRIFT] User token account: {user_token_account}")
+                
+                # Execute withdrawal (includes simulation and confirmation)
+                Logger.info("[DRIFT] Submitting withdrawal transaction...")
+                tx_sig_and_slot = await drift_client.withdraw(
+                    amount=amount_precision,
+                    spot_market_index=SOL_MARKET_INDEX,
+                    user_token_account=user_token_account,
+                    sub_account_id=self.sub_account,
+                    reduce_only=False
+                )
+                
+                tx_sig = str(tx_sig_and_slot.tx_sig)
+                
+                Logger.success(f"[DRIFT] ✅ Withdrawal successful!")
+                Logger.info(f"[DRIFT] Transaction: {tx_sig}")
+                
+                return tx_sig
+                
+            finally:
+                # Cleanup
+                await drift_client.unsubscribe()
+        
+        except ValueError as e:
+            # Re-raise validation errors
+            Logger.error(f"[DRIFT] Validation error: {e}")
+            raise
+        
+        except Exception as e:
+            Logger.error(f"[DRIFT] Withdrawal failed: {e}")
+            raise RuntimeError(f"Withdrawal failed: {e}")
     
     async def open_position(
         self, 

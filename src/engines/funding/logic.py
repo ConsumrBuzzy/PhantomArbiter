@@ -624,8 +624,18 @@ class FundingEngine(BaseEngine):
                     }
                 
                 elif action == "WITHDRAW":
-                    # TODO: Implement withdraw in Task 9
-                    return {"success": False, "message": "Withdraw not implemented yet (Task 9)"}
+                    amount = float(data.get("amount", 0))
+                    
+                    # Execute withdrawal via DriftAdapter
+                    tx_sig = await self.drift_adapter.withdraw(amount)
+                    
+                    # TODO: Update Engine_Vault balance (Task 10)
+                    
+                    return {
+                        "success": True, 
+                        "message": f"Withdrew {amount} SOL",
+                        "tx_signature": tx_sig
+                    }
                 
                 elif action == "OPEN_POSITION":
                     # TODO: Implement position opening in Task 13

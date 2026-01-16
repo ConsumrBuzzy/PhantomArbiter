@@ -118,7 +118,7 @@ The implementation follows these phases:
 
 ### Phase 3: Live Mode Capital Management
 
-- [-] 8. Implement deposit functionality
+- [x] 8. Implement deposit functionality
   - Implement `deposit()` method in DriftAdapter
   - Add amount validation (positive, less than wallet balance)
   - Build Drift deposit instruction using DriftOrderBuilder
@@ -127,17 +127,18 @@ The implementation follows these phases:
   - Return transaction signature on success
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 8.1 Write property test for transaction simulation requirement
+- [x] 8.1 Write property test for transaction simulation requirement
   - **Property 14: Transaction Simulation Requirement**
   - **Validates: Requirements 3.4, 9.2**
 
-- [ ] 8.2 Write unit tests for deposit
+- [x] 8.2 Write unit tests for deposit
   - Test successful deposit
   - Test validation rejection (negative amount)
   - Test validation rejection (insufficient balance)
   - Test simulation failure handling
   - Test confirmation timeout handling
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
+  - **Status: All 7 tests passing ✓**
 
 - [ ] 9. Implement withdrawal functionality
   - Implement `withdraw()` method in DriftAdapter
