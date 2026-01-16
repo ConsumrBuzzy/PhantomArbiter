@@ -1209,6 +1209,7 @@ class DriftAdapter:
                 - mark_price: Current mark price
             Or None if fetch fails
         """
+        Logger.debug(f"[DRIFT] Fetching funding rate for {market}...")
         try:
             import httpx
             
@@ -1277,7 +1278,10 @@ class DriftAdapter:
                 }
                 
         except Exception as e:
-            Logger.debug(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
+            Logger.error(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
             return None
     
     async def get_time_to_funding(self) -> int:

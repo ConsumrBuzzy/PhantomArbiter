@@ -150,6 +150,7 @@ class DriftFundingFeed:
         try:
             rate_info = await drift.get_funding_rate(market)
             if not rate_info:
+                Logger.debug(f"[DriftFeed] get_funding_rate returned None for {market}")
                 return None
 
             time_to_funding = await drift.get_time_to_funding()
@@ -169,7 +170,9 @@ class DriftFundingFeed:
             return funding
 
         except Exception as e:
-            Logger.debug(f"Drift funding rate error for {market}: {e}")
+            Logger.error(f"[DriftFeed] Drift funding rate error for {market}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     async def get_all_funding_rates(self) -> Dict[str, FundingInfo]:
