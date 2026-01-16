@@ -55,12 +55,12 @@ This plan implements a JSON-based database hydration/dehydration system for port
     - **Validates: Requirements 1.1, 1.4**
     - Dehydrate same database twice, verify JSON is identical (excluding timestamps)
   
-  - [-] 5.3 Write property test for idempotent hydration
+  - [x] 5.3 Write property test for idempotent hydration
     - **Property 3: Idempotent Hydration**
     - **Validates: Requirements 2.1, 2.4**
     - Hydrate same archive twice with force, verify databases are identical
   
-  - [ ] 5.4 Write property test for corruption detection
+  - [-] 5.4 Write property test for corruption detection
     - **Property 4: Corruption Detection Accuracy**
     - **Validates: Requirements 3.1, 3.2**
     - Generate valid and corrupted files, verify detection accuracy
