@@ -8,6 +8,7 @@ import { APIHealth } from '../components/api-health.js';
 import { DriftController } from '../components/drift-controller.js';
 import { EngineVaultCard } from '../components/engine-vault-card.js';
 import { TokenWatchlist } from '../components/token-watchlist.js';
+import { createWhaleItem } from '../components/ticker-tape.js';
 
 /**
  * ViewManager
