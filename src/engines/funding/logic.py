@@ -540,7 +540,7 @@ class FundingEngine(BaseEngine):
     async def execute_funding_command(self, action: str, data: dict) -> dict:
         """
         Execute manual commands from Dashboard.
-        Actions: DEPOSIT, WITHDRAW, CLOSE_POSITION
+        Actions: DEPOSIT, WITHDRAW, CLOSE_POSITION, OPEN_POSITION
         """
         Logger.info(f"[FUNDING] Received command: {action} {data}")
         
@@ -606,10 +606,50 @@ class FundingEngine(BaseEngine):
                 filled = await self.driver.place_order(order)
                 return {"success": True, "message": f"Opened {side} {size} {market} (Paper)"}
 
-        else:
+        elif self.live_mode and self.drift_adapter:
             # --- LIVE MODE EXECUTION ---
-            # TODO: Implement real Drift Client calls
-            return {"success": False, "message": "Live execution not implemented yet"}
+            try:
+                if action == "DEPOSIT":
+                    amount = float(data.get("amount", 0))
+                    
+                    # Execute deposit via DriftAdapter
+                    tx_sig = await self.drift_adapter.deposit(amount)
+                    
+                    # TODO: Update Engine_Vault balance (Task 10)
+                    
+                    return {
+                        "success": True, 
+                        "message": f"Deposited {amount} SOL",
+                        "tx_signature": tx_sig
+                    }
+                
+                elif action == "WITHDRAW":
+                    # TODO: Implement withdraw in Task 9
+                    return {"success": False, "message": "Withdraw not implemented yet (Task 9)"}
+                
+                elif action == "OPEN_POSITION":
+                    # TODO: Implement position opening in Task 13
+                    return {"success": False, "message": "Position opening not implemented yet (Task 13)"}
+                
+                elif action == "CLOSE_POSITION":
+                    # TODO: Implement position closing in Task 14
+                    return {"success": False, "message": "Position closing not implemented yet (Task 14)"}
+                
+                else:
+                    return {"success": False, "message": f"Unknown action: {action}"}
+            
+            except ValueError as e:
+                # Validation errors (user-friendly)
+                Logger.warning(f"[FUNDING] Command validation failed: {e}")
+                return {"success": False, "message": str(e)}
+            
+            except Exception as e:
+                # Unexpected errors
+                Logger.error(f"[FUNDING] Command execution failed: {e}")
+                return {"success": False, "message": f"Error: {e}"}
+        
+        else:
+            return {"success": False, "message": "Engine not properly initialized"}
 
 
 # Backward Compatibility

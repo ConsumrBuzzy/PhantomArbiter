@@ -118,7 +118,7 @@ The implementation follows these phases:
 
 ### Phase 3: Live Mode Capital Management
 
-- [ ] 8. Implement deposit functionality
+- [-] 8. Implement deposit functionality
   - Implement `deposit()` method in DriftAdapter
   - Add amount validation (positive, less than wallet balance)
   - Build Drift deposit instruction using DriftOrderBuilder

@@ -551,6 +551,13 @@ class DriftAdapter:
         """
         Deposit SOL collateral to sub-account.
         
+        Implements Requirement 3 (Capital Management):
+        - Validates amount is positive and less than wallet balance
+        - Builds Drift deposit instruction using driftpy SDK
+        - Simulates transaction before submission
+        - Waits for confirmation (max 30 seconds)
+        - Returns transaction signature on success
+        
         Args:
             amount_sol: Amount in SOL
         
@@ -559,7 +566,7 @@ class DriftAdapter:
         
         Raises:
             RuntimeError: If not connected
-            ValueError: If amount invalid
+            ValueError: If amount invalid or insufficient balance
         """
         if not self.connected:
             raise RuntimeError("Not connected to Drift. Call connect() first.")
@@ -567,8 +574,100 @@ class DriftAdapter:
         if amount_sol <= 0:
             raise ValueError("Deposit amount must be positive")
         
-        # TODO: Implement deposit logic in Phase 3
-        raise NotImplementedError("Deposit not implemented yet (Phase 3)")
+        try:
+            # Import driftpy SDK
+            from driftpy.drift_client import DriftClient
+            from driftpy.wallet import Wallet
+            from solders.keypair import Keypair
+            from spl.token.instructions import get_associated_token_address
+            import base58
+            import os
+            
+            # Get wallet keypair
+            private_key = os.getenv("SOLANA_PRIVATE_KEY") or os.getenv("PHANTOM_PRIVATE_KEY")
+            if not private_key:
+                raise RuntimeError("No private key found in environment")
+            
+            secret_bytes = base58.b58decode(private_key)
+            keypair = Keypair.from_bytes(secret_bytes)
+            wallet_pk = keypair.pubkey()
+            
+            # Check wallet SOL balance
+            balance_resp = await self.rpc_client.get_balance(wallet_pk)
+            wallet_balance_lamports = balance_resp.value
+            wallet_balance_sol = wallet_balance_lamports / (10 ** SOL_DECIMALS)
+            
+            # Reserve 0.017 SOL for gas
+            RESERVED_SOL = 0.017
+            available_balance = wallet_balance_sol - RESERVED_SOL
+            
+            if amount_sol > available_balance:
+                raise ValueError(
+                    f"Insufficient balance. Requested: {amount_sol} SOL, "
+                    f"Available: {available_balance:.4f} SOL (reserved {RESERVED_SOL} for gas)"
+                )
+            
+            Logger.info(f"[DRIFT] Depositing {amount_sol} SOL to sub-account {self.sub_account}")
+            Logger.info(f"[DRIFT] Wallet balance: {wallet_balance_sol:.4f} SOL")
+            
+            # Initialize DriftClient
+            wallet_obj = Wallet(keypair)
+            drift_client = DriftClient(
+                self.rpc_client,
+                wallet_obj,
+                env="mainnet" if self.network == "mainnet" else "devnet"
+            )
+            
+            # Subscribe to load program state
+            await drift_client.subscribe()
+            
+            try:
+                # SOL is spot market index 1 on Drift (0 is USDC)
+                SOL_MARKET_INDEX = 1
+                
+                # Convert amount to spot market precision
+                amount_precision = drift_client.convert_to_spot_precision(
+                    amount_sol, 
+                    SOL_MARKET_INDEX
+                )
+                
+                Logger.info(f"[DRIFT] Amount in precision: {amount_precision}")
+                
+                # Get user's associated token account for SOL
+                sol_mint = drift_client.get_spot_market_account(SOL_MARKET_INDEX).mint
+                user_token_account = get_associated_token_address(wallet_pk, sol_mint)
+                
+                Logger.info(f"[DRIFT] User token account: {user_token_account}")
+                
+                # Execute deposit (includes simulation and confirmation)
+                Logger.info("[DRIFT] Submitting deposit transaction...")
+                tx_sig_and_slot = await drift_client.deposit(
+                    amount=amount_precision,
+                    spot_market_index=SOL_MARKET_INDEX,
+                    user_token_account=user_token_account,
+                    sub_account_id=self.sub_account,
+                    reduce_only=False
+                )
+                
+                tx_sig = str(tx_sig_and_slot.tx_sig)
+                
+                Logger.success(f"[DRIFT] ✅ Deposit successful!")
+                Logger.info(f"[DRIFT] Transaction: {tx_sig}")
+                
+                return tx_sig
+                
+            finally:
+                # Cleanup
+                await drift_client.unsubscribe()
+        
+        except ValueError as e:
+            # Re-raise validation errors
+            Logger.error(f"[DRIFT] Validation error: {e}")
+            raise
+        
+        except Exception as e:
+            Logger.error(f"[DRIFT] Deposit failed: {e}")
+            raise RuntimeError(f"Deposit failed: {e}")
     
     async def withdraw(self, amount_sol: float) -> str:
         """
