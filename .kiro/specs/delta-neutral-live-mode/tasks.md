@@ -27,11 +27,11 @@ This implementation plan focuses on completing the Web UI integration for the De
   - Add caching and error handling
   - _Requirements: 2.1, 2.2, 2.6_
 
-- [ ] 1.1 Create FundingMarket dataclass
+- [x] 1.1 Create FundingMarket dataclass
   - Add dataclass with fields: symbol, rate_1h, rate_8h, apr, direction, open_interest, volume_24h
   - _Requirements: 2.2_
 
-- [ ] 1.2 Implement get_funding_markets() method
+- [x] 1.2 Implement get_funding_markets() method
   - Query Drift Protocol for all perp markets
   - Calculate APR from 8h rate (rate_8h × 3 × 365)
   - Determine direction (positive rate = shorts receive)

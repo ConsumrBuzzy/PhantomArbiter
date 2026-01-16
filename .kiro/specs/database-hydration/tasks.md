@@ -65,7 +65,7 @@ This plan implements a JSON-based database hydration/dehydration system for port
     - **Validates: Requirements 3.1, 3.2**
     - Generate valid and corrupted files, verify detection accuracy
   
-  - [-] 5.5 Write property test for partial failure isolation
+  - [x] 5.5 Write property test for partial failure isolation
     - **Property 5: Partial Failure Isolation**
     - **Validates: Requirements 9.1, 9.2**
     - Mix valid and corrupted databases, verify valid ones are processed
