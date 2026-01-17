@@ -8,7 +8,7 @@ The implementation follows an incremental approach, starting with core portfolio
 
 ## Tasks
 
-- [ ] 1. Set up core portfolio management infrastructure
+- [-] 1. Set up core portfolio management infrastructure
   - Create directory structure for portfolio management components
   - Set up base classes and interfaces for portfolio operations
   - Configure testing framework for financial calculations
