@@ -1,4 +1,4 @@
-"""
+﻿"""
 Drift Adapter
 =============
 Wrapper for driftpy SDK with PhantomArbiter conventions.
@@ -31,7 +31,7 @@ from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
 
-from src.shared.system.logging import Logger
+from shared.system.logging import Logger
 
 
 # =============================================================================
@@ -164,11 +164,11 @@ class DriftAdapter:
         Logger.info(f"[DRIFT] User PDA: {self.user_pda}")
         
         if self._using_singleton:
-            # ═══════════════════════════════════════════════════════════════
+            # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             # NEW: Use Singleton DriftClientManager
-            # ═══════════════════════════════════════════════════════════════
+            # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             try:
-                from src.shared.drift.client_manager import DriftClientManager
+                from shared.drift.client_manager import DriftClientManager
                 
                 Logger.info("[DRIFT] Using singleton DriftClientManager...")
                 
@@ -188,7 +188,7 @@ class DriftAdapter:
                 
                 if self._drift_client:
                     self.connected = True
-                    Logger.success(f"[DRIFT] ✅ Connected via singleton manager")
+                    Logger.success(f"[DRIFT] âœ… Connected via singleton manager")
                     Logger.info(f"[DRIFT] Sub-account: {sub_account}")
                     return True
                 else:
@@ -200,9 +200,9 @@ class DriftAdapter:
                 Logger.info("[DRIFT] Falling back to direct connection...")
                 # Fall through to old implementation
         
-        # ═══════════════════════════════════════════════════════════════
+        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         # FALLBACK: Original implementation
-        # ═══════════════════════════════════════════════════════════════
+        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         
         # Connect with retry logic
         backoff = INITIAL_BACKOFF
@@ -251,7 +251,7 @@ class DriftAdapter:
                 
                 # Success
                 self.connected = True
-                Logger.success(f"[DRIFT] ✅ Connected to {self.network}")
+                Logger.success(f"[DRIFT] âœ… Connected to {self.network}")
                 Logger.info(f"[DRIFT] Sub-account: {sub_account}")
                 
                 # Initialize enhanced managers (ADR 008 Phase 1)
@@ -275,14 +275,14 @@ class DriftAdapter:
     async def _initialize_enhanced_managers(self):
         """Initialize enhanced trading and market data managers (ADR 008 Phase 1)."""
         try:
-            from src.shared.drift.trading_manager import DriftTradingManager
-            from src.shared.drift.market_data_manager import DriftMarketDataManager
+            from shared.drift.trading_manager import DriftTradingManager
+            from shared.drift.market_data_manager import DriftMarketDataManager
             
             # Initialize managers with this adapter instance
             self._trading_manager = DriftTradingManager(self)
             self._market_data_manager = DriftMarketDataManager(self)
             
-            Logger.info("[DRIFT] ✅ Enhanced managers initialized (ADR 008 Phase 1)")
+            Logger.info("[DRIFT] âœ… Enhanced managers initialized (ADR 008 Phase 1)")
             
         except Exception as e:
             Logger.warning(f"[DRIFT] Enhanced managers initialization failed: {e}")
@@ -311,7 +311,7 @@ class DriftAdapter:
         if self._using_singleton:
             # Release singleton client
             try:
-                from src.shared.drift.client_manager import DriftClientManager
+                from shared.drift.client_manager import DriftClientManager
                 await DriftClientManager.release_client()
                 Logger.info("[DRIFT] Released singleton client")
             except Exception as e:
@@ -783,7 +783,7 @@ class DriftAdapter:
                 
                 tx_sig = str(tx_sig_and_slot.tx_sig)
                 
-                Logger.success(f"[DRIFT] ✅ Deposit successful!")
+                Logger.success(f"[DRIFT] âœ… Deposit successful!")
                 Logger.info(f"[DRIFT] Transaction: {tx_sig}")
                 
                 return tx_sig
@@ -910,7 +910,7 @@ class DriftAdapter:
                 
                 tx_sig = str(tx_sig_and_slot.tx_sig)
                 
-                Logger.success(f"[DRIFT] ✅ Withdrawal successful!")
+                Logger.success(f"[DRIFT] âœ… Withdrawal successful!")
                 Logger.info(f"[DRIFT] Transaction: {tx_sig}")
                 
                 return tx_sig
@@ -1092,7 +1092,7 @@ class DriftAdapter:
                 tx_sig_and_slot = await drift_client.place_perp_order(order_params)
                 tx_sig = str(tx_sig_and_slot.tx_sig)
                 
-                Logger.success(f"[DRIFT] ✅ Position opened successfully!")
+                Logger.success(f"[DRIFT] âœ… Position opened successfully!")
                 Logger.info(f"[DRIFT] Transaction: {tx_sig}")
                 Logger.info(f"[DRIFT] {direction.upper()} {size} {market} @ ${mark_price:.2f}")
                 
@@ -1260,7 +1260,7 @@ class DriftAdapter:
                 tx_sig_and_slot = await drift_client.place_perp_order(order_params)
                 tx_sig = str(tx_sig_and_slot.tx_sig)
                 
-                Logger.success(f"[DRIFT] ✅ Position closed successfully!")
+                Logger.success(f"[DRIFT] âœ… Position closed successfully!")
                 Logger.info(f"[DRIFT] Transaction: {tx_sig}")
                 
                 # Requirement 4.10, 4.11: Settle PnL if needed
@@ -1278,7 +1278,7 @@ class DriftAdapter:
                                 market_index
                             )
                             
-                            Logger.success(f"[DRIFT] ✅ PnL settled: {settle_tx}")
+                            Logger.success(f"[DRIFT] âœ… PnL settled: {settle_tx}")
                         except Exception as e:
                             # Log but don't fail if PnL settlement fails
                             Logger.warning(f"[DRIFT] PnL settlement failed (non-critical): {e}")
@@ -1342,7 +1342,7 @@ class DriftAdapter:
         if self._using_singleton:
             # Use singleton manager with caching
             try:
-                from src.shared.drift.client_manager import DriftClientManager
+                from shared.drift.client_manager import DriftClientManager
                 return await DriftClientManager.get_funding_rate(market)
             except Exception as e:
                 Logger.debug(f"[DRIFT] Singleton funding rate fetch failed: {e}")
@@ -1400,7 +1400,7 @@ class DriftAdapter:
             # Calculate 8-hour rate as percentage
             rate_8h = funding_rate_hourly_pct * 8
             
-            # Calculate APR using Drift's formula: rate × 24 × 365.25
+            # Calculate APR using Drift's formula: rate Ã— 24 Ã— 365.25
             rate_annual = funding_rate_hourly_decimal * 24 * 365.25 * 100
             
             # Get mark price from oracle (1e6 precision)
@@ -1465,7 +1465,7 @@ class DriftAdapter:
         if self._using_singleton:
             # Use singleton manager with caching
             try:
-                from src.shared.drift.client_manager import DriftClientManager
+                from shared.drift.client_manager import DriftClientManager
                 return await DriftClientManager.get_all_perp_markets()
             except Exception as e:
                 Logger.debug(f"[DRIFT] Singleton perp markets fetch failed: {e}")
