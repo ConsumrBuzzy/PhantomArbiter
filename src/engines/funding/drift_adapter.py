@@ -1099,8 +1099,7 @@ class DriftAdapter:
         
         try:
             # Import driftpy SDK
-            from driftpy.drift_client import DriftClient
-            from driftpy.wallet import Wallet
+            from driftpy.drift_client import DriftClient, Wallet
             from driftpy.types import OrderParams, OrderType, MarketType, PositionDirection
             from solders.keypair import Keypair
             import base58
