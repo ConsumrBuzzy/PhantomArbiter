@@ -525,21 +525,51 @@ class DriftPortfolioManager:
                     'cash_percentage': 100.0
                 }
             
-            # Calculate allocations by market
+            # Calculate allocations by market (aggregate positions by market)
             by_market = {}
             total_position_value = 0.0
             
+            # Aggregate positions by market
+            market_aggregates = {}
             for position in positions:
+                market = position.market
                 position_value = abs(position.size * position.current_price)
-                allocation_pct = (position_value / summary.total_value) * 100
                 
-                by_market[position.market] = {
-                    'value': position_value,
-                    'percentage': allocation_pct,
-                    'size': position.size,
-                    'pnl': position.unrealized_pnl
-                }
+                if market not in market_aggregates:
+                    market_aggregates[market] = {
+                        'total_value': 0.0,
+                        'total_size': 0.0,
+                        'total_pnl': 0.0,
+                        'positions': []
+                    }
+                
+                market_aggregates[market]['total_value'] += position_value
+                market_aggregates[market]['total_size'] += position.size
+                market_aggregates[market]['total_pnl'] += position.unrealized_pnl
+                market_aggregates[market]['positions'].append(position)
                 total_position_value += position_value
+            
+            # Calculate adjustment factor if total exceeds portfolio value
+            adjustment_factor = 1.0
+            if total_position_value > summary.total_value:
+                adjustment_factor = summary.total_value / total_position_value
+                total_position_value = summary.total_value
+            
+            # Create by_market structure from aggregates with adjustment
+            for market, aggregate in market_aggregates.items():
+                adjusted_value = aggregate['total_value'] * adjustment_factor
+                allocation_pct = (adjusted_value / summary.total_value) * 100
+                
+                by_market[market] = {
+                    'value': adjusted_value,
+                    'percentage': allocation_pct,
+                    'size': aggregate['total_size'],
+                    'pnl': aggregate['total_pnl']
+                }
+            
+            # Calculate total allocated percentage
+            total_allocated_pct = (total_position_value / summary.total_value) * 100
+            total_allocated_pct = min(total_allocated_pct, 100.0)  # Cap at 100%
             
             # Calculate allocations by asset class
             by_asset_class = {}
@@ -570,20 +600,20 @@ class DriftPortfolioManager:
             # Calculate allocations by strategy (simplified)
             by_strategy = {
                 'Delta Neutral': {
-                    'value': total_position_value,
-                    'percentage': (total_position_value / summary.total_value) * 100,
+                    'value': min(total_position_value, summary.total_value),
+                    'percentage': total_allocated_pct,
                     'description': 'Market-neutral arbitrage positions'
                 }
             }
             
             # Calculate cash percentage
-            cash_percentage = max(0.0, 100.0 - (total_position_value / summary.total_value) * 100)
+            cash_percentage = max(0.0, 100.0 - total_allocated_pct)
             
             composition = {
                 'by_market': by_market,
                 'by_asset_class': by_asset_class,
                 'by_strategy': by_strategy,
-                'total_allocated': (total_position_value / summary.total_value) * 100,
+                'total_allocated': total_allocated_pct,
                 'cash_percentage': cash_percentage,
                 'last_updated': datetime.now()
             }

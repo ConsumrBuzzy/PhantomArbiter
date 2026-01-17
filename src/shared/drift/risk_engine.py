@@ -37,6 +37,12 @@ from decimal import Decimal
 import math
 from statistics import mean, stdev
 
+try:
+    from scipy.stats import norm, chi2
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+
 from src.shared.system.logging import Logger
 
 
@@ -177,14 +183,16 @@ class DriftRiskEngine:
     async def calculate_var(
         self,
         confidence_level: float = 0.95,
-        horizon_days: int = 1
+        horizon_days: int = 1,
+        method: str = "historical_simulation"
     ) -> VaRResult:
         """
-        Calculate Value at Risk using historical simulation method.
+        Calculate Value at Risk using multiple methods.
         
         Args:
             confidence_level: Confidence level (default: 0.95 for 95% VaR)
             horizon_days: Time horizon in days (default: 1)
+            method: VaR calculation method ("historical_simulation", "parametric", "monte_carlo")
             
         Returns:
             VaRResult with VaR calculations
@@ -203,9 +211,18 @@ class DriftRiskEngine:
             if len(returns) < 30:
                 self.logger.warning(f"Limited return data: {len(returns)} observations")
             
-            # Historical simulation VaR
-            var_1d = self._calculate_historical_var(returns, confidence_level, 1)
-            var_7d = self._calculate_historical_var(returns, confidence_level, 7)
+            # Calculate VaR based on method
+            if method == "historical_simulation":
+                var_1d = self._calculate_historical_var(returns, confidence_level, 1)
+                var_7d = self._calculate_historical_var(returns, confidence_level, 7)
+            elif method == "parametric":
+                var_1d = self._calculate_parametric_var(returns, confidence_level, 1)
+                var_7d = self._calculate_parametric_var(returns, confidence_level, 7)
+            elif method == "monte_carlo":
+                var_1d = self._calculate_monte_carlo_var(returns, confidence_level, 1)
+                var_7d = self._calculate_monte_carlo_var(returns, confidence_level, 7)
+            else:
+                raise ValueError(f"Unknown VaR method: {method}")
             
             # Scale by portfolio value
             var_1d_dollar = var_1d * portfolio_value
@@ -215,12 +232,12 @@ class DriftRiskEngine:
                 var_1d=var_1d_dollar,
                 var_7d=var_7d_dollar,
                 confidence_level=confidence_level,
-                method="historical_simulation",
+                method=method,
                 portfolio_value=portfolio_value,
                 calculation_date=datetime.now()
             )
             
-            self.logger.info(f"VaR calculated: 1D=${var_1d_dollar:.2f}, 7D=${var_7d_dollar:.2f}")
+            self.logger.info(f"VaR calculated ({method}): 1D=${var_1d_dollar:.2f}, 7D=${var_7d_dollar:.2f}")
             return result
             
         except Exception as e:
@@ -252,6 +269,208 @@ class DriftRiskEngine:
         var_horizon = var_1d * math.sqrt(horizon_days)
         
         return var_horizon
+
+    def _calculate_parametric_var(
+        self,
+        returns: List[float],
+        confidence_level: float,
+        horizon_days: int
+    ) -> float:
+        """Calculate parametric VaR assuming normal distribution."""
+        if not returns:
+            return 0.0
+        
+        # Calculate mean and standard deviation
+        mean_return = mean(returns)
+        volatility = stdev(returns) if len(returns) > 1 else 0.0
+        
+        # Z-score for confidence level
+        if SCIPY_AVAILABLE:
+            z_score = norm.ppf(1 - confidence_level)
+        else:
+            # Approximation for common confidence levels
+            z_scores = {0.90: 1.28, 0.95: 1.645, 0.99: 2.33}
+            z_score = z_scores.get(confidence_level, 1.645)  # Default to 95%
+        
+        # Parametric VaR (negative because we want loss)
+        var_1d = -(mean_return + z_score * volatility)
+        
+        # Scale for horizon (square root of time rule)
+        var_horizon = var_1d * math.sqrt(horizon_days)
+        
+        return var_horizon
+
+    def _calculate_monte_carlo_var(
+        self,
+        returns: List[float],
+        confidence_level: float,
+        horizon_days: int,
+        num_simulations: int = 10000
+    ) -> float:
+        """Calculate Monte Carlo VaR using simulated returns."""
+        if not returns:
+            return 0.0
+        
+        import random
+        
+        # Calculate historical mean and volatility
+        mean_return = mean(returns)
+        volatility = stdev(returns) if len(returns) > 1 else 0.0
+        
+        # Generate simulated returns
+        simulated_returns = []
+        for _ in range(num_simulations):
+            # Simulate daily returns for the horizon
+            cumulative_return = 0.0
+            for _ in range(horizon_days):
+                daily_return = random.gauss(mean_return, volatility)
+                cumulative_return += daily_return
+            simulated_returns.append(cumulative_return)
+        
+        # Calculate VaR from simulated returns
+        sorted_returns = sorted(simulated_returns)
+        percentile = 1 - confidence_level
+        index = int(percentile * len(sorted_returns))
+        index = max(0, min(index, len(sorted_returns) - 1))
+        
+        # VaR (negative of the percentile return)
+        var_result = -sorted_returns[index]
+        
+        return var_result
+
+    async def backtest_var(
+        self,
+        var_results: List[VaRResult],
+        actual_returns: List[float],
+        confidence_level: float = 0.95
+    ) -> Dict[str, Any]:
+        """
+        Backtest VaR model performance against actual returns.
+        
+        Args:
+            var_results: List of historical VaR calculations
+            actual_returns: List of actual portfolio returns
+            confidence_level: Confidence level used for VaR calculations
+            
+        Returns:
+            Dictionary with backtesting results
+        """
+        try:
+            if len(var_results) != len(actual_returns):
+                raise ValueError("VaR results and actual returns must have same length")
+            
+            if not var_results:
+                return {
+                    'total_observations': 0,
+                    'violations': 0,
+                    'violation_rate': 0.0,
+                    'expected_violations': 0,
+                    'kupiec_test_statistic': 0.0,
+                    'kupiec_p_value': 1.0,
+                    'model_performance': 'insufficient_data'
+                }
+            
+            # Count VaR violations (actual loss > VaR)
+            violations = 0
+            total_observations = len(var_results)
+            
+            for var_result, actual_return in zip(var_results, actual_returns):
+                # Convert return to dollar loss
+                actual_loss = -actual_return * var_result.portfolio_value
+                
+                # Check if actual loss exceeded VaR
+                if actual_loss > var_result.var_1d:
+                    violations += 1
+            
+            # Calculate violation rate
+            violation_rate = violations / total_observations if total_observations > 0 else 0.0
+            expected_violation_rate = 1 - confidence_level
+            expected_violations = expected_violation_rate * total_observations
+            
+            # Kupiec test for model accuracy
+            kupiec_test_statistic, kupiec_p_value = self._kupiec_test(
+                violations, total_observations, expected_violation_rate
+            )
+            
+            # Determine model performance
+            if kupiec_p_value > 0.05:
+                model_performance = 'acceptable'
+            elif violation_rate > expected_violation_rate * 1.5:
+                model_performance = 'underestimating_risk'
+            elif violation_rate < expected_violation_rate * 0.5:
+                model_performance = 'overestimating_risk'
+            else:
+                model_performance = 'marginal'
+            
+            backtest_results = {
+                'total_observations': total_observations,
+                'violations': violations,
+                'violation_rate': violation_rate,
+                'expected_violation_rate': expected_violation_rate,
+                'expected_violations': expected_violations,
+                'kupiec_test_statistic': kupiec_test_statistic,
+                'kupiec_p_value': kupiec_p_value,
+                'model_performance': model_performance,
+                'confidence_level': confidence_level
+            }
+            
+            self.logger.info(f"VaR backtest: {violations}/{total_observations} violations ({violation_rate:.2%}), performance: {model_performance}")
+            return backtest_results
+            
+        except Exception as e:
+            self.logger.error(f"Error backtesting VaR: {e}")
+            raise
+
+    def _kupiec_test(self, violations: int, observations: int, expected_rate: float) -> Tuple[float, float]:
+        """
+        Perform Kupiec test for VaR model accuracy.
+        
+        Returns:
+            Tuple of (test_statistic, p_value)
+        """
+        if observations == 0 or expected_rate == 0 or expected_rate == 1:
+            return 0.0, 1.0
+        
+        # Likelihood ratio test statistic
+        observed_rate = violations / observations
+        
+        if observed_rate == 0:
+            if expected_rate == 0:
+                return 0.0, 1.0
+            else:
+                # Use approximation for zero violations
+                test_statistic = 2 * observations * math.log(1 / (1 - expected_rate))
+        elif observed_rate == 1:
+            if expected_rate == 1:
+                return 0.0, 1.0
+            else:
+                # Use approximation for all violations
+                test_statistic = 2 * observations * math.log(1 / expected_rate)
+        else:
+            # Standard Kupiec test
+            likelihood_ratio = (
+                (observed_rate ** violations) * 
+                ((1 - observed_rate) ** (observations - violations))
+            ) / (
+                (expected_rate ** violations) * 
+                ((1 - expected_rate) ** (observations - violations))
+            )
+            
+            test_statistic = -2 * math.log(likelihood_ratio)
+        
+        # Calculate p-value using chi-square distribution with 1 degree of freedom
+        if SCIPY_AVAILABLE:
+            p_value = 1 - chi2.cdf(test_statistic, df=1)
+        else:
+            # Approximation for chi-square p-value
+            if test_statistic < 3.84:  # 95% critical value
+                p_value = 0.95
+            elif test_statistic < 6.63:  # 99% critical value
+                p_value = 0.01
+            else:
+                p_value = 0.001
+        
+        return test_statistic, p_value
 
     # =========================================================================
     # PERFORMANCE METRICS
