@@ -665,8 +665,7 @@ class DriftAdapter:
         
         try:
             # Import driftpy SDK
-            from driftpy.drift_client import DriftClient
-            from driftpy.wallet import Wallet
+            from driftpy.drift_client import DriftClient, Wallet
             from solders.keypair import Keypair
             from spl.token.instructions import get_associated_token_address
             import base58
