@@ -14,7 +14,7 @@ The implementation follows an incremental approach, starting with core portfolio
   - Configure testing framework for financial calculations
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [-] 2. Implement core Portfolio Manager
+- [x] 2. Implement core Portfolio Manager
   - [x] 2.1 Create DriftPortfolioManager class with portfolio summary functionality
     - Implement get_portfolio_summary() method
     - Implement get_position_breakdown() method
@@ -25,52 +25,52 @@ The implementation follows an incremental approach, starting with core portfolio
     - **Property 1: Portfolio Summary Completeness**
     - **Validates: Requirements 1.1**
 
-  - [-] 2.3 Write property test for position analysis completeness
+  - [x] 2.3 Write property test for position analysis completeness
     - **Property 2: Position Analysis Completeness**
     - **Validates: Requirements 1.2**
 
-  - [ ] 2.4 Write property test for allocation percentage consistency
+  - [x] 2.4 Write property test for allocation percentage consistency
     - **Property 3: Allocation Percentage Consistency**
     - **Validates: Requirements 1.3**
 
-  - [ ] 2.5 Implement leverage and margin calculations
+  - [x] 2.5 Implement leverage and margin calculations
     - Add leverage ratio calculation
     - Add margin utilization calculation
     - Integrate with existing DriftAdapter
     - _Requirements: 1.4_
 
-  - [ ] 2.6 Write property test for financial calculation accuracy
+  - [x] 2.6 Write property test for financial calculation accuracy
     - **Property 4: Financial Calculation Accuracy**
     - **Validates: Requirements 1.4**
 
 - [ ] 3. Implement Risk Engine core functionality
-  - [ ] 3.1 Create DriftRiskEngine class with VaR calculations
+  - [x] 3.1 Create DriftRiskEngine class with VaR calculations
     - Implement historical simulation VaR
     - Implement parametric VaR
     - Add VaR backtesting functionality
     - _Requirements: 2.1_
 
-  - [ ] 3.2 Write property test for VaR calculation bounds
+  - [x] 3.2 Write property test for VaR calculation bounds
     - **Property 5: VaR Calculation Bounds**
     - **Validates: Requirements 2.1**
 
-  - [ ] 3.3 Implement performance metrics calculations
+  - [x] 3.3 Implement performance metrics calculations
     - Add Sharpe ratio calculation
     - Add Sortino ratio calculation
     - Add information ratio calculation
     - _Requirements: 2.2_
 
-  - [ ] 3.4 Write property test for financial ratio mathematical correctness
+  - [x] 3.4 Write property test for financial ratio mathematical correctness
     - **Property 6: Financial Ratio Mathematical Correctness**
     - **Validates: Requirements 2.2**
 
-  - [ ] 3.5 Implement drawdown analysis
+  - [x] 3.5 Implement drawdown analysis
     - Add maximum drawdown calculation
     - Add current drawdown tracking
     - Add drawdown duration calculation
     - _Requirements: 2.3_
 
-  - [ ] 3.6 Write property test for drawdown calculation properties
+  - [x] 3.6 Write property test for drawdown calculation properties
     - **Property 7: Drawdown Calculation Properties**
     - **Validates: Requirements 2.3**
 

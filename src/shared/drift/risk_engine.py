@@ -305,7 +305,7 @@ class DriftRiskEngine:
         returns: List[float],
         confidence_level: float,
         horizon_days: int,
-        num_simulations: int = 10000
+        num_simulations: int = 1000  # Reduced from 10000 for better performance
     ) -> float:
         """Calculate Monte Carlo VaR using simulated returns."""
         if not returns:
