@@ -200,7 +200,7 @@ class DriftClientManager:
             result = {
                 "rate_8h": rate_8h,
                 "rate_annual": rate_annual,
-                "is_positive": funding_rate_hourly_raw > 0,
+                "is_positive": funding_rate_hourly_decimal > 0,
                 "mark_price": mark_price
             }
             
