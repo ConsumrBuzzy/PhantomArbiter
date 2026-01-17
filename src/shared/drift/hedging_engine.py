@@ -688,67 +688,89 @@ class DriftHedgingEngine:
             raise
 
     async def _execute_single_hedge_trade(self, trade: HedgeTrade) -> Dict[str, Any]:
-        """Execute a single hedge trade with retry logic."""
+        """Execute a single hedge trade with intelligent execution and retry logic."""
         try:
             retry_count = 0
             last_error = None
             
             while retry_count < self._max_retries:
                 try:
-                    # Calculate limit price with slippage buffer
+                    # Get current market data for intelligent execution
                     market_data = await self.market_data_manager.get_market_summary(trade.market)
                     current_price = float(market_data.get('mark_price', 0)) if market_data else trade.estimated_price
                     
-                    if trade.side == "buy":
-                        limit_price = current_price * (1 + trade.max_slippage)
-                    else:
-                        limit_price = current_price * (1 - trade.max_slippage)
+                    if current_price <= 0:
+                        raise ValueError(f"Invalid current price for {trade.market}: {current_price}")
                     
-                    # Place limit order
-                    order_result = await self.trading_manager.place_limit_order(
-                        market=trade.market,
-                        side=trade.side,
-                        amount=trade.size,
-                        price=limit_price,
-                        reduce_only=False,
-                        post_only=False  # Allow taker orders for hedging
+                    # Intelligent order type selection based on market conditions
+                    order_type, limit_price = await self._select_optimal_order_type(
+                        trade, current_price, market_data, retry_count
                     )
                     
-                    if order_result and order_result.get('success'):
-                        # Calculate actual cost
-                        fill_price = order_result.get('fill_price', limit_price)
-                        fill_size = order_result.get('fill_size', trade.size)
-                        cost = fill_size * fill_price * 0.002  # Estimate fee
+                    # Market impact minimization - split large orders if needed
+                    execution_chunks = await self._optimize_execution_size(
+                        trade, current_price, market_data
+                    )
+                    
+                    executed_chunks = []
+                    total_fill_size = 0.0
+                    total_cost = 0.0
+                    
+                    # Execute chunks with intelligent timing
+                    for i, chunk in enumerate(execution_chunks):
+                        chunk_result = await self._execute_trade_chunk(
+                            chunk, trade, order_type, limit_price, retry_count, i
+                        )
+                        
+                        if chunk_result['success']:
+                            executed_chunks.append(chunk_result)
+                            total_fill_size += chunk_result.get('fill_size', 0)
+                            total_cost += chunk_result.get('cost', 0)
+                        else:
+                            # If any chunk fails, record the error but continue with others
+                            self.logger.warning(f"Chunk {i+1}/{len(execution_chunks)} failed: {chunk_result.get('error')}")
+                    
+                    # Check if execution was successful overall
+                    if executed_chunks and total_fill_size >= trade.size * 0.8:  # 80% fill threshold
+                        # Calculate weighted average fill price
+                        total_value = sum(chunk.get('fill_price', 0) * chunk.get('fill_size', 0) for chunk in executed_chunks)
+                        avg_fill_price = total_value / total_fill_size if total_fill_size > 0 else limit_price
                         
                         return {
                             'success': True,
                             'trade': trade,
-                            'order_id': order_result.get('order_id'),
-                            'fill_price': fill_price,
-                            'fill_size': fill_size,
-                            'cost': cost,
-                            'retry_count': retry_count
+                            'order_ids': [chunk.get('order_id') for chunk in executed_chunks if chunk.get('order_id')],
+                            'fill_price': avg_fill_price,
+                            'fill_size': total_fill_size,
+                            'cost': total_cost,
+                            'retry_count': retry_count,
+                            'execution_method': order_type,
+                            'chunks_executed': len(executed_chunks),
+                            'total_chunks': len(execution_chunks)
                         }
                     else:
-                        last_error = order_result.get('error', 'Order placement failed')
+                        last_error = f"Insufficient fill: {total_fill_size:.4f}/{trade.size:.4f}"
                         retry_count += 1
                         
                         if retry_count < self._max_retries:
-                            # Wait before retry with exponential backoff
-                            await asyncio.sleep(2 ** retry_count)
+                            # Adaptive backoff based on market conditions
+                            backoff_time = await self._calculate_adaptive_backoff(retry_count, market_data)
+                            await asyncio.sleep(backoff_time)
                 
                 except Exception as e:
                     last_error = str(e)
                     retry_count += 1
                     
                     if retry_count < self._max_retries:
-                        await asyncio.sleep(2 ** retry_count)
+                        backoff_time = await self._calculate_adaptive_backoff(retry_count, None)
+                        await asyncio.sleep(backoff_time)
             
             return {
                 'success': False,
                 'trade': trade,
                 'error': last_error or 'Max retries exceeded',
-                'retry_count': retry_count
+                'retry_count': retry_count,
+                'execution_method': 'failed'
             }
             
         except Exception as e:
@@ -756,7 +778,8 @@ class DriftHedgingEngine:
                 'success': False,
                 'trade': trade,
                 'error': str(e),
-                'retry_count': 0
+                'retry_count': 0,
+                'execution_method': 'error'
             }
 
     # =========================================================================
@@ -1023,3 +1046,306 @@ class DriftHedgingEngine:
         self._correlation_cache.clear()
         self._delta_cache.clear()
         self.logger.info("Hedge history cleared")
+
+    # =========================================================================
+    # INTELLIGENT EXECUTION METHODS
+    # =========================================================================
+
+    async def _select_optimal_order_type(
+        self,
+        trade: HedgeTrade,
+        current_price: float,
+        market_data: Dict[str, Any],
+        retry_count: int
+    ) -> Tuple[str, float]:
+        """
+        Select optimal order type and price based on market conditions.
+        
+        Args:
+            trade: HedgeTrade specification
+            current_price: Current market price
+            market_data: Market data summary
+            retry_count: Current retry attempt
+            
+        Returns:
+            Tuple of (order_type, limit_price)
+        """
+        try:
+            # Get market depth information if available
+            bid_price = float(market_data.get('bid_price', current_price * 0.999))
+            ask_price = float(market_data.get('ask_price', current_price * 1.001))
+            spread = ask_price - bid_price
+            spread_pct = spread / current_price if current_price > 0 else 0.01
+            
+            # Get volume information if available
+            volume_24h = float(market_data.get('volume_24h', 1000000))  # Default 1M volume
+            
+            # Determine urgency based on delta deviation and retry count
+            urgency_factor = min(1.0, retry_count * 0.3 + 0.1)  # Increases with retries
+            
+            # Calculate trade size relative to daily volume
+            trade_value = trade.size * current_price
+            volume_impact = trade_value / volume_24h if volume_24h > 0 else 0.01
+            
+            # Order type selection logic
+            if urgency_factor > 0.7 or volume_impact > 0.05:
+                # High urgency or large trade - use market order with limit protection
+                order_type = "market_with_protection"
+                if trade.side == "buy":
+                    limit_price = current_price * (1 + min(trade.max_slippage, 0.02))  # Max 2% slippage
+                else:
+                    limit_price = current_price * (1 - min(trade.max_slippage, 0.02))
+                    
+            elif spread_pct < 0.001:  # Very tight spread (< 0.1%)
+                # Tight spread - try to get better execution with limit order
+                order_type = "limit_aggressive"
+                if trade.side == "buy":
+                    limit_price = bid_price + spread * 0.3  # Slightly aggressive
+                else:
+                    limit_price = ask_price - spread * 0.3
+                    
+            elif spread_pct > 0.01:  # Wide spread (> 1%)
+                # Wide spread - be more conservative
+                order_type = "limit_conservative"
+                if trade.side == "buy":
+                    limit_price = bid_price + spread * 0.1  # Conservative
+                else:
+                    limit_price = ask_price - spread * 0.1
+                    
+            else:
+                # Normal conditions - balanced approach
+                order_type = "limit_balanced"
+                if trade.side == "buy":
+                    limit_price = current_price * (1 + trade.max_slippage * 0.5)
+                else:
+                    limit_price = current_price * (1 - trade.max_slippage * 0.5)
+            
+            self.logger.debug(f"Selected {order_type} for {trade.market} {trade.side} {trade.size:.4f} at {limit_price:.4f}")
+            return order_type, limit_price
+            
+        except Exception as e:
+            self.logger.error(f"Error selecting order type: {e}")
+            # Fallback to simple limit order
+            if trade.side == "buy":
+                limit_price = current_price * (1 + trade.max_slippage)
+            else:
+                limit_price = current_price * (1 - trade.max_slippage)
+            return "limit_fallback", limit_price
+
+    async def _optimize_execution_size(
+        self,
+        trade: HedgeTrade,
+        current_price: float,
+        market_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Optimize execution by splitting large trades to minimize market impact.
+        
+        Args:
+            trade: HedgeTrade specification
+            current_price: Current market price
+            market_data: Market data summary
+            
+        Returns:
+            List of trade chunks for execution
+        """
+        try:
+            trade_value = trade.size * current_price
+            volume_24h = float(market_data.get('volume_24h', 1000000))
+            
+            # Calculate optimal chunk size based on market impact models
+            # Using square root law: impact ∝ sqrt(trade_size / daily_volume)
+            volume_impact = trade_value / volume_24h if volume_24h > 0 else 0.01
+            
+            # Determine if splitting is beneficial
+            if volume_impact < 0.01:  # Less than 1% of daily volume
+                # Small trade - execute as single chunk
+                return [{
+                    'size': trade.size,
+                    'delay_seconds': 0,
+                    'chunk_id': 1,
+                    'total_chunks': 1
+                }]
+            
+            elif volume_impact < 0.05:  # 1-5% of daily volume
+                # Medium trade - split into 2-3 chunks
+                num_chunks = 2 if volume_impact < 0.03 else 3
+                chunk_size = trade.size / num_chunks
+                
+                chunks = []
+                for i in range(num_chunks):
+                    chunks.append({
+                        'size': chunk_size,
+                        'delay_seconds': i * 30,  # 30 second delays between chunks
+                        'chunk_id': i + 1,
+                        'total_chunks': num_chunks
+                    })
+                return chunks
+            
+            else:  # Large trade - more aggressive splitting
+                # Calculate optimal number of chunks (max 5 for practical reasons)
+                optimal_chunks = min(5, max(3, int(volume_impact * 20)))
+                chunk_size = trade.size / optimal_chunks
+                
+                chunks = []
+                for i in range(optimal_chunks):
+                    # Progressive delays - longer delays for later chunks
+                    delay = i * (60 + i * 15)  # 60s, 75s, 90s, 105s, 120s
+                    
+                    chunks.append({
+                        'size': chunk_size,
+                        'delay_seconds': delay,
+                        'chunk_id': i + 1,
+                        'total_chunks': optimal_chunks
+                    })
+                return chunks
+            
+        except Exception as e:
+            self.logger.error(f"Error optimizing execution size: {e}")
+            # Fallback to single chunk
+            return [{
+                'size': trade.size,
+                'delay_seconds': 0,
+                'chunk_id': 1,
+                'total_chunks': 1
+            }]
+
+    async def _execute_trade_chunk(
+        self,
+        chunk: Dict[str, Any],
+        trade: HedgeTrade,
+        order_type: str,
+        limit_price: float,
+        retry_count: int,
+        chunk_index: int
+    ) -> Dict[str, Any]:
+        """
+        Execute a single trade chunk with intelligent timing.
+        
+        Args:
+            chunk: Chunk specification
+            trade: Original HedgeTrade specification
+            order_type: Selected order type
+            limit_price: Calculated limit price
+            retry_count: Current retry count
+            chunk_index: Index of this chunk
+            
+        Returns:
+            Chunk execution result
+        """
+        try:
+            # Apply delay for market impact minimization
+            if chunk['delay_seconds'] > 0 and chunk_index > 0:
+                self.logger.debug(f"Delaying chunk {chunk['chunk_id']}/{chunk['total_chunks']} by {chunk['delay_seconds']}s")
+                await asyncio.sleep(chunk['delay_seconds'])
+            
+            # Determine order parameters based on order type
+            post_only = order_type in ["limit_conservative", "limit_balanced"]
+            reduce_only = False  # Hedging trades are not reduce-only
+            
+            # Execute the chunk
+            order_result = await self.trading_manager.place_limit_order(
+                market=trade.market,
+                side=trade.side,
+                amount=chunk['size'],
+                price=limit_price,
+                reduce_only=reduce_only,
+                post_only=post_only
+            )
+            
+            if order_result and order_result.get('success'):
+                # Calculate actual cost
+                fill_price = order_result.get('fill_price', limit_price)
+                fill_size = order_result.get('fill_size', chunk['size'])
+                
+                # Estimate fees based on order type
+                if post_only and order_result.get('maker_fill', False):
+                    fee_rate = 0.001  # 0.1% maker fee
+                else:
+                    fee_rate = 0.002  # 0.2% taker fee
+                
+                cost = fill_size * fill_price * fee_rate
+                
+                return {
+                    'success': True,
+                    'chunk_id': chunk['chunk_id'],
+                    'order_id': order_result.get('order_id'),
+                    'fill_price': fill_price,
+                    'fill_size': fill_size,
+                    'cost': cost,
+                    'order_type': order_type,
+                    'maker_fill': order_result.get('maker_fill', False)
+                }
+            else:
+                return {
+                    'success': False,
+                    'chunk_id': chunk['chunk_id'],
+                    'error': order_result.get('error', 'Order placement failed'),
+                    'order_type': order_type
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'chunk_id': chunk['chunk_id'],
+                'error': str(e),
+                'order_type': order_type
+            }
+
+    async def _calculate_adaptive_backoff(
+        self,
+        retry_count: int,
+        market_data: Optional[Dict[str, Any]]
+    ) -> float:
+        """
+        Calculate adaptive backoff time based on market conditions and retry count.
+        
+        Args:
+            retry_count: Current retry attempt
+            market_data: Market data for adaptive timing (optional)
+            
+        Returns:
+            Backoff time in seconds
+        """
+        try:
+            # Base exponential backoff
+            base_backoff = min(60, 2 ** retry_count)  # Cap at 60 seconds
+            
+            if market_data:
+                # Adjust based on market conditions
+                spread_pct = 0.001  # Default spread
+                
+                bid_price = float(market_data.get('bid_price', 0))
+                ask_price = float(market_data.get('ask_price', 0))
+                
+                if bid_price > 0 and ask_price > 0:
+                    spread_pct = (ask_price - bid_price) / ((ask_price + bid_price) / 2)
+                
+                # Wider spreads suggest less liquidity - wait longer
+                spread_multiplier = 1.0 + min(2.0, spread_pct * 100)  # 1.0 to 3.0
+                
+                # Volume-based adjustment
+                volume_24h = float(market_data.get('volume_24h', 1000000))
+                if volume_24h < 100000:  # Low volume
+                    volume_multiplier = 1.5
+                elif volume_24h > 10000000:  # High volume
+                    volume_multiplier = 0.7
+                else:
+                    volume_multiplier = 1.0
+                
+                adaptive_backoff = base_backoff * spread_multiplier * volume_multiplier
+            else:
+                adaptive_backoff = base_backoff
+            
+            # Add small random jitter to avoid thundering herd
+            import random
+            jitter = random.uniform(0.8, 1.2)
+            
+            final_backoff = adaptive_backoff * jitter
+            
+            self.logger.debug(f"Adaptive backoff: {final_backoff:.1f}s (retry {retry_count})")
+            return final_backoff
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating adaptive backoff: {e}")
+            return min(60, 2 ** retry_count)  # Fallback to simple exponential backoff
