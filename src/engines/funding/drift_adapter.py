@@ -24,7 +24,7 @@ for the USDC spot balance (scaled_balance field with 1e6 precision).
 import asyncio
 import time
 import struct
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 from dataclasses import dataclass
 
 from solders.pubkey import Pubkey
@@ -63,7 +63,7 @@ MAX_BACKOFF = 8.0  # seconds
 
 class DriftAdapter:
     """
-    Wrapper for Drift Protocol integration.
+    Enhanced Wrapper for Drift Protocol integration.
     
     Provides a clean interface for live mode operations:
     - Connection management with retry logic
@@ -71,11 +71,13 @@ class DriftAdapter:
     - Capital management (deposit/withdraw)
     - Position management (open/close)
     - Health ratio calculation
+    - Advanced trading operations (ADR 008 Phase 1)
+    - Comprehensive market data access
     """
     
     def __init__(self, network: str = "mainnet", use_singleton: bool = True):
         """
-        Initialize DriftAdapter.
+        Initialize DriftAdapter with enhanced capabilities.
         
         Args:
             network: "mainnet" or "devnet"
@@ -89,6 +91,10 @@ class DriftAdapter:
         self.connected: bool = False
         self._drift_client: Optional[Any] = None  # Cached DriftClient instance
         self._using_singleton: bool = use_singleton
+        
+        # Enhanced managers (ADR 008 Phase 1)
+        self._trading_manager: Optional[Any] = None
+        self._market_data_manager: Optional[Any] = None
         
         # RPC URL based on network
         if network == "mainnet":
@@ -247,6 +253,10 @@ class DriftAdapter:
                 self.connected = True
                 Logger.success(f"[DRIFT] ✅ Connected to {self.network}")
                 Logger.info(f"[DRIFT] Sub-account: {sub_account}")
+                
+                # Initialize enhanced managers (ADR 008 Phase 1)
+                await self._initialize_enhanced_managers()
+                
                 return True
                 
             except Exception as e:
@@ -262,8 +272,42 @@ class DriftAdapter:
         
         return False
     
+    async def _initialize_enhanced_managers(self):
+        """Initialize enhanced trading and market data managers (ADR 008 Phase 1)."""
+        try:
+            from src.shared.drift.trading_manager import DriftTradingManager
+            from src.shared.drift.market_data_manager import DriftMarketDataManager
+            
+            # Initialize managers with this adapter instance
+            self._trading_manager = DriftTradingManager(self)
+            self._market_data_manager = DriftMarketDataManager(self)
+            
+            Logger.info("[DRIFT] ✅ Enhanced managers initialized (ADR 008 Phase 1)")
+            
+        except Exception as e:
+            Logger.warning(f"[DRIFT] Enhanced managers initialization failed: {e}")
+            Logger.info("[DRIFT] Continuing with basic functionality")
+    
+    @property
+    def trading(self):
+        """Access to enhanced trading operations (ADR 008)."""
+        if not self._trading_manager:
+            Logger.warning("[DRIFT] Trading manager not initialized. Using basic operations.")
+        return self._trading_manager
+    
+    @property
+    def market_data(self):
+        """Access to enhanced market data operations (ADR 008)."""
+        if not self._market_data_manager:
+            Logger.warning("[DRIFT] Market data manager not initialized. Using basic operations.")
+        return self._market_data_manager
+    
     async def disconnect(self):
         """Close RPC connection and release DriftClient."""
+        # Cleanup enhanced managers
+        self._trading_manager = None
+        self._market_data_manager = None
+        
         if self._using_singleton:
             # Release singleton client
             try:
@@ -1363,7 +1407,7 @@ class DriftAdapter:
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
             
             # Determine if positive (longs pay shorts)
-            is_positive = funding_rate_hourly_raw > 0
+            is_positive = funding_rate_hourly_decimal > 0
             
             Logger.debug(f"[DRIFT] {market}: rate_8h={rate_8h:.4f}%, mark=${mark_price:.2f}")
             
@@ -1744,3 +1788,331 @@ class DriftAdapter:
         except Exception as e:
             Logger.debug(f"[DRIFT] Failed to fetch mark price for {market}: {e}")
             return None
+    
+    # =========================================================================
+    # ENHANCED TRADING OPERATIONS (ADR 008 Phase 1)
+    # =========================================================================
+    
+    async def place_limit_order(
+        self,
+        market: str,
+        side: str,
+        size: float,
+        price: float,
+        time_in_force: str = "GTC",
+        post_only: bool = False,
+        reduce_only: bool = False
+    ) -> str:
+        """
+        Place limit order using enhanced trading manager.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            side: Order side ("buy" or "sell")
+            size: Order size in base asset
+            price: Limit price
+            time_in_force: Time in force ("GTC", "IOC", "FOK")
+            post_only: Only place as maker order
+            reduce_only: Only reduce existing position
+        
+        Returns:
+            Order ID string
+        
+        Raises:
+            RuntimeError: If trading manager not available or order fails
+        """
+        if not self._trading_manager:
+            raise RuntimeError("Enhanced trading manager not available. Use basic open_position/close_position methods.")
+        
+        return await self._trading_manager.place_limit_order(
+            market=market,
+            side=side,
+            size=size,
+            price=price,
+            time_in_force=time_in_force,
+            post_only=post_only,
+            reduce_only=reduce_only
+        )
+    
+    async def place_stop_order(
+        self,
+        market: str,
+        side: str,
+        size: float,
+        trigger_price: float,
+        limit_price: Optional[float] = None,
+        reduce_only: bool = True
+    ) -> str:
+        """
+        Place stop-loss or take-profit order using enhanced trading manager.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            side: Order side ("buy" or "sell")
+            size: Order size in base asset
+            trigger_price: Price that triggers the order
+            limit_price: Limit price (if None, becomes stop-market order)
+            reduce_only: Only reduce existing position
+        
+        Returns:
+            Order ID string
+        
+        Raises:
+            RuntimeError: If trading manager not available or order fails
+        """
+        if not self._trading_manager:
+            raise RuntimeError("Enhanced trading manager not available. Use basic open_position/close_position methods.")
+        
+        return await self._trading_manager.place_stop_order(
+            market=market,
+            side=side,
+            size=size,
+            trigger_price=trigger_price,
+            limit_price=limit_price,
+            reduce_only=reduce_only
+        )
+    
+    async def cancel_order(self, order_id: str) -> bool:
+        """
+        Cancel specific order using enhanced trading manager.
+        
+        Args:
+            order_id: Order ID to cancel
+        
+        Returns:
+            True if cancellation successful
+        
+        Raises:
+            RuntimeError: If trading manager not available
+        """
+        if not self._trading_manager:
+            raise RuntimeError("Enhanced trading manager not available.")
+        
+        return await self._trading_manager.cancel_order(order_id)
+    
+    async def cancel_all_orders(self, market: Optional[str] = None) -> int:
+        """
+        Cancel all orders using enhanced trading manager.
+        
+        Args:
+            market: Optional market filter
+        
+        Returns:
+            Number of orders cancelled
+        
+        Raises:
+            RuntimeError: If trading manager not available
+        """
+        if not self._trading_manager:
+            raise RuntimeError("Enhanced trading manager not available.")
+        
+        return await self._trading_manager.cancel_all_orders(market)
+    
+    async def get_open_orders(self, market: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get open orders using enhanced trading manager.
+        
+        Args:
+            market: Optional market filter
+        
+        Returns:
+            List of order dictionaries
+        
+        Raises:
+            RuntimeError: If trading manager not available
+        """
+        if not self._trading_manager:
+            raise RuntimeError("Enhanced trading manager not available.")
+        
+        orders = await self._trading_manager.get_open_orders(market)
+        # Convert Order objects to dictionaries for backward compatibility
+        return [
+            {
+                "id": order.id,
+                "market": order.market,
+                "type": order.type.value,
+                "side": order.side.value,
+                "size": order.size,
+                "price": order.price,
+                "status": order.status.value,
+                "filled_size": order.filled_size,
+                "remaining_size": order.remaining_size,
+                "created_at": order.created_at.isoformat(),
+                "updated_at": order.updated_at.isoformat()
+            }
+            for order in orders
+        ]
+    
+    async def get_trading_stats(self) -> Dict[str, Any]:
+        """
+        Get comprehensive trading statistics.
+        
+        Returns:
+            Trading statistics dictionary
+        
+        Raises:
+            RuntimeError: If trading manager not available
+        """
+        if not self._trading_manager:
+            raise RuntimeError("Enhanced trading manager not available.")
+        
+        stats = await self._trading_manager.get_trading_stats()
+        return {
+            "total_orders": stats.total_orders,
+            "filled_orders": stats.filled_orders,
+            "cancelled_orders": stats.cancelled_orders,
+            "total_volume": stats.total_volume,
+            "total_fees": stats.total_fees,
+            "fill_rate": stats.fill_rate,
+            "win_rate": stats.win_rate
+        }
+    
+    # =========================================================================
+    # ENHANCED MARKET DATA OPERATIONS (ADR 008 Phase 1)
+    # =========================================================================
+    
+    async def get_orderbook(self, market: str, depth: int = 20) -> Optional[Dict[str, Any]]:
+        """
+        Get L2 orderbook using enhanced market data manager.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            depth: Number of price levels per side
+        
+        Returns:
+            Orderbook dictionary or None
+        """
+        if not self._market_data_manager:
+            Logger.warning("[DRIFT] Enhanced market data manager not available")
+            return None
+        
+        orderbook = await self._market_data_manager.get_orderbook(market, depth)
+        if not orderbook:
+            return None
+        
+        return {
+            "market": orderbook.market,
+            "bids": orderbook.bids,
+            "asks": orderbook.asks,
+            "spread": orderbook.spread,
+            "mid_price": orderbook.mid_price,
+            "timestamp": orderbook.timestamp.isoformat()
+        }
+    
+    async def get_recent_trades(self, market: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get recent trades using enhanced market data manager.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            limit: Maximum number of trades
+        
+        Returns:
+            List of trade dictionaries
+        """
+        if not self._market_data_manager:
+            Logger.warning("[DRIFT] Enhanced market data manager not available")
+            return []
+        
+        trades = await self._market_data_manager.get_recent_trades(market, limit)
+        return [
+            {
+                "market": trade.market,
+                "price": trade.price,
+                "size": trade.size,
+                "side": trade.side,
+                "timestamp": trade.timestamp.isoformat(),
+                "trade_id": trade.trade_id
+            }
+            for trade in trades
+        ]
+    
+    async def get_market_statistics(self, market: str) -> Dict[str, Any]:
+        """
+        Get comprehensive market statistics using enhanced market data manager.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+        
+        Returns:
+            Market statistics dictionary
+        """
+        if not self._market_data_manager:
+            Logger.warning("[DRIFT] Enhanced market data manager not available")
+            return {}
+        
+        stats = await self._market_data_manager.get_market_stats(market)
+        if not stats:
+            return {}
+        
+        return {
+            "market": stats.market,
+            "last_price": stats.last_price,
+            "price_change_24h": stats.price_change_24h,
+            "price_change_percent_24h": stats.price_change_percent_24h,
+            "high_24h": stats.high_24h,
+            "low_24h": stats.low_24h,
+            "volume_24h": stats.volume_24h,
+            "funding_rate": stats.funding_rate,
+            "funding_rate_8h": stats.funding_rate_8h,
+            "open_interest": stats.open_interest,
+            "mark_price": stats.mark_price,
+            "index_price": stats.index_price,
+            "timestamp": stats.timestamp.isoformat()
+        }
+    
+    async def subscribe_to_trades(self, market: str, callback: Callable) -> str:
+        """
+        Subscribe to real-time trade updates.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            callback: Function to call with new trades
+        
+        Returns:
+            Subscription ID
+        
+        Raises:
+            RuntimeError: If market data manager not available
+        """
+        if not self._market_data_manager:
+            raise RuntimeError("Enhanced market data manager not available.")
+        
+        return await self._market_data_manager.subscribe_to_trades(market, callback)
+    
+    async def subscribe_to_orderbook(self, market: str, callback: Callable) -> str:
+        """
+        Subscribe to real-time orderbook updates.
+        
+        Args:
+            market: Market symbol (e.g., "SOL-PERP")
+            callback: Function to call with orderbook updates
+        
+        Returns:
+            Subscription ID
+        
+        Raises:
+            RuntimeError: If market data manager not available
+        """
+        if not self._market_data_manager:
+            raise RuntimeError("Enhanced market data manager not available.")
+        
+        return await self._market_data_manager.subscribe_to_orderbook(market, callback)
+    
+    async def unsubscribe(self, subscription_id: str) -> bool:
+        """
+        Unsubscribe from real-time updates.
+        
+        Args:
+            subscription_id: Subscription ID to cancel
+        
+        Returns:
+            True if unsubscribed successfully
+        
+        Raises:
+            RuntimeError: If market data manager not available
+        """
+        if not self._market_data_manager:
+            raise RuntimeError("Enhanced market data manager not available.")
+        
+        return await self._market_data_manager.unsubscribe(subscription_id)
