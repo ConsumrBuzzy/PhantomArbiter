@@ -162,14 +162,11 @@ class DriftClientManager:
             # Extract funding rate (stored as hourly rate in 1e9 precision)
             funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
             
-            # Convert to percentage for display
-            rate_hourly_pct = funding_rate_hourly_raw * 100
+            # Calculate 8-hour rate as percentage (what most UIs show)
+            rate_8h = funding_rate_hourly_raw * 8 * 100
             
-            # Calculate 8-hour rate (what most UIs show)
-            rate_8h = rate_hourly_pct * 8
-            
-            # Calculate APR according to Drift docs: rate × 24 × 365.25
-            rate_annual = rate_hourly_pct * 24 * 365.25
+            # Calculate APR as percentage: rate × 24 × 365.25 × 100
+            rate_annual = funding_rate_hourly_raw * 24 * 365.25 * 100
             
             # Get mark price from oracle (1e6 precision)
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
