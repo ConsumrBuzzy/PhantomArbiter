@@ -342,8 +342,229 @@ class CorrelationModel:
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-### Property-Based Testing Analysis
+### Property 1: Portfolio Summary Completeness
+*For any* portfolio state, when requesting a portfolio summary, the returned data should contain all required fields: total value, unrealized PnL, realized PnL, margin used, margin available, leverage, and all active positions
+**Validates: Requirements 1.1**
+
+### Property 2: Position Analysis Completeness
+*For any* portfolio with positions, when requesting position breakdown, each position analysis should contain all required fields: entry price, current price, size, PnL, risk contribution, and liquidation price
+**Validates: Requirements 1.2**
+
+### Property 3: Allocation Percentage Consistency
+*For any* portfolio composition, the sum of all allocation percentages by market, asset class, and strategy should equal 100% (within rounding tolerance of 0.01%)
+**Validates: Requirements 1.3**
+
+### Property 4: Financial Calculation Accuracy
+*For any* portfolio state, leverage ratio should equal total position value divided by account equity, and margin utilization should equal used margin divided by total margin
+**Validates: Requirements 1.4**
+
+### Property 5: VaR Calculation Bounds
+*For any* return series, calculated VaR should be negative (representing potential loss) and the absolute value should be less than the maximum historical loss in the series
+**Validates: Requirements 2.1**
+
+### Property 6: Financial Ratio Mathematical Correctness
+*For any* return series with non-zero volatility, Sharpe ratio should equal (mean return - risk-free rate) / volatility, and Sortino ratio should use only downside volatility
+**Validates: Requirements 2.2**
+
+### Property 7: Drawdown Calculation Properties
+*For any* price series, maximum drawdown should be non-positive, current drawdown should be between maximum drawdown and zero, and drawdown duration should be non-negative
+**Validates: Requirements 2.3**
+
+### Property 8: Correlation Matrix Properties
+*For any* correlation matrix, it should be symmetric, have 1.0 on the diagonal, and all values should be between -1.0 and 1.0
+**Validates: Requirements 2.4**
+
+### Property 9: Volatility Calculation Consistency
+*For any* portfolio with positions, the sum of individual position volatility contributions should approximately equal the total portfolio volatility
+**Validates: Requirements 2.5**
+
+### Property 10: Beta Calculation Bounds
+*For any* return series pair, calculated beta should be finite and the correlation coefficient used in beta calculation should be between -1.0 and 1.0
+**Validates: Requirements 2.6**
+
+### Property 11: Delta Hedging Effectiveness
+*For any* portfolio after hedging execution, the portfolio delta should be within the specified tolerance of the target delta
+**Validates: Requirements 3.1**
+
+### Property 12: Hedge Size Calculation Accuracy
+*For any* portfolio requiring hedging, the sum of position-weighted deltas plus hedge trade deltas should equal the target delta
+**Validates: Requirements 3.2**
+
+### Property 13: Hedge Order Type Consistency
+*For any* hedge execution, all generated trades should be limit orders with prices within reasonable market bounds (±5% of current market price)
+**Validates: Requirements 3.3**
+
+### Property 14: Hedging Cooldown Enforcement
+*For any* sequence of hedge requests, if a cooldown period is active, subsequent hedge requests should be rejected or queued until the cooldown expires
+**Validates: Requirements 3.5**
+
+### Property 15: Risk Limit Enforcement
+*For any* trade request that would violate configured risk limits, the trade should be rejected and a detailed violation explanation should be provided
+**Validates: Requirements 4.1, 4.2**
+
+### Property 16: Warning Threshold Accuracy
+*For any* position approaching limits, warnings should be generated when the position reaches exactly 80% and 90% of the configured limit thresholds
+**Validates: Requirements 4.4**
+
+### Property 17: Health Ratio Alert Thresholds
+*For any* account with health ratio below 150%, warning alerts should be generated; below 120%, automatic position reduction should occur; below 110%, emergency closure should execute
+**Validates: Requirements 5.1, 5.2, 5.3**
+
+### Property 18: Liquidation Protection Prioritization
+*For any* portfolio requiring protection, positions should be closed in descending order of their risk contribution to the portfolio
+**Validates: Requirements 5.5**
+
+### Property 19: Performance Calculation Accuracy
+*For any* price history, calculated returns over different time periods should be mathematically consistent with the price changes over those periods
+**Validates: Requirements 6.1**
+
+### Property 20: Trade Statistics Consistency
+*For any* trade history, win rate should equal winning trades divided by total trades, and profit factor should equal total wins divided by total losses
+**Validates: Requirements 6.3**
+
+### Property 21: Position Sizing Risk Consistency
+*For any* position sizing recommendation, the resulting portfolio risk should remain within the specified target risk levels
+**Validates: Requirements 7.4**
+
+### Property 22: Risk Budget Allocation Conservation
+*For any* risk budget allocation, the sum of allocated risk across all positions should equal the total available risk budget
+**Validates: Requirements 7.3**
+
+### Property 23: Rebalancing Weight Accuracy
+*For any* portfolio rebalancing, the resulting position weights should be within the specified tolerance bands of the target allocations
+**Validates: Requirements 9.1**
+
+### Property 24: Rebalancing Trade Size Minimization
+*For any* rebalancing execution, the total trade size should be the minimum required to achieve target allocations within tolerance
+**Validates: Requirements 9.2**
+
+### Property 25: Integration Backward Compatibility
+*For any* existing system integration point, the enhanced portfolio manager should maintain the same interface contracts and provide graceful fallbacks when enhanced features are unavailable
+**Validates: Requirements 10.5**
 
 <function_calls>
 <invoke name="prework">
 <parameter name="featureName">drift-portfolio-risk-management
+
+## Error Handling
+
+### Error Classification and Response
+
+The Portfolio & Risk Management system implements comprehensive error handling across all components:
+
+#### 1. Data Quality Errors
+- **Missing Market Data**: Graceful degradation with cached data and user warnings
+- **Stale Price Data**: Automatic refresh attempts with fallback to last known good data
+- **Incomplete Position Data**: Request retry with exponential backoff
+
+#### 2. Calculation Errors
+- **Numerical Instability**: Input validation and range checking before calculations
+- **Division by Zero**: Explicit checks for zero volatility, zero returns, and zero positions
+- **Matrix Singularity**: Regularization techniques for correlation matrix calculations
+
+#### 3. Trading Execution Errors
+- **Order Rejection**: Retry logic with adjusted parameters and detailed error logging
+- **Insufficient Margin**: Pre-trade validation and alternative sizing recommendations
+- **Market Connectivity**: Automatic reconnection with circuit breaker patterns
+
+#### 4. Risk Limit Violations
+- **Soft Limits**: Warnings with recommended actions and grace periods
+- **Hard Limits**: Immediate trade rejection with detailed violation explanations
+- **Emergency Situations**: Automated risk reduction with comprehensive audit trails
+
+### Error Recovery Strategies
+
+```python
+class ErrorRecoveryManager:
+    """Centralized error recovery for portfolio operations."""
+    
+    async def handle_calculation_error(self, error: Exception, context: Dict) -> Any:
+        """Handle calculation errors with appropriate fallbacks."""
+        
+    async def handle_trading_error(self, error: Exception, trade: Dict) -> TradeResult:
+        """Handle trading errors with retry and adjustment logic."""
+        
+    async def handle_data_error(self, error: Exception, data_type: str) -> Any:
+        """Handle data errors with caching and refresh strategies."""
+```
+
+## Testing Strategy
+
+### Dual Testing Approach
+
+The Portfolio & Risk Management system employs both unit testing and property-based testing for comprehensive coverage:
+
+#### Unit Testing Focus
+- **Specific Examples**: Test known scenarios with expected outcomes
+- **Edge Cases**: Zero positions, extreme market conditions, boundary values
+- **Integration Points**: Verify correct interaction with Phase 1 components
+- **Error Conditions**: Validate error handling and recovery mechanisms
+
+#### Property-Based Testing Focus
+- **Mathematical Correctness**: Verify financial calculations across random inputs
+- **Risk Metric Properties**: Ensure VaR, volatility, and correlation calculations are mathematically sound
+- **Portfolio Invariants**: Verify portfolio properties hold across all operations
+- **Limit Enforcement**: Test risk limit enforcement across all possible scenarios
+
+### Testing Configuration
+
+- **Property Tests**: Minimum 100 iterations per test to ensure statistical validity
+- **Test Data Generation**: Smart generators that create realistic market scenarios
+- **Performance Testing**: Verify system performance under high-frequency updates
+- **Integration Testing**: End-to-end testing with Phase 1 components
+
+### Test Implementation Requirements
+
+Each correctness property will be implemented as a property-based test with the following format:
+
+```python
+def test_property_N_description():
+    """
+    Feature: drift-portfolio-risk-management, Property N: Description
+    Validates: Requirements X.Y
+    """
+    # Property-based test implementation
+```
+
+### Risk Calculation Testing
+
+Special attention to financial calculation accuracy:
+
+- **VaR Backtesting**: Historical validation of VaR predictions
+- **Stress Testing**: Extreme scenario validation
+- **Benchmark Comparison**: Verify calculations match industry standards
+- **Numerical Stability**: Test with edge cases and extreme values
+
+## Implementation Notes
+
+### Performance Considerations
+
+- **Caching Strategy**: Aggressive caching of expensive calculations with TTL management
+- **Batch Processing**: Group related calculations to minimize API calls
+- **Async Operations**: Non-blocking operations for real-time monitoring
+- **Memory Management**: Efficient handling of large historical datasets
+
+### Security Considerations
+
+- **Input Validation**: Comprehensive validation of all user inputs and market data
+- **Rate Limiting**: Respect Drift Protocol API limits with intelligent queuing
+- **Error Information**: Careful balance between detailed errors and security
+- **Audit Logging**: Comprehensive logging of all risk management actions
+
+### Scalability Design
+
+- **Modular Architecture**: Independent scaling of different risk components
+- **Event-Driven Updates**: Efficient propagation of market data changes
+- **Resource Pooling**: Shared resources across portfolio operations
+- **Graceful Degradation**: Maintain core functionality under high load
+
+### Integration Patterns
+
+The system follows established patterns from Phase 1:
+
+- **Singleton Management**: Reuse existing client management infrastructure
+- **Backward Compatibility**: Maintain existing interfaces while adding new capabilities
+- **Configuration Management**: Extend existing configuration patterns
+- **Error Handling**: Consistent error handling across all components
+
+This design ensures seamless integration with existing systems while providing professional-grade portfolio and risk management capabilities for sophisticated trading strategies.
