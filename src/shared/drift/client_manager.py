@@ -159,18 +159,25 @@ class DriftClientManager:
             if not perp_market:
                 return None
             
-            # Extract funding rate
-            funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
-            rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
-            rate_annual = funding_rate_hourly * 24 * 365 * 100
+            # Extract funding rate (stored as hourly rate in 1e9 precision)
+            funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
             
-            # Get mark price
+            # Convert to percentage for display
+            rate_hourly_pct = funding_rate_hourly_raw * 100
+            
+            # Calculate 8-hour rate (what most UIs show)
+            rate_8h = rate_hourly_pct * 8
+            
+            # Calculate APR according to Drift docs: rate × 24 × 365.25
+            rate_annual = rate_hourly_pct * 24 * 365.25
+            
+            # Get mark price from oracle (1e6 precision)
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
             
             result = {
                 "rate_8h": rate_8h,
                 "rate_annual": rate_annual,
-                "is_positive": funding_rate_hourly > 0,
+                "is_positive": funding_rate_hourly_raw > 0,
                 "mark_price": mark_price
             }
             
@@ -225,7 +232,7 @@ class DriftClientManager:
                         continue
                     
                     # Extract market data
-                    funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
+                    funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
                     oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
                     
                     # Get open interest
@@ -238,7 +245,7 @@ class DriftClientManager:
                         "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
                         "markPrice": oracle_price,
                         "oraclePrice": oracle_price,
-                        "fundingRate": funding_rate_hourly,
+                        "fundingRate": funding_rate_hourly_raw,  # Keep as raw hourly rate
                         "openInterest": open_interest,
                         "volume24h": 0.0,  # Not available on-chain
                         "baseAssetAmountLong": base_asset_amount_long,

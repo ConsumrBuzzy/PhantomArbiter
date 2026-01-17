@@ -1336,37 +1336,26 @@ class DriftAdapter:
                 Logger.debug(f"[DRIFT] Market {market} not found")
                 return None
             
-            # Extract funding rate (stored as hourly rate)
-            # amm.last_funding_rate is in 1e9 precision
-            funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
+            # Extract funding rate (stored as hourly rate in 1e9 precision)
+            funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
             
-            # Convert to 8-hour rate (multiply by 8)
-            rate_8h = funding_rate_hourly * 8 * 100  # Convert to percentage
+            # Convert to percentage for display
+            rate_hourly_pct = funding_rate_hourly_raw * 100
             
-            # Annualize: hourly rate * 24 hours * 365 days
-            rate_annual = funding_rate_hourly * 24 * 365 * 100  # Convert to percentage
+            # Calculate 8-hour rate (what most UIs show)
+            rate_8h = rate_hourly_pct * 8
             
-            # Get mark price from oracle
-            # amm.historical_oracle_data.last_oracle_price is in 1e6 precision
+            # Calculate APR according to Drift docs: rate × 24 × 365.25
+            rate_annual = rate_hourly_pct * 24 * 365.25
+            
+            # Get mark price from oracle (1e6 precision)
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
             
             # Determine if positive (longs pay shorts)
-            is_positive = funding_rate_hourly > 0
+            is_positive = funding_rate_hourly_raw > 0
             
             Logger.debug(f"[DRIFT] {market}: rate_8h={rate_8h:.4f}%, mark=${mark_price:.2f}")
             
-            return {
-                "rate_8h": rate_8h,
-                "rate_annual": rate_annual,
-                "is_positive": is_positive,
-                "mark_price": mark_price
-            }
-                
-        except Exception as e:
-            Logger.error(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
             return {
                 "rate_8h": rate_8h,
                 "rate_annual": rate_annual,
@@ -1455,7 +1444,7 @@ class DriftAdapter:
                         continue
                     
                     # Extract data from on-chain account
-                    funding_rate_hourly = float(perp_market.amm.last_funding_rate) / 1e9
+                    funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
                     oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
                     
                     # Calculate mark price (simplified - in production use proper mark price calculation)
@@ -1473,7 +1462,7 @@ class DriftAdapter:
                         "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
                         "markPrice": mark_price,
                         "oraclePrice": oracle_price,
-                        "fundingRate": funding_rate_hourly,
+                        "fundingRate": funding_rate_hourly_raw,  # Keep as raw hourly rate
                         "openInterest": open_interest,
                         "volume24h": 0.0,  # Not available on-chain
                         "baseAssetAmountLong": base_asset_amount_long,
