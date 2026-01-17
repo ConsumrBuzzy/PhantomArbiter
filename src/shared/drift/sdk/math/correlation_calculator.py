@@ -3,33 +3,36 @@ Correlation Calculator
 =====================
 
 Shared correlation calculations for all trading engines.
-Provides correlation matrix calculations, rolling correlations, and stability analysis.
+Provides correlation analysis with consistent interfaces.
 
 Features:
-- Pearson correlation calculations
-- Rolling correlation windows
-- Correlation matrix generation
-- Correlation stability assessment
-- Dynamic correlation tracking
+- Pearson correlation coefficient
+- Rolling correlation analysis
+- Correlation matrix calculations
+- Correlation stability analysis
+- Cross-asset correlation monitoring
+- Regime change detection based on correlation shifts
 """
 
 import math
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Any, Optional, Tuple
+from statistics import mean, stdev
 from dataclasses import dataclass
-from datetime import datetime
-from statistics import mean
+from datetime import datetime, timedelta
 
 from src.shared.system.logging import Logger
 
 
 @dataclass
 class CorrelationResult:
-    """Correlation calculation result."""
+    """Single correlation calculation result."""
+    asset1: str
+    asset2: str
     correlation: float
-    p_value: Optional[float]
+    confidence_interval: Tuple[float, float]
     sample_size: int
     calculation_date: datetime
-    is_significant: bool
+    is_significant: bool  # Statistical significance at 95% level
 
 
 @dataclass
@@ -37,27 +40,42 @@ class CorrelationMatrix:
     """Correlation matrix with metadata."""
     matrix: Dict[str, Dict[str, float]]
     assets: List[str]
-    sample_size: int
     calculation_date: datetime
+    window_days: int
     average_correlation: float
-    max_correlation: float
     min_correlation: float
+    max_correlation: float
 
 
 @dataclass
-class CorrelationStability:
-    """Correlation stability analysis result."""
-    current_correlation: float
-    historical_mean: float
-    historical_std: float
-    stability_score: float  # 0.0 to 1.0, higher = more stable
-    regime_change_detected: bool
-    confidence_interval: Tuple[float, float]
+class RollingCorrelation:
+    """Rolling correlation analysis result."""
+    asset1: str
+    asset2: str
+    correlations: List[float]
+    dates: List[datetime]
+    window_size: int
+    mean_correlation: float
+    correlation_volatility: float
+    trend: str  # "increasing", "decreasing", "stable"
+
+
+@dataclass
+class CorrelationRegimeChange:
+    """Correlation regime change detection."""
+    asset1: str
+    asset2: str
+    change_date: datetime
+    correlation_before: float
+    correlation_after: float
+    change_magnitude: float
+    confidence_score: float
+    regime_type: str  # "breakdown", "strengthening", "reversal"
 
 
 class CorrelationCalculator:
     """
-    Stateless correlation calculator with multiple calculation methods.
+    Stateless correlation calculator with comprehensive analysis methods.
     
     All methods are static to ensure thread safety and enable
     easy testing and validation.
@@ -68,40 +86,38 @@ class CorrelationCalculator:
     @staticmethod
     def pearson_correlation(x: List[float], y: List[float]) -> float:
         """
-        Calculate Pearson correlation coefficient between two series.
+        Calculate Pearson correlation coefficient.
         
         Args:
             x: First data series
             y: Second data series
             
         Returns:
-            Correlation coefficient (-1.0 to 1.0)
+            Correlation coefficient (-1 to 1)
             
         Raises:
             ValueError: If series have different lengths or insufficient data
         """
         if len(x) != len(y):
-            raise ValueError("Series must have equal length")
+            raise ValueError("Data series must have the same length")
         
         if len(x) < 2:
             raise ValueError("Need at least 2 data points for correlation")
-        
-        n = len(x)
         
         # Calculate means
         mean_x = mean(x)
         mean_y = mean(y)
         
         # Calculate correlation components
-        numerator = sum((x[i] - mean_x) * (y[i] - mean_y) for i in range(n))
+        numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
         
-        sum_sq_x = sum((x[i] - mean_x) ** 2 for i in range(n))
-        sum_sq_y = sum((y[i] - mean_y) ** 2 for i in range(n))
+        sum_sq_x = sum((xi - mean_x) ** 2 for xi in x)
+        sum_sq_y = sum((yi - mean_y) ** 2 for yi in y)
         
         denominator = math.sqrt(sum_sq_x * sum_sq_y)
         
         if denominator == 0:
-            return 0.0  # No correlation if either series has zero variance
+            return 0.0
         
         correlation = numerator / denominator
         
@@ -109,79 +125,149 @@ class CorrelationCalculator:
         return max(-1.0, min(1.0, correlation))
     
     @staticmethod
-    def rolling_correlation(
-        x: List[float], 
-        y: List[float], 
-        window: int
-    ) -> List[float]:
+    def correlation_with_confidence(
+        x: List[float],
+        y: List[float],
+        asset1_name: str = "Asset1",
+        asset2_name: str = "Asset2",
+        confidence_level: float = 0.95
+    ) -> CorrelationResult:
         """
-        Calculate rolling correlation between two series.
+        Calculate correlation with confidence interval and significance testing.
+        
+        Args:
+            x: First data series
+            y: Second data series
+            asset1_name: Name of first asset
+            asset2_name: Name of second asset
+            confidence_level: Confidence level for interval (default: 0.95)
+            
+        Returns:
+            CorrelationResult with correlation and statistical measures
+        """
+        correlation = CorrelationCalculator.pearson_correlation(x, y)
+        sample_size = len(x)
+        
+        # Calculate confidence interval using Fisher transformation
+        confidence_interval = CorrelationCalculator._calculate_confidence_interval(
+            correlation, sample_size, confidence_level
+        )
+        
+        # Test statistical significance (H0: correlation = 0)
+        is_significant = CorrelationCalculator._test_significance(correlation, sample_size)
+        
+        return CorrelationResult(
+            asset1=asset1_name,
+            asset2=asset2_name,
+            correlation=correlation,
+            confidence_interval=confidence_interval,
+            sample_size=sample_size,
+            calculation_date=datetime.now(),
+            is_significant=is_significant
+        )
+    
+    @staticmethod
+    def rolling_correlation(
+        x: List[float],
+        y: List[float],
+        window: int,
+        asset1_name: str = "Asset1",
+        asset2_name: str = "Asset2"
+    ) -> RollingCorrelation:
+        """
+        Calculate rolling correlation over time.
         
         Args:
             x: First data series
             y: Second data series
             window: Rolling window size
+            asset1_name: Name of first asset
+            asset2_name: Name of second asset
             
         Returns:
-            List of rolling correlations
-            
-        Raises:
-            ValueError: If window is larger than data or series have different lengths
+            RollingCorrelation with time series of correlations
         """
         if len(x) != len(y):
-            raise ValueError("Series must have equal length")
+            raise ValueError("Data series must have the same length")
         
         if window > len(x):
-            raise ValueError("Window size cannot exceed data length")
+            raise ValueError("Window size cannot be larger than data series")
         
-        if window < 2:
-            raise ValueError("Window size must be at least 2")
-        
-        rolling_correlations = []
+        correlations = []
+        dates = []
         
         for i in range(window - 1, len(x)):
-            start_idx = i - window + 1
-            end_idx = i + 1
+            window_x = x[i - window + 1:i + 1]
+            window_y = y[i - window + 1:i + 1]
             
-            x_window = x[start_idx:end_idx]
-            y_window = y[start_idx:end_idx]
-            
-            correlation = CorrelationCalculator.pearson_correlation(x_window, y_window)
-            rolling_correlations.append(correlation)
+            try:
+                corr = CorrelationCalculator.pearson_correlation(window_x, window_y)
+                correlations.append(corr)
+                dates.append(datetime.now() - timedelta(days=len(x) - i - 1))
+            except ValueError:
+                # Skip windows with insufficient variance
+                correlations.append(0.0)
+                dates.append(datetime.now() - timedelta(days=len(x) - i - 1))
         
-        return rolling_correlations
+        # Calculate summary statistics
+        mean_correlation = mean(correlations) if correlations else 0.0
+        correlation_volatility = stdev(correlations) if len(correlations) > 1 else 0.0
+        
+        # Determine trend
+        trend = CorrelationCalculator._determine_trend(correlations)
+        
+        return RollingCorrelation(
+            asset1=asset1_name,
+            asset2=asset2_name,
+            correlations=correlations,
+            dates=dates,
+            window_size=window,
+            mean_correlation=mean_correlation,
+            correlation_volatility=correlation_volatility,
+            trend=trend
+        )
     
     @staticmethod
-    def correlation_matrix(returns_dict: Dict[str, List[float]]) -> CorrelationMatrix:
+    def correlation_matrix(
+        returns_dict: Dict[str, List[float]],
+        window_days: Optional[int] = None
+    ) -> CorrelationMatrix:
         """
-        Calculate correlation matrix for multiple asset return series.
+        Calculate correlation matrix for multiple assets.
         
         Args:
-            returns_dict: Dictionary mapping asset names to return series
+            returns_dict: Dictionary of asset names to return series
+            window_days: Optional window for recent correlations
             
         Returns:
-            CorrelationMatrix with full correlation data
-            
-        Raises:
-            ValueError: If assets have different data lengths or insufficient data
+            CorrelationMatrix with pairwise correlations
         """
         if not returns_dict:
-            raise ValueError("Need at least one asset for correlation matrix")
+            return CorrelationMatrix(
+                matrix={},
+                assets=[],
+                calculation_date=datetime.now(),
+                window_days=window_days or 0,
+                average_correlation=0.0,
+                min_correlation=0.0,
+                max_correlation=0.0
+            )
         
         assets = list(returns_dict.keys())
         
-        # Validate all series have same length
-        lengths = [len(returns_dict[asset]) for asset in assets]
-        if len(set(lengths)) > 1:
-            raise ValueError("All asset return series must have equal length")
+        # Ensure all series have the same length
+        min_length = min(len(returns) for returns in returns_dict.values())
+        if window_days:
+            min_length = min(min_length, window_days)
         
-        sample_size = lengths[0] if lengths else 0
-        if sample_size < 2:
-            raise ValueError("Need at least 2 data points for correlation matrix")
+        # Truncate series to common length and window
+        processed_returns = {}
+        for asset, returns in returns_dict.items():
+            processed_returns[asset] = returns[-min_length:] if returns else []
         
         # Calculate correlation matrix
         matrix = {}
-        correlations = []
+        all_correlations = []
         
         for asset1 in assets:
             matrix[asset1] = {}
@@ -189,202 +275,208 @@ class CorrelationCalculator:
                 if asset1 == asset2:
                     correlation = 1.0
                 else:
-                    correlation = CorrelationCalculator.pearson_correlation(
-                        returns_dict[asset1], returns_dict[asset2]
-                    )
+                    try:
+                        correlation = CorrelationCalculator.pearson_correlation(
+                            processed_returns[asset1],
+                            processed_returns[asset2]
+                        )
+                    except (ValueError, ZeroDivisionError):
+                        correlation = 0.0
                 
                 matrix[asset1][asset2] = correlation
                 
                 # Collect off-diagonal correlations for statistics
                 if asset1 != asset2:
-                    correlations.append(correlation)
+                    all_correlations.append(correlation)
         
-        # Calculate matrix statistics
-        if correlations:
-            avg_correlation = mean(correlations)
-            max_correlation = max(correlations)
-            min_correlation = min(correlations)
-        else:
-            avg_correlation = max_correlation = min_correlation = 1.0
+        # Calculate summary statistics
+        average_correlation = mean(all_correlations) if all_correlations else 0.0
+        min_correlation = min(all_correlations) if all_correlations else 0.0
+        max_correlation = max(all_correlations) if all_correlations else 0.0
         
         return CorrelationMatrix(
             matrix=matrix,
             assets=assets,
-            sample_size=sample_size,
             calculation_date=datetime.now(),
-            average_correlation=avg_correlation,
-            max_correlation=max_correlation,
-            min_correlation=min_correlation
+            window_days=window_days or min_length,
+            average_correlation=average_correlation,
+            min_correlation=min_correlation,
+            max_correlation=max_correlation
         )
     
     @staticmethod
-    def correlation_with_significance(
-        x: List[float], 
-        y: List[float], 
-        alpha: float = 0.05
-    ) -> CorrelationResult:
-        """
-        Calculate correlation with statistical significance testing.
-        
-        Args:
-            x: First data series
-            y: Second data series
-            alpha: Significance level (default: 0.05)
-            
-        Returns:
-            CorrelationResult with significance testing
-        """
-        correlation = CorrelationCalculator.pearson_correlation(x, y)
-        n = len(x)
-        
-        # Calculate t-statistic for significance test
-        if abs(correlation) == 1.0:
-            # Perfect correlation
-            p_value = 0.0
-            is_significant = True
-        else:
-            t_stat = correlation * math.sqrt((n - 2) / (1 - correlation ** 2))
-            
-            # Approximate p-value using t-distribution
-            # For large n, t-distribution approaches normal distribution
-            if n > 30:
-                # Use normal approximation
-                p_value = 2 * (1 - CorrelationCalculator._normal_cdf(abs(t_stat)))
-            else:
-                # Use conservative estimate for small samples
-                critical_t = 2.0  # Approximate critical value for small samples
-                p_value = 0.05 if abs(t_stat) > critical_t else 0.1
-            
-            is_significant = p_value < alpha
-        
-        return CorrelationResult(
-            correlation=correlation,
-            p_value=p_value,
-            sample_size=n,
-            calculation_date=datetime.now(),
-            is_significant=is_significant
-        )
-    
-    @staticmethod
-    def assess_correlation_stability(
-        x: List[float], 
-        y: List[float], 
+    def detect_regime_changes(
+        x: List[float],
+        y: List[float],
         window: int = 30,
-        stability_threshold: float = 0.1
-    ) -> CorrelationStability:
+        threshold: float = 0.3,
+        asset1_name: str = "Asset1",
+        asset2_name: str = "Asset2"
+    ) -> List[CorrelationRegimeChange]:
         """
-        Assess stability of correlation over time using rolling windows.
+        Detect correlation regime changes using rolling correlation analysis.
         
         Args:
             x: First data series
             y: Second data series
-            window: Rolling window size for stability analysis
-            stability_threshold: Threshold for detecting regime changes
+            window: Rolling window for correlation calculation
+            threshold: Minimum change magnitude to consider a regime change
+            asset1_name: Name of first asset
+            asset2_name: Name of second asset
             
         Returns:
-            CorrelationStability with stability metrics
+            List of detected regime changes
         """
-        if len(x) < window * 2:
-            raise ValueError(f"Need at least {window * 2} data points for stability analysis")
-        
-        # Calculate rolling correlations
-        rolling_corrs = CorrelationCalculator.rolling_correlation(x, y, window)
-        
-        # Current correlation (most recent window)
-        current_correlation = rolling_corrs[-1]
-        
-        # Historical statistics
-        historical_mean = mean(rolling_corrs)
-        historical_variance = sum((corr - historical_mean) ** 2 for corr in rolling_corrs) / len(rolling_corrs)
-        historical_std = math.sqrt(historical_variance)
-        
-        # Stability score (inverse of coefficient of variation)
-        if historical_std == 0:
-            stability_score = 1.0
-        else:
-            cv = historical_std / abs(historical_mean) if historical_mean != 0 else float('inf')
-            stability_score = max(0.0, min(1.0, 1.0 / (1.0 + cv)))
-        
-        # Regime change detection
-        recent_window = rolling_corrs[-min(10, len(rolling_corrs)):]
-        recent_mean = mean(recent_window)
-        regime_change_detected = abs(recent_mean - historical_mean) > stability_threshold
-        
-        # Confidence interval (approximate)
-        confidence_margin = 1.96 * historical_std  # 95% confidence
-        confidence_interval = (
-            max(-1.0, current_correlation - confidence_margin),
-            min(1.0, current_correlation + confidence_margin)
+        rolling_corr = CorrelationCalculator.rolling_correlation(
+            x, y, window, asset1_name, asset2_name
         )
         
-        return CorrelationStability(
-            current_correlation=current_correlation,
-            historical_mean=historical_mean,
-            historical_std=historical_std,
-            stability_score=stability_score,
-            regime_change_detected=regime_change_detected,
-            confidence_interval=confidence_interval
-        )
+        regime_changes = []
+        correlations = rolling_corr.correlations
+        dates = rolling_corr.dates
+        
+        if len(correlations) < 2:
+            return regime_changes
+        
+        # Look for significant changes in correlation
+        for i in range(1, len(correlations)):
+            correlation_before = correlations[i - 1]
+            correlation_after = correlations[i]
+            change_magnitude = abs(correlation_after - correlation_before)
+            
+            if change_magnitude >= threshold:
+                # Determine regime type
+                if correlation_before > 0.5 and correlation_after < 0.2:
+                    regime_type = "breakdown"
+                elif correlation_before < 0.2 and correlation_after > 0.5:
+                    regime_type = "strengthening"
+                elif correlation_before * correlation_after < 0:
+                    regime_type = "reversal"
+                else:
+                    continue  # Not a significant regime change
+                
+                # Calculate confidence score based on change magnitude
+                confidence_score = min(1.0, change_magnitude / 0.8)
+                
+                regime_change = CorrelationRegimeChange(
+                    asset1=asset1_name,
+                    asset2=asset2_name,
+                    change_date=dates[i],
+                    correlation_before=correlation_before,
+                    correlation_after=correlation_after,
+                    change_magnitude=change_magnitude,
+                    confidence_score=confidence_score,
+                    regime_type=regime_type
+                )
+                
+                regime_changes.append(regime_change)
+        
+        return regime_changes
     
     @staticmethod
-    def dynamic_correlation_adjustment(
-        base_correlation: float,
-        market_stress_factor: float,
-        volatility_regime: str = "normal"
+    def correlation_stability_score(
+        x: List[float],
+        y: List[float],
+        window: int = 30
     ) -> float:
         """
-        Adjust correlation based on market conditions and volatility regime.
+        Calculate correlation stability score (0 = unstable, 1 = very stable).
         
         Args:
-            base_correlation: Base correlation estimate
-            market_stress_factor: Market stress factor (0.0 to 2.0, 1.0 = normal)
-            volatility_regime: Volatility regime ("low", "normal", "high")
+            x: First data series
+            y: Second data series
+            window: Rolling window for stability analysis
             
         Returns:
-            Adjusted correlation coefficient
+            Stability score between 0 and 1
         """
-        # Correlations tend to increase during market stress
-        stress_adjustment = (market_stress_factor - 1.0) * 0.3
+        if len(x) < window * 2:
+            return 0.0
         
-        # Volatility regime adjustments
-        volatility_adjustments = {
-            "low": -0.1,      # Lower correlations in calm markets
-            "normal": 0.0,    # No adjustment
-            "high": 0.2       # Higher correlations in volatile markets
-        }
+        rolling_corr = CorrelationCalculator.rolling_correlation(x, y, window)
+        correlations = rolling_corr.correlations
         
-        volatility_adjustment = volatility_adjustments.get(volatility_regime, 0.0)
+        if len(correlations) < 2:
+            return 0.0
         
-        # Apply adjustments
-        adjusted_correlation = base_correlation + stress_adjustment + volatility_adjustment
+        # Calculate volatility of correlations
+        correlation_volatility = stdev(correlations)
         
-        # Clamp to valid correlation range
-        return max(-1.0, min(1.0, adjusted_correlation))
+        # Convert volatility to stability score (lower volatility = higher stability)
+        # Use exponential decay: stability = exp(-volatility * scale_factor)
+        scale_factor = 3.0  # Adjust this to change sensitivity
+        stability_score = math.exp(-correlation_volatility * scale_factor)
+        
+        return min(1.0, max(0.0, stability_score))
     
     @staticmethod
-    def _normal_cdf(x: float) -> float:
-        """
-        Approximate cumulative distribution function for standard normal distribution.
+    def _calculate_confidence_interval(
+        correlation: float,
+        sample_size: int,
+        confidence_level: float
+    ) -> Tuple[float, float]:
+        """Calculate confidence interval for correlation using Fisher transformation."""
+        if sample_size < 4:
+            return (correlation, correlation)
         
-        Args:
-            x: Input value
-            
-        Returns:
-            Approximate CDF value
-        """
-        # Abramowitz and Stegun approximation
-        if x < 0:
-            return 1 - CorrelationCalculator._normal_cdf(-x)
+        # Fisher transformation
+        z = 0.5 * math.log((1 + correlation) / (1 - correlation))
         
-        # Constants for approximation
-        a1 = 0.254829592
-        a2 = -0.284496736
-        a3 = 1.421413741
-        a4 = -1.453152027
-        a5 = 1.061405429
-        p = 0.3275911
+        # Standard error
+        se = 1.0 / math.sqrt(sample_size - 3)
         
-        t = 1.0 / (1.0 + p * x)
-        y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * math.exp(-x * x)
+        # Z-score for confidence level (approximation)
+        z_scores = {0.90: 1.645, 0.95: 1.96, 0.99: 2.576}
+        z_score = z_scores.get(confidence_level, 1.96)
         
-        return y
+        # Confidence interval in Fisher space
+        z_lower = z - z_score * se
+        z_upper = z + z_score * se
+        
+        # Transform back to correlation space
+        r_lower = (math.exp(2 * z_lower) - 1) / (math.exp(2 * z_lower) + 1)
+        r_upper = (math.exp(2 * z_upper) - 1) / (math.exp(2 * z_upper) + 1)
+        
+        # Clamp to valid range
+        r_lower = max(-1.0, min(1.0, r_lower))
+        r_upper = max(-1.0, min(1.0, r_upper))
+        
+        return (r_lower, r_upper)
+    
+    @staticmethod
+    def _test_significance(correlation: float, sample_size: int, alpha: float = 0.05) -> bool:
+        """Test if correlation is statistically significant."""
+        if sample_size < 4:
+            return False
+        
+        # Calculate t-statistic
+        t_stat = correlation * math.sqrt((sample_size - 2) / (1 - correlation ** 2))
+        
+        # Critical value for two-tailed test (approximation)
+        # For large samples, t-distribution approaches normal
+        critical_values = {0.05: 1.96, 0.01: 2.576}
+        critical_value = critical_values.get(alpha, 1.96)
+        
+        return abs(t_stat) > critical_value
+    
+    @staticmethod
+    def _determine_trend(correlations: List[float]) -> str:
+        """Determine trend in correlation series."""
+        if len(correlations) < 3:
+            return "stable"
+        
+        # Simple trend detection using first and last third
+        first_third = correlations[:len(correlations) // 3]
+        last_third = correlations[-len(correlations) // 3:]
+        
+        first_avg = mean(first_third)
+        last_avg = mean(last_third)
+        
+        change = last_avg - first_avg
+        
+        if change > 0.1:
+            return "increasing"
+        elif change < -0.1:
+            return "decreasing"
+        else:
+            return "stable"
