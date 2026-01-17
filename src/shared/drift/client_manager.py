@@ -159,41 +159,40 @@ class DriftClientManager:
             if not perp_market:
                 return None
             
-            # Extract funding rate with better validation
+            # Extract funding rate using correct Drift SDK precision (1e9)
             raw_value = perp_market.amm.last_funding_rate
             
-            Logger.info(f"[DriftManager] {market} raw value: {raw_value}")
+            Logger.info(f"[DriftManager] {market} raw last_funding_rate: {raw_value}")
             
-            # Convert using 1e8 precision (worked for SOL-PERP)
-            funding_rate_hourly_raw = float(raw_value) / 1e8
+            # Convert using FUNDING_RATE_PRECISION = 1e9 (as per Drift SDK)
+            funding_rate_hourly_decimal = float(raw_value) / 1e9
             
-            # Validate against reasonable bounds
-            # Typical crypto funding rates: ±0.01% to ±0.5% per hour
-            MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
+            # Convert to percentage for display
+            funding_rate_hourly_pct = funding_rate_hourly_decimal * 100
             
-            if abs(funding_rate_hourly_raw) > MAX_REASONABLE_HOURLY:
-                Logger.warning(f"[DriftManager] {market} extreme rate: {funding_rate_hourly_raw:.4f}% hourly")
+            Logger.info(f"[DriftManager] {market} hourly rate: {funding_rate_hourly_pct:.6f}%")
+            
+            # Validate against Drift Protocol limits
+            # Tier B markets (SOL): max 0.125% per hour
+            # Tier A markets (BTC): max 0.125% per hour  
+            # Tier C markets: max 0.208% per hour
+            MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour (generous upper bound)
+            
+            if abs(funding_rate_hourly_pct) > MAX_REASONABLE_HOURLY:
+                Logger.warning(f"[DriftManager] {market} extreme hourly rate: {funding_rate_hourly_pct:.6f}%")
+                Logger.warning(f"[DriftManager] This may indicate stale data or wrong field access")
+                Logger.warning(f"[DriftManager] Check if accessing last_funding_rate vs cumulative_funding_rate")
                 
-                # Check if this might be a precision issue
-                # Try different precisions to see if any give reasonable results
-                for precision in [1e6, 1e7, 1e9, 1e10]:
-                    test_rate = float(raw_value) / precision
-                    if abs(test_rate) <= MAX_REASONABLE_HOURLY:
-                        Logger.info(f"[DriftManager] {market} reasonable with {precision}: {test_rate:.6f}% hourly")
-                        funding_rate_hourly_raw = test_rate
-                        break
-                else:
-                    # No reasonable precision found, cap the value
-                    Logger.warning(f"[DriftManager] {market} capping extreme rate to ±{MAX_REASONABLE_HOURLY}%")
-                    funding_rate_hourly_raw = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_raw))
-            
-            Logger.info(f"[DriftManager] {market} final hourly rate: {funding_rate_hourly_raw:.6f}%")
+                # Cap to reasonable bounds but log the issue
+                funding_rate_hourly_pct = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_pct))
+                Logger.info(f"[DriftManager] {market} capped to: {funding_rate_hourly_pct:.6f}%")
             
             # Calculate 8-hour rate as percentage
-            rate_8h = funding_rate_hourly_raw * 8
+            rate_8h = funding_rate_hourly_pct * 8
             
-            # Calculate APR as percentage
-            rate_annual = funding_rate_hourly_raw * 24 * 365.25
+            # Calculate APR using Drift's formula: rate × 24 × 365.25
+            # Note: rate here is the hourly decimal rate, not percentage
+            rate_annual = funding_rate_hourly_decimal * 24 * 365.25 * 100
             
             # Get mark price from oracle (1e6 precision)
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
@@ -255,23 +254,19 @@ class DriftClientManager:
                     if not perp_market:
                         continue
                     
-                    # Extract market data with smart precision detection
+                    # Extract market data using correct Drift SDK precision
                     raw_funding_rate = perp_market.amm.last_funding_rate
                     
-                    # Apply the same smart precision logic as get_funding_rate
-                    funding_rate_hourly_raw = float(raw_funding_rate) / 1e8
-                    MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
+                    # Convert using FUNDING_RATE_PRECISION = 1e9 (as per Drift SDK)
+                    funding_rate_hourly_decimal = float(raw_funding_rate) / 1e9
+                    funding_rate_hourly_pct = funding_rate_hourly_decimal * 100
                     
-                    if abs(funding_rate_hourly_raw) > MAX_REASONABLE_HOURLY:
-                        # Try different precisions to find reasonable rate
-                        for precision in [1e6, 1e7, 1e9, 1e10]:
-                            test_rate = float(raw_funding_rate) / precision
-                            if abs(test_rate) <= MAX_REASONABLE_HOURLY:
-                                funding_rate_hourly_raw = test_rate
-                                break
-                        else:
-                            # Cap extreme values
-                            funding_rate_hourly_raw = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_raw))
+                    # Validate against reasonable bounds
+                    MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
+                    if abs(funding_rate_hourly_pct) > MAX_REASONABLE_HOURLY:
+                        Logger.debug(f"[DriftManager] Market {market_index} extreme rate: {funding_rate_hourly_pct:.6f}%")
+                        # Cap to reasonable bounds
+                        funding_rate_hourly_pct = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_pct))
                     
                     oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
                     
@@ -285,7 +280,7 @@ class DriftClientManager:
                         "symbol": MARKET_NAMES.get(market_index, f"MARKET-{market_index}"),
                         "markPrice": oracle_price,
                         "oraclePrice": oracle_price,
-                        "fundingRate": funding_rate_hourly_raw,  # Keep as raw hourly rate
+                        "fundingRate": funding_rate_hourly_pct,  # Store as percentage for consistency
                         "openInterest": open_interest,
                         "volume24h": 0.0,  # Not available on-chain
                         "baseAssetAmountLong": base_asset_amount_long,

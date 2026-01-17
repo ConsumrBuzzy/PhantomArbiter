@@ -1336,31 +1336,28 @@ class DriftAdapter:
                 Logger.debug(f"[DRIFT] Market {market} not found")
                 return None
             
-            # Extract funding rate with smart precision detection (same as singleton)
+            # Extract funding rate using correct Drift SDK precision (1e9)
             raw_value = perp_market.amm.last_funding_rate
             
-            # Convert using 1e8 precision (baseline)
-            funding_rate_hourly_raw = float(raw_value) / 1e8
+            # Convert using FUNDING_RATE_PRECISION = 1e9 (as per Drift SDK)
+            funding_rate_hourly_decimal = float(raw_value) / 1e9
+            
+            # Convert to percentage for display
+            funding_rate_hourly_pct = funding_rate_hourly_decimal * 100
             
             # Validate against reasonable bounds
             MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
+            if abs(funding_rate_hourly_pct) > MAX_REASONABLE_HOURLY:
+                Logger.warning(f"[DRIFT] {market} extreme hourly rate: {funding_rate_hourly_pct:.6f}%")
+                Logger.warning(f"[DRIFT] Check if accessing last_funding_rate vs cumulative_funding_rate")
+                # Cap to reasonable bounds
+                funding_rate_hourly_pct = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_pct))
             
-            if abs(funding_rate_hourly_raw) > MAX_REASONABLE_HOURLY:
-                # Try different precisions to find reasonable rate
-                for precision in [1e6, 1e7, 1e9, 1e10]:
-                    test_rate = float(raw_value) / precision
-                    if abs(test_rate) <= MAX_REASONABLE_HOURLY:
-                        funding_rate_hourly_raw = test_rate
-                        break
-                else:
-                    # Cap extreme values
-                    funding_rate_hourly_raw = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_raw))
+            # Calculate 8-hour rate as percentage
+            rate_8h = funding_rate_hourly_pct * 8
             
-            # Calculate 8-hour rate as percentage (what most UIs show)
-            rate_8h = funding_rate_hourly_raw * 8
-            
-            # Calculate APR as percentage: rate × 24 × 365.25
-            rate_annual = funding_rate_hourly_raw * 24 * 365.25
+            # Calculate APR using Drift's formula: rate × 24 × 365.25
+            rate_annual = funding_rate_hourly_decimal * 24 * 365.25 * 100
             
             # Get mark price from oracle (1e6 precision)
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
