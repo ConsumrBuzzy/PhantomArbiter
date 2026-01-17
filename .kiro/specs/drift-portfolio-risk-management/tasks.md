@@ -123,13 +123,13 @@ The implementation follows an incremental approach, starting with core portfolio
     - **Property 12: Hedge Size Calculation Accuracy**
     - **Validates: Requirements 3.2**
 
-  - [ ] 6.4 Implement intelligent hedge execution
+  - [x] 6.4 Implement intelligent hedge execution
     - Add limit order generation for hedges
     - Implement market impact minimization
     - Add hedge execution retry logic
     - _Requirements: 3.3, 3.4_
 
-  - [ ] 6.5 Write property test for hedge order type consistency
+  - [x] 6.5 Write property test for hedge order type consistency
     - **Property 13: Hedge Order Type Consistency**
     - **Validates: Requirements 3.3**
 
