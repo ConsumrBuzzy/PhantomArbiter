@@ -159,14 +159,41 @@ class DriftClientManager:
             if not perp_market:
                 return None
             
-            # Extract funding rate (stored as hourly rate in 1e9 precision)
-            funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
+            # Extract funding rate with better validation
+            raw_value = perp_market.amm.last_funding_rate
             
-            # Calculate 8-hour rate as percentage (what most UIs show)
-            rate_8h = funding_rate_hourly_raw * 8 * 100
+            Logger.info(f"[DriftManager] {market} raw value: {raw_value}")
             
-            # Calculate APR as percentage: rate × 24 × 365.25 × 100
-            rate_annual = funding_rate_hourly_raw * 24 * 365.25 * 100
+            # Convert using 1e8 precision (worked for SOL-PERP)
+            funding_rate_hourly_raw = float(raw_value) / 1e8
+            
+            # Validate against reasonable bounds
+            # Typical crypto funding rates: ±0.01% to ±0.5% per hour
+            MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
+            
+            if abs(funding_rate_hourly_raw) > MAX_REASONABLE_HOURLY:
+                Logger.warning(f"[DriftManager] {market} extreme rate: {funding_rate_hourly_raw:.4f}% hourly")
+                
+                # Check if this might be a precision issue
+                # Try different precisions to see if any give reasonable results
+                for precision in [1e6, 1e7, 1e9, 1e10]:
+                    test_rate = float(raw_value) / precision
+                    if abs(test_rate) <= MAX_REASONABLE_HOURLY:
+                        Logger.info(f"[DriftManager] {market} reasonable with {precision}: {test_rate:.6f}% hourly")
+                        funding_rate_hourly_raw = test_rate
+                        break
+                else:
+                    # No reasonable precision found, cap the value
+                    Logger.warning(f"[DriftManager] {market} capping extreme rate to ±{MAX_REASONABLE_HOURLY}%")
+                    funding_rate_hourly_raw = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_raw))
+            
+            Logger.info(f"[DriftManager] {market} final hourly rate: {funding_rate_hourly_raw:.6f}%")
+            
+            # Calculate 8-hour rate as percentage
+            rate_8h = funding_rate_hourly_raw * 8
+            
+            # Calculate APR as percentage
+            rate_annual = funding_rate_hourly_raw * 24 * 365.25
             
             # Get mark price from oracle (1e6 precision)
             mark_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
@@ -228,8 +255,24 @@ class DriftClientManager:
                     if not perp_market:
                         continue
                     
-                    # Extract market data
-                    funding_rate_hourly_raw = float(perp_market.amm.last_funding_rate) / 1e9
+                    # Extract market data with smart precision detection
+                    raw_funding_rate = perp_market.amm.last_funding_rate
+                    
+                    # Apply the same smart precision logic as get_funding_rate
+                    funding_rate_hourly_raw = float(raw_funding_rate) / 1e8
+                    MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
+                    
+                    if abs(funding_rate_hourly_raw) > MAX_REASONABLE_HOURLY:
+                        # Try different precisions to find reasonable rate
+                        for precision in [1e6, 1e7, 1e9, 1e10]:
+                            test_rate = float(raw_funding_rate) / precision
+                            if abs(test_rate) <= MAX_REASONABLE_HOURLY:
+                                funding_rate_hourly_raw = test_rate
+                                break
+                        else:
+                            # Cap extreme values
+                            funding_rate_hourly_raw = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_raw))
+                    
                     oracle_price = float(perp_market.amm.historical_oracle_data.last_oracle_price) / 1e6
                     
                     # Get open interest
