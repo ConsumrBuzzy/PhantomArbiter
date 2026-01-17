@@ -89,7 +89,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - Return success status
   - _Requirements: 4.3, 5.2_
 
-- [-] 4. Update DriftAdapter to Use Singleton
+- [x] 4. Update DriftAdapter to Use Singleton
   - [ ] 4.1 Add _using_singleton flag to __init__
     - Set _using_singleton = True by default
     - Keep old code paths for fallback

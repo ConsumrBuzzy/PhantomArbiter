@@ -332,8 +332,7 @@ class DriftClientManager:
                 keypair = Keypair.from_bytes(secret_bytes)
                 
                 # Initialize DriftClient
-                from driftpy.drift_client import DriftClient
-                from driftpy.wallet import Wallet
+                from driftpy.drift_client import DriftClient, Wallet
                 
                 wallet_obj = Wallet(keypair)
                 self._drift_client = DriftClient(
