@@ -160,9 +160,9 @@ class DriftClientManager:
                 return None
             
             # Extract funding rate using correct Drift SDK precision (1e9)
+            # Based on Drift Protocol documentation and SDK constants:
+            # FUNDING_RATE_PRECISION = 1e9 for raw funding rate values
             raw_value = perp_market.amm.last_funding_rate
-            
-            Logger.info(f"[DriftManager] {market} raw last_funding_rate: {raw_value}")
             
             # Convert using FUNDING_RATE_PRECISION = 1e9 (as per Drift SDK)
             funding_rate_hourly_decimal = float(raw_value) / 1e9
@@ -170,18 +170,16 @@ class DriftClientManager:
             # Convert to percentage for display
             funding_rate_hourly_pct = funding_rate_hourly_decimal * 100
             
-            Logger.info(f"[DriftManager] {market} hourly rate: {funding_rate_hourly_pct:.6f}%")
-            
             # Validate against Drift Protocol limits
             # Tier B markets (SOL): max 0.125% per hour
             # Tier A markets (BTC): max 0.125% per hour  
             # Tier C markets: max 0.208% per hour
-            MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour (generous upper bound)
+            # Using 0.5% as generous upper bound for validation
+            MAX_REASONABLE_HOURLY = 0.5  # 0.5% per hour
             
             if abs(funding_rate_hourly_pct) > MAX_REASONABLE_HOURLY:
                 Logger.warning(f"[DriftManager] {market} extreme hourly rate: {funding_rate_hourly_pct:.6f}%")
-                Logger.warning(f"[DriftManager] This may indicate stale data or wrong field access")
-                Logger.warning(f"[DriftManager] Check if accessing last_funding_rate vs cumulative_funding_rate")
+                Logger.warning(f"[DriftManager] This may indicate extreme market conditions or data quality issues")
                 
                 # Cap to reasonable bounds but log the issue
                 funding_rate_hourly_pct = max(-MAX_REASONABLE_HOURLY, min(MAX_REASONABLE_HOURLY, funding_rate_hourly_pct))
