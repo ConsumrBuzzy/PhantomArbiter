@@ -73,12 +73,13 @@ class DriftAdapter:
     - Health ratio calculation
     """
     
-    def __init__(self, network: str = "mainnet"):
+    def __init__(self, network: str = "mainnet", use_singleton: bool = True):
         """
         Initialize DriftAdapter.
         
         Args:
             network: "mainnet" or "devnet"
+            use_singleton: Whether to use singleton DriftClientManager (default: True)
         """
         self.network = network
         self.wallet: Optional[Any] = None
@@ -87,6 +88,7 @@ class DriftAdapter:
         self.rpc_client: Optional[AsyncClient] = None
         self.connected: bool = False
         self._drift_client: Optional[Any] = None  # Cached DriftClient instance
+        self._using_singleton: bool = use_singleton
         
         # RPC URL based on network
         if network == "mainnet":
@@ -128,8 +130,8 @@ class DriftAdapter:
         Features:
         - Derives user PDA
         - Verifies account exists
-        - Implements exponential backoff retry logic
-        - Creates and subscribes DriftClient for market data access
+        - Uses singleton DriftClientManager to prevent rate limiting
+        - Fallback to old implementation if singleton disabled
         
         Args:
             wallet: WalletManager instance or keypair
@@ -154,6 +156,47 @@ class DriftAdapter:
         # Derive user PDA
         self.user_pda = self._derive_user_pda(wallet_pk, sub_account)
         Logger.info(f"[DRIFT] User PDA: {self.user_pda}")
+        
+        if self._using_singleton:
+            # ═══════════════════════════════════════════════════════════════
+            # NEW: Use Singleton DriftClientManager
+            # ═══════════════════════════════════════════════════════════════
+            try:
+                from src.shared.drift.client_manager import DriftClientManager
+                
+                Logger.info("[DRIFT] Using singleton DriftClientManager...")
+                
+                # Create basic RPC client for account verification
+                self.rpc_client = AsyncClient(self.rpc_url, commitment=Confirmed)
+                
+                # Verify account exists
+                account_info = await self.rpc_client.get_account_info(self.user_pda)
+                
+                if not account_info.value:
+                    Logger.error(f"[DRIFT] User account not found: {self.user_pda}")
+                    Logger.error("[DRIFT] Please initialize your Drift account first")
+                    return False
+                
+                # Get shared DriftClient from singleton manager
+                self._drift_client = await DriftClientManager.get_client(self.network)
+                
+                if self._drift_client:
+                    self.connected = True
+                    Logger.success(f"[DRIFT] ✅ Connected via singleton manager")
+                    Logger.info(f"[DRIFT] Sub-account: {sub_account}")
+                    return True
+                else:
+                    Logger.error("[DRIFT] Failed to get client from singleton manager")
+                    return False
+                    
+            except Exception as e:
+                Logger.error(f"[DRIFT] Singleton connection failed: {e}")
+                Logger.info("[DRIFT] Falling back to direct connection...")
+                # Fall through to old implementation
+        
+        # ═══════════════════════════════════════════════════════════════
+        # FALLBACK: Original implementation
+        # ═══════════════════════════════════════════════════════════════
         
         # Connect with retry logic
         backoff = INITIAL_BACKOFF
@@ -220,13 +263,23 @@ class DriftAdapter:
         return False
     
     async def disconnect(self):
-        """Close RPC connection and unsubscribe DriftClient."""
-        if self._drift_client:
+        """Close RPC connection and release DriftClient."""
+        if self._using_singleton:
+            # Release singleton client
             try:
-                await self._drift_client.unsubscribe()
-            except:
-                pass
-            self._drift_client = None
+                from src.shared.drift.client_manager import DriftClientManager
+                await DriftClientManager.release_client()
+                Logger.info("[DRIFT] Released singleton client")
+            except Exception as e:
+                Logger.warning(f"[DRIFT] Error releasing singleton client: {e}")
+        else:
+            # Old cleanup method
+            if self._drift_client:
+                try:
+                    await self._drift_client.unsubscribe()
+                except:
+                    pass
+                self._drift_client = None
         
         if self.rpc_client:
             await self.rpc_client.close()
@@ -1232,7 +1285,7 @@ class DriftAdapter:
         """
         Get current funding rate for a perpetual market.
         
-        Fetches funding rate data directly from on-chain Drift program using SDK.
+        Uses singleton DriftClientManager for cached access or falls back to direct access.
         
         Args:
             market: Market symbol (e.g., "SOL-PERP", "BTC-PERP")
@@ -1245,6 +1298,16 @@ class DriftAdapter:
                 - mark_price: Current mark price
             Or None if fetch fails
         """
+        if self._using_singleton:
+            # Use singleton manager with caching
+            try:
+                from src.shared.drift.client_manager import DriftClientManager
+                return await DriftClientManager.get_funding_rate(market)
+            except Exception as e:
+                Logger.debug(f"[DRIFT] Singleton funding rate fetch failed: {e}")
+                # Fall through to direct access
+        
+        # Fallback to direct access
         if not self.connected or not self._drift_client:
             Logger.debug(f"[DRIFT] Not connected, cannot fetch funding rate for {market}")
             return None
@@ -1307,6 +1370,18 @@ class DriftAdapter:
             import traceback
             traceback.print_exc()
             return None
+            return {
+                "rate_8h": rate_8h,
+                "rate_annual": rate_annual,
+                "is_positive": is_positive,
+                "mark_price": mark_price
+            }
+                
+        except Exception as e:
+            Logger.error(f"[DRIFT] Failed to fetch funding rate for {market}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     async def get_time_to_funding(self) -> int:
         """
@@ -1332,6 +1407,8 @@ class DriftAdapter:
         """
         Get data for all perpetual markets using Drift SDK.
         
+        Uses singleton DriftClientManager for cached access or falls back to direct access.
+        
         Returns:
             List of dicts with market data:
                 - marketIndex: Market index
@@ -1344,6 +1421,16 @@ class DriftAdapter:
                 - baseAssetAmountLong: Long OI
                 - baseAssetAmountShort: Short OI
         """
+        if self._using_singleton:
+            # Use singleton manager with caching
+            try:
+                from src.shared.drift.client_manager import DriftClientManager
+                return await DriftClientManager.get_all_perp_markets()
+            except Exception as e:
+                Logger.debug(f"[DRIFT] Singleton perp markets fetch failed: {e}")
+                # Fall through to direct access
+        
+        # Fallback to direct access
         if not self.connected or not self._drift_client:
             Logger.debug("[DRIFT] Not connected, cannot fetch perp markets")
             return []

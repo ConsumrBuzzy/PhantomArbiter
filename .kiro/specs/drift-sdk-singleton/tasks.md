@@ -6,7 +6,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
 
 ## Tasks
 
-- [ ] 1. Create Cache Manager
+- [-] 1. Create Cache Manager
   - Create `src/shared/drift/cache_manager.py` with CacheEntry and CacheManager classes
   - Implement get(), set(), and is_expired() methods
   - Add thread-safe access with asyncio.Lock
@@ -16,7 +16,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - **Property 6: Cache Expiration**
   - **Validates: Requirements 6.3**
 
-- [ ] 2. Create DriftClientManager Singleton
+- [-] 2. Create DriftClientManager Singleton
   - Create `src/shared/drift/client_manager.py` with DriftClientManager class
   - Implement singleton pattern with _instance and _lock
   - Add _drift_client, _ref_count, _rpc_client, _wallet state
@@ -89,7 +89,7 @@ Implement a singleton pattern for DriftClient management to eliminate RPC rate l
   - Return success status
   - _Requirements: 4.3, 5.2_
 
-- [ ] 4. Update DriftAdapter to Use Singleton
+- [-] 4. Update DriftAdapter to Use Singleton
   - [ ] 4.1 Add _using_singleton flag to __init__
     - Set _using_singleton = True by default
     - Keep old code paths for fallback
