@@ -1,9 +1,0 @@
-{
-  "mode": "paper",
-  "starting_balance": 25.0,
-  "ending_balance": 25.0,
-  "total_profit": 0.0,
-  "total_trades": 0,
-  "roi_pct": 0.0,
-  "trades": []
-}
