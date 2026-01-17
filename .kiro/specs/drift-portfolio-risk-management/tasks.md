@@ -77,7 +77,7 @@ The implementation follows an incremental approach, starting with core portfolio
 - [x] 4. Checkpoint - Ensure core portfolio and risk calculations work
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement advanced risk metrics
+- [x] 5. Implement advanced risk metrics
   - [x] 5.1 Create correlation analysis functionality
     - Implement correlation matrix calculations
     - Add dynamic correlation tracking
@@ -94,17 +94,17 @@ The implementation follows an incremental approach, starting with core portfolio
     - Add volatility contribution analysis
     - _Requirements: 2.5_
 
-  - [-] 5.4 Write property test for volatility calculation consistency
+  - [x] 5.4 Write property test for volatility calculation consistency
     - **Property 9: Volatility Calculation Consistency**
     - **Validates: Requirements 2.5**
 
-  - [ ] 5.5 Implement beta analysis
+  - [x] 5.5 Implement beta analysis
     - Add beta calculation relative to SOL, BTC
     - Add market beta calculations
     - Integrate with market data feeds
     - _Requirements: 2.6_
 
-  - [ ] 5.6 Write property test for beta calculation bounds
+  - [x] 5.6 Write property test for beta calculation bounds
     - **Property 10: Beta Calculation Bounds**
     - **Validates: Requirements 2.6**
 

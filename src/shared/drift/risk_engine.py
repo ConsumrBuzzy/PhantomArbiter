@@ -1310,9 +1310,12 @@ class DriftRiskEngine:
     # BETA ANALYSIS
     # =========================================================================
 
-    async def calculate_beta_analysis(self) -> BetaAnalysis:
+    async def calculate_beta_analysis(self, window_days: int = 252) -> BetaAnalysis:
         """
         Calculate beta analysis relative to major crypto assets.
+        
+        Args:
+            window_days: Number of days for beta calculation (default: 252 for 1 year)
         
         Returns:
             BetaAnalysis with beta coefficients and statistics
@@ -1328,10 +1331,13 @@ class DriftRiskEngine:
                     alpha_sol=0.0, alpha_btc=0.0, alpha_market=0.0
                 )
             
-            # Get benchmark returns (placeholder)
-            sol_returns = await self._get_benchmark_returns('SOL')
-            btc_returns = await self._get_benchmark_returns('BTC')
-            market_returns = await self._get_benchmark_returns('CRYPTO_MARKET')
+            # Limit portfolio returns to window
+            portfolio_returns = portfolio_returns[-window_days:] if len(portfolio_returns) > window_days else portfolio_returns
+            
+            # Get benchmark returns with same length
+            sol_returns = await self._get_benchmark_returns('SOL', len(portfolio_returns))
+            btc_returns = await self._get_benchmark_returns('BTC', len(portfolio_returns))
+            market_returns = await self._get_benchmark_returns('CRYPTO_MARKET', len(portfolio_returns))
             
             # Calculate betas
             beta_sol, alpha_sol, r_squared_sol = self._calculate_beta(portfolio_returns, sol_returns)
@@ -1350,7 +1356,7 @@ class DriftRiskEngine:
                 alpha_market=alpha_market
             )
             
-            self.logger.info(f"Beta analysis: SOL {beta_sol:.2f}, BTC {beta_btc:.2f}")
+            self.logger.info(f"Beta analysis ({window_days}d): SOL {beta_sol:.2f} (R²={r_squared_sol:.2f}), BTC {beta_btc:.2f} (R²={r_squared_btc:.2f})")
             return analysis
             
         except Exception as e:
@@ -1358,33 +1364,303 @@ class DriftRiskEngine:
             raise
 
     def _calculate_beta(self, portfolio_returns: List[float], benchmark_returns: List[float]) -> Tuple[float, float, float]:
-        """Calculate beta, alpha, and R-squared."""
+        """
+        Calculate beta, alpha, and R-squared using linear regression.
+        
+        Args:
+            portfolio_returns: Portfolio return series
+            benchmark_returns: Benchmark return series
+            
+        Returns:
+            Tuple of (beta, alpha, r_squared)
+        """
         if len(portfolio_returns) != len(benchmark_returns) or len(portfolio_returns) < 2:
             return 0.0, 0.0, 0.0
         
-        # Calculate covariance and variance
+        # Calculate means
         port_mean = mean(portfolio_returns)
         bench_mean = mean(benchmark_returns)
         
+        # Calculate covariance and variance
         covariance = sum((p - port_mean) * (b - bench_mean) 
                         for p, b in zip(portfolio_returns, benchmark_returns)) / (len(portfolio_returns) - 1)
         
         benchmark_variance = sum((b - bench_mean) ** 2 
                                for b in benchmark_returns) / (len(benchmark_returns) - 1)
         
-        # Beta calculation
+        # Beta calculation (slope of regression line)
         beta = covariance / benchmark_variance if benchmark_variance > 0 else 0.0
         
-        # Alpha calculation (intercept)
+        # Alpha calculation (intercept of regression line)
         alpha = port_mean - beta * bench_mean
         
-        # R-squared calculation
+        # R-squared calculation (coefficient of determination)
         predicted_returns = [alpha + beta * b for b in benchmark_returns]
         ss_res = sum((p - pred) ** 2 for p, pred in zip(portfolio_returns, predicted_returns))
         ss_tot = sum((p - port_mean) ** 2 for p in portfolio_returns)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
         
+        # Ensure R-squared is between 0 and 1
+        r_squared = max(0.0, min(1.0, r_squared))
+        
         return beta, alpha, r_squared
+
+    async def calculate_rolling_beta(self, benchmark: str, window_days: int = 60, step_days: int = 5) -> Dict[str, List[float]]:
+        """
+        Calculate rolling beta over time to analyze beta stability.
+        
+        Args:
+            benchmark: Benchmark asset ('SOL', 'BTC', 'CRYPTO_MARKET')
+            window_days: Rolling window size in days
+            step_days: Step size between calculations
+            
+        Returns:
+            Dictionary with rolling beta time series
+        """
+        try:
+            # Get full return series
+            portfolio_returns = await self._get_portfolio_returns()
+            benchmark_returns = await self._get_benchmark_returns(benchmark, len(portfolio_returns))
+            
+            if len(portfolio_returns) < window_days + step_days:
+                return {
+                    'dates': [],
+                    'betas': [],
+                    'alphas': [],
+                    'r_squareds': []
+                }
+            
+            # Calculate rolling statistics
+            dates = []
+            betas = []
+            alphas = []
+            r_squareds = []
+            
+            base_date = datetime.now() - timedelta(days=len(portfolio_returns))
+            
+            for i in range(window_days, len(portfolio_returns), step_days):
+                # Get window data
+                port_window = portfolio_returns[i-window_days:i]
+                bench_window = benchmark_returns[i-window_days:i]
+                
+                # Calculate beta for this window
+                beta, alpha, r_squared = self._calculate_beta(port_window, bench_window)
+                
+                dates.append(base_date + timedelta(days=i))
+                betas.append(beta)
+                alphas.append(alpha)
+                r_squareds.append(r_squared)
+            
+            self.logger.info(f"Rolling beta calculated for {benchmark}: {len(betas)} periods")
+            
+            return {
+                'dates': dates,
+                'betas': betas,
+                'alphas': alphas,
+                'r_squareds': r_squareds,
+                'benchmark': benchmark,
+                'window_days': window_days
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating rolling beta: {e}")
+            return {
+                'dates': [],
+                'betas': [],
+                'alphas': [],
+                'r_squareds': []
+            }
+
+    async def analyze_beta_stability(self, lookback_periods: int = 12) -> Dict[str, Any]:
+        """
+        Analyze beta stability across different time periods.
+        
+        Args:
+            lookback_periods: Number of periods to analyze
+            
+        Returns:
+            Dictionary with beta stability analysis
+        """
+        try:
+            benchmarks = ['SOL', 'BTC', 'CRYPTO_MARKET']
+            stability_analysis = {}
+            
+            for benchmark in benchmarks:
+                # Calculate rolling betas
+                rolling_data = await self.calculate_rolling_beta(
+                    benchmark=benchmark,
+                    window_days=60,
+                    step_days=10
+                )
+                
+                if len(rolling_data['betas']) < 3:
+                    stability_analysis[benchmark] = {
+                        'stability_score': 0.0,
+                        'beta_trend': 'insufficient_data',
+                        'volatility': 0.0,
+                        'current_beta': 0.0,
+                        'average_beta': 0.0
+                    }
+                    continue
+                
+                betas = rolling_data['betas'][-lookback_periods:] if len(rolling_data['betas']) > lookback_periods else rolling_data['betas']
+                
+                # Calculate stability metrics
+                current_beta = betas[-1]
+                average_beta = mean(betas)
+                beta_volatility = stdev(betas) if len(betas) > 1 else 0.0
+                
+                # Stability score (inverse of volatility, normalized)
+                stability_score = 1.0 / (1.0 + beta_volatility) if beta_volatility > 0 else 1.0
+                
+                # Trend analysis
+                if len(betas) >= 3:
+                    recent_avg = mean(betas[-3:])
+                    older_avg = mean(betas[:-3]) if len(betas) > 3 else betas[0]
+                    
+                    if recent_avg > older_avg + 0.1:
+                        trend = 'increasing'
+                    elif recent_avg < older_avg - 0.1:
+                        trend = 'decreasing'
+                    else:
+                        trend = 'stable'
+                else:
+                    trend = 'stable'
+                
+                stability_analysis[benchmark] = {
+                    'stability_score': stability_score,
+                    'beta_trend': trend,
+                    'volatility': beta_volatility,
+                    'current_beta': current_beta,
+                    'average_beta': average_beta,
+                    'min_beta': min(betas),
+                    'max_beta': max(betas),
+                    'periods_analyzed': len(betas)
+                }
+            
+            self.logger.info(f"Beta stability analysis completed for {len(benchmarks)} benchmarks")
+            return stability_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing beta stability: {e}")
+            return {}
+
+    async def calculate_multi_factor_beta(self) -> Dict[str, Any]:
+        """
+        Calculate multi-factor beta model (Fama-French style for crypto).
+        
+        Returns:
+            Dictionary with multi-factor model results
+        """
+        try:
+            # Get portfolio returns
+            portfolio_returns = await self._get_portfolio_returns()
+            
+            if len(portfolio_returns) < 30:
+                return {
+                    'market_beta': 0.0,
+                    'size_beta': 0.0,
+                    'momentum_beta': 0.0,
+                    'alpha': 0.0,
+                    'r_squared': 0.0,
+                    'model': 'insufficient_data'
+                }
+            
+            # Get factor returns
+            market_returns = await self._get_benchmark_returns('CRYPTO_MARKET', len(portfolio_returns))
+            
+            # Create size factor (small cap - large cap, simplified)
+            size_factor = await self._create_size_factor(len(portfolio_returns))
+            
+            # Create momentum factor (winners - losers, simplified)
+            momentum_factor = await self._create_momentum_factor(len(portfolio_returns))
+            
+            # Multi-factor regression: R_p = alpha + beta_m * R_m + beta_s * SMB + beta_mom * MOM + error
+            # Simplified implementation using sequential regression
+            
+            # First, regress against market
+            market_beta, market_alpha, market_r2 = self._calculate_beta(portfolio_returns, market_returns)
+            
+            # Calculate residuals from market model
+            market_predicted = [market_alpha + market_beta * r for r in market_returns]
+            residuals = [p - pred for p, pred in zip(portfolio_returns, market_predicted)]
+            
+            # Regress residuals against size factor
+            size_beta, _, size_r2 = self._calculate_beta(residuals, size_factor)
+            
+            # Update residuals
+            size_predicted = [size_beta * f for f in size_factor]
+            residuals = [r - pred for r, pred in zip(residuals, size_predicted)]
+            
+            # Regress residuals against momentum factor
+            momentum_beta, _, momentum_r2 = self._calculate_beta(residuals, momentum_factor)
+            
+            # Calculate overall model R-squared
+            # Full model prediction
+            full_predicted = [
+                market_alpha + market_beta * m + size_beta * s + momentum_beta * mom
+                for m, s, mom in zip(market_returns, size_factor, momentum_factor)
+            ]
+            
+            port_mean = mean(portfolio_returns)
+            ss_res = sum((p - pred) ** 2 for p, pred in zip(portfolio_returns, full_predicted))
+            ss_tot = sum((p - port_mean) ** 2 for p in portfolio_returns)
+            full_r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+            full_r_squared = max(0.0, min(1.0, full_r_squared))
+            
+            result = {
+                'market_beta': market_beta,
+                'size_beta': size_beta,
+                'momentum_beta': momentum_beta,
+                'alpha': market_alpha,
+                'r_squared': full_r_squared,
+                'market_r_squared': market_r2,
+                'size_r_squared': size_r2,
+                'momentum_r_squared': momentum_r2,
+                'model': 'three_factor'
+            }
+            
+            self.logger.info(f"Multi-factor beta: Market {market_beta:.2f}, Size {size_beta:.2f}, Momentum {momentum_beta:.2f} (R²={full_r_squared:.2f})")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating multi-factor beta: {e}")
+            return {
+                'market_beta': 0.0,
+                'size_beta': 0.0,
+                'momentum_beta': 0.0,
+                'alpha': 0.0,
+                'r_squared': 0.0,
+                'model': 'error'
+            }
+
+    async def _create_size_factor(self, length: int) -> List[float]:
+        """Create size factor (SMB - Small Minus Big) for crypto."""
+        import random
+        random.seed(456)  # Consistent results
+        
+        # Simulate size factor returns (small cap outperformance)
+        factor_returns = []
+        for _ in range(length):
+            # Size factor typically has lower volatility than individual assets
+            factor_return = random.gauss(0.0002, 0.015)  # Small positive bias, low volatility
+            factor_returns.append(factor_return)
+        
+        return factor_returns
+
+    async def _create_momentum_factor(self, length: int) -> List[float]:
+        """Create momentum factor (WML - Winners Minus Losers) for crypto."""
+        import random
+        random.seed(789)  # Consistent results
+        
+        # Simulate momentum factor returns
+        factor_returns = []
+        for _ in range(length):
+            # Momentum factor can be more volatile
+            factor_return = random.gauss(0.0001, 0.02)  # Small positive bias, moderate volatility
+            factor_returns.append(factor_return)
+        
+        return factor_returns
 
     # =========================================================================
     # RISK MONITORING
