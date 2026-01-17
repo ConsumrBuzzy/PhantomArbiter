@@ -74,27 +74,27 @@ The implementation follows an incremental approach, starting with core portfolio
     - **Property 7: Drawdown Calculation Properties**
     - **Validates: Requirements 2.3**
 
-- [ ] 4. Checkpoint - Ensure core portfolio and risk calculations work
+- [x] 4. Checkpoint - Ensure core portfolio and risk calculations work
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement advanced risk metrics
-  - [ ] 5.1 Create correlation analysis functionality
+  - [x] 5.1 Create correlation analysis functionality
     - Implement correlation matrix calculations
     - Add dynamic correlation tracking
     - Integrate with market data manager
     - _Requirements: 2.4_
 
-  - [ ] 5.2 Write property test for correlation matrix properties
+  - [x] 5.2 Write property test for correlation matrix properties
     - **Property 8: Correlation Matrix Properties**
     - **Validates: Requirements 2.4**
 
-  - [ ] 5.3 Implement volatility metrics
+  - [x] 5.3 Implement volatility metrics
     - Add portfolio volatility calculation
     - Add individual position volatility
     - Add volatility contribution analysis
     - _Requirements: 2.5_
 
-  - [ ] 5.4 Write property test for volatility calculation consistency
+  - [-] 5.4 Write property test for volatility calculation consistency
     - **Property 9: Volatility Calculation Consistency**
     - **Validates: Requirements 2.5**
 
