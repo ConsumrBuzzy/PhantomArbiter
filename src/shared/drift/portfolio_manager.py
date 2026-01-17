@@ -37,6 +37,7 @@ from src.shared.system.logging import Logger
 from src.shared.drift.client_manager import DriftClientManager
 from src.shared.drift.trading_manager import DriftTradingManager
 from src.shared.drift.market_data_manager import DriftMarketDataManager
+from src.shared.drift.hedging_engine import DriftHedgingEngine
 
 
 # =============================================================================
@@ -141,6 +142,13 @@ class DriftPortfolioManager:
         self.trading_manager = trading_manager or DriftTradingManager(drift_adapter)
         self.market_data_manager = market_data_manager or DriftMarketDataManager(drift_adapter)
         
+        # Initialize hedging engine
+        self.hedging_engine = DriftHedgingEngine(
+            drift_adapter=drift_adapter,
+            trading_manager=self.trading_manager,
+            market_data_manager=self.market_data_manager
+        )
+        
         # Risk management
         self.risk_limits = risk_limits or RiskLimits()
         
@@ -149,7 +157,7 @@ class DriftPortfolioManager:
         self._cache_ttl = 30  # 30 seconds
         self._last_cache_update = 0
         
-        self.logger.info("Portfolio Manager initialized")
+        self.logger.info("Portfolio Manager initialized with hedging engine")
 
     # =========================================================================
     # PORTFOLIO ANALYTICS
@@ -377,7 +385,7 @@ class DriftPortfolioManager:
 
     async def auto_hedge_portfolio(self, target_delta: float = 0.0) -> List[str]:
         """
-        Basic portfolio hedging functionality.
+        Automated portfolio hedging using the advanced hedging engine.
         
         Args:
             target_delta: Target portfolio delta (default: 0.0 for delta-neutral)
@@ -386,45 +394,141 @@ class DriftPortfolioManager:
             List of order IDs for hedge trades
         """
         try:
-            # Get current positions
-            positions = await self.get_position_breakdown()
+            # Calculate hedge requirements using the hedging engine
+            requirements = await self.hedging_engine.calculate_hedge_requirements(
+                target_delta=target_delta,
+                use_correlation_adjustment=True
+            )
             
-            if not positions:
-                self.logger.info("No positions to hedge")
-                return []
+            self.logger.info(f"Hedge requirements: current delta {requirements.current_delta:.4f}, "
+                           f"target {requirements.target_delta:.4f}, "
+                           f"deviation {requirements.delta_deviation:.4f}")
             
-            # Calculate current portfolio delta (simplified)
-            current_delta = sum(pos.size for pos in positions)
-            delta_deviation = current_delta - target_delta
-            
-            self.logger.info(f"Current delta: {current_delta:.4f}, target: {target_delta:.4f}, deviation: {delta_deviation:.4f}")
-            
-            # Check if hedging is needed (1% tolerance)
-            if abs(delta_deviation) < 0.01:
+            # Check if hedging is needed
+            if not requirements.required_trades:
                 self.logger.info("Portfolio delta within tolerance, no hedging needed")
                 return []
             
-            # Simple hedge: use SOL-PERP to offset delta
-            hedge_size = -delta_deviation  # Opposite direction to offset
-            hedge_market = "SOL-PERP"
+            # Execute hedge trades
+            hedge_result = await self.hedging_engine.execute_hedge_trades(requirements)
             
-            # Place hedge order
-            order_id = await self.trading_manager.place_market_order(
-                market=hedge_market,
-                side="buy" if hedge_size > 0 else "sell",
-                size=abs(hedge_size)
-            )
-            
-            if order_id:
-                self.logger.info(f"Placed hedge order {order_id}: {hedge_size:.4f} {hedge_market}")
-                return [order_id]
+            if hedge_result.success:
+                order_ids = [trade.get('order_id') for trade in hedge_result.executed_trades 
+                           if trade.get('order_id')]
+                
+                self.logger.info(f"Hedge execution successful: {len(hedge_result.executed_trades)} trades, "
+                               f"delta improvement {hedge_result.delta_improvement:.4f}, "
+                               f"cost ${hedge_result.total_cost:.2f}")
+                
+                return order_ids
             else:
-                self.logger.error("Failed to place hedge order")
-                return []
+                self.logger.warning(f"Hedge execution failed: {hedge_result.message}")
+                
+                # Return any partially successful trades
+                order_ids = [trade.get('order_id') for trade in hedge_result.executed_trades 
+                           if trade.get('order_id')]
+                return order_ids
             
         except Exception as e:
             self.logger.error(f"Error auto-hedging portfolio: {e}")
             return []
+
+    async def get_hedge_status(self) -> Dict[str, Any]:
+        """
+        Get current hedging status and monitoring information.
+        
+        Returns:
+            Dictionary with hedge monitoring data
+        """
+        try:
+            # Get hedge monitoring from hedging engine
+            monitoring = await self.hedging_engine.monitor_hedge_effectiveness()
+            
+            # Get hedge statistics
+            statistics = self.hedging_engine.get_hedge_statistics()
+            
+            return {
+                'current_delta': monitoring.current_delta,
+                'target_delta': monitoring.target_delta,
+                'delta_drift': monitoring.delta_drift,
+                'hedge_effectiveness': monitoring.hedge_effectiveness,
+                'correlation_stability': monitoring.correlation_stability,
+                'time_since_last_hedge': monitoring.time_since_last_hedge.total_seconds(),
+                'next_hedge_recommendation': monitoring.next_hedge_recommendation,
+                'monitoring_alerts': monitoring.monitoring_alerts,
+                'statistics': statistics
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting hedge status: {e}")
+            return {}
+
+    async def emergency_hedge_portfolio(self, reason: str = "Manual emergency hedge") -> Dict[str, Any]:
+        """
+        Execute emergency hedging to rapidly reduce portfolio delta.
+        
+        Args:
+            reason: Reason for emergency hedging
+            
+        Returns:
+            Dictionary with emergency hedge results
+        """
+        try:
+            result = await self.hedging_engine.emergency_hedge(
+                max_trades=5,
+                emergency_reason=reason
+            )
+            
+            self.logger.warning(f"Emergency hedge executed: {result.trades_executed} trades, "
+                              f"delta {result.delta_before:.4f} -> {result.delta_after:.4f}")
+            
+            return {
+                'success': result.success,
+                'trades_executed': result.trades_executed,
+                'delta_before': result.delta_before,
+                'delta_after': result.delta_after,
+                'execution_time': result.execution_time,
+                'emergency_reason': result.emergency_reason,
+                'recovery_actions': result.recovery_actions
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error executing emergency hedge: {e}")
+            return {'success': False, 'error': str(e)}
+
+    async def set_hedge_parameters(
+        self,
+        delta_tolerance: Optional[float] = None,
+        cooldown_minutes: Optional[int] = None,
+        max_hedge_size_usd: Optional[float] = None
+    ) -> bool:
+        """
+        Update hedging engine parameters.
+        
+        Args:
+            delta_tolerance: New delta tolerance (optional)
+            cooldown_minutes: New cooldown period in minutes (optional)
+            max_hedge_size_usd: New maximum hedge size in USD (optional)
+            
+        Returns:
+            True if parameters were updated successfully
+        """
+        try:
+            if delta_tolerance is not None:
+                self.hedging_engine.delta_tolerance = delta_tolerance
+                
+            if cooldown_minutes is not None:
+                self.hedging_engine.cooldown_period = timedelta(minutes=cooldown_minutes)
+                
+            if max_hedge_size_usd is not None:
+                self.hedging_engine.max_hedge_size_usd = max_hedge_size_usd
+            
+            self.logger.info("Hedge parameters updated successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error setting hedge parameters: {e}")
+            return False
 
     # =========================================================================
     # POSITION SIZING

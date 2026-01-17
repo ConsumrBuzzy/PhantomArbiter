@@ -109,17 +109,17 @@ The implementation follows an incremental approach, starting with core portfolio
     - **Validates: Requirements 2.6**
 
 - [ ] 6. Implement Hedging Engine
-  - [ ] 6.1 Create DriftHedgingEngine class with delta hedging
+  - [x] 6.1 Create DriftHedgingEngine class with delta hedging
     - Implement delta calculation and monitoring
     - Implement hedge requirement calculations
     - Add hedge execution with trading manager integration
     - _Requirements: 3.1, 3.2_
 
-  - [ ] 6.2 Write property test for delta hedging effectiveness
+  - [x] 6.2 Write property test for delta hedging effectiveness
     - **Property 11: Delta Hedging Effectiveness**
     - **Validates: Requirements 3.1**
 
-  - [ ] 6.3 Write property test for hedge size calculation accuracy
+  - [x] 6.3 Write property test for hedge size calculation accuracy
     - **Property 12: Hedge Size Calculation Accuracy**
     - **Validates: Requirements 3.2**
 
