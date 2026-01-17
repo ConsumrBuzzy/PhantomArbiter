@@ -135,7 +135,7 @@ class DriftPortfolioManager:
             risk_limits: Risk limits configuration (optional)
         """
         self.drift_adapter = drift_adapter
-        self.logger = Logger("DriftPortfolioManager")
+        self.logger = Logger
         
         # Initialize or use provided managers
         self.trading_manager = trading_manager or DriftTradingManager(drift_adapter)

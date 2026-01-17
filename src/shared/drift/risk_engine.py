@@ -154,7 +154,7 @@ class DriftRiskEngine:
         """
         self.drift_adapter = drift_adapter
         self.lookback_days = lookback_days
-        self.logger = Logger("DriftRiskEngine")
+        self.logger = Logger
         
         # Risk monitoring state
         self._previous_metrics = {}
