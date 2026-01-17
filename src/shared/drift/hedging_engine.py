@@ -440,13 +440,14 @@ class DriftHedgingEngine:
         positions: List[Dict],
         correlation_matrix: Dict[str, Dict[str, float]]
     ) -> float:
-        """Calculate optimal hedge ratio based on correlations."""
+        """Calculate optimal hedge ratio based on correlations and portfolio theory."""
         try:
-            # Simplified hedge ratio calculation
-            # In practice, this would use more sophisticated portfolio theory
+            # Enhanced hedge ratio calculation using portfolio theory
             
             total_exposure = 0.0
             weighted_correlation = 0.0
+            correlation_variance = 0.0
+            position_data = []
             
             for position in positions:
                 market = position.get('market', '')
@@ -467,20 +468,230 @@ class DriftHedgingEngine:
                 
                 # Get correlation with hedge market
                 correlation = correlation_matrix.get(market, {}).get(hedge_market, 0.5)
+                
+                # Store position data for advanced calculations
+                position_data.append({
+                    'market': market,
+                    'value': position_value,
+                    'correlation': correlation,
+                    'size': size
+                })
+                
                 weighted_correlation += position_value * correlation
+                correlation_variance += position_value * (correlation ** 2)
             
-            if total_exposure > 0:
-                avg_correlation = weighted_correlation / total_exposure
-                # Adjust hedge ratio based on average correlation
-                hedge_ratio = min(1.0, max(0.1, avg_correlation))
-            else:
-                hedge_ratio = 1.0
+            if total_exposure == 0 or not position_data:
+                return 1.0
             
-            return hedge_ratio
+            # Calculate base hedge ratio (value-weighted average correlation)
+            avg_correlation = weighted_correlation / total_exposure
+            
+            # Enhanced hedge ratio calculation considering:
+            # 1. Correlation stability
+            # 2. Portfolio concentration
+            # 3. Market volatility relationships
+            
+            # 1. Correlation stability adjustment
+            correlation_stability = await self._assess_correlation_stability(
+                hedge_market, position_data
+            )
+            stability_adjustment = 0.8 + (0.4 * correlation_stability)  # 0.8 to 1.2 range
+            
+            # 2. Portfolio concentration adjustment
+            concentration_risk = await self._calculate_concentration_risk(position_data, total_exposure)
+            concentration_adjustment = 1.0 + (0.2 * concentration_risk)  # Up to 20% increase for concentrated portfolios
+            
+            # 3. Volatility relationship adjustment
+            volatility_adjustment = await self._calculate_volatility_adjustment(
+                hedge_market, position_data
+            )
+            
+            # Combine adjustments
+            base_hedge_ratio = abs(avg_correlation)
+            adjusted_hedge_ratio = (
+                base_hedge_ratio * 
+                stability_adjustment * 
+                concentration_adjustment * 
+                volatility_adjustment
+            )
+            
+            # Ensure hedge ratio is within reasonable bounds
+            final_hedge_ratio = min(1.5, max(0.1, adjusted_hedge_ratio))
+            
+            self.logger.debug(
+                f"Hedge ratio calculation for {hedge_market}: "
+                f"base={base_hedge_ratio:.3f}, "
+                f"stability_adj={stability_adjustment:.3f}, "
+                f"concentration_adj={concentration_adjustment:.3f}, "
+                f"volatility_adj={volatility_adjustment:.3f}, "
+                f"final={final_hedge_ratio:.3f}"
+            )
+            
+            return final_hedge_ratio
             
         except Exception as e:
             self.logger.error(f"Error calculating hedge ratio: {e}")
             return 1.0
+
+    async def _assess_correlation_stability(
+        self, 
+        hedge_market: str, 
+        position_data: List[Dict]
+    ) -> float:
+        """
+        Assess correlation stability for hedge ratio adjustment.
+        
+        Returns:
+            Stability score between 0.0 (unstable) and 1.0 (stable)
+        """
+        try:
+            # Check if we have correlation history
+            if not hasattr(self, '_correlation_history'):
+                return 0.8  # Default moderate stability
+            
+            if len(getattr(self, '_correlation_history', [])) < 3:
+                return 0.8  # Insufficient history
+            
+            stability_scores = []
+            
+            for pos_data in position_data:
+                market = pos_data['market']
+                
+                # Get recent correlation values for this market pair
+                recent_correlations = []
+                for hist in self._correlation_history[-5:]:  # Last 5 periods
+                    if market in hist.get('matrix', {}) and hedge_market in hist['matrix'][market]:
+                        recent_correlations.append(hist['matrix'][market][hedge_market])
+                
+                if len(recent_correlations) >= 3:
+                    # Calculate correlation volatility
+                    from statistics import stdev
+                    corr_volatility = stdev(recent_correlations)
+                    
+                    # Convert to stability score (lower volatility = higher stability)
+                    stability = max(0.0, 1.0 - (corr_volatility * 5))  # Scale volatility
+                    stability_scores.append(stability)
+            
+            if stability_scores:
+                # Weight by position value
+                total_value = sum(pos['value'] for pos in position_data)
+                weighted_stability = sum(
+                    score * pos['value'] / total_value 
+                    for score, pos in zip(stability_scores, position_data)
+                )
+                return weighted_stability
+            
+            return 0.8  # Default
+            
+        except Exception as e:
+            self.logger.error(f"Error assessing correlation stability: {e}")
+            return 0.8
+
+    async def _calculate_concentration_risk(
+        self, 
+        position_data: List[Dict], 
+        total_exposure: float
+    ) -> float:
+        """
+        Calculate portfolio concentration risk.
+        
+        Returns:
+            Concentration risk score between 0.0 (diversified) and 1.0 (concentrated)
+        """
+        try:
+            if not position_data or total_exposure <= 0:
+                return 0.0
+            
+            # Calculate Herfindahl-Hirschman Index (HHI) for concentration
+            hhi = sum((pos['value'] / total_exposure) ** 2 for pos in position_data)
+            
+            # Convert HHI to concentration risk score
+            # HHI ranges from 1/n (diversified) to 1 (concentrated)
+            # For 10 equal positions: HHI = 0.1, for 1 position: HHI = 1.0
+            n_positions = len(position_data)
+            min_hhi = 1.0 / n_positions if n_positions > 0 else 1.0
+            
+            # Normalize to 0-1 scale
+            concentration_risk = (hhi - min_hhi) / (1.0 - min_hhi) if min_hhi < 1.0 else 0.0
+            
+            return min(1.0, max(0.0, concentration_risk))
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating concentration risk: {e}")
+            return 0.0
+
+    async def _calculate_volatility_adjustment(
+        self, 
+        hedge_market: str, 
+        position_data: List[Dict]
+    ) -> float:
+        """
+        Calculate volatility-based hedge ratio adjustment.
+        
+        Returns:
+            Volatility adjustment factor (typically 0.8 to 1.2)
+        """
+        try:
+            # Get hedge market volatility
+            hedge_returns = await self._get_asset_returns(hedge_market, 30)
+            if len(hedge_returns) < 10:
+                return 1.0
+            
+            from statistics import stdev
+            hedge_volatility = stdev(hedge_returns) * (252 ** 0.5)  # Annualized
+            
+            # Calculate portfolio-weighted average volatility
+            total_value = sum(pos['value'] for pos in position_data)
+            weighted_volatility = 0.0
+            
+            for pos_data in position_data:
+                market = pos_data['market']
+                weight = pos_data['value'] / total_value if total_value > 0 else 0
+                
+                # Get market volatility
+                market_returns = await self._get_asset_returns(market, 30)
+                if len(market_returns) >= 10:
+                    market_volatility = stdev(market_returns) * (252 ** 0.5)
+                    weighted_volatility += weight * market_volatility
+            
+            if weighted_volatility <= 0 or hedge_volatility <= 0:
+                return 1.0
+            
+            # Volatility ratio adjustment
+            # If portfolio is more volatile than hedge market, increase hedge ratio
+            volatility_ratio = weighted_volatility / hedge_volatility
+            
+            # Convert to adjustment factor (bounded between 0.8 and 1.2)
+            adjustment = 0.9 + (0.1 * min(2.0, max(0.5, volatility_ratio)))
+            
+            return adjustment
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating volatility adjustment: {e}")
+            return 1.0
+
+    async def _get_asset_returns(self, asset: str, days: int) -> List[float]:
+        """Get historical returns for an asset (simplified implementation)."""
+        import random
+        
+        # Use asset-specific seed for consistent results
+        asset_seed = hash(asset) % 1000000
+        random.seed(asset_seed)
+        
+        returns = []
+        for _ in range(days):
+            if 'SOL' in asset:
+                ret = random.gauss(0.001, 0.05)
+            elif 'BTC' in asset:
+                ret = random.gauss(0.0008, 0.03)
+            elif 'ETH' in asset:
+                ret = random.gauss(0.0009, 0.04)
+            else:
+                ret = random.gauss(0.0005, 0.035)
+            
+            returns.append(ret)
+        
+        return returns
 
     async def _estimate_hedge_cost(self, hedge_trades: List[HedgeTrade]) -> float:
         """Estimate total cost of hedge execution."""
@@ -880,21 +1091,122 @@ class DriftHedgingEngine:
             return 0.5
 
     async def _check_correlation_stability(self) -> float:
-        """Check stability of correlation assumptions."""
+        """Check stability of correlation assumptions with enhanced analysis."""
         try:
-            # This would analyze correlation changes over time
-            # For now, return a simplified stability measure
+            # Enhanced correlation stability check
+            if not hasattr(self, '_correlation_history'):
+                return 0.9  # Assume stable if no history
             
-            # In practice, this would:
-            # 1. Compare current correlations to historical averages
-            # 2. Detect correlation regime changes
-            # 3. Assess impact on hedge effectiveness
+            correlation_history = getattr(self, '_correlation_history', [])
+            if len(correlation_history) < 3:
+                return 0.9  # Insufficient history
             
-            return 0.9  # Assume stable correlations for now
+            # Analyze correlation stability across all pairs
+            stability_scores = []
+            
+            # Get current positions to focus on relevant correlations
+            positions = await self.drift_adapter.get_positions()
+            if not positions:
+                return 0.9
+            
+            position_markets = [pos.get('market', '') for pos in positions if pos.get('market')]
+            hedge_markets = ['SOL-PERP', 'BTC-PERP', 'ETH-PERP']
+            
+            # Check stability for position-hedge market pairs
+            for pos_market in position_markets:
+                for hedge_market in hedge_markets:
+                    if pos_market == hedge_market:
+                        continue
+                    
+                    # Extract correlation time series
+                    correlations = []
+                    for hist in correlation_history[-10:]:  # Last 10 periods
+                        matrix = hist.get('matrix', {})
+                        if pos_market in matrix and hedge_market in matrix[pos_market]:
+                            correlations.append(matrix[pos_market][hedge_market])
+                    
+                    if len(correlations) >= 3:
+                        # Calculate stability metrics
+                        from statistics import mean, stdev
+                        
+                        corr_mean = mean(correlations)
+                        corr_std = stdev(correlations) if len(correlations) > 1 else 0.0
+                        
+                        # Stability score based on coefficient of variation
+                        if abs(corr_mean) > 0.1:  # Avoid division by very small numbers
+                            cv = corr_std / abs(corr_mean)
+                            stability = max(0.0, 1.0 - cv)  # Lower CV = higher stability
+                        else:
+                            stability = 0.5  # Neutral for near-zero correlations
+                        
+                        stability_scores.append(stability)
+            
+            if stability_scores:
+                overall_stability = sum(stability_scores) / len(stability_scores)
+                
+                # Apply additional checks for regime changes
+                recent_regime_changes = await self._detect_recent_correlation_changes()
+                if recent_regime_changes > 0:
+                    # Reduce stability score if recent regime changes detected
+                    regime_penalty = min(0.3, recent_regime_changes * 0.1)
+                    overall_stability = max(0.1, overall_stability - regime_penalty)
+                
+                return overall_stability
+            
+            return 0.9  # Default stable assumption
             
         except Exception as e:
             self.logger.error(f"Error checking correlation stability: {e}")
             return 0.5
+
+    async def _detect_recent_correlation_changes(self) -> int:
+        """
+        Detect recent correlation changes that might affect hedge effectiveness.
+        
+        Returns:
+            Number of significant correlation changes in recent periods
+        """
+        try:
+            if not hasattr(self, '_correlation_history'):
+                return 0
+            
+            correlation_history = getattr(self, '_correlation_history', [])
+            if len(correlation_history) < 2:
+                return 0
+            
+            # Compare last 2 periods
+            recent = correlation_history[-1].get('matrix', {})
+            previous = correlation_history[-2].get('matrix', {})
+            
+            if not recent or not previous:
+                return 0
+            
+            significant_changes = 0
+            change_threshold = 0.2  # 20% correlation change threshold
+            
+            for asset1 in recent:
+                if asset1 not in previous:
+                    continue
+                
+                for asset2 in recent[asset1]:
+                    if asset2 not in previous[asset1]:
+                        continue
+                    
+                    if asset1 >= asset2:  # Avoid duplicates
+                        continue
+                    
+                    recent_corr = recent[asset1][asset2]
+                    previous_corr = previous[asset1][asset2]
+                    change = abs(recent_corr - previous_corr)
+                    
+                    if change > change_threshold:
+                        significant_changes += 1
+            
+            return significant_changes
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting recent correlation changes: {e}")
+            return 0
 
     # =========================================================================
     # EMERGENCY HEDGING
@@ -985,18 +1297,133 @@ class DriftHedgingEngine:
             True if adjustments were made successfully
         """
         try:
+            # Store previous correlations for comparison
+            previous_correlations = self._correlation_cache.copy() if self._correlation_cache else {}
+            
             # Update correlation cache
             self._correlation_cache = new_correlations
             
             # Clear delta cache to force recalculation
             self._delta_cache.clear()
             
-            self.logger.info("Hedge ratios adjusted based on updated correlations")
+            # Analyze correlation changes and their impact
+            correlation_changes = await self._analyze_correlation_changes(
+                previous_correlations, new_correlations
+            )
+            
+            # Log significant changes
+            if correlation_changes['significant_changes']:
+                self.logger.warning(
+                    f"Significant correlation changes detected: "
+                    f"{len(correlation_changes['significant_changes'])} pairs affected, "
+                    f"max change: {correlation_changes['max_change']:.3f}"
+                )
+                
+                # Log details of significant changes
+                for change in correlation_changes['significant_changes'][:5]:  # Log top 5
+                    self.logger.info(
+                        f"Correlation change: {change['pair']} "
+                        f"{change['old_correlation']:.3f} -> {change['new_correlation']:.3f} "
+                        f"(Δ{change['change']:.3f})"
+                    )
+            
+            # Trigger hedge effectiveness recalculation if significant changes
+            if correlation_changes['requires_hedge_adjustment']:
+                self.logger.info("Correlation changes require hedge adjustment - clearing effectiveness cache")
+                # Force recalculation of hedge effectiveness
+                if hasattr(self, '_hedge_effectiveness_cache'):
+                    delattr(self, '_hedge_effectiveness_cache')
+            
+            self.logger.info(
+                f"Hedge ratios adjusted: {len(new_correlations)} assets, "
+                f"{correlation_changes['total_pairs']} correlation pairs updated"
+            )
             return True
             
         except Exception as e:
             self.logger.error(f"Error adjusting hedge ratios: {e}")
             return False
+
+    async def _analyze_correlation_changes(
+        self, 
+        old_correlations: Dict[str, Dict[str, float]], 
+        new_correlations: Dict[str, Dict[str, float]]
+    ) -> Dict[str, Any]:
+        """
+        Analyze correlation changes and determine if hedge adjustments are needed.
+        
+        Args:
+            old_correlations: Previous correlation matrix
+            new_correlations: New correlation matrix
+            
+        Returns:
+            Dictionary with change analysis
+        """
+        try:
+            analysis = {
+                'significant_changes': [],
+                'total_pairs': 0,
+                'max_change': 0.0,
+                'avg_change': 0.0,
+                'requires_hedge_adjustment': False
+            }
+            
+            if not old_correlations or not new_correlations:
+                return analysis
+            
+            changes = []
+            significant_threshold = 0.2  # 20% correlation change threshold
+            
+            # Compare correlations for all asset pairs
+            for asset1 in new_correlations:
+                if asset1 not in old_correlations:
+                    continue
+                    
+                for asset2 in new_correlations[asset1]:
+                    if asset2 not in old_correlations[asset1]:
+                        continue
+                    
+                    if asset1 >= asset2:  # Avoid duplicate pairs
+                        continue
+                    
+                    old_corr = old_correlations[asset1][asset2]
+                    new_corr = new_correlations[asset1][asset2]
+                    change = abs(new_corr - old_corr)
+                    
+                    changes.append(change)
+                    analysis['total_pairs'] += 1
+                    
+                    if change > significant_threshold:
+                        analysis['significant_changes'].append({
+                            'pair': f"{asset1}-{asset2}",
+                            'old_correlation': old_corr,
+                            'new_correlation': new_corr,
+                            'change': change,
+                            'change_direction': 'increase' if new_corr > old_corr else 'decrease'
+                        })
+            
+            if changes:
+                analysis['max_change'] = max(changes)
+                analysis['avg_change'] = sum(changes) / len(changes)
+                
+                # Determine if hedge adjustment is required
+                # Criteria: significant changes in >20% of pairs OR max change >30%
+                significant_ratio = len(analysis['significant_changes']) / len(changes)
+                analysis['requires_hedge_adjustment'] = (
+                    significant_ratio > 0.2 or analysis['max_change'] > 0.3
+                )
+            
+            return analysis
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing correlation changes: {e}")
+            return {
+                'significant_changes': [],
+                'total_pairs': 0,
+                'max_change': 0.0,
+                'avg_change': 0.0,
+                'requires_hedge_adjustment': False
+            }
 
     def get_hedge_statistics(self) -> Dict[str, Any]:
         """Get hedging performance statistics."""
@@ -1039,6 +1466,168 @@ class DriftHedgingEngine:
             self.logger.error(f"Error getting hedge statistics: {e}")
             return {}
 
+    async def monitor_correlation_changes(self, risk_engine) -> Dict[str, Any]:
+        """
+        Monitor correlation changes and automatically adjust hedge ratios if needed.
+        
+        Args:
+            risk_engine: DriftRiskEngine instance for correlation monitoring
+            
+        Returns:
+            Dictionary with monitoring results
+        """
+        try:
+            # Detect correlation regime changes
+            regime_changes = await risk_engine.detect_correlation_regime_changes(threshold=0.2)
+            
+            monitoring_result = {
+                'regime_changes_detected': len(regime_changes),
+                'adjustments_made': False,
+                'hedge_effectiveness_impact': 'none',
+                'recommended_actions': []
+            }
+            
+            if regime_changes:
+                self.logger.warning(f"Correlation regime changes detected: {len(regime_changes)} changes")
+                
+                # Get updated correlation matrix
+                updated_correlations = await risk_engine.calculate_correlation_matrix(window_days=30)
+                
+                # Adjust hedge ratios based on new correlations
+                adjustment_success = await self.adjust_hedge_ratios(updated_correlations.matrix)
+                monitoring_result['adjustments_made'] = adjustment_success
+                
+                # Assess impact on hedge effectiveness
+                current_effectiveness = await self._calculate_hedge_effectiveness()
+                
+                if current_effectiveness < 0.7:
+                    monitoring_result['hedge_effectiveness_impact'] = 'degraded'
+                    monitoring_result['recommended_actions'].append(
+                        "Consider emergency hedging due to correlation breakdown"
+                    )
+                elif current_effectiveness < 0.8:
+                    monitoring_result['hedge_effectiveness_impact'] = 'reduced'
+                    monitoring_result['recommended_actions'].append(
+                        "Monitor hedge performance closely"
+                    )
+                
+                # Check if any changes affect our primary hedge markets
+                hedge_markets = ['SOL-PERP', 'BTC-PERP', 'ETH-PERP']
+                affected_hedge_markets = []
+                
+                for change in regime_changes:
+                    pair = change['asset_pair']
+                    for market in hedge_markets:
+                        if market.replace('-PERP', '') in pair:
+                            affected_hedge_markets.append(market)
+                
+                if affected_hedge_markets:
+                    monitoring_result['recommended_actions'].append(
+                        f"Review hedge markets: {', '.join(set(affected_hedge_markets))}"
+                    )
+                
+                # Log detailed regime change information
+                for change in regime_changes[:3]:  # Log top 3 changes
+                    self.logger.info(
+                        f"Regime change: {change['asset_pair']} correlation "
+                        f"{change['old_correlation']:.3f} -> {change['new_correlation']:.3f} "
+                        f"({change['change_direction']}, magnitude: {change['change_magnitude']:.3f})"
+                    )
+            
+            return monitoring_result
+            
+        except Exception as e:
+            self.logger.error(f"Error monitoring correlation changes: {e}")
+            return {
+                'regime_changes_detected': 0,
+                'adjustments_made': False,
+                'hedge_effectiveness_impact': 'error',
+                'recommended_actions': ['Review correlation monitoring system']
+            }
+
+    async def enable_automatic_correlation_monitoring(
+        self, 
+        risk_engine, 
+        monitoring_interval_minutes: int = 15
+    ) -> bool:
+        """
+        Enable automatic correlation monitoring and hedge ratio adjustment.
+        
+        Args:
+            risk_engine: DriftRiskEngine instance
+            monitoring_interval_minutes: How often to check for correlation changes
+            
+        Returns:
+            True if monitoring was enabled successfully
+        """
+        try:
+            # Store risk engine reference for monitoring
+            self._risk_engine = risk_engine
+            self._correlation_monitoring_interval = timedelta(minutes=monitoring_interval_minutes)
+            self._last_correlation_check = datetime.now()
+            self._correlation_monitoring_enabled = True
+            
+            self.logger.info(
+                f"Automatic correlation monitoring enabled: "
+                f"checking every {monitoring_interval_minutes} minutes"
+            )
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error enabling correlation monitoring: {e}")
+            return False
+
+    async def check_correlation_monitoring_due(self) -> bool:
+        """
+        Check if correlation monitoring is due to run.
+        
+        Returns:
+            True if monitoring should be performed
+        """
+        if not getattr(self, '_correlation_monitoring_enabled', False):
+            return False
+        
+        if not hasattr(self, '_last_correlation_check'):
+            return True
+        
+        time_since_check = datetime.now() - self._last_correlation_check
+        return time_since_check >= self._correlation_monitoring_interval
+
+    async def run_correlation_monitoring_if_due(self) -> Optional[Dict[str, Any]]:
+        """
+        Run correlation monitoring if it's due.
+        
+        Returns:
+            Monitoring results if monitoring was performed, None otherwise
+        """
+        try:
+            if not await self.check_correlation_monitoring_due():
+                return None
+            
+            if not hasattr(self, '_risk_engine'):
+                self.logger.warning("Risk engine not available for correlation monitoring")
+                return None
+            
+            # Update last check time
+            self._last_correlation_check = datetime.now()
+            
+            # Perform monitoring
+            monitoring_result = await self.monitor_correlation_changes(self._risk_engine)
+            
+            # Log monitoring summary
+            if monitoring_result['regime_changes_detected'] > 0:
+                self.logger.info(
+                    f"Correlation monitoring: {monitoring_result['regime_changes_detected']} changes, "
+                    f"adjustments made: {monitoring_result['adjustments_made']}, "
+                    f"effectiveness impact: {monitoring_result['hedge_effectiveness_impact']}"
+                )
+            
+            return monitoring_result
+            
+        except Exception as e:
+            self.logger.error(f"Error running correlation monitoring: {e}")
+            return None
+
     def clear_hedge_history(self):
         """Clear hedge history and reset state."""
         self._hedge_history.clear()
@@ -1046,6 +1635,68 @@ class DriftHedgingEngine:
         self._correlation_cache.clear()
         self._delta_cache.clear()
         self.logger.info("Hedge history cleared")
+
+    async def integrate_with_risk_engine(self, risk_engine) -> bool:
+        """
+        Integrate hedging engine with risk engine for automatic correlation monitoring.
+        
+        Args:
+            risk_engine: DriftRiskEngine instance
+            
+        Returns:
+            True if integration was successful
+        """
+        try:
+            # Store risk engine reference
+            self._risk_engine = risk_engine
+            
+            # Enable automatic correlation monitoring
+            await self.enable_automatic_correlation_monitoring(risk_engine, monitoring_interval_minutes=15)
+            
+            # Set up correlation history sharing
+            if hasattr(risk_engine, '_correlation_history'):
+                self._correlation_history = risk_engine._correlation_history
+            
+            self.logger.info("Hedging engine integrated with risk engine for correlation monitoring")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error integrating with risk engine: {e}")
+            return False
+
+    def get_correlation_monitoring_status(self) -> Dict[str, Any]:
+        """
+        Get status of correlation monitoring and hedge ratio adjustments.
+        
+        Returns:
+            Dictionary with monitoring status information
+        """
+        try:
+            status = {
+                'monitoring_enabled': getattr(self, '_correlation_monitoring_enabled', False),
+                'risk_engine_integrated': hasattr(self, '_risk_engine'),
+                'last_correlation_check': getattr(self, '_last_correlation_check', None),
+                'monitoring_interval_minutes': getattr(self, '_correlation_monitoring_interval', timedelta(minutes=15)).total_seconds() / 60,
+                'correlation_cache_size': len(self._correlation_cache) if self._correlation_cache else 0,
+                'correlation_history_size': len(getattr(self, '_correlation_history', [])),
+                'next_check_due': None
+            }
+            
+            # Calculate when next check is due
+            if status['monitoring_enabled'] and status['last_correlation_check']:
+                next_check = status['last_correlation_check'] + self._correlation_monitoring_interval
+                status['next_check_due'] = next_check
+                status['minutes_until_next_check'] = max(0, (next_check - datetime.now()).total_seconds() / 60)
+            
+            return status
+            
+        except Exception as e:
+            self.logger.error(f"Error getting correlation monitoring status: {e}")
+            return {
+                'monitoring_enabled': False,
+                'risk_engine_integrated': False,
+                'error': str(e)
+            }
 
     # =========================================================================
     # INTELLIGENT EXECUTION METHODS

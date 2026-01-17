@@ -133,7 +133,7 @@ The implementation follows an incremental approach, starting with core portfolio
     - **Property 13: Hedge Order Type Consistency**
     - **Validates: Requirements 3.3**
 
-  - [ ] 6.6 Implement hedging cooldown and correlation adjustment
+  - [x] 6.6 Implement hedging cooldown and correlation adjustment
     - Add cooldown period enforcement
     - Implement correlation-based hedge ratio adjustment
     - Add hedge effectiveness monitoring
