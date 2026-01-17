@@ -178,13 +178,16 @@ class DriftPortfolioManager:
             # Get open orders
             open_orders = await self.drift_adapter.get_open_orders()
             
+            # Calculate detailed leverage and margin metrics
+            leverage_metrics = await self.calculate_leverage_and_margin()
+            
             # Calculate metrics
             total_value = float(account.get('total_collateral', 0))
             unrealized_pnl = float(account.get('unrealized_pnl', 0))
             realized_pnl = 0.0  # TODO: Calculate from trade history
-            margin_used = float(account.get('total_position_value', 0))
-            margin_available = total_value - margin_used
-            leverage = margin_used / total_value if total_value > 0 else 0.0
+            margin_used = leverage_metrics['margin_used']
+            margin_available = leverage_metrics['margin_available']
+            leverage = leverage_metrics['effective_leverage']
             health_ratio = float(account.get('health', 100))
             
             summary = PortfolioSummary(
@@ -500,6 +503,307 @@ class DriftPortfolioManager:
             key in self._portfolio_cache and
             time.time() - self._last_cache_update < self._cache_ttl
         )
+
+    async def get_portfolio_composition(self) -> Dict[str, Any]:
+        """
+        Get detailed portfolio composition with allocation percentages.
+        
+        Returns:
+            Dictionary with composition breakdown by market, asset class, and strategy
+        """
+        try:
+            # Get current positions and portfolio summary
+            positions = await self.get_position_breakdown()
+            summary = await self.get_portfolio_summary()
+            
+            if summary.total_value <= 0 or not positions:
+                return {
+                    'by_market': {},
+                    'by_asset_class': {},
+                    'by_strategy': {},
+                    'total_allocated': 0.0,
+                    'cash_percentage': 100.0
+                }
+            
+            # Calculate allocations by market
+            by_market = {}
+            total_position_value = 0.0
+            
+            for position in positions:
+                position_value = abs(position.size * position.current_price)
+                allocation_pct = (position_value / summary.total_value) * 100
+                
+                by_market[position.market] = {
+                    'value': position_value,
+                    'percentage': allocation_pct,
+                    'size': position.size,
+                    'pnl': position.unrealized_pnl
+                }
+                total_position_value += position_value
+            
+            # Calculate allocations by asset class
+            by_asset_class = {}
+            for market, data in by_market.items():
+                # Determine asset class from market name
+                if 'SOL' in market:
+                    asset_class = 'Solana Ecosystem'
+                elif 'BTC' in market:
+                    asset_class = 'Bitcoin'
+                elif 'ETH' in market:
+                    asset_class = 'Ethereum'
+                elif any(token in market for token in ['USDC', 'USDT', 'USD']):
+                    asset_class = 'Stablecoins'
+                else:
+                    asset_class = 'Other Crypto'
+                
+                if asset_class not in by_asset_class:
+                    by_asset_class[asset_class] = {
+                        'value': 0.0,
+                        'percentage': 0.0,
+                        'markets': []
+                    }
+                
+                by_asset_class[asset_class]['value'] += data['value']
+                by_asset_class[asset_class]['percentage'] += data['percentage']
+                by_asset_class[asset_class]['markets'].append(market)
+            
+            # Calculate allocations by strategy (simplified)
+            by_strategy = {
+                'Delta Neutral': {
+                    'value': total_position_value,
+                    'percentage': (total_position_value / summary.total_value) * 100,
+                    'description': 'Market-neutral arbitrage positions'
+                }
+            }
+            
+            # Calculate cash percentage
+            cash_percentage = max(0.0, 100.0 - (total_position_value / summary.total_value) * 100)
+            
+            composition = {
+                'by_market': by_market,
+                'by_asset_class': by_asset_class,
+                'by_strategy': by_strategy,
+                'total_allocated': (total_position_value / summary.total_value) * 100,
+                'cash_percentage': cash_percentage,
+                'last_updated': datetime.now()
+            }
+            
+            self.logger.info(f"Portfolio composition: {len(by_market)} markets, {cash_percentage:.1f}% cash")
+            return composition
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating portfolio composition: {e}")
+            raise
+
+    async def get_historical_performance(self, periods: List[str] = None) -> Dict[str, Any]:
+        """
+        Get historical performance data over multiple time periods.
+        
+        Args:
+            periods: List of time periods (e.g., ['1D', '7D', '30D', '90D', '1Y'])
+            
+        Returns:
+            Dictionary with time-series performance data
+        """
+        try:
+            if periods is None:
+                periods = ['1D', '7D', '30D', '90D', '1Y']
+            
+            # Get portfolio value history (placeholder - would use actual data)
+            value_history = await self._get_portfolio_value_history()
+            
+            if not value_history:
+                return {period: {'return': 0.0, 'volatility': 0.0} for period in periods}
+            
+            # Calculate returns for each period
+            performance_data = {}
+            current_value = value_history[-1]['value'] if value_history else 0.0
+            
+            period_days = {
+                '1D': 1, '7D': 7, '30D': 30, '90D': 90, '1Y': 365
+            }
+            
+            for period in periods:
+                days = period_days.get(period, 30)
+                
+                # Find value from 'days' ago
+                target_date = datetime.now() - timedelta(days=days)
+                historical_value = current_value  # Default to current if no history
+                
+                for point in value_history:
+                    if point['date'] >= target_date:
+                        historical_value = point['value']
+                        break
+                
+                # Calculate return
+                if historical_value > 0:
+                    period_return = ((current_value - historical_value) / historical_value) * 100
+                else:
+                    period_return = 0.0
+                
+                # Calculate volatility (simplified)
+                period_volatility = self._calculate_period_volatility(value_history, days)
+                
+                performance_data[period] = {
+                    'return': period_return,
+                    'volatility': period_volatility,
+                    'start_value': historical_value,
+                    'end_value': current_value,
+                    'start_date': target_date,
+                    'end_date': datetime.now()
+                }
+            
+            # Add time-series data
+            performance_data['time_series'] = [
+                {
+                    'date': point['date'],
+                    'value': point['value'],
+                    'return': ((point['value'] - value_history[0]['value']) / value_history[0]['value']) * 100 if value_history[0]['value'] > 0 else 0.0
+                }
+                for point in value_history[-100:]  # Last 100 data points
+            ]
+            
+            self.logger.info(f"Historical performance calculated for {len(periods)} periods")
+            return performance_data
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating historical performance: {e}")
+            raise
+
+    def _calculate_period_volatility(self, value_history: List[Dict], days: int) -> float:
+        """Calculate volatility over a specific period."""
+        if len(value_history) < 2:
+            return 0.0
+        
+        # Get values for the period
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        period_values = [
+            point['value'] for point in value_history
+            if start_date <= point['date'] <= end_date
+        ]
+        
+        if len(period_values) < 2:
+            return 0.0
+        
+        # Calculate daily returns
+        returns = []
+        for i in range(1, len(period_values)):
+            if period_values[i-1] > 0:
+                daily_return = (period_values[i] - period_values[i-1]) / period_values[i-1]
+                returns.append(daily_return)
+        
+        if len(returns) < 2:
+            return 0.0
+        
+        # Calculate standard deviation and annualize
+        import statistics
+        volatility = statistics.stdev(returns) * (252 ** 0.5) * 100  # Annualized percentage
+        return volatility
+
+    async def _get_portfolio_value_history(self) -> List[Dict[str, Any]]:
+        """
+        Get historical portfolio values.
+        This is a placeholder - in production, this would fetch actual historical data.
+        """
+        # Simulate portfolio value history
+        import random
+        random.seed(42)  # Consistent results
+        
+        history = []
+        base_value = 10000.0
+        base_date = datetime.now() - timedelta(days=365)
+        
+        for i in range(365):
+            # Simulate daily value changes with some trend and volatility
+            trend = 0.0002  # Small positive trend
+            volatility = 0.015  # 1.5% daily volatility
+            
+            change = random.gauss(trend, volatility)
+            base_value *= (1 + change)
+            
+            history.append({
+                'date': base_date + timedelta(days=i),
+                'value': base_value
+            })
+        
+        return history
+
+    async def calculate_leverage_and_margin(self) -> Dict[str, float]:
+        """
+        Calculate detailed leverage and margin metrics.
+        
+        Returns:
+            Dictionary with leverage and margin calculations
+        """
+        try:
+            # Get account data
+            account = await self.drift_adapter.get_user_account()
+            if not account:
+                raise ValueError("Could not retrieve user account")
+            
+            positions = await self.get_position_breakdown()
+            
+            # Basic metrics from account
+            total_collateral = float(account.get('total_collateral', 0))
+            total_position_value = float(account.get('total_position_value', 0))
+            margin_used = float(account.get('margin_used', total_position_value))
+            
+            # Calculate detailed metrics
+            if total_collateral > 0:
+                # Leverage calculations
+                effective_leverage = total_position_value / total_collateral
+                
+                # Calculate notional exposure
+                total_notional = sum(
+                    abs(pos.size * pos.current_price) for pos in positions
+                )
+                notional_leverage = total_notional / total_collateral if total_collateral > 0 else 0.0
+                
+                # Margin calculations
+                margin_available = total_collateral - margin_used
+                margin_utilization = (margin_used / total_collateral) * 100
+                
+                # Risk-adjusted metrics
+                buying_power = margin_available * 5.0  # Assuming 5x max leverage
+                max_position_size = buying_power
+                
+                # Position-level leverage
+                position_leverage = {}
+                for pos in positions:
+                    pos_value = abs(pos.size * pos.current_price)
+                    pos_leverage = pos_value / total_collateral if total_collateral > 0 else 0.0
+                    position_leverage[pos.market] = pos_leverage
+                
+            else:
+                effective_leverage = 0.0
+                notional_leverage = 0.0
+                margin_available = 0.0
+                margin_utilization = 0.0
+                buying_power = 0.0
+                max_position_size = 0.0
+                position_leverage = {}
+            
+            metrics = {
+                'effective_leverage': effective_leverage,
+                'notional_leverage': notional_leverage,
+                'margin_used': margin_used,
+                'margin_available': margin_available,
+                'margin_utilization': margin_utilization,
+                'buying_power': buying_power,
+                'max_position_size': max_position_size,
+                'total_collateral': total_collateral,
+                'total_position_value': total_position_value,
+                'position_leverage': position_leverage
+            }
+            
+            self.logger.info(f"Leverage: {effective_leverage:.2f}x, Margin utilization: {margin_utilization:.1f}%")
+            return metrics
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating leverage and margin: {e}")
+            raise
 
     async def calculate_portfolio_risk(self) -> Dict[str, Any]:
         """

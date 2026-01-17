@@ -14,18 +14,18 @@ The implementation follows an incremental approach, starting with core portfolio
   - Configure testing framework for financial calculations
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 2. Implement core Portfolio Manager
-  - [ ] 2.1 Create DriftPortfolioManager class with portfolio summary functionality
+- [-] 2. Implement core Portfolio Manager
+  - [x] 2.1 Create DriftPortfolioManager class with portfolio summary functionality
     - Implement get_portfolio_summary() method
     - Implement get_position_breakdown() method
     - Implement portfolio composition calculations
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [ ] 2.2 Write property test for portfolio summary completeness
+  - [x] 2.2 Write property test for portfolio summary completeness
     - **Property 1: Portfolio Summary Completeness**
     - **Validates: Requirements 1.1**
 
-  - [ ] 2.3 Write property test for position analysis completeness
+  - [-] 2.3 Write property test for position analysis completeness
     - **Property 2: Position Analysis Completeness**
     - **Validates: Requirements 1.2**
 
