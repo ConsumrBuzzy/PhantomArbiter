@@ -1,0 +1,913 @@
+{
+  "meta": {
+    "batch_id": "01",
+    "timestamp": "2026-02-05T07:43:45.520138",
+    "mode": "dry-run"
+  },
+  "summary": {
+    "total_yield": 7554.0978000000005,
+    "count": 100
+  },
+  "results": [
+    {
+      "address": "SolanaWhaleAddress_0_6686",
+      "scanned_at": "2026-02-05T07:43:40.510914",
+      "total_transactions": 4721,
+      "success_rate": "93.02%",
+      "estimated_yield_sol": 124.5157,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_1_1973",
+      "scanned_at": "2026-02-05T07:43:40.561601",
+      "total_transactions": 4840,
+      "success_rate": "85.65%",
+      "estimated_yield_sol": 146.8126,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_2_4999",
+      "scanned_at": "2026-02-05T07:43:40.612168",
+      "total_transactions": 3292,
+      "success_rate": "87.29%",
+      "estimated_yield_sol": 65.6842,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_3_1035",
+      "scanned_at": "2026-02-05T07:43:40.662480",
+      "total_transactions": 4936,
+      "success_rate": "85.21%",
+      "estimated_yield_sol": 181.6151,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_4_9658",
+      "scanned_at": "2026-02-05T07:43:40.713135",
+      "total_transactions": 4863,
+      "success_rate": "98.92%",
+      "estimated_yield_sol": 118.9933,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_5_6995",
+      "scanned_at": "2026-02-05T07:43:40.763539",
+      "total_transactions": 2909,
+      "success_rate": "92.40%",
+      "estimated_yield_sol": 15.6568,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_6_9456",
+      "scanned_at": "2026-02-05T07:43:40.814166",
+      "total_transactions": 949,
+      "success_rate": "94.75%",
+      "estimated_yield_sol": 20.8877,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_7_7176",
+      "scanned_at": "2026-02-05T07:43:40.864857",
+      "total_transactions": 3545,
+      "success_rate": "90.16%",
+      "estimated_yield_sol": 57.6397,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_8_5060",
+      "scanned_at": "2026-02-05T07:43:40.915499",
+      "total_transactions": 1715,
+      "success_rate": "88.57%",
+      "estimated_yield_sol": 44.8613,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_9_4161",
+      "scanned_at": "2026-02-05T07:43:40.966101",
+      "total_transactions": 4840,
+      "success_rate": "85.65%",
+      "estimated_yield_sol": 146.8126,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_10_9977",
+      "scanned_at": "2026-02-05T07:43:41.016403",
+      "total_transactions": 4461,
+      "success_rate": "90.57%",
+      "estimated_yield_sol": 21.8196,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_11_2165",
+      "scanned_at": "2026-02-05T07:43:41.066755",
+      "total_transactions": 2429,
+      "success_rate": "93.66%",
+      "estimated_yield_sol": 111.0988,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_12_2136",
+      "scanned_at": "2026-02-05T07:43:41.117346",
+      "total_transactions": 4005,
+      "success_rate": "98.99%",
+      "estimated_yield_sol": 13.5813,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_13_5763",
+      "scanned_at": "2026-02-05T07:43:41.167940",
+      "total_transactions": 3817,
+      "success_rate": "92.90%",
+      "estimated_yield_sol": 110.447,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_14_4160",
+      "scanned_at": "2026-02-05T07:43:41.218570",
+      "total_transactions": 2429,
+      "success_rate": "93.66%",
+      "estimated_yield_sol": 111.0988,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_15_8310",
+      "scanned_at": "2026-02-05T07:43:41.269396",
+      "total_transactions": 4846,
+      "success_rate": "97.43%",
+      "estimated_yield_sol": 195.8762,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_16_4610",
+      "scanned_at": "2026-02-05T07:43:41.319889",
+      "total_transactions": 4846,
+      "success_rate": "97.43%",
+      "estimated_yield_sol": 195.8762,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_17_2395",
+      "scanned_at": "2026-02-05T07:43:41.370437",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_18_7713",
+      "scanned_at": "2026-02-05T07:43:41.421086",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_19_4845",
+      "scanned_at": "2026-02-05T07:43:41.471396",
+      "total_transactions": 741,
+      "success_rate": "97.14%",
+      "estimated_yield_sol": 15.7986,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_20_9635",
+      "scanned_at": "2026-02-05T07:43:41.521799",
+      "total_transactions": 3817,
+      "success_rate": "92.90%",
+      "estimated_yield_sol": 110.447,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_21_1642",
+      "scanned_at": "2026-02-05T07:43:41.572689",
+      "total_transactions": 2429,
+      "success_rate": "93.66%",
+      "estimated_yield_sol": 111.0988,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_22_1959",
+      "scanned_at": "2026-02-05T07:43:41.623055",
+      "total_transactions": 1060,
+      "success_rate": "96.18%",
+      "estimated_yield_sol": 1.9087,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_23_8998",
+      "scanned_at": "2026-02-05T07:43:41.674046",
+      "total_transactions": 2351,
+      "success_rate": "85.04%",
+      "estimated_yield_sol": 94.9758,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_24_2997",
+      "scanned_at": "2026-02-05T07:43:41.724690",
+      "total_transactions": 4461,
+      "success_rate": "90.57%",
+      "estimated_yield_sol": 21.8196,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_25_6275",
+      "scanned_at": "2026-02-05T07:43:41.775126",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_26_8358",
+      "scanned_at": "2026-02-05T07:43:41.825630",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_27_1664",
+      "scanned_at": "2026-02-05T07:43:41.876359",
+      "total_transactions": 3186,
+      "success_rate": "86.48%",
+      "estimated_yield_sol": 111.1746,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_28_3198",
+      "scanned_at": "2026-02-05T07:43:41.926897",
+      "total_transactions": 741,
+      "success_rate": "97.14%",
+      "estimated_yield_sol": 15.7986,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_29_8457",
+      "scanned_at": "2026-02-05T07:43:41.977633",
+      "total_transactions": 3451,
+      "success_rate": "95.17%",
+      "estimated_yield_sol": 82.5475,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_30_1767",
+      "scanned_at": "2026-02-05T07:43:42.028232",
+      "total_transactions": 2232,
+      "success_rate": "88.03%",
+      "estimated_yield_sol": 5.8079,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_31_3961",
+      "scanned_at": "2026-02-05T07:43:42.078575",
+      "total_transactions": 1640,
+      "success_rate": "85.02%",
+      "estimated_yield_sol": 63.1317,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_32_4118",
+      "scanned_at": "2026-02-05T07:43:42.128995",
+      "total_transactions": 2526,
+      "success_rate": "93.53%",
+      "estimated_yield_sol": 73.2092,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_33_9395",
+      "scanned_at": "2026-02-05T07:43:42.180131",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_34_4271",
+      "scanned_at": "2026-02-05T07:43:42.230876",
+      "total_transactions": 3905,
+      "success_rate": "85.13%",
+      "estimated_yield_sol": 129.368,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_35_9870",
+      "scanned_at": "2026-02-05T07:43:42.281558",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_36_3174",
+      "scanned_at": "2026-02-05T07:43:42.332317",
+      "total_transactions": 2232,
+      "success_rate": "88.03%",
+      "estimated_yield_sol": 5.8079,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_37_8718",
+      "scanned_at": "2026-02-05T07:43:42.383049",
+      "total_transactions": 4304,
+      "success_rate": "91.56%",
+      "estimated_yield_sol": 160.0562,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_38_9674",
+      "scanned_at": "2026-02-05T07:43:42.433620",
+      "total_transactions": 1800,
+      "success_rate": "92.55%",
+      "estimated_yield_sol": 22.1922,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_39_6842",
+      "scanned_at": "2026-02-05T07:43:42.484342",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_40_7146",
+      "scanned_at": "2026-02-05T07:43:42.535078",
+      "total_transactions": 3689,
+      "success_rate": "91.82%",
+      "estimated_yield_sol": 72.36,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_41_9861",
+      "scanned_at": "2026-02-05T07:43:42.585612",
+      "total_transactions": 4064,
+      "success_rate": "90.83%",
+      "estimated_yield_sol": 78.0643,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_42_9267",
+      "scanned_at": "2026-02-05T07:43:42.636486",
+      "total_transactions": 2895,
+      "success_rate": "96.70%",
+      "estimated_yield_sol": 13.8524,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_43_2043",
+      "scanned_at": "2026-02-05T07:43:42.687005",
+      "total_transactions": 2429,
+      "success_rate": "93.66%",
+      "estimated_yield_sol": 111.0988,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_44_9294",
+      "scanned_at": "2026-02-05T07:43:42.737626",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_45_7740",
+      "scanned_at": "2026-02-05T07:43:42.787964",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_46_9087",
+      "scanned_at": "2026-02-05T07:43:42.838403",
+      "total_transactions": 4304,
+      "success_rate": "91.56%",
+      "estimated_yield_sol": 160.0562,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_47_4561",
+      "scanned_at": "2026-02-05T07:43:42.888862",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_48_9751",
+      "scanned_at": "2026-02-05T07:43:42.939638",
+      "total_transactions": 4304,
+      "success_rate": "91.56%",
+      "estimated_yield_sol": 160.0562,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_49_7484",
+      "scanned_at": "2026-02-05T07:43:42.990127",
+      "total_transactions": 1658,
+      "success_rate": "86.26%",
+      "estimated_yield_sol": 10.4788,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_50_2643",
+      "scanned_at": "2026-02-05T07:43:43.040626",
+      "total_transactions": 1310,
+      "success_rate": "98.24%",
+      "estimated_yield_sol": 25.9906,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_51_6356",
+      "scanned_at": "2026-02-05T07:43:43.091477",
+      "total_transactions": 3186,
+      "success_rate": "86.48%",
+      "estimated_yield_sol": 111.1746,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_52_4844",
+      "scanned_at": "2026-02-05T07:43:43.141956",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_53_1832",
+      "scanned_at": "2026-02-05T07:43:43.192411",
+      "total_transactions": 3689,
+      "success_rate": "91.82%",
+      "estimated_yield_sol": 72.36,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_54_5845",
+      "scanned_at": "2026-02-05T07:43:43.243120",
+      "total_transactions": 741,
+      "success_rate": "97.14%",
+      "estimated_yield_sol": 15.7986,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_55_9094",
+      "scanned_at": "2026-02-05T07:43:43.293524",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_56_2302",
+      "scanned_at": "2026-02-05T07:43:43.344039",
+      "total_transactions": 4846,
+      "success_rate": "97.43%",
+      "estimated_yield_sol": 195.8762,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_57_5185",
+      "scanned_at": "2026-02-05T07:43:43.394613",
+      "total_transactions": 741,
+      "success_rate": "97.14%",
+      "estimated_yield_sol": 15.7986,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_58_6639",
+      "scanned_at": "2026-02-05T07:43:43.445477",
+      "total_transactions": 1800,
+      "success_rate": "92.55%",
+      "estimated_yield_sol": 22.1922,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_59_6882",
+      "scanned_at": "2026-02-05T07:43:43.496200",
+      "total_transactions": 4777,
+      "success_rate": "87.75%",
+      "estimated_yield_sol": 14.1353,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_60_2166",
+      "scanned_at": "2026-02-05T07:43:43.546732",
+      "total_transactions": 3905,
+      "success_rate": "85.13%",
+      "estimated_yield_sol": 129.368,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_61_6277",
+      "scanned_at": "2026-02-05T07:43:43.597294",
+      "total_transactions": 4064,
+      "success_rate": "90.83%",
+      "estimated_yield_sol": 78.0643,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_62_7173",
+      "scanned_at": "2026-02-05T07:43:43.647670",
+      "total_transactions": 3186,
+      "success_rate": "86.48%",
+      "estimated_yield_sol": 111.1746,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_63_9056",
+      "scanned_at": "2026-02-05T07:43:43.698221",
+      "total_transactions": 4064,
+      "success_rate": "90.83%",
+      "estimated_yield_sol": 78.0643,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_64_1973",
+      "scanned_at": "2026-02-05T07:43:43.748722",
+      "total_transactions": 2895,
+      "success_rate": "96.70%",
+      "estimated_yield_sol": 13.8524,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_65_3848",
+      "scanned_at": "2026-02-05T07:43:43.799019",
+      "total_transactions": 4304,
+      "success_rate": "91.56%",
+      "estimated_yield_sol": 160.0562,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_66_6787",
+      "scanned_at": "2026-02-05T07:43:43.849633",
+      "total_transactions": 2345,
+      "success_rate": "90.38%",
+      "estimated_yield_sol": 82.0266,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_67_9507",
+      "scanned_at": "2026-02-05T07:43:43.900025",
+      "total_transactions": 4304,
+      "success_rate": "91.56%",
+      "estimated_yield_sol": 160.0562,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_68_7592",
+      "scanned_at": "2026-02-05T07:43:43.950627",
+      "total_transactions": 1800,
+      "success_rate": "92.55%",
+      "estimated_yield_sol": 22.1922,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_69_7298",
+      "scanned_at": "2026-02-05T07:43:44.000923",
+      "total_transactions": 1424,
+      "success_rate": "97.41%",
+      "estimated_yield_sol": 30.8742,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_70_5623",
+      "scanned_at": "2026-02-05T07:43:44.051599",
+      "total_transactions": 1640,
+      "success_rate": "85.02%",
+      "estimated_yield_sol": 63.1317,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_71_9818",
+      "scanned_at": "2026-02-05T07:43:44.102028",
+      "total_transactions": 4304,
+      "success_rate": "91.56%",
+      "estimated_yield_sol": 160.0562,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_72_5027",
+      "scanned_at": "2026-02-05T07:43:44.152377",
+      "total_transactions": 1640,
+      "success_rate": "85.02%",
+      "estimated_yield_sol": 63.1317,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_73_3652",
+      "scanned_at": "2026-02-05T07:43:44.202921",
+      "total_transactions": 3186,
+      "success_rate": "86.48%",
+      "estimated_yield_sol": 111.1746,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_74_6549",
+      "scanned_at": "2026-02-05T07:43:44.253435",
+      "total_transactions": 3451,
+      "success_rate": "95.17%",
+      "estimated_yield_sol": 82.5475,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_75_8992",
+      "scanned_at": "2026-02-05T07:43:44.304164",
+      "total_transactions": 2345,
+      "success_rate": "90.38%",
+      "estimated_yield_sol": 82.0266,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_76_8554",
+      "scanned_at": "2026-02-05T07:43:44.354701",
+      "total_transactions": 3451,
+      "success_rate": "95.17%",
+      "estimated_yield_sol": 82.5475,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_77_5554",
+      "scanned_at": "2026-02-05T07:43:44.405374",
+      "total_transactions": 4461,
+      "success_rate": "90.57%",
+      "estimated_yield_sol": 21.8196,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_78_7933",
+      "scanned_at": "2026-02-05T07:43:44.455750",
+      "total_transactions": 1800,
+      "success_rate": "92.55%",
+      "estimated_yield_sol": 22.1922,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_79_8413",
+      "scanned_at": "2026-02-05T07:43:44.506442",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_80_5111",
+      "scanned_at": "2026-02-05T07:43:44.556914",
+      "total_transactions": 2429,
+      "success_rate": "93.66%",
+      "estimated_yield_sol": 111.0988,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_81_8551",
+      "scanned_at": "2026-02-05T07:43:44.607291",
+      "total_transactions": 1060,
+      "success_rate": "96.18%",
+      "estimated_yield_sol": 1.9087,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_82_7279",
+      "scanned_at": "2026-02-05T07:43:44.658083",
+      "total_transactions": 3451,
+      "success_rate": "95.17%",
+      "estimated_yield_sol": 82.5475,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_83_7690",
+      "scanned_at": "2026-02-05T07:43:44.708706",
+      "total_transactions": 4461,
+      "success_rate": "90.57%",
+      "estimated_yield_sol": 21.8196,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_84_3123",
+      "scanned_at": "2026-02-05T07:43:44.759359",
+      "total_transactions": 3905,
+      "success_rate": "85.13%",
+      "estimated_yield_sol": 129.368,
+      "risk_score": "LOW",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_85_7969",
+      "scanned_at": "2026-02-05T07:43:44.810007",
+      "total_transactions": 4921,
+      "success_rate": "89.76%",
+      "estimated_yield_sol": 161.8428,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_86_1276",
+      "scanned_at": "2026-02-05T07:43:44.860465",
+      "total_transactions": 2895,
+      "success_rate": "96.70%",
+      "estimated_yield_sol": 13.8524,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_87_9924",
+      "scanned_at": "2026-02-05T07:43:44.910873",
+      "total_transactions": 2351,
+      "success_rate": "85.04%",
+      "estimated_yield_sol": 94.9758,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_88_4946",
+      "scanned_at": "2026-02-05T07:43:44.961592",
+      "total_transactions": 2351,
+      "success_rate": "85.04%",
+      "estimated_yield_sol": 94.9758,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_89_9752",
+      "scanned_at": "2026-02-05T07:43:45.012238",
+      "total_transactions": 2345,
+      "success_rate": "90.38%",
+      "estimated_yield_sol": 82.0266,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_90_9139",
+      "scanned_at": "2026-02-05T07:43:45.062904",
+      "total_transactions": 741,
+      "success_rate": "97.14%",
+      "estimated_yield_sol": 15.7986,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_91_3418",
+      "scanned_at": "2026-02-05T07:43:45.113521",
+      "total_transactions": 3186,
+      "success_rate": "86.48%",
+      "estimated_yield_sol": 111.1746,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_92_1134",
+      "scanned_at": "2026-02-05T07:43:45.163976",
+      "total_transactions": 1310,
+      "success_rate": "98.24%",
+      "estimated_yield_sol": 25.9906,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_93_9106",
+      "scanned_at": "2026-02-05T07:43:45.214689",
+      "total_transactions": 1060,
+      "success_rate": "96.18%",
+      "estimated_yield_sol": 1.9087,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_94_4294",
+      "scanned_at": "2026-02-05T07:43:45.265399",
+      "total_transactions": 3311,
+      "success_rate": "85.75%",
+      "estimated_yield_sol": 126.8874,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_95_9332",
+      "scanned_at": "2026-02-05T07:43:45.316022",
+      "total_transactions": 741,
+      "success_rate": "97.14%",
+      "estimated_yield_sol": 15.7986,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_96_3315",
+      "scanned_at": "2026-02-05T07:43:45.366413",
+      "total_transactions": 891,
+      "success_rate": "98.70%",
+      "estimated_yield_sol": 13.747,
+      "risk_score": "HIGH",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_97_4935",
+      "scanned_at": "2026-02-05T07:43:45.416753",
+      "total_transactions": 1800,
+      "success_rate": "92.55%",
+      "estimated_yield_sol": 22.1922,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_98_4248",
+      "scanned_at": "2026-02-05T07:43:45.467406",
+      "total_transactions": 3451,
+      "success_rate": "95.17%",
+      "estimated_yield_sol": 82.5475,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    },
+    {
+      "address": "SolanaWhaleAddress_99_8852",
+      "scanned_at": "2026-02-05T07:43:45.518312",
+      "total_transactions": 1424,
+      "success_rate": "97.41%",
+      "estimated_yield_sol": 30.8742,
+      "risk_score": "MEDIUM",
+      "status": "VERIFIED"
+    }
+  ]
+}

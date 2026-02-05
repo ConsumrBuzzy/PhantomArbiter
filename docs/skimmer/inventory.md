@@ -16,7 +16,10 @@ List of identified scraping components in the codebase.
 - **Proxy Rotator**: Simple round-robin proxy management.
 - **Storage**: PostgreSQL database for structured target data.
 
-## Missing Components (To Be Built)
-- `target_handler.py`: Centralized target management logic.
-- `targets.db`: SQLite schema for local target caching.
-- Advanced retry policies for rate-limited sites.
+## 3. New Components (Delivered)
+- `target_handler.py` (`src/etl/target_handler.py`): Centralized target management with SQLite.
+- `targets.db`: Schema defined in handler, auto-initialized on first run.
+
+## 4. Verification Scripts
+- `verify_batch_01.py`: Dry-run validator for yield estimation logic (Mock Data).
+
