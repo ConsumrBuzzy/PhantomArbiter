@@ -1,6 +1,7 @@
 import asyncio
 from solana.rpc.async_api import AsyncClient
 from solders.pubkey import Pubkey
+from solders.rpc.filter import Memcmp
 from typing import List
 
 TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
