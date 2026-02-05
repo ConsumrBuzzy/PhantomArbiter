@@ -1,5 +1,5 @@
 import asyncio
-from solders.pubkey import PublicKey
+from solders.pubkey import Pubkey
 from solders.instruction import Instruction, AccountMeta
 from solana.rpc.async_api import AsyncClient
 from spl.token.instructions import close_account, CloseAccountParams
@@ -7,11 +7,11 @@ from solders.system_program import transfer, TransferParams
 
 # Constants
 # Standard SPL Token Program ID
-TOKEN_PROGRAM_ID = PublicKey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 # SPL Memo Program ID
-MEMO_PROGRAM_ID = PublicKey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
+MEMO_PROGRAM_ID = Pubkey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
 # Treasury Address (Placeholder - to be configured via env vars in production)
-TREASURY_PUBKEY = PublicKey.from_string("11111111111111111111111111111111") 
+TREASURY_PUBKEY = Pubkey.from_string("11111111111111111111111111111111") 
 
 async def find_zombie_value(client: AsyncClient, owner_pubkey: str):
     """
@@ -24,7 +24,7 @@ async def find_zombie_value(client: AsyncClient, owner_pubkey: str):
     Returns:
         tuple: (list of zombie account PublicKeys, potential SOL value as float)
     """
-    owner = PublicKey.from_string(owner_pubkey)
+    owner = Pubkey.from_string(owner_pubkey)
     # Filter for all token accounts owned by the user
     response = await client.get_token_accounts_by_owner(
         owner, 
@@ -64,7 +64,7 @@ def build_trustless_reclaim_tx(owner_pubkey: str, zombie_accounts: list, total_s
     Returns:
         list[Instruction]: List of instructions to include in the transaction.
     """
-    owner = PublicKey.from_string(owner_pubkey)
+    owner = Pubkey.from_string(owner_pubkey)
     instructions = []
     
     # 1. Close Instructions
@@ -108,6 +108,6 @@ def create_skim_memo(target_pubkey: str, sol_amount: float, count: int):
     # The memo program instruction
     return Instruction(
         program_id=MEMO_PROGRAM_ID, 
-        accounts=[AccountMeta(PublicKey.from_string(target_pubkey), is_signer=True, is_writable=True)], 
+        accounts=[AccountMeta(Pubkey.from_string(target_pubkey), is_signer=True, is_writable=True)], 
         data=message
     )

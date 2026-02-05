@@ -1,0 +1,14 @@
+[
+    {
+        "address": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
+        "category": "Meme-Whale",
+        "notes": "Large holder of PEPE/BONK circa 2024. Inactive for 120 days.",
+        "last_active": "2025-01-15T00:00:00Z"
+    },
+    {
+        "address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAwWM",
+        "category": "Defunct-Exchange",
+        "notes": "Suspected FTX-era hot wallet debris. High volume of token accounts.",
+        "last_active": "2023-11-01T00:00:00Z"
+    }
+]
