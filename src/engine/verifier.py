@@ -51,12 +51,13 @@ async def verify_target_viability(owner_pubkey: str) -> List[Pubkey]:
         # Amount is at offset 64, length 8.
         # "11111111" is Base58 for 8 bytes of zeros.
         # solders Memcmp bytes arg expects the encoded string or bytes.
-        memcmp_filter_amount = Memcmp(offset=64, bytes="11111111")
+        # Signature is (offset, bytes_)
+        memcmp_filter_amount = Memcmp(offset=64, bytes_="11111111")
         
         # Filter 3: Owner must be the target
         # Offset 32 is Owner (Pubkey).
         # owner_pubkey is string.
-        memcmp_filter_owner = Memcmp(offset=32, bytes=owner_pubkey)
+        memcmp_filter_owner = Memcmp(offset=32, bytes_=owner_pubkey)
         
         filters.append(memcmp_filter_amount)
         filters.append(memcmp_filter_owner)
