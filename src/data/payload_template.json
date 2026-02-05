@@ -1,0 +1,31 @@
+{
+    "name": "Skimmer Return Transaction",
+    "description": "Atomic transaction to close zombie accounts and return SOL to owner with 10% fee.",
+    "instructions": [
+        {
+            "program_id": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "name": "closeAccount",
+            "instances": "N (One per zombie account)",
+            "params": {
+                "account": "{{zombie_token_account}}",
+                "dest": "{{owner_pubkey}}",
+                "owner": "{{owner_pubkey}}"
+            }
+        },
+        {
+            "program_id": "11111111111111111111111111111111",
+            "name": "transfer",
+            "instances": "1 (Fee)",
+            "params": {
+                "from_pubkey": "{{owner_pubkey}}",
+                "to_pubkey": "11111111111111111111111111111111",
+                "lamports": "{{total_rent_sol * 0.10 * 1e9}}"
+            }
+        }
+    ],
+    "safety_checks": [
+        "Atomic Execution: All or nothing.",
+        "Destination: Must match Owner for closeAccount.",
+        "Fee Cap: Fixed 10%."
+    ]
+}
