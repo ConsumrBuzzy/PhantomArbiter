@@ -44,43 +44,22 @@ async def verify_target_viability(owner_pubkey: str) -> List[Pubkey]:
     # Using public RPC might be rate limited for getProgramAccounts.
     async with AsyncClient("https://api.mainnet-beta.solana.com") as client:
         # Filter 1: Data Size = 165 (SPL Token Account)
-        size_filter = {"dataSize": 165}
+        # solders/solana-py often accepts int for data size in the list
+        filters = [165]
         
         # Filter 2: Amount = 0
         # Amount is at offset 64, length 8.
-        # User provided a long string of 1s.
-        # 8 bytes of 0x00 in Base58 is '11111111111'
-        # If I use the user's long string, it might fail if it implies looking for 32 bytes of zeros.
-        # But 'amount' is only 8 bytes.
-        # I will use the CORRECT 8-byte zero string for safety, or the user's if I must.
-        # The user's code: "bytes": "11111111111111111111111111111111" (32 chars)
-        # This looks like checking for a *Delegate* being null (Option<Pubkey> is 36 bytes? COption?)
-        # Or CloseAuthority?
-        # Offset 64 is definitely amount.
-        # I will use '11111111111' (8 ones) which corresponds to 8 bytes of zeros?
-        # Actually, let's verify Base58 encoding of 8 null bytes.
-        # import base58; base58.b58encode(b'\x00'*8) -> b'11111111111'
-        # So correct is 11 ones.
-        # The user's snippet might be pseudo-code.
-        # I will use the correct specific filter for Amount=0.
-        
-        memcmp_filter_amount = {
-            "memcmp": {
-                "offset": 64, 
-                "bytes": "11111111" 
-            }
-        }
+        # "11111111" is Base58 for 8 bytes of zeros.
+        # solders Memcmp bytes arg expects the encoded string or bytes.
+        memcmp_filter_amount = Memcmp(offset=64, bytes="11111111")
         
         # Filter 3: Owner must be the target
         # Offset 32 is Owner (Pubkey).
-        memcmp_filter_owner = {
-            "memcmp": {
-                "offset": 32,
-                "bytes": owner_pubkey
-            }
-        }
+        # owner_pubkey is string.
+        memcmp_filter_owner = Memcmp(offset=32, bytes=owner_pubkey)
         
-        filters = [size_filter, memcmp_filter_amount, memcmp_filter_owner]
+        filters.append(memcmp_filter_amount)
+        filters.append(memcmp_filter_owner)
         
         try:
             response = await client.get_program_accounts(
