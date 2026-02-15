@@ -36,7 +36,7 @@ class StarAtlasClient:
     def __init__(
         self,
         api_url: str = "https://galaxy.staratlas.com",
-        market_prices_url: str = "https://galaxy.staratlas.com/market/prices",
+        market_prices_url: str = "https://galaxy.staratlas.com/market/prices",  # Updated for Feb 2026
         rpc_url: str = "https://mainnet.z.ink",  # z.ink SVM L1
         rate_limit_ms: int = 1000  # 1s between requests
     ):
@@ -106,6 +106,9 @@ class StarAtlasClient:
 
             return data.get("data", {})
 
+        except requests.Timeout:
+            Logger.warning(f"[!] [StarAtlas] Request timed out (RPC Lag detected)")
+            return {}
         except requests.RequestException as e:
             Logger.error(f"[X] [StarAtlas] Request failed: {e}")
             return {}
