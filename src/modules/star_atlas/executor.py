@@ -47,8 +47,8 @@ class StarAtlasExecutor:
     - z.ink RPC integration (99% lower fees than Solana)
     """
 
-    # Star Atlas Program IDs (need verification with real addresses)
-    GALACTIC_MARKETPLACE_PROGRAM = "STAR-ATLAS-0O3INWK3"  # User-provided instruction ID
+    # Star Atlas Program IDs (Verified Feb 2026)
+    GALACTIC_MARKETPLACE_PROGRAM = "traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg"
     ATLAS_TOKEN_MINT = "ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx"  # Real $ATLAS mint
 
     def __init__(

@@ -33,11 +33,13 @@ class StarAtlasClient:
     - z.ink RPC integration for low-fee transactions
     """
 
+    ZINK_CHAIN_ID = 57073  # Official z.ink Chain ID
+
     def __init__(
         self,
-        api_url: str = "https://galaxy.staratlas.com/graphql",  # Updated to correct GQL endpoint
+        api_url: str = "https://galaxy.staratlas.com/graphql",
         market_prices_url: str = "https://galaxy.staratlas.com/market/prices",
-        rpc_url: str = "https://mainnet.z.ink",  # z.ink SVM L1
+        rpc_url: str = "https://rpc-gel.inkonchain.com",  # Primary Gelato RPC
         rate_limit_ms: int = 1000  # 1s between requests
     ):
         """
@@ -54,6 +56,11 @@ class StarAtlasClient:
         self.rpc_url = rpc_url
         self.rate_limit_ms = rate_limit_ms
         self.last_request_time = 0
+        
+        # Initialize Solana RPC Client for z.ink
+        from solana.rpc.api import Client
+        self.client = Client(self.rpc_url)
+        Logger.info(f"[SA] Connected to z.ink Mainnet (Chain ID: {self.ZINK_CHAIN_ID}) via {self.rpc_url}")
 
         # Star Atlas marketplace fee
         self.MARKETPLACE_FEE = 0.06  # 6%
