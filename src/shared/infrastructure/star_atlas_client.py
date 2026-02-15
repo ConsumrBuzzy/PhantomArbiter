@@ -63,6 +63,9 @@ class StarAtlasClient:
         else:
              self.rpc_url = self._get_current_rpc()
 
+        # Use Session for Connection Pooling (Memory/Performance)
+        self.session = requests.Session()
+        
         # Initialize Solana RPC Client for z.ink
         from solana.rpc.api import Client
         self.client = Client(self.rpc_url)
@@ -75,7 +78,7 @@ class StarAtlasClient:
         # Try to load .env manually if dotenv not installed (common in some envs)
         env_path = ".env"
         if os.path.exists(env_path):
-             with open(env_path, 'r') as f:
+             with open(env_path, 'r', encoding='utf-8') as f:
                  for line in f:
                      if '=' in line and not line.startswith('#'):
                          key, value = line.strip().split('=', 1)
@@ -98,7 +101,11 @@ class StarAtlasClient:
         """Failover to next RPC in pool."""
         self.rpc_index += 1
         self.rpc_url = self._get_current_rpc()
-        # Re-init client
+        
+        # Re-init client and session
+        self.session.close()
+        self.session = requests.Session()
+        
         from solana.rpc.api import Client
         self.client = Client(self.rpc_url)
         Logger.warning(f"🔄 [Failover] Rotated RPC to: {self.rpc_url.split('?')[0]}...")
@@ -111,7 +118,7 @@ class StarAtlasClient:
         url = f"https://api.z.ink/v1/profiles/{wallet_address}"
         try:
             Logger.info(f"[SA] Fetching zXP for {wallet_address[:8]}...")
-            resp = requests.get(url, timeout=5)
+            resp = self.session.get(url, timeout=5) # Use Session
             if resp.status_code == 200:
                 data = resp.json()
                 xp = data.get('xp', 0)
