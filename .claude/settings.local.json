@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(pip install:*)",
+      "Bash(python main.py:*)",
+      "Bash(python -m main:*)",
+      "Bash(python -c:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:docs.tensor.so)",
+      "WebFetch(domain:medium.com)"
+    ]
+  }
+}
