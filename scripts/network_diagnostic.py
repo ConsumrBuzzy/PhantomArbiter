@@ -9,8 +9,7 @@ import requests
 import json
 
 RPCS = {
-    "mainnet-zink": "https://mainnet.z.ink/",
-    "rpc-zink": "https://rpc.z.ink/"
+    "Ironforge (SVM)": "https://rpc.ironforge.network/mainnet?apiKey=01HZFJ18Q9E3QT62P67P52PC03"
 }
 
 def verify_svm_handshake():

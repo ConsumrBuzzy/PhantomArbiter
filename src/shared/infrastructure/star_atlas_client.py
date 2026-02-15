@@ -40,7 +40,7 @@ class StarAtlasClient:
         self,
         api_url: str = "https://galaxy.staratlas.com/graphql",
         market_prices_url: str = "https://galaxy.staratlas.com/market/prices",
-        rpc_url: str = "https://rpc-gel.inkonchain.com",  # Primary Gelato RPC
+        rpc_url: str = "https://rpc.ironforge.network/mainnet?apiKey=01HZFJ18Q9E3QT62P67P52PC03",  # Authenticated Ironforge RPC (SVM)
         rate_limit_ms: int = 1000  # 1s between requests
     ):
         """

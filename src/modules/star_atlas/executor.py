@@ -71,7 +71,7 @@ class StarAtlasExecutor:
 
         # Use z.ink RPC if specified
         if network == "zink":
-            self.rpc_url = "https://rpc-gel.inkonchain.com"
+            self.rpc_url = "https://rpc.ironforge.network/mainnet?apiKey=01HZFJ18Q9E3QT62P67P52PC03"
         else:
             self.rpc_url = "https://api.mainnet-beta.solana.com"
 
