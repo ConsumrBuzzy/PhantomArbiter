@@ -71,7 +71,7 @@ class StarAtlasExecutor:
 
         # Use z.ink RPC if specified
         if network == "zink":
-            self.rpc_url = "https://mainnet.z.ink"
+            self.rpc_url = "https://rpc-gel.inkonchain.com"
         else:
             self.rpc_url = "https://api.mainnet-beta.solana.com"
 

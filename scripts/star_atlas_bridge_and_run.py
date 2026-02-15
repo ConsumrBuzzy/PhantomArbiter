@@ -1,18 +1,20 @@
 """
-Star Atlas Bridge & Run Director
-================================
+Star Atlas Bridge & Run Director (Simulation Protocol)
+======================================================
 Orchestrates the z.ink bridge sequence and runs the SDU arbitrage loop.
+Simulation Mode: Uses Mock Data to stress-test logic and accumulate "Theoretical Profit".
 
 Features:
 - "Double-Tap" Bridge Prompt (ZINK-ORIGIN-2026)
 - Maintenance Mode (Pauses if SOL < 0.05)
-- Volume Mode (Pivots to 1 ATLAS ping-pong if dry-run is stagnant)
-- Resilient RPC Handling
+- Volume Mode (Pivots to 1 ATLAS ping-pong if dry-run isn't hitting)
+- SIMULATION LOGGING: Tracks theoretical trades in SAGE_SIM_LOGS.csv
 """
 
 import time
 import sys
 import os
+import csv
 import random
 from datetime import datetime
 from typing import Optional
@@ -29,7 +31,10 @@ BRIDGE_CODE = "ZINK-ORIGIN-2026"
 BRIDGE_URL = "https://z.ink/bridge"
 MIN_SOL_BALANCE = 0.05
 MAINTENANCE_CHECK_INTERVAL = 300  # 5 minutes
-LOOP_interval = 60 # 1 minute
+LOOP_interval = 20 # Faster loop for simulation
+SIM_LOG_FILE = "SAGE_SIM_LOGS.csv"
+MIN_SPREAD = 0.075 # 7.5% (6% fee + 1.5% buffer)
+TARGET_PROFIT_SOL = 0.05
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -44,7 +49,27 @@ def print_banner():
  |_____/ \__\__,_|_|        \__|_| |_|\___|  
                                              
    Z.INK BRIDGE & ARBITRAGE DIRECTOR (v2026.2)
+   *** SIMULATION MODE ACTIVE ***
     """)
+
+def init_sim_logs():
+    if not os.path.exists(SIM_LOG_FILE):
+        with open(SIM_LOG_FILE, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Timestamp', 'Starbase_Buy', 'Price_Buy', 'Starbase_Sell', 'Price_Sell', 'Spread_Pct', 'Theoretical_Profit_SOL', 'Action'])
+        Logger.info(f"📝 Created Simulation Log: {SIM_LOG_FILE}")
+
+def log_sim_trade(buy_sb, buy_price, sell_sb, sell_price, spread, profit):
+    with open(SIM_LOG_FILE, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            datetime.now().isoformat(),
+            buy_sb, f"{buy_price:.6f}",
+            sell_sb, f"{sell_price:.6f}",
+            f"{spread*100:.2f}%",
+            f"{profit:.6f}",
+            "THEORETICAL_EXECUTE"
+        ])
 
 def prompt_bridge_sequence():
     """Guide user through the z.ink bridge process."""
@@ -65,84 +90,84 @@ def prompt_bridge_sequence():
             break
         elif response in ['no', 'n']:
             print("\n⚠️  Please complete the bridge to proceed.")
-            input("Press Enter to open bridge URL...")
-            import webbrowser
-            webbrowser.open(BRIDGE_URL)
+            # input("Press Enter to open bridge URL...")
         else:
             print("Invalid input.")
 
 def check_maintenance_mode(executor: StarAtlasExecutor) -> bool:
-    """
-    Check if maintenance mode should be active.
-    Returns True if safe to run, False if paused.
-    """
-    try:
-        # Placeholder for actual balance check on z.ink
-        # In a real scenario, we'd query the RPC.
-        # For now, we assume the executor has a way to check, or we use a mock.
-        balance = 0.15 # Mock balance for now, assuming bridge success
-        
-        # Real implementation would be:
-        # balance = executor.get_zink_balance() 
-        
-        if balance < MIN_SOL_BALANCE:
-            Logger.warning(f"⚠️  MAINTENANCE MODE ACTIVE: Balance {balance} < {MIN_SOL_BALANCE} SOL")
-            Logger.warning("   Pausing execution to prevent liquidation.")
-            return False
-            
-        return True
-    except Exception as e:
-        Logger.error(f"Failed to check balance: {e}")
-        return True # Fail open to keep trying, or close? Fail open for now with error.
+    """Mock balance check for simulation."""
+    return True
 
 def run_arbitrage_loop():
-    """Main execution loop."""
+    """Main execution loop (Simulation Enhanced)."""
     executor = StarAtlasExecutor(network="zink", dry_run=True)
     client = StarAtlasClient()
     
+    init_sim_logs()
+    
     consecutive_no_profit = 0
+    total_theoretical_profit = 0.0
     start_time = datetime.now()
     
-    Logger.info("🚀 Starting 24h Dry-Run Loop...")
+    Logger.info("🚀 Starting 24h Simulation Loop...")
+    Logger.info(f"   Target: > {MIN_SPREAD*100}% Spread | Goal: {TARGET_PROFIT_SOL} SOL Profit")
     
     try:
         while True:
-            # 1. Maintenance Check
-            if not check_maintenance_mode(executor):
-                time.sleep(MAINTENANCE_CHECK_INTERVAL)
-                continue
-            
-            # 2. SDU Arbitrage Scan
-            Logger.info("\n🔍 Scanning for SDU Arbitrage...")
+            # 1. Scanning
+            Logger.info("\n🔍 Scanning SDU Market (Simulation)...")
             try:
-                # We use the client to "scan" (mocked in client for now, but logical flow)
-                opportunities = client.scan_for_opportunities(resources=["SDU"])
+                listings = client.get_sdu_prices()
                 
-                if not opportunities:
-                    consecutive_no_profit += 1
-                    Logger.info(f"   No opportunities found. Stagnation counter: {consecutive_no_profit}")
+                if len(listings) >= 2:
+                    # Sort by price
+                    sorted_listings = sorted(listings, key=lambda x: float(x['pricePerUnit']))
+                    best_buy = sorted_listings[0]
+                    best_sell = sorted_listings[-1]
+                    
+                    buy_price = float(best_buy['pricePerUnit'])
+                    sell_price = float(best_sell['pricePerUnit'])
+                    
+                    spread = (sell_price - buy_price) / buy_price
+                    
+                    Logger.info(f"   Market: Buy @ {best_buy['starbase']['name']} ({buy_price:.5f}) | Sell @ {best_sell['starbase']['name']} ({sell_price:.5f})")
+                    Logger.info(f"   Spread: {spread*100:.2f}% (Threshold: {MIN_SPREAD*100}%)")
+                    
+                    if spread > MIN_SPREAD:
+                        # "Execute" Trade
+                        profit_per_unit = sell_price - buy_price - (sell_price * 0.06) # Simplified fee
+                        trade_size = 1000
+                        trade_profit = profit_per_unit * trade_size
+                        
+                        total_theoretical_profit += trade_profit
+                        
+                        Logger.success(f"   ✅ [SIM] OPPORTUNITY EXECUTED! Profit: {trade_profit:.6f} SOL")
+                        log_sim_trade(
+                            best_buy['starbase']['name'], buy_price,
+                            best_sell['starbase']['name'], sell_price,
+                            spread, trade_profit
+                        )
+                        consecutive_no_profit = 0
+                        
+                        if total_theoretical_profit > TARGET_PROFIT_SOL:
+                            Logger.success(f"   🎉 TARGET PROFIT ACHIEVED: {total_theoretical_profit:.4f} SOL")
+                            Logger.info("   🚩 FLAGGING FOR LIVE TRANSITION (Pending RPC)")
+                    else:
+                        Logger.warning(f"   📉 Liquidity Drift: Spread too low ({spread*100:.2f}%)")
+                        consecutive_no_profit += 1
+
                 else:
-                    consecutive_no_profit = 0
-                    # Execute (Dry Run)
-                    for opp in opportunities:
-                         # Logic to call executor.buy_resource would go here
-                         # For now, scan_for_opportunities logs it.
-                         pass
+                    Logger.warning("   [!] Not enough data for arbitrage.")
+                    consecutive_no_profit += 1
 
             except Exception as e:
-                Logger.error(f"Scan failed (RPC Lag?): {e}")
+                Logger.error(f"Scan failed: {e}")
 
-            # 3. Volume Mode Pivot
-            # If we haven't found profit in 5 checks (5 minutes), ping-pong to farm zXP
+            # 3. Volume Mode Pivot (Simulation)
             if consecutive_no_profit >= 5:
-                Logger.info("⚠️  STAGNATION DETECTED: Pivoting to VOLUME MODE")
+                Logger.info("⚠️  STAGNATION DETECTED: Pivoting to VOLUME MODE (Simulated)")
                 Logger.info("   🏓 Executing 1 ATLAS Ping-Pong for zXP...")
-                
-                # Mock Volume Trade
-                executor.buy_resource("ATM", 1, 0.001) # Buying mock Atmosphere or cheap item
-                
-                # Reset counter to avoid spamming immediately, or keep it high to stay in volume mode?
-                # Let's reset to try scanning again next loop
+                # In sim, we just log it
                 consecutive_no_profit = 0
             
             # 4. Sleep
@@ -152,7 +177,7 @@ def run_arbitrage_loop():
             # Check 24h limit
             elapsed = (datetime.now() - start_time).total_seconds()
             if elapsed > 86400:
-                Logger.success("✅ 24-Hour Dry-Run Complete.")
+                Logger.success("✅ 24-Hour Simulation Complete.")
                 break
                 
     except KeyboardInterrupt:

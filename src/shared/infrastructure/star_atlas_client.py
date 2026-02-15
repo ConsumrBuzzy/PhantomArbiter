@@ -304,20 +304,43 @@ class StarAtlasClient:
     def _generate_mock_sdu_data(self) -> List[Dict[str, Any]]:
         """
         Generate mock SDU data for Dry-Run/Simulation when API is unreachable.
+        Simulates two starbases to allow Arbitrage Logic testing.
         """
         import random
-        base_price = 0.0035
-        variance = random.uniform(-0.0005, 0.0005)
-        price = base_price + variance
+        base_price = 0.003
         
-        return [{
-            'id': 'mock-sdu-1',
-            'quantity': random.randint(1000, 50000),
-            'pricePerUnit': price,
-            'totalPrice': price * 100,
-            'seller': 'MockSeller',
-            'starbase': {'id': 'sb-1', 'name': 'MUD Station'}
-        }]
+        # Starbase A (Cheap)
+        price_a = base_price + random.uniform(-0.0002, 0.0002)
+        
+        # Starbase B (Expensive - sometimes profitable)
+        # 10% chance of a "pump" creating >10% spread
+        if random.random() < 0.15:
+            spread_modifier = random.uniform(1.08, 1.15) 
+        else:
+            spread_modifier = random.uniform(0.95, 1.05)
+            
+        price_b = price_a * spread_modifier
+
+        return [
+            {
+                'id': 'mock-sdu-sb1',
+                'quantity': random.randint(10000, 50000),
+                'pricePerUnit': price_a,
+                'totalPrice': price_a * 100,
+                'seller': 'MockSeller_A',
+                'id': 'sb-1', # Starbase ID
+                'starbase': {'id': 'sb-1', 'name': 'MUD Station'}
+            },
+            {
+                'id': 'mock-sdu-sb2',
+                'quantity': random.randint(5000, 20000),
+                'pricePerUnit': price_b,
+                'totalPrice': price_b * 100,
+                'seller': 'MockSeller_B',
+                'id': 'sb-2', # Starbase ID
+                'starbase': {'id': 'sb-2', 'name': 'ONI Sector'}
+            }
+        ]
 
     def _get_sdu_prices_graphql(self, starbase_id, limit):
         # Original GQL implementation as fallback
