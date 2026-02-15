@@ -61,3 +61,7 @@ pytest-asyncio==0.23.8
 
 # V200: CEX-DEX Liquidity Bridge (Coinbase Advanced Trade via CCXT)
 ccxt>=4.1.0
+
+# NFT Janitor: Legacy NFT Rent Reclamation
+gql[all]>=3.5.0  # GraphQL client for Tensor API
+# metaplex-python - skipped due to build issues, using manual borsh parsing instead

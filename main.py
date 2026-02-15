@@ -295,7 +295,223 @@ def create_parser() -> argparse.ArgumentParser:
         help="Run high-performance Pump.fun graduation monitor (Rust-accelerated)",
     )
 
+    # ═══════════════════════════════════════════════════════════════
+    # JANITOR SUBCOMMAND (Legacy NFT Rent Reclamation)
+    # ═══════════════════════════════════════════════════════════════
+    janitor_parser = subparsers.add_parser(
+        "janitor",
+        help="Legacy NFT rent reclamation - discover and burn zombie NFTs for profit",
+    )
+    janitor_subparsers = janitor_parser.add_subparsers(dest="janitor_command", help="Janitor commands")
+
+    # janitor scan
+    scan_janitor_parser = janitor_subparsers.add_parser("scan", help="Discover profitable NFTs")
+    scan_janitor_parser.add_argument(
+        "--max-price",
+        type=float,
+        default=0.0095,
+        help="Maximum floor price in SOL (default: 0.0095)"
+    )
+    scan_janitor_parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum NFTs to scan (default: 100)"
+    )
+    scan_janitor_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Don't save to database (default: true)"
+    )
+    scan_janitor_parser.add_argument(
+        "--save",
+        action="store_false",
+        dest="dry_run",
+        help="Save results to database"
+    )
+
+    # janitor buy
+    buy_janitor_parser = janitor_subparsers.add_parser("buy", help="Purchase NFTs from queue")
+    buy_janitor_parser.add_argument(
+        "--max-count",
+        type=int,
+        default=5,
+        help="Maximum NFTs to purchase (default: 5)"
+    )
+    buy_janitor_parser.add_argument(
+        "--max-price",
+        type=float,
+        default=0.0095,
+        help="Maximum price per NFT in SOL (default: 0.0095)"
+    )
+    buy_janitor_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Simulate purchases without executing (default: true)"
+    )
+    buy_janitor_parser.add_argument(
+        "--live",
+        action="store_false",
+        dest="dry_run",
+        help="Execute real purchases (USE WITH CAUTION)"
+    )
+
+    # janitor burn
+    burn_janitor_parser = janitor_subparsers.add_parser("burn", help="Burn purchased NFTs and reclaim rent")
+    burn_janitor_parser.add_argument(
+        "--max-count",
+        type=int,
+        default=3,
+        help="Maximum NFTs to burn per batch (default: 3)"
+    )
+    burn_janitor_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Simulate burns without executing (default: true)"
+    )
+    burn_janitor_parser.add_argument(
+        "--live",
+        action="store_false",
+        dest="dry_run",
+        help="Execute real burns (USE WITH CAUTION)"
+    )
+
+    # janitor stats
+    stats_janitor_parser = janitor_subparsers.add_parser("stats", help="Show profitability statistics")
+
     return parser
+
+
+async def cmd_janitor(args: argparse.Namespace) -> None:
+    """Handle janitor subcommand - Legacy NFT rent reclamation."""
+    from src.modules.nft_janitor.scanner import NFTScanner
+    from src.modules.nft_janitor.buyer import NFTBuyer
+    from src.modules.nft_janitor.burner import NFTBurner
+    from src.shared.system.logging import Logger
+
+    if not hasattr(args, 'janitor_command') or not args.janitor_command:
+        Logger.error("❌ Missing janitor subcommand. Use: janitor scan | buy | burn | stats")
+        Logger.info("   Examples:")
+        Logger.info("     python main.py janitor scan --dry-run")
+        Logger.info("     python main.py janitor buy --max-count 3 --dry-run")
+        Logger.info("     python main.py janitor burn --max-count 2 --dry-run")
+        Logger.info("     python main.py janitor stats")
+        return
+
+    if args.janitor_command == "scan":
+        scanner = NFTScanner()
+        Logger.info("=" * 60)
+        Logger.info("🔍 NFT JANITOR - LEGACY NFT DISCOVERY")
+        Logger.info("=" * 60)
+
+        results = scanner.scan_tensor(
+            max_price_sol=args.max_price,
+            limit=args.limit,
+            dry_run=args.dry_run
+        )
+
+        # Display results
+        Logger.info("\n📊 SCAN RESULTS:")
+        Logger.info(f"   Total Scanned:        {results['total_scanned']}")
+        Logger.info(f"   Opportunities Found:  {results['opportunities_found']}")
+        Logger.info(f"   Blocked/Unprofitable: {results['blocked']}")
+        Logger.info(f"   Est. Total Profit:    {results['total_estimated_profit_sol']:.4f} SOL")
+
+        if results['opportunities_found'] > 0:
+            Logger.success("\n💰 TOP OPPORTUNITIES:")
+            for i, opp in enumerate(results['results'][:10], 1):
+                Logger.info(f"   {i}. {opp['mint_address'][:12]}... | "
+                          f"{opp['collection_name'][:30]} | "
+                          f"Price: {opp['floor_price_sol']:.4f} SOL | "
+                          f"Profit: {opp['estimated_profit_sol']:.4f} SOL")
+
+        if args.dry_run:
+            Logger.warning("\n⚠️  DRY RUN MODE - Nothing saved to database")
+        else:
+            Logger.success(f"\n✅ Saved {results['opportunities_found']} opportunities to database")
+
+    elif args.janitor_command == "buy":
+        buyer = NFTBuyer()
+
+        Logger.info("=" * 60)
+        Logger.info("💳 NFT JANITOR - PURCHASE EXECUTOR")
+        Logger.info("=" * 60)
+
+        results = buyer.buy_targets(
+            max_count=args.max_count,
+            max_price_sol=args.max_price,
+            dry_run=args.dry_run
+        )
+
+        # Display results
+        Logger.info("\n📊 PURCHASE RESULTS:")
+        Logger.info(f"   Attempted:      {results['attempted']}")
+        Logger.info(f"   Successful:     {results['successful']}")
+        Logger.info(f"   Failed:         {results['failed']}")
+        Logger.info(f"   Total Spent:    {results['total_spent_sol']:.4f} SOL")
+
+        if results['successful'] > 0:
+            Logger.success("\n✅ PURCHASES:")
+            for i, result in enumerate([r for r in results['results'] if r.success], 1):
+                Logger.info(f"   {i}. {result.mint_address[:12]}... | "
+                          f"Price: {result.actual_price_sol:.4f} SOL")
+
+        if args.dry_run:
+            Logger.warning("\n⚠️  DRY RUN MODE - No actual purchases executed")
+        else:
+            Logger.success(f"\n✅ Purchased {results['successful']} NFTs")
+
+    elif args.janitor_command == "burn":
+        burner = NFTBurner()
+
+        Logger.info("=" * 60)
+        Logger.info("🔥 NFT JANITOR - BURN EXECUTOR")
+        Logger.info("=" * 60)
+
+        results = burner.burn_targets(
+            max_count=args.max_count,
+            dry_run=args.dry_run
+        )
+
+        # Display results
+        Logger.info("\n📊 BURN RESULTS:")
+        Logger.info(f"   Attempted:           {results['attempted']}")
+        Logger.info(f"   Successful:          {results['successful']}")
+        Logger.info(f"   Failed:              {results['failed']}")
+        Logger.info(f"   Total Rent Reclaimed: {results['total_rent_reclaimed_sol']:.4f} SOL")
+        Logger.info(f"   Total Profit:         {results['total_profit_sol']:.4f} SOL")
+
+        if results['successful'] > 0:
+            Logger.success("\n🔥 BURNS:")
+            for i, result in enumerate([r for r in results['results'] if r.success], 1):
+                Logger.info(f"   {i}. {result.mint_address[:12]}... | "
+                          f"Rent: {result.actual_rent_sol:.4f} SOL | "
+                          f"Profit: {result.actual_profit_sol:.4f} SOL")
+
+        if args.dry_run:
+            Logger.warning("\n⚠️  DRY RUN MODE - No actual burns executed")
+        else:
+            Logger.success(f"\n✅ Burned {results['successful']} NFTs")
+
+    elif args.janitor_command == "stats":
+        scanner = NFTScanner()
+        stats = scanner.get_statistics()
+
+        Logger.info("=" * 60)
+        Logger.info("📊 NFT JANITOR - STATISTICS")
+        Logger.info("=" * 60)
+        Logger.info(f"   Total Targets:          {stats['total_targets']}")
+        Logger.info(f"   Discovered (Ready):     {stats['discovered']}")
+        Logger.info(f"   Purchased:              {stats['purchased']}")
+        Logger.info(f"   Burned:                 {stats['burned']}")
+        Logger.info(f"   Failed:                 {stats['failed']}")
+        Logger.info(f"   Skipped:                {stats['skipped']}")
+        Logger.info(f"   Est. Total Profit:      {stats['total_estimated_profit_sol']:.4f} SOL")
+        Logger.info(f"   Actual Total Profit:    {stats['total_actual_profit_sol']:.4f} SOL")
+        Logger.info(f"   Success Rate:           {stats['success_rate']:.1f}%")
 
 
 async def cmd_dashboard(args: argparse.Namespace) -> None:
@@ -631,7 +847,11 @@ async def main() -> None:
     if args.command == "graduation":
         await cmd_graduation(args)
         return
-    
+
+    if args.command == "janitor":
+        cmd_janitor(args)
+        return
+
     # Arbiter command (has special setup logic below)
     if args.command == "arbiter":
         await cmd_arbiter(args)
@@ -1068,6 +1288,7 @@ async def main() -> None:
         "dashboard": cmd_dashboard,
         "pulse": cmd_pulse,
         "graduation": cmd_graduation,
+        "janitor": cmd_janitor,
     }
 
     handler = command_handlers.get(args.command)
