@@ -83,6 +83,11 @@ def prompt_bridge_sequence():
     print(f"4. Bridge 0.15 SOL to z.ink (Keep 0.018 SOL on Mainnet)")
     print("-" * 50)
     
+    # Check for auto-yes argument
+    if "--auto-yes" in sys.argv:
+        print("\n✅ Auto-Bridge Confirmed. Initializing Executors...")
+        return
+
     while True:
         response = input("Did you complete the bridge transaction? (yes/no): ").lower().strip()
         if response in ['yes', 'y']:
