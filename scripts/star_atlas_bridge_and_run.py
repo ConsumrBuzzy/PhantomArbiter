@@ -56,10 +56,10 @@ def init_sim_logs():
     if not os.path.exists(SIM_LOG_FILE):
         with open(SIM_LOG_FILE, 'w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(['Timestamp', 'Starbase_Buy', 'Price_Buy', 'Starbase_Sell', 'Price_Sell', 'Spread_Pct', 'Theoretical_Profit_SOL', 'Action'])
+            writer.writerow(['Timestamp', 'Starbase_Buy', 'Price_Buy', 'Starbase_Sell', 'Price_Sell', 'Spread_Pct', 'Theoretical_Profit_SOL', 'Theoretical_zXP', 'Action'])
         Logger.info(f"📝 Created Simulation Log: {SIM_LOG_FILE}")
 
-def log_sim_trade(buy_sb, buy_price, sell_sb, sell_price, spread, profit):
+def log_sim_trade(buy_sb, buy_price, sell_sb, sell_price, spread, profit, zxp):
     with open(SIM_LOG_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -68,7 +68,8 @@ def log_sim_trade(buy_sb, buy_price, sell_sb, sell_price, spread, profit):
             sell_sb, f"{sell_price:.6f}",
             f"{spread*100:.2f}%",
             f"{profit:.6f}",
-            "THEORETICAL_EXECUTE"
+            f"{zxp:.2f}",
+            "VOLUME_EXECUTE"
         ])
 
 def prompt_bridge_sequence():
@@ -104,7 +105,8 @@ def check_maintenance_mode(executor: StarAtlasExecutor) -> bool:
     return True
 
 def run_arbitrage_loop():
-    """Main execution loop (Simulation Enhanced)."""
+    """Main execution loop (Volume Mode Enhanced)."""
+    # Force z.ink network
     executor = StarAtlasExecutor(network="zink", dry_run=True)
     client = StarAtlasClient()
     
@@ -112,10 +114,11 @@ def run_arbitrage_loop():
     
     consecutive_no_profit = 0
     total_theoretical_profit = 0.0
+    total_zxp = 0.0
     start_time = datetime.now()
     
-    Logger.info("🚀 Starting 24h Simulation Loop...")
-    Logger.info(f"   Target: > {MIN_SPREAD*100}% Spread | Goal: {TARGET_PROFIT_SOL} SOL Profit")
+    Logger.info("🚀 Starting 24h Simulation Loop (VOLUME MODE | zXP Optimized)...")
+    Logger.info(f"   Target: > {MIN_SPREAD*100}% Spread | Principal Buffer: $14.00")
     
     try:
         while True:
@@ -144,19 +147,27 @@ def run_arbitrage_loop():
                         trade_size = 1000
                         trade_profit = profit_per_unit * trade_size
                         
-                        total_theoretical_profit += trade_profit
+                        # zXP Calculation (Simulated: Volume * Multiplier)
+                        # Multiplier 1.5x for Origin Season
+                        trade_zxp = (trade_size * buy_price * 150) * 1.5 
                         
-                        Logger.success(f"   ✅ [SIM] OPPORTUNITY EXECUTED! Profit: {trade_profit:.6f} SOL")
+                        total_theoretical_profit += trade_profit
+                        total_zxp += trade_zxp
+                        
+                        Logger.success(f"   ✅ [VOLUME] EXECUTED! Profit: {trade_profit:.6f} SOL | zXP: +{trade_zxp:.0f}")
                         log_sim_trade(
                             best_buy['starbase']['name'], buy_price,
                             best_sell['starbase']['name'], sell_price,
-                            spread, trade_profit
+                            spread, trade_profit, trade_zxp
                         )
                         consecutive_no_profit = 0
                         
+                        Logger.info(f"   📊 Session Total: {total_theoretical_profit:.4f} SOL | {total_zxp:.0f} zXP")
+
                         if total_theoretical_profit > TARGET_PROFIT_SOL:
                             Logger.success(f"   🎉 TARGET PROFIT ACHIEVED: {total_theoretical_profit:.4f} SOL")
-                            Logger.info("   🚩 FLAGGING FOR LIVE TRANSITION (Pending RPC)")
+                            # Continue for zXP accumulation
+                            # Logger.info("   🚩 FLAGGING FOR LIVE TRANSITION (Pending RPC)")
                     else:
                         Logger.warning(f"   📉 Liquidity Drift: Spread too low ({spread*100:.2f}%)")
                         consecutive_no_profit += 1
@@ -186,7 +197,7 @@ def run_arbitrage_loop():
                 break
                 
     except KeyboardInterrupt:
-        Logger.info("\n🛑 Execution Interrupted by User.")
+        Logger.info(f"\n🛑 Execution Interrupted by User. Final zXP: {total_zxp:.0f}")
         
 if __name__ == "__main__":
     prompt_bridge_sequence()
