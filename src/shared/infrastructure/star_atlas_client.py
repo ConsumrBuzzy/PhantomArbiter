@@ -267,6 +267,20 @@ class StarAtlasClient:
                     # Normalize to our listing structure
                     sdu_listings.append({
                         'id': item.get('id', 'unknown'),
+                        'resourceType': 'SDU',
+                        'quantity': item.get('quantity', 0),
+                        'pricePerUnit': item.get('pricePerUnit', 0),
+                        'totalPrice': item.get('totalPrice', 0),
+                        'seller': item.get('seller', 'unknown'),
+                        'starbase': {
+                            'id': item.get('starbase', {}).get('id', 'unknown'),
+                            'name': item.get('starbase', {}).get('name', 'unknown'),
+                            'coordinates': item.get('starbase', {}).get('coordinates', 'unknown')
+                        }
+                    })
+        
+        return sdu_listings
+    
     def get_sdu_prices(self) -> List[Dict[str, Any]]:
         """
         Fetch SDU prices.
