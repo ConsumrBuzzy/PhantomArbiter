@@ -35,8 +35,8 @@ class StarAtlasClient:
 
     def __init__(
         self,
-        api_url: str = "https://galaxy.staratlas.com",
-        market_prices_url: str = "https://galaxy.staratlas.com/market/prices",  # Updated for Feb 2026
+        api_url: str = "https://galaxy.staratlas.com/graphql",  # Updated to correct GQL endpoint
+        market_prices_url: str = "https://galaxy.staratlas.com/market/prices",
         rpc_url: str = "https://mainnet.z.ink",  # z.ink SVM L1
         rate_limit_ms: int = 1000  # 1s between requests
     ):
@@ -67,16 +67,26 @@ class StarAtlasClient:
             time.sleep(sleep_time)
         self.last_request_time = time.time()
 
+    def get_market_prices_json(self) -> Dict[str, Any]:
+        """
+        Fetch market prices from the JSON endpoint (User Requested Sensor).
+        """
+        self._rate_limit()
+        try:
+            Logger.info(f"[SA] Fetching market prices from {self.market_prices_url}...")
+            response = requests.get(self.market_prices_url, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.Timeout:
+            Logger.warning(f"[!] [StarAtlas] Price fetch timed out (RPC Lag detected)")
+            return {}
+        except requests.RequestException as e:
+            Logger.error(f"[X] [StarAtlas] Price fetch failed: {e}")
+            return {}
+
     def _make_request(self, query: str, variables: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Make GraphQL request to Star Atlas API.
-
-        Args:
-            query: GraphQL query string
-            variables: Query variables
-
-        Returns:
-            Response data dict
         """
         self._rate_limit()
 
@@ -230,22 +240,56 @@ class StarAtlasClient:
         limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
-        Get SDU (Survey Data Unit) marketplace prices.
-
-        SDUs are essential crafting materials that often have price
-        variance between starbases, creating arbitrage opportunities.
-
-        Args:
-            starbase_id: Optional starbase filter
-            limit: Max results
-
-        Returns:
-            List of SDU listings with prices
+        Get SDU (Survey Data Unit) marketplace prices via JSON Endpoint.
         """
-        Logger.info(f"[SA] Querying SDU prices (starbase: {starbase_id or 'all'})")
+        Logger.info(f"[SA] Querying SDU prices (Source: market/prices)")
+        
+        # Use simple JSON endpoint as Primary Sensor
+        all_prices = self.get_market_prices_json()
+        
+        # Mocking the filter logic since we don't know exact JSON schema yet
+        # We assume list of dicts with 'symbol' or 'asset'
+        sdu_listings = []
+        
+        if isinstance(all_prices, list):
+            for item in all_prices:
+                # Flexible matching for SDU
+                asset_name = item.get('symbol', '') or item.get('asset', '') or item.get('name', '')
+                if 'SDU' in asset_name:
+                    # Normalize to our listing structure
+                    sdu_listings.append({
+                        'id': item.get('id', 'unknown'),
+                        'quantity': item.get('quantity', 999999), # Often aggregate data
+                        'pricePerUnit': item.get('price', item.get('bestAsk', 0)),
+                        'totalPrice': 0, # Calc if needed
+                        'seller': 'Aggregate',
+                        'starbase': {'id': 'all', 'name': 'Global'}
+                    })
+        elif isinstance(all_prices, dict):
+             # Maybe keyed by asset?
+             if 'SDU' in all_prices:
+                 item = all_prices['SDU']
+                 sdu_listings.append({
+                        'id': 'sdu-agg',
+                        'pricePerUnit': item, # if simple key-val
+                        'quantity': 9999
+                 })
+             else:
+                 # Check for 'assets' key
+                 assets = all_prices.get('assets', [])
+                 for item in assets:
+                     if 'SDU' in item.get('symbol', ''):
+                         sdu_listings.append(item)
 
-        # Query for SDU listings
-        # NOTE: Schema placeholder - needs verification
+        if not sdu_listings:
+             # Fallback to GraphQL if JSON empty or parsed wrong
+             Logger.warning("[!] No SDU found in JSON, trying GraphQL fallback...")
+             return self._get_sdu_prices_graphql(starbase_id, limit)
+
+        return sdu_listings
+
+    def _get_sdu_prices_graphql(self, starbase_id, limit):
+        # Original GQL implementation as fallback
         query = """
         query GetSDUListings($starbaseId: String, $limit: Int!) {
           marketplaceListings(
@@ -274,7 +318,7 @@ class StarAtlasClient:
         data = self._make_request(query, variables)
 
         if not data or "marketplaceListings" not in data:
-            Logger.warning("[!] No SDU listings found")
+            Logger.warning("[!] No SDU listings found (GraphQL)")
             return []
 
         return data["marketplaceListings"]
@@ -406,8 +450,12 @@ class StarAtlasClient:
         for resource in resources:
             Logger.info(f"   Scanning: {resource}")
 
-            # Get listings (placeholder - needs real implementation)
-            listings = self.get_resource_listings(resource, limit=50)
+            # Get listings
+            if resource == "SDU":
+                listings = self.get_sdu_prices()
+            else:
+                # Use standard GQL for R4 for now, or implement JSON there too
+                listings = self.get_resource_listings(resource, limit=50)
 
             # TODO: Compare prices across starbases
             # For now, just log that we're scanning
