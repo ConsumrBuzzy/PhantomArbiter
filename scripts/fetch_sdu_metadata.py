@@ -33,13 +33,25 @@ def main():
     matches = find_sdu(data)
     
     print(f"\nFound {len(matches)} potential SDU items:")
+    
+    output_data = []
     for item in matches:
+        simplified_item = {
+            "Name": item.get('name'),
+            "Symbol": item.get('symbol'),
+            "Mint": item.get('mint'),
+            "Markets": item.get('markets'),
+            "TradeSettings": item.get('tradeSettings')
+        }
+        output_data.append(simplified_item)
         print("-" * 40)
         print(f"Name: {item.get('name')}")
         print(f"Symbol: {item.get('symbol')}")
         print(f"Mint: {item.get('mint')}")
-        print(f"Markets: {json.dumps(item.get('markets'), indent=2)}")
-        print(f"Trade Settings: {json.dumps(item.get('tradeSettings'), indent=2)}")
+
+    with open('sdu_metadata.json', 'w', encoding='utf-8') as f:
+        json.dump(output_data, f, indent=2)
+    print("\nSaved metadata to sdu_metadata.json")
 
 if __name__ == "__main__":
     main()

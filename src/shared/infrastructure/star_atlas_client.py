@@ -34,6 +34,7 @@ class StarAtlasClient:
     """
 
     ZINK_CHAIN_ID = 57073  # Official z.ink Chain ID
+    SDU_MINT = "SDUsgfSZaDhhZ76U3ZgvtFiXsfnHbf2VrzYxjBZ5YbM"  # SDU Mint (Mainnet/Z.ink)
 
     def __init__(
         self,

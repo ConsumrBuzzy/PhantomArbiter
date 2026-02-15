@@ -1,0 +1,16 @@
+[
+  {
+    "Name": "Survey Data Unit",
+    "Symbol": "SDU",
+    "Mint": "SDUsgfSZaDhhZ76U3ZgvtFiXsfnHbf2VrzYxjBZ5YbM",
+    "Markets": [],
+    "TradeSettings": {
+      "exclusiveCurrency": "ATLAS",
+      "msrp": {
+        "value": 0,
+        "currencySymbol": "USDC"
+      },
+      "vwap": 0
+    }
+  }
+]
