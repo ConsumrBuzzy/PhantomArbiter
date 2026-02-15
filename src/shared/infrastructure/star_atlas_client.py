@@ -267,59 +267,34 @@ class StarAtlasClient:
                     # Normalize to our listing structure
                     sdu_listings.append({
                         'id': item.get('id', 'unknown'),
-                        'quantity': item.get('quantity', 999999), # Often aggregate data
-                        'pricePerUnit': item.get('price', item.get('bestAsk', 0)),
-                        'totalPrice': 0, # Calc if needed
-                        'seller': 'Aggregate',
-                        'starbase': {'id': 'all', 'name': 'Global'}
-                    })
-        elif isinstance(all_prices, dict):
-             # Maybe keyed by asset?
-             if 'SDU' in all_prices:
-                 item = all_prices['SDU']
-                 sdu_listings.append({
-                        'id': 'sdu-agg',
-                        'pricePerUnit': item, # if simple key-val
-                        'quantity': 9999
-                 })
-             else:
-                 # Check for 'assets' key
-                 assets = all_prices.get('assets', [])
-                 for item in assets:
-                     if 'SDU' in item.get('symbol', ''):
-                         sdu_listings.append(item)
+    def get_sdu_prices(self) -> List[Dict[str, Any]]:
+        """
+        Fetch SDU prices.
+        Note: Live /nfts endpoint returns metadata. Market data is on-chain or via refined endpoints.
+        For simulation, we use the specific mock data generator.
+        """
+        # For now, default to mock data for the simulation loop as requested by user plan
+        # until onsite parsing of the new galaxy.staratlas.com/nfts structure is robust.
+        return self._generate_mock_sdu_data()
 
-        if not sdu_listings:
-             # Fallback to GraphQL if JSON empty or parsed wrong
-             Logger.warning("[!] No SDU found in JSON, trying GraphQL fallback...")
-             gql_listings = self._get_sdu_prices_graphql(starbase_id, limit)
-             if gql_listings:
-                 return gql_listings
-                 
-             # Final Fallback: Mock Data for Simulation/Dry-Run if API is 404ing (likely due to z.ink migration or future date)
-             Logger.warning("⚠️  [StarAtlas] All endpoints failed. Engaging SIMULATION PROTOCOL (Mock Data).")
-             return self._generate_mock_sdu_data()
-
-        return sdu_listings
-        
     def _generate_mock_sdu_data(self) -> List[Dict[str, Any]]:
         """
-        Generate mock SDU data for Dry-Run/Simulation when API is unreachable.
-        Simulates two starbases to allow Arbitrage Logic testing.
+        Generate mock SDU data for Dry-Run/Simulation.
+        Simulate typical z.ink conditions:
+        - Wide Spreads (~22% due to liquidity shift)
+        - Two Starbases (MUD Station vs ONI Sector)
         """
         import random
         base_price = 0.003
-        
-        # Starbase A (Cheap)
+
+        # Starbase A (Cheap - High Supply)
         price_a = base_price + random.uniform(-0.0002, 0.0002)
-        
-        # Starbase B (Expensive - sometimes profitable)
-        # 10% chance of a "pump" creating >10% spread
-        if random.random() < 0.15:
-            spread_modifier = random.uniform(1.08, 1.15) 
-        else:
-            spread_modifier = random.uniform(0.95, 1.05)
-            
+
+        # Starbase B (Expensive - Low Liquidity)
+        # User notes: Spreads are wide (22%)
+        # Logic: 20-25% markup
+        spread_modifier = random.uniform(1.20, 1.25)
+
         price_b = price_a * spread_modifier
 
         return [
@@ -329,16 +304,16 @@ class StarAtlasClient:
                 'pricePerUnit': price_a,
                 'totalPrice': price_a * 100,
                 'seller': 'MockSeller_A',
-                'id': 'sb-1', # Starbase ID
+                'id': 'sb-1',
                 'starbase': {'id': 'sb-1', 'name': 'MUD Station'}
             },
             {
                 'id': 'mock-sdu-sb2',
-                'quantity': random.randint(5000, 20000),
+                'quantity': random.randint(2000, 10000), # Lower liquidity
                 'pricePerUnit': price_b,
                 'totalPrice': price_b * 100,
                 'seller': 'MockSeller_B',
-                'id': 'sb-2', # Starbase ID
+                'id': 'sb-2',
                 'starbase': {'id': 'sb-2', 'name': 'ONI Sector'}
             }
         ]
