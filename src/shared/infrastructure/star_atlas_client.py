@@ -35,33 +35,94 @@ class StarAtlasClient:
 
     ZINK_CHAIN_ID = 57073  # Official z.ink Chain ID
     SDU_MINT = "SDUsgfSZaDhhZ76U3ZgvtFiXsfnHbf2VrzYxjBZ5YbM"  # SDU Mint (Mainnet/Z.ink)
+    
+    # Authenticated RPC Pool (Failover)
+    IRONFORGE_RPC_POOL = []
 
     def __init__(
         self,
         api_url: str = "https://galaxy.staratlas.com/graphql",
         market_prices_url: str = "https://galaxy.staratlas.com/market/prices",
-        rpc_url: str = "https://rpc.ironforge.network/mainnet?apiKey=01HZFJ18Q9E3QT62P67P52PC03",  # Authenticated Ironforge RPC (SVM)
+        rpc_url: str = None,  # Will use pool
         rate_limit_ms: int = 1000  # 1s between requests
     ):
         """
         Initialize Star Atlas client.
-
-        Args:
-            api_url: Star Atlas Galaxy API base URL (REAL - Feb 2026)
-            market_prices_url: Market prices JSON endpoint (REAL - Feb 2026)
-            rpc_url: z.ink RPC endpoint (SVM-compatible)
-            rate_limit_ms: Delay between requests
         """
+        self._load_env_config()
+        
         self.api_url = api_url
         self.market_prices_url = market_prices_url
-        self.rpc_url = rpc_url
         self.rate_limit_ms = rate_limit_ms
         self.last_request_time = 0
         
+        # RPC Failsafe
+        self.rpc_index = 0
+        if rpc_url:
+             self.rpc_url = rpc_url # Manual override
+        else:
+             self.rpc_url = self._get_current_rpc()
+
         # Initialize Solana RPC Client for z.ink
         from solana.rpc.api import Client
         self.client = Client(self.rpc_url)
-        Logger.info(f"[SA] Connected to z.ink Mainnet (Chain ID: {self.ZINK_CHAIN_ID}) via {self.rpc_url}")
+        Logger.info(f"[SA] Connected to z.ink Mainnet (Chain ID: {self.ZINK_CHAIN_ID}) via {self.rpc_url.split('?')[0]}...")
+
+    def _load_env_config(self):
+        """Load Ironforge keys from .env or hardcoded fallbacks."""
+        import os
+        
+        # Try to load .env manually if dotenv not installed (common in some envs)
+        env_path = ".env"
+        if os.path.exists(env_path):
+             with open(env_path, 'r') as f:
+                 for line in f:
+                     if '=' in line and not line.startswith('#'):
+                         key, value = line.strip().split('=', 1)
+                         os.environ[key] = value
+
+        key1 = os.environ.get("IRONFORGE_KEY_1", "01HZFJ18Q9E3QT62P67P52PC03")
+        key2 = os.environ.get("IRONFORGE_KEY_2", "01J7E4JZYVW0KDWRVE1D19KTJS")
+        
+        self.IRONFORGE_RPC_POOL = [
+            f"https://rpc.ironforge.network/mainnet?apiKey={key1}",
+            f"https://rpc.ironforge.network/mainnet?apiKey={key2}"
+        ]
+
+    def _get_current_rpc(self) -> str:
+        if not self.IRONFORGE_RPC_POOL:
+             return "https://mainnet.z.ink" # Fallback
+        return self.IRONFORGE_RPC_POOL[self.rpc_index % len(self.IRONFORGE_RPC_POOL)]
+
+    def rotate_rpc(self):
+        """Failover to next RPC in pool."""
+        self.rpc_index += 1
+        self.rpc_url = self._get_current_rpc()
+        # Re-init client
+        from solana.rpc.api import Client
+        self.client = Client(self.rpc_url)
+        Logger.warning(f"🔄 [Failover] Rotated RPC to: {self.rpc_url.split('?')[0]}...")
+
+    def get_z_xp(self, wallet_address: str) -> float:
+        """
+        Fetch zXP (Experience Points) from z.ink API.
+        Endpoint: https://api.z.ink/v1/profiles/{address}
+        """
+        url = f"https://api.z.ink/v1/profiles/{wallet_address}"
+        try:
+            Logger.info(f"[SA] Fetching zXP for {wallet_address[:8]}...")
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                xp = data.get('xp', 0)
+                Logger.info(f"   ✨ Current zXP: {xp}")
+                return float(xp)
+            else:
+                 Logger.warning(f"   [!] zXP Fetch Failed: {resp.status_code}")
+                 return 0.0
+        except Exception as e:
+            Logger.error(f"   [X] zXP Error: {e}")
+            return 0.0
 
         # Star Atlas marketplace fee
         self.MARKETPLACE_FEE = 0.06  # 6%
