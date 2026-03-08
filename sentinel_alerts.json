@@ -6,27 +6,39 @@
         "confidence": 0.89,
         "direction": "BULLISH",
         "source": "CCTP",
-        "timestamp": "2026-03-07T23:53:04.771113",
+        "timestamp": "2026-03-08T00:01:34.621014",
         "sentiment_bias": 49.88
     },
     {
-        "whiff_type": "WHALE_MINT",
-        "mint": "USDC",
-        "amount": 125000000000,
-        "confidence": 0.89,
-        "direction": "BULLISH",
-        "source": "CCTP",
-        "timestamp": "2026-03-07T23:52:34.731970",
-        "sentiment_bias": 49.88
+        "alert_type": "YIELD_SPIKE",
+        "protocol": "DRIFT",
+        "apy": -87.58861897906088,
+        "apr": -208.6308,
+        "sentiment_bias": "EXTREME_BEARISH",
+        "timestamp": "2026-03-08T00:01:34.619337"
     },
     {
-        "whiff_type": "WHALE_MINT",
-        "mint": "USDC",
-        "amount": 125000000000,
-        "confidence": 0.89,
-        "direction": "BULLISH",
-        "source": "CCTP",
-        "timestamp": "2026-03-07T23:52:04.680022",
-        "sentiment_bias": 49.88
+        "alert_type": "YIELD_SPIKE",
+        "protocol": "DRIFT",
+        "apy": -87.58861897906088,
+        "apr": -208.6308,
+        "sentiment_bias": "EXTREME_BEARISH",
+        "timestamp": "2026-03-08T00:01:29.611345"
+    },
+    {
+        "alert_type": "YIELD_SPIKE",
+        "protocol": "DRIFT",
+        "apy": -87.58861897906088,
+        "apr": -208.6308,
+        "sentiment_bias": "EXTREME_BEARISH",
+        "timestamp": "2026-03-08T00:01:24.608529"
+    },
+    {
+        "alert_type": "YIELD_SPIKE",
+        "protocol": "DRIFT",
+        "apy": -87.58861897906088,
+        "apr": -208.6308,
+        "sentiment_bias": "EXTREME_BEARISH",
+        "timestamp": "2026-03-08T00:01:19.596658"
     }
 ]
