@@ -1,0 +1,22 @@
+[Unit]
+Description=PhantomArbiter Production Bridge (FastAPI)
+After=network.target
+
+[Service]
+User=phantom
+Group=phantom
+WorkingDirectory=/home/phantom/PhantomArbiter
+Environment="PATH=/home/phantom/PhantomArbiter/.venv/bin"
+EnvironmentFile=/home/phantom/PhantomArbiter/.env
+ExecStart=/home/phantom/PhantomArbiter/.venv/bin/uvicorn scripts.prod_proxy:app --host 127.0.0.1 --port 5000 --forwarded-allow-ips="*"
+
+# Uptime Reliability
+Restart=always
+RestartSec=5
+
+# Resource Constraints
+MemoryLimit=512M
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target
