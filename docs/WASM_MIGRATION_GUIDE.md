@@ -55,6 +55,24 @@ run();
 - **Signing**: Ed25519 signing works in WASM but requires `getrandom` with `js` enabled.
 - **Multithreading**: Rust `rayon` requires `SharedArrayBuffer`, which needs specific COOP/COEP headers on your server (Hugo/GitHub Pages needs configuration).
 
+## 🛡️ The "Safety Gate" Pattern (Defensive UI)
+
+The `validate_execution_gate` should be used in the browser to prevent users from executing "Toxic Orders" before they hit the chain.
+
+```javascript
+// Example: trader-ui.js
+import { validate_execution_gate } from './wasm/phantom_core.js';
+
+function checkTradeSafety(spread, liquidity, vol) {
+    const isSafe = validate_execution_gate(spread, liquidity, vol);
+    
+    if (!isSafe) {
+        document.getElementById('execute-btn').disabled = true;
+        document.getElementById('safety-warning').innerText = "⚠️ TOXIC MARKET CONDITIONS";
+    }
+}
+```
+
 ## 🚀 Next Steps
 1.  Verify Parity: `python scripts/verify_rust_parity.py`
 2.  Enable `wasm-pack` CI/CD pipeline.

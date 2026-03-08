@@ -438,6 +438,7 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calculate_optimal_size, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_execution_gate, m)?)?;
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_raydium_log, m)?)?;
     m.add_function(wrap_pyfunction!(log_parser::parse_universal_log, m)?)?;

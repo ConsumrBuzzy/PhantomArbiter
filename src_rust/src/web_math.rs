@@ -78,3 +78,27 @@ pub fn estimate_compute_units(
 
     estimated_cu.ceil() as u32
 }
+
+#[wasm_bindgen]
+pub fn validate_execution_gate(
+    spread_pct: f64,
+    liquidity_usd: f64,
+    volatility_index: f64,
+) -> bool {
+    // 1. Toxic Spread Check (> 3%)
+    if spread_pct > 3.0 {
+        return false;
+    }
+
+    // 2. Depth/Liquidity Check (< $10k)
+    if liquidity_usd < 10000.0 {
+        return false;
+    }
+
+    // 3. Volatility Check (> 5% 24h range)
+    if volatility_index > 5.0 {
+        return false;
+    }
+
+    true
+}
