@@ -1,108 +1,84 @@
-# Full Repository Inventory: PhantomArbiter
+# Master Systems Directory: PhantomArbiter
 
-This document provides a comprehensive forensic inventory of every directory and file in the PhantomArbiter repository.
+This directory establishes the definitive technical source of truth for the PhantomArbiter multi-engine ecosystem. It maps the systemic intersections between high-performance Rust execution, Python strategy intelligence, and real-time observability.
 
-## 📁 Root Directory (Full Zero-Distillation Catalog)
+## 🧠 The Engine Matrix (Core Strategy Layer)
 
-The root contains 140+ files orchestrating the arbitrage lifecycle, documentation, and forensic history.
+The system operates on a multi-engine paradigm, standardizing execution via `src/engines/base_engine.py`.
 
-### 📄 Architecture & Strategy (ADRs & Specs)
-- `ACTION_PLAN.md`: Strategic roadmap for the current iteration.
-- `ARCHITECTURE_ARBITRAGE.md`: Deep-dive into arbitrage pathfinding.
-- `ADR_008_PHASE_1_IMPLEMENTATION_SUMMARY.md`: Architectural Decision Record for Phase 1.
-- `DELTA_NEUTRAL_IMPLEMENTATION_SUMMARY.md`: Spec for hedging and risk-neutrality.
-- `DRIFT_API_COVERAGE.md` / `DRIFT_SDK_MIGRATION_SUMMARY.md`: Protocol-specific integration docs.
-- `ENGINES_EXPLAINED.md`: Detailed breakdown of the multi-engine paradigm.
-- `PHASE_3_IMPLEMENTATION_SUMMARY.md`: Status of the execution layer refinements.
-- `REMAINING_WORK_SUMMARY.md`: Open tasks for the core arbiter.
-- `STARTHERE.md`: Onboarding guide for the repository.
+| Engine | Logic Source | Primary Strategy | Target |
+| :--- | :--- | :--- | :--- |
+| **Arb** | `src/engines/arb/` | Triangular Arbitrage | Core SOL/USDC/JUP liquidity pools. |
+| **Scalp** | `src/engines/scalp/` | Meme Coin Sniping | Sentiment-driven momentum on new pods. |
+| **Galaxy (SAGE)** | `apps/galaxy/` | Resource Arbitrage | Star Atlas R4 and SDU spreads on z.ink L1. |
+| **Funding** | `src/engines/funding/` | Funding Rate Arb | Drift Protocol vs. Spot price variance. |
+| **LST Depeg** | `src/engines/lst_depeg/` | Liquid Staking Arb | mSOL/JitoSOL depeg recovery cycles. |
 
-### 🧪 Simulation & Execution Logs
-- `LIVE_EXECUTION_LOGS.csv`: Real-world performance data.
-- `SAGE_SIM_LOGS.csv`: Simulation output for the SAGE strategy.
-- `sim.log`, `sim2.log`, `sim3.log`: Verbose execution traces.
-- `sim_result_1.txt` to `sim_result_5.txt`: Performance benchmarking outputs.
-- `bridge_test_output.txt`: FFI boundary verification logs.
-- `log.txt`, `log_review.py`: System diagnostic tools.
+## 🐋 Asymmetric Intelligence (Whale Watching)
 
-### 🛠️ Execution & Build Scripts
-- `main.py`: Primary entry point.
-- `build_rust.py`: Rust compilation orchestrator.
-- `build_station.py` / `build_venv.py`: Environment setup utilities.
-- `cli_typer.py`: The CLI interface engine.
-- `run_dashboard.py`: TUI launcher.
-- `refactor_trading_core.py`: Transformation utility for the core engine.
+"Whale Watching" is implemented as a leading indicator system that identifies price-elastic events before they hit the ticker.
 
-### 🔍 Diagnostic & Verification Utilities
-- `check_api_connectivity.py`: Network health check.
-- `check_drift_equity.py`: Balance and margin verification.
-- `verify_reality.py`: Large-scale state consistency check.
-- `verify_wallet_address.py`: Security validation for signing keys.
-- `debug_keys.py`, `debug_load.py`, `debug_precision.py`: Precision and security audit tools.
-- `test_connectivity.py`, `test_jup.py`, `test_tensor_real.py`: Individual module validators.
+- **Whale Watcher Agent**: `src/core/scout/agents/whale_watcher_agent.py`
+    - Monitors "Alpha Wallets" for shadow-tracking and copy-trading signals.
+- **Rust Whiff Detection**: `src_rust/src/log_parser.rs`
+    - High-fidelity log parsing for large-scale CCTP/Wormhole mints (Inflows).
+    - Real-time liquidation detection (Marginfi/Solend/Kamino).
+- **Sentiment Engine**: `src/engines/scalp/sentiment.py`
+    - Aggregates on-chain volume and whale-pulse signals into a 0-100 score.
 
-### 📦 Ecosystem Connectors
-- `drift_bridge.js`: Node.js interop for Drift Protocol.
-- `deploy_star_atlas.py`: Star Atlas specific deployment logic.
-- `send_tensor_payment.py`: NFT marketplace interaction utility.
+## 🌉 The Coinbase Bridge (Liquidity & Discovery)
 
-## 🦀 High-Performance Engine (`src_rust/`)
+- **Driver**: `src/drivers/coinbase_driver.py`
+- **Auth**: Modern CDP (Coinbase Cloud) JWT-based authentication.
+- **Functionality**:
+    - **Price Discovery**: Cross-exchange price parity audits via CCXT `fetch_ticker`.
+    - **Liquidity Bridge**: Automated Solana-network USDC withdrawals from CEX to Phantom.
+    - **Safety Gates**: Hard-coded Network Guards (Solana only) and Dust Floors.
+
+## 📊 Dashboard & Observability (The Visual Ecosystem)
+
+The dashboard is an extensive, multi-page web application featuring windowed components and 3D spatial visualizations.
+
+### 🖼️ Architecture & Navigation
+- **Kernel Server**: `src/interface/dashboard_server.py` (Bidirectional WS Kernel).
+- **Heartbeat Engine**: `src/interface/heartbeat_collector.py` (1Hz System Snapshot).
+- **Core Router**: `frontend/js/core/router.js` (Hash-based Hub-and-Spoke navigation).
+- **Layout Engine**: `frontend/js/components/layout-manager.js` (Window visibility & persistence).
+- **View Manager**: `frontend/js/core/view-manager.js` (Dynamic DOM orchestration).
+
+### 🖥️ Main Dashboard (V23 "Frontier")
+The primary interface for trading operations.
+- **Base Styles**: `frontend/css/main.css`, `frontend/css/variables.css` (Neon/Dark Cyberpunk).
+- **Component Styles**: `frontend/css/components/` (Individual .css files per module).
+- **Console Heartbeat**: Found in `frontend/js/core/websocket.js` (Legacy debug logs) and `app.js` (Price flash and status transitions).
+
+### 🌌 Galaxy Dashboard (V2 "Nebula")
+Located in `apps/galaxy/frontend/`, focuses on 3D spatial market mapping.
+- **HUD Styles**: `apps/galaxy/frontend/hud.css` (Holographic/Sci-fi aesthetics).
+- **3D Engine**: `GalaxyScene.js` (Three.js with `UnrealBloomPass` and `EffectComposer`).
+- **Managers**: `SceneManager.js`, `FleetManager.js`, `StarSystemManager.js` (Abstracted Three.js orchestration).
+
+### ⌨️ TUI Archeology (Terminal UI Attempts)
+PhantomArbiter features a rich history of CLI dashboards for headless monitoring:
+1. **Textual App**: `src/dashboard/tui_app.py` (The official Python TUI with grid layout).
+2. **Rich Pulse Dashboard**: `src/arbiter/ui/pulsed_dashboard.py` (Rich.live layout with fragmented data slots).
+3. **ANSI Core**: `src/shared/ui/base_console_ui.py` (Low-level ANSI escape codes and BOX-drawing character primitives).
+4. **Rich Panels**: `src/shared/ui/rich_panel.py` (DNEMDashboard class for unified engine reporting).
+
+### � Console Heartbeat & Logging Styles
+- **Terminal (Python)**: `src/shared/system/logging.py` uses `RichHandler` with `SOURCE_ICONS` (e.g., 🐋 for Orca, 🧠 for ML). Features markup-enabled logging.
+- **Browser (JS)**: The `Terminal.js` component simulates terminal output with CSS variables (`--neon-blue`, `--neon-red`, etc.). Status bar `engineMode` uses reactive styling (linked, offline, error).
+
+## 🔍 Market Discovery Methods (Registry)
 ...
 
-- `Cargo.toml`: Rust dependency manifest.
-- `src/lib.rs`: The PyO3 bridge (The Aorta).
-- `src/amm_math.rs`: Optimized AMM calculations.
-- `src/graph.rs`: Negative cycle detection (SPFA) engine.
-- `src/router.rs`: Atomic transaction routing layer.
-- `src/wss_aggregator.rs`: High-throughput WebSocket ingestion.
-- `src/slab_decoder.rs`: Fast binary decoding for DEX orderbooks.
-- `src/token2022.rs`: Support for Solana Token Extensions.
-- `src/multiverse.rs`: Parallel state simulation across multiple forks.
+PhantomArbiter maintains 5+ high-fidelity market discovery sensors:
 
-## 🐍 Intelligence Intelligence (`src/`)
+1.  **Jupiter Hub**: `src/shared/feeds/jupiter_feed.py` (Aggregator Price Discovery).
+2.  **Raydium/Orca/Meteora**: `src/shared/feeds/raydium_feed.py` (Direct Program Log Parsing).
+3.  **Tensor Janitor**: `src/shared/infrastructure/tensor_client.py` (NFT Rent-Reclaim Arb).
+4.  **Star Atlas Galaxy**: `src/shared/infrastructure/star_atlas_client.py` (z.ink L1 GraphQL).
+5.  **Drift Protocol**: `src/shared/feeds/drift_funding.py` (Perp Funding Rates).
 
-- `engines/`: Core arbitrage and scalping engines.
-    - `arb/`: Triangular and spatial arbitrage logic.
-    - `scalp/`: Short-term market-making logic.
-- `shared/`: Reusable components across all engines.
-    - `execution/`: Transaction builders, adapters, and pool registries.
-    - `feeds/`: Data ingestion from Jupiter, Raydium, and Drift.
-    - `infrastructure/`: Logging, database management, and networking.
-    - `state/`: Global application state management.
-- `services/`: Background service definitions (Discovery, API).
-- `ui/`: Terminal UI components and formatting.
-
-## 📦 Extended Ecosystem
-
-### `apps/` (Microservices)
-- `datafeed/`: Specialized service for market data ingestion.
-- `execution/`: Isolated execution backend for security.
-- `galaxy/`: Models and logic for the Galaxy integration.
-
-### `external/` (Third-Party Integration)
-- `star-atlas-dash/`: Integration for Star Atlas market data.
-- `star-atlas-cookbook/`: Wallet and player profile helpers.
-
-### `frontend/` (Web Interface)
-- `dashboard.html` & `index.html`: Web-based observability dashboards.
-- `js/` & `styles/`: Support assets for the web dashboard.
-- `templates/`: HTML templates for dynamic reporting.
-
-### `models/` (Data Persistence)
-- `ml_filter.pkl`: Pre-trained machine learning models for trade filtering.
-
-### `tools/` (Maintenance)
-- `close_dust.py`: Utility to reclaim rent from tiny SPL balances.
-- `migrate_legacy_dbs.py`: Database schema versioning tools.
-
-## 🛠️ Automated Scripts Inventory (`scripts/`)
-Detailed list of the 100+ automation scripts (Exhaustive mapping):
-- `analyze_history.py`
-- `check_balances.py`
-- `check_live_ready.py`
-- `generate_market_map.py`
-- `ghost_execute.py`
-- `reinit_db.py`
-- `run_backtest.py`
-- `verify_audit_architecture.py`
-- ... (and 90+ others mapping every facet of the system).
+---
+**Technical Note**: All modules adhere to the **Hybrid Bridge** architecture: Data Ingress (Rust) -> Strategy Logic (Python) -> Atomic Execution (Rust).
