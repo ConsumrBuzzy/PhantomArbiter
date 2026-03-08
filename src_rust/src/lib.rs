@@ -438,7 +438,7 @@ pub mod flash_cache;
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn phantom_core_bin(_py: Python, m: &PyModule) -> PyResult<()> {
+fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Graph>()?;
     m.add_class::<log_parser::SwapEvent>()?;
     m.add_class::<flash_cache::FlashCacheWriter>()?;

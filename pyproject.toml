@@ -32,7 +32,7 @@ dependencies = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-module-name = "phantom_core_bin"
+module-name = "phantom_core"
 manifest-path = "src_rust/Cargo.toml"
 
 [tool.pytest.ini_options]
