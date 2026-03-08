@@ -9,6 +9,8 @@ use solana_sdk::{
 };
 use std::str::FromStr;
 
+mod web_math;
+
 // ------------------------------------------------------------------------
 // SECTION 1: ARBITRAGE LOGIC (HOT PATH)
 // ------------------------------------------------------------------------
@@ -22,9 +24,17 @@ fn calculate_net_profit(
     jito_tip: f64,
     route_friction: f64,
 ) -> PyResult<f64> {
-    let gross = trade_size * (spread_raw / 100.0);
-    let net = gross - jito_tip - route_friction;
-    Ok(net)
+    Ok(web_math::calculate_net_profit(spread_raw, trade_size, jito_tip, route_friction))
+}
+
+#[pyfunction]
+fn calculate_optimal_size(
+    spread_pct: f64,
+    impact_factor: f64,
+    min_size: f64,
+    max_size: f64,
+) -> PyResult<f64> {
+    Ok(web_math::calculate_optimal_size(spread_pct, impact_factor, min_size, max_size))
 }
 
 /// Batch processing to eliminate FFI overhead.
@@ -59,41 +69,7 @@ fn estimate_compute_units(
     num_signers: u32,
     safety_margin_percent: f64,
 ) -> PyResult<u32> {
-    let mut estimated_cu: f64 = 0.0;
-
-    // 1. Signature Cost
-    estimated_cu += (num_signers as f64) * 1_500.0;
-
-    // 2. Serialization Overhead
-    estimated_cu += (num_accounts as f64) * 850.0;
-
-    // 3. Instruction Simulation
-    for op in ops {
-        let cost = match op.as_str() {
-            "transfer_sol" => 500.0,
-            "transfer_spl" => 4_500.0,
-            "create_ata" => 25_000.0,
-            "close_account" => 3_000.0,
-            "memo" => 100.0,
-            "raydium_swap_v4" => 80_000.0,
-            "raydium_swap_cpcc" => 120_000.0,
-            "orca_whirlpool_swap" => 145_000.0,
-            "meteora_dlmm_swap" => 70_000.0,
-            "jupiter_aggregator" => 180_000.0,
-            "phoenix_swap" => 25_000.0,
-            _ => 10_000.0,
-        };
-        estimated_cu += cost;
-    }
-
-    // 4. Safety Margin
-    estimated_cu *= 1.0 + (safety_margin_percent / 100.0);
-
-    if estimated_cu < 5_000.0 {
-        estimated_cu = 5_000.0;
-    }
-
-    Ok(estimated_cu.ceil() as u32)
+    Ok(web_math::estimate_compute_units(ops, num_accounts, num_signers, safety_margin_percent))
 }
 
 /// Liveness Check: Ensures the RPC data isn't stale.
@@ -459,6 +435,7 @@ fn phantom_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<flash_cache::FlashCacheWriter>()?;
     m.add_class::<flash_cache::FlashCacheReader>()?;
     m.add_function(wrap_pyfunction!(calculate_net_profit, m)?)?;
+    m.add_function(wrap_pyfunction!(calculate_optimal_size, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_net_profit_batch, m)?)?;
     m.add_function(wrap_pyfunction!(estimate_compute_units, m)?)?;
     m.add_function(wrap_pyfunction!(build_atomic_transaction, m)?)?;
