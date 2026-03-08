@@ -72,6 +72,15 @@ fn estimate_compute_units(
     Ok(web_math::estimate_compute_units(ops, num_accounts, num_signers, safety_margin_percent))
 }
 
+#[pyfunction]
+fn validate_execution_gate(
+    spread_pct: f64,
+    liquidity_usd: f64,
+    volatility_index: f64,
+) -> PyResult<bool> {
+    Ok(web_math::validate_execution_gate(spread_pct, liquidity_usd, volatility_index))
+}
+
 /// Liveness Check: Ensures the RPC data isn't stale.
 /// Returns error if the gap is > 2 slots.
 fn verify_slot_sync(rpc_slot: u64, jito_slot: u64) -> PyResult<()> {
