@@ -1,15 +1,15 @@
 {
     "symbol": "SOL/USD",
-    "price": 41.24,
-    "change_24h": -50.61,
+    "price": 41.23,
+    "change_24h": -50.63,
     "sources": {
         "jupiter": 0.02,
-        "coinbase": 82.46
+        "coinbase": 82.43
     },
     "status": "linked",
-    "timestamp": "2026-03-07T23:25:04.123807",
+    "timestamp": "2026-03-07T23:25:20.288503",
     "vitals": {
         "volume_24h": null,
-        "market_cap": 19589717250.0
+        "market_cap": 19582592250.000004
     }
 }
