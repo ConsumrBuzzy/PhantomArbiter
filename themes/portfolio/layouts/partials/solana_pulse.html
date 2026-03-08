@@ -1,0 +1,110 @@
+<!-- Solana Pulse Ticker: Phase 26 High-Speed Authority -->
+<div id="solana-pulse-ticker" class="pulse-ticker-container">
+    <div class="ticker-content">
+        <span class="ticker-label">SOL-PULSE</span>
+        <span id="pulse-price" class="pulse-value">--.--</span>
+        <span id="pulse-change" class="pulse-delta">--.--%</span>
+        <span id="pulse-whale-icon" class="whale-alert-icon" style="display: none;">🐋</span>
+        <span id="pulse-yield-badge" class="yield-badge" style="display: none;">APY SPIKE</span>
+    </div>
+</div>
+
+<style>
+    .pulse-ticker-container {
+        font-family: 'Roboto Mono', monospace;
+        background: rgba(10, 10, 20, 0.9);
+        border: 1px solid var(--neon-blue);
+        padding: 5px 15px;
+        border-radius: 4px;
+        color: var(--text-dim);
+        display: inline-flex;
+        align-items: center;
+        overflow: hidden;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .ticker-label {
+        color: var(--neon-blue);
+        font-weight: bold;
+        margin-right: 10px;
+        font-size: 0.85rem;
+    }
+
+    .pulse-value {
+        color: #fff;
+        font-size: 1rem;
+        margin-right: 8px;
+    }
+
+    .pulse-delta {
+        font-size: 0.85rem;
+    }
+
+    .whale-alert-icon {
+        margin-left: 10px;
+        animation: whale-glow 1.5s infinite alternate;
+    }
+
+    .yield-badge {
+        margin-left: 10px;
+        background: var(--neon-gold, #FFD700);
+        color: #000;
+        padding: 2px 6px;
+        border-radius: 2px;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+
+    /* "The Ignite" Logic */
+    .pulse-ticker-container.ignite {
+        box-shadow: 0 0 15px var(--neon-gold, #FFD700);
+        border-color: var(--neon-gold, #FFD700);
+    }
+
+    @keyframes whale-glow {
+        from { filter: drop-shadow(0 0 2px var(--neon-blue)); }
+        to { filter: drop-shadow(0 0 8px var(--neon-blue)); }
+    }
+</style>
+
+<script>
+    (function() {
+        const priceEl = document.getElementById('pulse-price');
+        const changeEl = document.getElementById('pulse-change');
+        const whaleIcon = document.getElementById('pulse-whale-icon');
+        const yieldBadge = document.getElementById('pulse-yield-badge');
+        const container = document.getElementById('solana-pulse-ticker');
+
+        async function updatePulse() {
+            try {
+                const response = await fetch('/api/v1/pulse');
+                const data = await response.json();
+
+                // 1. Update Pricing
+                priceEl.innerText = `$${data.price.sol_usd.toFixed(2)}`;
+                const change = data.price.change_24h;
+                changeEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+                changeEl.style.color = change >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+
+                // 2. Whale Detection Logic
+                whaleIcon.style.display = data.whales.length > 0 ? 'inline' : 'none';
+
+                // 3. Yield "Ignite" Logic
+                if (data.yield && data.yield.status === "SPIKE") {
+                    container.classList.add('ignite');
+                    yieldBadge.style.display = 'inline';
+                } else {
+                    container.classList.remove('ignite');
+                    yieldBadge.style.display = 'none';
+                }
+
+            } catch (err) {
+                console.error("Pulse Sync Error:", err);
+            }
+        }
+
+        // 1Hz Polling (Strategic Authority)
+        setInterval(updatePulse, 1000);
+        updatePulse();
+    })();
+</script>
